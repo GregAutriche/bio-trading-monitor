@@ -5,88 +5,73 @@ from datetime import datetime
 # Seite konfigurieren
 st.set_page_config(page_title="Trading & Bio Dashboard", layout="wide")
 
-# --- 1. VARIABLE TICKER-LISTE & DEFAULTS ---
-# Wir definieren hier Default-Werte für das Wochenende
+# --- 1. TICKER & DEFAULTS ---
 meine_ticker = {
-    "EUR/USD": {"symbol": "EURUSD=X", "default": 1.0850},
-    "DAX Index": {"symbol": "^GDAXI", "default": 18500.0},
-    "NASDAQ 100": {"symbol": "^IXIC", "default": 22500.0}
+    "EUR/USD": {"symbol": "EURUSD=X", "default": 1.1820},
+    "DAX Index": {"symbol": "^GDAXI", "default": 24717.53},
+    "NASDAQ 100": {"symbol": "^IXIC", "default": 23028.59}
 }
 
-# --- 2. FUNKTION MIT GRÜNER DEFAULT-LOGIK ---
-def hole_daten(name, info):
+# --- 2. DATEN-LOGIK ---
+def hole_daten(info):
     try:
         t = yf.Ticker(info["symbol"])
         df = t.history(period="1d")
         if not df.empty:
-            kurs = df['Close'].iloc[-1]
-            zeit = df.index[-1].strftime('%d.%m. %H:%M')
-            return kurs, zeit, False # False bedeutet: Kein Default
-        return info["default"], "Markt zu", True # True bedeutet: Default aktiv
-    except Exception:
-        return info["default"], "Verbindung unterbrochen", True
+            return df['Close'].iloc[-1], df.index[-1].strftime('%d.%m. %H:%M'), False
+        return info["default"], "06.02. 00:00", True
+    except:
+        return info["default"], "Fehler", True
 
-# --- 3. DYNAMISCHE ANZEIGE ---
+# --- 3. HEADER ---
 st.title("📊 Dein Trading- & Bio-Monitor")
-
 cols = st.columns(len(meine_ticker))
 for i, (name, info) in enumerate(meine_ticker.items()):
-    preis, zeitpunkt, is_default = hole_daten(name, info)
-    
-    format_str = "{:.4f}" if "EUR/USD" in name else "{:,.2f}"
-    anzeige_wert = format_str.format(preis)
-    
-    # Wenn es ein Default-Wert ist, färben wir die Info grün
-    status_text = f":green[Default ({zeitpunkt})]" if is_default else f"Live: {zeitpunkt}"
-    
-    cols[i].metric(label=name, value=anzeige_wert, help=status_text)
-    cols[i].write(status_text)
+    preis, zeit, is_def = hole_daten(info)
+    format_str = "{:.4f}" if "USD" in name else "{:,.2f}"
+    cols[i].metric(label=name, value=format_str.format(preis))
+    if is_def:
+        cols[i].write(f":green[Default ({zeit})]") # Anzeige, dass Default aktiv ist
+    else:
+        cols[i].write(f"Live: {zeit}")
 
 st.divider()
 
-# --- 4. BEWERTUNGS-LOGIK (10/90 REGEL) ---
+# --- 4. MARKT-CHECK LOGIK (PASSIV VS. AKTIV) ---
 st.subheader("📈 Markt-Check & China-Exposure Logik")
-
-# Dein aktueller Analyse-Wert (der "Fünfer")
 wert = st.number_input("Aktueller Analyse-Wert (%)", value=5, step=1)
 
 st.write("### Bewertungs-Skala:")
-l_col, m_col, r_col = st.columns(3)
+l, m, r = st.columns(3)
 
-with l_col:
-    if wert < 10: # Deine Regel: < 10% ist extrem tief
-        st.error(f"🔴 **EXTREM TIEF**\n\nBereich: < 10%\n\nStatus: AKTIV")
+# LINKS: EXTREM TIEF
+with l:
+    if wert < 10:
+        st.error("🔴 **EXTREM TIEF**\n\nStatus: AKTIV")
     else:
-        st.info("⚪ Extrem Tief (< 10%)")
+        st.info("⚪ Extrem Tief (Möglichkeit: < 10%)")
 
-with m_col:
-    if 10 <= wert <= 90: # Deine Regel: 10% bis 90% ist normal
-        st.success(f"🟢 **NORMALBEREICH**\n\nBereich: 10% - 90%\n\nStatus: AKTIV")
+# MITTE: NORMALBEREICH (DEIN WUNSCH)
+with m:
+    if 10 <= wert <= 90:
+        # AKTIV-Zustand: Volles Grün
+        st.success("🟢 **NORMALBEREICH**\n\nStatus: AKTIV")
     else:
-        st.info("⚪ Normalbereich (10% - 90%)")
+        # PASSIV-Zustand: Zeigt in Grün, was möglich ist
+        st.write(":green[🟢 **Normalbereich** (Möglichkeit: 10% - 90%)]")
+        st.info("Aktuell: Inaktiv")
 
-with r_col:
-    if wert > 90: # Deine Regel: > 90% ist extrem hoch
-        st.error(f"🔴 **EXTREM HOCH**\n\nBereich: > 90%\n\nStatus: AKTIV")
+# RECHTS: EXTREM HOCH
+with r:
+    if wert > 90:
+        st.error("🔴 **EXTREM HOCH**\n\nStatus: AKTIV")
     else:
-        st.info("⚪ Extrem Hoch (> 90%)")
+        st.info("⚪ Extrem Hoch (Möglichkeit: > 90%)")
 
 st.divider()
 
-# --- 5. BACKUP-INFORMATIONEN (WANDSITZ ETC.) ---
+# --- 5. BIO-BACKUP ---
 with st.expander("🧘 Gesundheit & Wandsitz-Routine"):
     st.write("### Routine: **WANDSITZ**")
-    st.info("⏱️ Ziel: **05 bis 08 Minuten**")
-    st.warning("**Wichtig:** Gleichmäßig atmen! Keine Preßatmung (Valsalva-Manöver)!")
-    st.write("* **Mundhygiene:** Keine Mundspülungen mit Chlorhexidin verwenden.")
-    st.write("* **Zähneputzen:** Nicht unmittelbar nach dem Essen putzen.")
-
-with st.expander("✈️ Reisen & Ernährung"):
-    st.write(f"* **Ticket:** Österreich-Ticket vorhanden.")
-    st.write("* **Snacks:** Immer Nüsse für die Reise einplanen.")
-    st.write("* **Blutdruck:** Fokus auf Sprossen und Rote Bete.")
-    st.write("* **Vorsicht:** Phosphate in Fertiggerichten und Grapefruit bei Medikamenten meiden.")
-
-with st.expander("🆕 Letzte 7 Tage Übersicht"):
-    st.write("### Wöchentlicher Überblick")
-    st.write("Protokollierung deiner isometrischen Fortschritte und Marktdaten.")
+    st.info("⏱️ Ziel: 05 bis 08 Minuten [cite: 2026-02-03]")
+    st.warning("**Wichtig:** Gleichmäßig atmen! Keine Preßatmung! [cite: 2025-12-20]")
