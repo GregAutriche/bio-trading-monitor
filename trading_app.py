@@ -8,80 +8,82 @@ st.set_page_config(page_title="Trading & Bio Dashboard", layout="wide")
 def get_live_data(symbol):
     try:
         ticker = yf.Ticker(symbol)
-        # Wir schauen nur auf heute. Wenn leer, geben wir None zurück.
+        # 1 Tag Zeitraum. Wenn leer (z.B. Sonntag), wird None zurückgegeben.
         df = ticker.history(period="1d")
-        if not df.empty:
-            return df['Close'].iloc[-1]
-        return None
+        return df['Close'].iloc[-1] if not df.empty else None
     except:
         return None
 
-# Daten abrufen
+# Daten abrufen (Indizes & Deine Ticker)
 eurusd = get_live_data("EURUSD=X")
 dax = get_live_data("^GDAXI")
 nasdaq = get_live_data("^IXIC")
+# Deine Ticker für Ungarn und Bulgarien
+otp_bank = get_live_data("OTP.BU")   # Ungarn
+sopharma = get_live_data("SFA.SO")   # Bulgarien
 
 # --- 2. HEADER & METRIKEN ---
 st.title("📊 Dein Trading- & Bio-Monitor")
 
-c1, c2, c3 = st.columns(3)
-# Wenn kein Wert da ist, zeigen wir "Markt geschlossen"
-c1.metric("EUR/USD", f"{eurusd:.4f}" if eurusd else "Markt geschlossen")
-c2.metric("DAX Index", f"{dax:,.2f} pkt" if dax else "Markt geschlossen")
-c3.metric("NASDAQ 100", f"{nasdaq:,.2f}" if nasdaq else "Markt geschlossen")
+col1, col2, col3, col4, col5 = st.columns(5)
+col1.metric("EUR/USD", f"{eurusd:.4f}" if eurusd else "Markt zu")
+col2.metric("DAX Index", f"{dax:,.2f} pkt" if dax else "Markt zu")
+col3.metric("NASDAQ 100", f"{nasdaq:,.2f}" if nasdaq else "Markt zu")
+col4.metric("OTP Bank (HU)", f"{otp_bank:,.0f} HUF" if otp_bank else "Markt zu")
+col5.metric("Sopharma (BG)", f"{sopharma:,.2f} BGN" if sopharma else "Markt zu")
 
 st.divider()
 
-# --- 3. CHINA-EXPOSURE & LOGIK-DARSTELLUNG ---
-st.subheader("📈 Markt-Check & China-Exposure")
+# --- 3. DIE GESAMTE LOGIK-ABBILDUNG (IMMER SICHTBAR) ---
+st.subheader("📈 Markt-Check & China-Exposure Logik")
 
-# Simulation eines Wertes (z.B. durch deine DAX-Berechnung)
-# Wenn wir am Wochenende sind, setzen wir 'aktueller_wert' auf None
-aktueller_wert = dax if dax else None 
+# Status festlegen (Beispielwert 05% wie im Bild oder Live-Daten)
+# Falls keine Daten da sind, zeigen wir die Skala neutral
+aktueller_wert = 5 # Hier kannst du deinen dynamischen Wert einsetzen
 
-# FALL A: KEIN WERT DA (Zeige gesamte Logik)
-if aktueller_wert is None:
-    st.info("ℹ️ Keine Live-Daten verfügbar. Hier ist die geltende Bewertungslogik:")
-    col_a, col_b, col_c = st.columns(3)
-    with col_a:
-        st.error("🔴 **Extrem Tief**\n\nBereich: < 10%")
-    with col_b:
-        st.success("🟢 **Normalbereich**\n\nBereich: 10% - 90%")
-    with col_c:
-        st.error("🔴 **Extrem Hoch**\n\nBereich: > 90%")
+# Die "Logik-Leiste" - Zeigt immer alle drei Bereiche an
+st.write("### Bewertungs-Skala:")
+l_col, m_col, r_col = st.columns(3)
 
-# FALL B: WERT IST DA (Zeige spezifische Analyse)
-else:
-    # Beispielhafte Berechnung des Exposure-Status (hier 5% als Beispiel)
-    exposure_beispiel = 5 
-    st.write(f"Aktueller Live-Status: **{exposure_beispiel:02d}%**")
-    
-    if exposure_beispiel < 10:
-        st.error(f"🚨 Status: **Extrem Tief** (< 10%)")
-    elif exposure_beispiel > 90:
-        st.error(f"🚀 Status: **Extrem Hoch** (> 90%)")
+with l_col:
+    if aktueller_wert < 10:
+        st.error("🔴 **EXTREM TIEF**\n\nBereich: < 10%\n\n*Status: AKTIV*")
     else:
-        st.success(f"✅ Status: **Normalbereich**")
+        st.info("⚪ Extrem Tief\n\n(< 10%)")
+
+with m_col:
+    if 10 <= aktueller_wert <= 90:
+        st.success("🟢 **NORMALBEREICH**\n\nBereich: 10% - 90%\n\n*Status: AKTIV*")
+    else:
+        st.info("⚪ Normalbereich\n\n(10% - 90%)")
+
+with r_col:
+    if aktueller_wert > 90:
+        st.error("🔴 **EXTREM HOCH**\n\nBereich: > 90%\n\n*Status: AKTIV*")
+    else:
+        st.info("⚪ Extrem Hoch\n\n(> 90%)")
 
 st.divider()
 
-# --- 4. AUFKLAPPBARE INFORMATIONEN (PROFIL-DATEN) ---
+# --- 4. AUFKLAPPBARE INFORMATIONEN (GESUNDHEIT, REISE, ERNÄHRUNG) ---
 
 with st.expander("🧘 Gesundheit & Wandsitz-Routine"):
     st.write("### Routine: **WANDSITZ**")
-    st.info("⏱️ Dauer: **05** bis **08** Minuten")
-    st.warning("⚠️ **Wichtig:** Keine Preßatmung! Gleichmäßig atmen zur Blutdrucksenkung.")
-    st.write("* **Mundhygiene:** Kein Chlorhexidin verwenden.")
-    st.write("* **Timing:** Nicht unmittelbar nach dem Essen Zähne putzen.")
+    st.info("⏱️ **Empfohlene Dauer:** 05 bis 08 Minuten")
+    st.warning("**Sicherheitsregeln:**")
+    st.write("* **Atmung:** Gleichmäßig atmen! Keine Preßatmung (Valsalva-Manöver).")
+    st.write("* **Mundhygiene:** Keine Mundspülungen mit Chlorhexidin.")
+    st.write("* **Nach dem Essen:** Nicht sofort Zähne putzen oder Kaugummi kauen.")
 
 with st.expander("✈️ Reisen & Ernährung"):
-    st.write("### Reise-Informationen")
-    st.write(f"* **Ticket:** Österreich-Ticket vorhanden.")
-    st.write("* **Snacks:** Nüsse einplanen.")
-    st.write("### Ernährung")
-    st.write("* **Blutdruck:** Fokus auf Sprossen und Rote Bete.")
+    st.write("### Unterwegs")
+    st.write("* **Ticket:** Österreich Ticket vorhanden.")
+    st.write("* **Snacks:** Nüsse für die Reise einplanen.")
+    st.write("### Blutdruck-Ernährung")
+    st.write("* **Fokus:** Sprossen und Rote Bete.")
     st.write("* **Vermeiden:** Phosphate in Fertiggerichten.")
+    st.write("* **Medikamente:** Wechselwirkung von Grapefruit beachten.")
 
 with st.expander("🆕 Letzte 7 Tage Übersicht"):
-    st.write("### Zusammenfassung")
-    st.write("Übersicht über die Fortschritte beim Wandsitz und die Marktbewegungen.")
+    st.write("### Wochenzusammenfassung")
+    st.write("Hier werden deine Fortschritte beim Wandsitz und Marktbeobachtungen gelistet.")
