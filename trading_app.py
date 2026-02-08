@@ -15,13 +15,13 @@ with w1:
     # Rote Box: Extremes Wetter (z.B. hohe Volatilität oder tiefer RSI)
     st.info("🔴 **Extrem Tief**")
     st.write("Wetter: Windstill / Frost")
-    st.caption("< 10% [cite: 2026-02-07]")
+    st.caption("< 10%")
 
 with w2:
     # Grüne Box: Normales Wetter
     st.info("🟢 **Normalbereich**")
     st.write("Wetter: Heiter bis Wolkig")
-    st.caption("10% - 90% [cite: 2026-02-07]")
+    st.caption("10% - 90%")
 
 with w3:
     # Violette Box: Extremes Wetter (z.B. Überhitzt)
@@ -60,3 +60,4 @@ with c2:
 with c3:
     st.write("🥜 Nüsse einplanen [cite: 2026-02-03]")
     st.write("🚫 Kein Chlorhexidin [cite: 2025-12-20]")
+
