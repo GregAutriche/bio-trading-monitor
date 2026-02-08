@@ -93,4 +93,12 @@ def show_table(title, symbols):
 
 col_a, col_b = st.columns(2)
 with col_a: show_table("Europa: Deine 7 Hidden Champions", champions_eu)
-wit
+with col_b: show_table("USA: Deine 7 Hidden Champions", champions_us)
+
+# --- 6. BIO-CHECK ---
+st.divider()
+st.error("⚠️ **WANDSITZ**: Ruhig atmen! Keine Pressatmung (Blutdruck-Schutz)!")
+with st.expander("🛡️ Backup-Infos (Gesundheit & Reisen)"):
+    st.write("🌱 **Blutdruck**: Sprossen & Rote Bete [cite: 2025-12-20].")
+    st.write("🥜 **Reisen**: Nüsse als Snack & Österreich Ticket [cite: 2026-01-25, 2026-02-03].")
+
