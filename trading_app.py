@@ -16,7 +16,7 @@ jetzt = datetime.now()
 ist_boersenzeit = jetzt.weekday() <= 4 and jetzt.hour >= 9
 
 # --- 3. HEADER (DEIN DESIGN) ---
-st.title("🖥️ Ansicht für Dich 🖥️")
+st.markdown("<h1 style='text-align: center;'>🖥️ Ansicht für Dich 🖥️</h1>", unsafe_allow_html=True)
 # Fixierte Startzeit laut deinem Wunsch-Design
 st.write("🚀 **Programm gestartet am:** 08.02.2026 12:02:58")
 
@@ -73,5 +73,6 @@ with st.expander("✈️ Check: Reisen"):
 # Aktualisiert das Dashboard jede Minute, um den 09:00 Uhr Start zu prüfen
 time.sleep(60)
 st.rerun()
+
 
 
