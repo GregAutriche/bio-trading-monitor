@@ -19,7 +19,7 @@ h_links, h_mitte, h_rechts = st.columns([1, 2, 1])
 
 with h_mitte:
     # Haupttitel exakt mittig
-    st.markdown("<h1 style='text-align: center;'>🖥️ Ansicht für Dich</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>🖥️ Ansicht für Dich 🖥️</h1>", unsafe_allow_html=True)
 
 with h_rechts:
     # Programmstart und Status rechtsbündig
@@ -71,3 +71,4 @@ with b2:
 # --- 7. AUTO-REFRESH ---
 time.sleep(60)
 st.rerun()
+
