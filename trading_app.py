@@ -4,7 +4,7 @@ from datetime import datetime
 import time
 
 # --- 1. SETUP & SESSION STATE ---
-st.set_page_config(page_title="Monitor für dich", layout="wide")
+st.set_page_config(page_title="Ansicht für Dich", layout="wide")
 
 if 'h_count' not in st.session_state: 
     st.session_state.h_count = 0
@@ -73,3 +73,4 @@ with st.expander("✈️ Check: Reisen"):
 # Aktualisiert das Dashboard jede Minute, um den 09:00 Uhr Start zu prüfen
 time.sleep(60)
 st.rerun()
+
