@@ -4,27 +4,20 @@ import yfinance as yf
 from datetime import datetime, time as dt_time
 import time
 
-# --- 1. SETUP & PERSISTENZ ---
+# --- 1. SETUP ---
 st.set_page_config(page_title="Monitor für dich", layout="wide")
 
 if 'h_count' not in st.session_state: 
     st.session_state.h_count = 0
 
-# --- 2. LOGIK: IST ES MONTAG NACH 9 UHR? ---
-def check_live_status():
-    jetzt = datetime.now()
-    # Wochentag: Montag ist 0
-    ist_montag_oder_später = jetzt.weekday() <= 4 
-    ist_nach_neun = jetzt.time() >= dt_time(9, 0)
-    
-    # Spezialbedingung für den Start der Woche:
-    if jetzt.weekday() == 0 and not ist_nach_neun:
-        return False # Es ist Montag, aber noch vor 9 Uhr
-    
-    if jetzt.weekday() > 4:
-        return False # Es ist Wochenende
-        
-    return ist_montag_oder_später and ist_nach_neun
+# --- 2. DIE EISERNE REGEL (KEINE LIVE-DATEN VOR MONTAG 9 UHR) ---
+jetzt = datetime.now()
+# 0=Mo, 4=Fr, 5=Sa, 6=So
+ist_werktag = jetzt.weekday() <= 4
+ist_nach_neun = jetzt.time() >= dt_time(9, 0)
+
+# Nur wenn BEIDES stimmt, wird die Analyse-Logik überhaupt geladen
+live_erlaubt = ist_werktag and ist_nach_neun
 
 # --- 3. HEADER ---
 h_links, h_mitte, h_rechts = st.columns([1, 2, 1])
@@ -32,34 +25,33 @@ with h_mitte:
     st.markdown("<h1 style='text-align: center;'>🖥️ Ansicht für Dich</h1>", unsafe_allow_html=True)
 
 with h_rechts:
-    jetzt_str = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-    st.write(f"🚀 Start: {jetzt_str}")
-    live_aktiv = check_live_status()
-    status_msg = "Live-Analyse aktiv" if live_aktiv else "Warten auf Montag 09:00 - Standby"
-    st.info(f"🕒 STATUS: {status_msg}")
+    st.write(f"🚀 Start: {jetzt.strftime('%d.%m.%Y %H:%M:%S')}")
+    if live_erlaubt:
+        st.info("🕒 STATUS: Live-Analyse aktiv")
+    else:
+        st.warning("🕒 STATUS: Standby (Start Mo-Fr 09:00)")
 
 st.divider()
 
-# --- 4. DATENABFRAGE (NUR WENN LIVE) ---
-def get_market_data():
-    if not live_aktiv:
-        return None, None, None
-    try:
-        data = yf.download(["EURUSD=X", "^GDAXI", "^IXIC"], period="1d", interval="1m", progress=False)
-        def pick(t):
-            try: return float(data['Close'][t].dropna().iloc[-1])
-            except: return None
-        return pick("EURUSD=X"), pick("^GDAXI"), pick("^IXIC")
-    except:
-        return None, None, None
-
-# --- 5. MARKT-CHECK ANZEIGE ---
+# --- 4. MARKT-CHECK ---
 st.subheader("📈 Markt-Check: Euro/USD | DAX | Nasdaq")
-val_eurusd, val_dax, val_nasdaq = get_market_data()
 m1, m2, m3 = st.columns(3)
 
+# Dummy-Werte für das Wochenende/Standby
+val_eurusd, val_dax, val_nasdaq = None, None, None
+
+if live_erlaubt:
+    try:
+        data = yf.download(["EURUSD=X", "^GDAXI", "^IXIC"], period="1d", interval="1m", progress=False)
+        if not data.empty:
+            val_eurusd = data['Close']['EURUSD=X'].iloc[-1]
+            val_dax = data['Close']['^GDAXI'].iloc[-1]
+            val_nasdaq = data['Close']['^IXIC'].iloc[-1]
+    except:
+        pass
+
 def display_metric(label, val, is_index=False):
-    if val is None:
+    if val is None or pd.isna(val):
         st.write(f"**{label}**")
         st.markdown(f"<span style='color:red; font-weight:bold;'>[No Data]</span>", unsafe_allow_html=True)
     else:
@@ -72,7 +64,7 @@ with m3: display_metric("Nasdaq", val_nasdaq, is_index=True)
 
 st.divider()
 
-# --- 6. BÖRSEN-WETTER (DIE VEREINBARTE DEFAULT ANZEIGE) ---
+# --- 5. BÖRSEN-WETTER (DIE VEREINBARTE DEFAULT ANZEIGE) ---
 st.subheader("🌦️ Börsen-Wetter (RSI Analyse)")
 
 meine_ticker = [
@@ -81,46 +73,40 @@ meine_ticker = [
 ]
 
 w1, w2, w3 = st.columns(3)
-extrem_tief, normalbereich, extrem_hoch = [], [], []
 
-# Hier wird der ValueError abgefangen:
-if not live_aktiv:
-    # Vor Montag 9 Uhr: ALLES in den Normalbereich (Default)
-    normalbereich = [(t, "Standby") for t in meine_ticker]
+# Falls nicht Mo-Fr > 9 Uhr: ALLES in den Normalbereich schieben (Default)
+if not live_erlaubt:
+    with w1:
+        st.info("🔴 Extrem Tief (RSI < 10%)")
+        st.markdown("<span style='color:red;'>[No Data]</span>", unsafe_allow_html=True)
+    with w2:
+        st.success("🟢 Normalbereich (10% - 90%)")
+        for t in meine_ticker:
+            st.write(f"{t}: Standby")
+    with w3:
+        st.warning("🟣 Extrem Hoch (RSI > 90%)")
+        st.markdown("<span style='color:red;'>[No Data]</span>", unsafe_allow_html=True)
 else:
-    # Hier würde die Berechnung stattfinden
-    normalbereich = [(t, "Berechne...") for t in meine_ticker]
-
-with w1:
-    st.info("🔴 Extrem Tief (RSI < 10%)")
-    if not extrem_tief: st.markdown("<span style='color:red;'>[No Data]</span>", unsafe_allow_html=True)
-
-with w2:
-    st.success("🟢 Normalbereich (10% - 90%)")
-    for t, v in normalbereich:
-        st.write(f"{t}: {v}")
-
-with w3:
-    st.warning("🟣 Extrem Hoch (RSI > 90%)")
-    if not extrem_hoch: st.markdown("<span style='color:red;'>[No Data]</span>", unsafe_allow_html=True)
+    # Hier würde nur Montag-Freitag nach 9 Uhr die echte RSI-Logik laufen
+    st.write("Berechne Live-Daten...")
 
 st.divider()
 
-# --- 7. BIO-CHECK & SICHERHEIT ---
+# --- 6. BIO-CHECK & GESUNDHEIT ---
 st.subheader("🧘 Dein Bio-Check")
-b1, b2 = st.columns([1, 1])
+b1, b2 = st.columns(2)
 
 with b1:
     if st.button(f"Wandsitz erledigt (Heute: {st.session_state.h_count}x)"):
         st.session_state.h_count += 1
         st.rerun()
-    st.error("WANDSITZ-WARNUNG: Keine Pressatmung! Atmen!")
+    st.error("WANDSITZ: Atmen! Keine Pressatmung (Gefahr bei Blutdruck)!")
 
 with b2:
-    with st.expander("✈️ Reisen & Gesundheit (Backup)"):
-        st.write("🥜 Nüsse & Sprossen/Rote Bete")
-        st.write("⚠️ Kein Chlorhexidin / Keine Phosphate")
+    with st.expander("✈️ Reisen & Backup-Infos"):
+        st.write("🥜 Nüsse für Reisen einplanen")
+        st.write("🌱 Sprossen / Rote Bete für Blutdruck")
+        st.write("⚠️ Keine Mundspülung (Chlorhexidin) / Keine Phosphate")
 
-# Automatischer Refresh jede Minute
 time.sleep(60)
 st.rerun()
