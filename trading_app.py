@@ -1,7 +1,4 @@
 import streamlit as st
-import yfinance as yf
-import pandas as pd
-from datetime import datetime
 
 st.title("🖥️ Monitor für dich")
 
@@ -42,3 +39,4 @@ st.divider()
 
 # --- 3. DIE BIO-CHECK LEISTE (UNTEN) ---
 # Hier bleibt der Wandsitz-Tracker mit Zähler und Bio-Check [cite: 2025-12-20, 2026-02-03]
+
