@@ -122,10 +122,17 @@ else:
         else:
             normalbereich.append((t, "[Berechnet...]"))
 
+with w1:
+    st.info("🔴 Extrem Tief (RSI < 10%)")
+    if not extrem_tief: st.markdown(no_data_red, unsafe_allow_html=True)
+    for t, v in extrem_tief: st.write(f"**{t}**: {v:.2f}%")
+
 with w2:
     st.success("🟢 Normalbereich (10% - 90%)")
-    if not normalbereich: st.markdown(no_data_red, unsafe_allow_html=True)
-    for t, v in normalbereich: st.write(f"{t}: {v:.2f}%")
+    # Hier werden am Wochenende alle Ticker gelistet
+    for t, v in normalbereich: 
+        val_str = f"{v:.2f}%" if isinstance(v, float) else v
+        st.write(f"{t}: {val_str}")
 
 with w3:
     st.warning("🟣 Extrem Hoch (RSI > 90%)")
@@ -142,16 +149,12 @@ with b1:
     if st.button(f"Wandsitz erledigt (Heute: {st.session_state.h_count}x)"):
         st.session_state.h_count += 1
         st.rerun()
-    # Warnung Wandsitz
-    st.error("ACHTUNG: Atmen! Keine Pressatmung während des isometrischen Trainings!")
+    st.error("WANDSITZ: Atmen! Keine Pressatmung!")
 
 with b2:
     with st.expander("✈️ Reisen & Gesundheit"):
-        # Backup-Informationen
-        st.write("🥜 Nüsse einplanen (Snack für Reisen)")
-        st.write("🌱 Sprossen / Rote Bete (Blutdrucksenkung)")
-        st.write("⚠️ Keine Mundspülungen (Chlorhexidin) / Keine Phosphate")
+        st.write("🥜 Nüsse & Sprossen/Rote Bete")
+        st.write("⚠️ Kein Chlorhexidin / Keine Phosphate")
 
 time.sleep(60)
 st.rerun()
-
