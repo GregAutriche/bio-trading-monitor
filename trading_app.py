@@ -96,4 +96,9 @@ with b1:
 with b2:
     with st.expander("✈️ Check: Reisen"):
         st.write("🥜 Nüsse einplanen")
-        st.write("🌱 Spro
+        st.write("🌱 Sprossen / Rote Bete")
+        st.write("⚠️ Keine Mundspülung (Chlorhexidin) / Keine Phosphate")
+
+# --- 6. AUTO-REFRESH ---
+time.sleep(60)
+st.rerun()
