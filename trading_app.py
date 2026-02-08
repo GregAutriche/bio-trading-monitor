@@ -2,52 +2,62 @@ import streamlit as st
 import yfinance as yf
 from datetime import datetime
 
-# --- 1. START-ZEILE (Wie vereinbart) ---
+# --- 1. START-ZEILE ---
 jetzt = datetime.now()
 tage = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
 heute_name = tage[jetzt.weekday()]
-
 st.markdown(f"## Start: {heute_name}, {jetzt.strftime('%Y %m %d %H:%M:%S')}")
 st.divider()
 
-# --- 2. MARKT-CHECK ---
-st.subheader("💹 Markt-Check: Euro/USD | DAX | Nasdaq")
+# --- 2. MARKT-CHECK (PRÄZISE FORMATIERUNG) ---
+st.subheader("💹 Markt-Check")
 
-def get_data(symbol):
+def get_format_data(symbol, decimals=2):
     try:
         t = yf.Ticker(symbol)
-        # Am Wochenende wird der letzte Schlusskurs geladen
         d = t.history(period="1d")
-        return round(d['Close'].iloc[-1], 2) if not d.empty else "N/A"
+        if not d.empty:
+            val = d['Close'].iloc[-1]
+            # Formatiert mit Tausender-Punkt und Komma
+            return f"{val:,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return "N/A"
     except: return "Error"
 
-m1, m2, m3 = st.columns(3)
-with m1: st.metric("Euro/USD", get_data("EURUSD=X"))
-with m2: st.metric("DAX", get_data("^GDAXI"))
-with m3: st.metric("Nasdaq", get_data("^IXIC"))
+c1, c2, c3 = st.columns(3)
+with c1: st.metric("Euro/USD", get_format_data("EURUSD=X", 4)) # 4 Stellen wie vereinbart
+with c2: st.metric("DAX", get_format_data("^GDAXI", 2))
+with c3: st.metric("Nasdaq", get_format_data("^IXIC", 2))
 
 st.divider()
 
-# --- 3. DIE 14 VEREINBARTEN AKTIEN (7x EUROPA & 7x USA) ---
+# --- 3. DIE 14 AKTIEN (RECHTSBÜNDIG & EINHEITLICH) ---
 st.subheader("🇪🇺 7x Europa & 🇺🇸 7x USA")
 
-# Europa (inkl. HU-Titel als Teil der 7)
 europa = ["OTP.BU", "MOL.BU", "ADS.DE", "SAP.DE", "ASML.AS", "MC.PA", "SIE.DE"]
 usa = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA"]
 
-c_eu, c_us = st.columns(2)
-with c_eu:
-    for t in europa: st.write(f"🇪🇺 {t}: {get_data(t)}")
-with c_us:
-    for t in usa: st.write(f"🇺🇸 {t}: {get_data(t)}")
+col_eu, col_us = st.columns(2)
+
+def show_aligned_list(title, tickers):
+    st.markdown(f"**{title}**")
+    for t in tickers:
+        preis = get_format_data(t, 2)
+        # HTML/CSS für rechtsbündige Ausrichtung der Zahlen
+        st.markdown(f"""
+            <div style="display: flex; justify-content: space-between; font-family: monospace; max-width: 300px;">
+                <span>{t}</span>
+                <span>{preis}</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+with col_eu: show_aligned_list("Europa Portfolio", europa)
+with col_us: show_aligned_list("USA Portfolio", usa)
 
 st.divider()
 
-# --- 4. BIO-CHECK & BACKUP (Zusammenfassung) ---
+# --- 4. BIO-CHECK & BACKUP ---
 st.subheader("🧘 Bio-Check & Sicherheit")
 st.error("⚠️ WANDSITZ: Atmen! Keine Pressatmung (Blutdruck)! [cite: 2025-12-20]")
-
-with st.expander("🛡️ Backup-Informationen"):
-    st.write("🌱 **Blutdruck**: Sprossen & Rote Bete nutzen [cite: 2025-12-20]")
-    st.write("🥜 **Reisen**: Nüsse als Snack & Österreich Ticket [cite: 2026-02-03, 2026-01-25]")
-    st.write("🚫 **Warnung**: Keine Mundspülung mit Chlorhexidin [cite: 2025-12-20]")
+with st.expander("🛡️ Backup-Infos"):
+    st.write("🌱 **Blutdruck**: Sprossen & Rote Bete [cite: 2025-12-20]")
+    st.write("🥜 **Reise**: Nüsse & Österreich Ticket [cite: 2026-02-03, 2026-01-25]")
