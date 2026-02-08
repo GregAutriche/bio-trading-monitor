@@ -59,7 +59,7 @@ m1, m2, m3 = st.columns(3)
 
 def display_metric(label, val, is_index=False):
     if val is None or pd.isna(val):
-        st.write(f"**{label}**")
+        st.write(f"*{label}*")
         st.markdown(f"<span style='color:red; font-weight:bold;'>[No Data]</span>", unsafe_allow_html=True)
     else:
         if is_index:
@@ -102,7 +102,7 @@ for t in meine_ticker:
 with w1:
     st.error("🔴 Eiszeit / Frost (RSI < 10%)")
     if not eiszeit: st.markdown(no_data_html, unsafe_allow_html=True)
-    for t, v in eiszeit: st.write(f"**{t}**: {v:.2f}%")
+    for t, v in eiszeit: st.write(f"*{t}*: {v:.2f}%")
 
 with w2:
     st.success("🟢 Sonnig / Heiter (10% - 90%)")
@@ -112,7 +112,7 @@ with w2:
 with w3:
     st.warning("🟣 Sturm / Gewitter (RSI > 90%)")
     if not sturm: st.markdown(no_data_html, unsafe_allow_html=True)
-    for t, v in sturm: st.write(f"⚠️ **{t}**: {v:.2f}%")
+    for t, v in sturm: st.write(f"⚠️ *{t}*: {v:.2f}%")
 
 st.divider()
 
@@ -124,7 +124,7 @@ with b1:
     if st.button(f"Wandsitz erledigt (Heute: {st.session_state.h_count}x)"):
         st.session_state.h_count += 1
         st.rerun()
-        st.error("ACHTUNG: Atmen! Keine Pressatmung!")
+    st.error("ACHTUNG: Atmen! Keine Pressatmung!")
 
 with b2:
     with st.expander("✈️ Check: Reisen"):
