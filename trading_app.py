@@ -10,14 +10,14 @@ st.set_page_config(page_title="Monitor für dich", layout="wide")
 if 'h_count' not in st.session_state: 
     st.session_state.h_count = 0
 
-# --- 2. DIE EISERNE REGEL (KEINE LIVE-DATEN VOR MONTAG 9 UHR) ---
+# --- 2. DIE ZEIT-SCHRANKE (KEINE FOLTER MEHR) ---
 jetzt = datetime.now()
 # 0=Mo, 4=Fr, 5=Sa, 6=So
 ist_werktag = jetzt.weekday() <= 4
 ist_nach_neun = jetzt.time() >= dt_time(9, 0)
 
-# Nur wenn BEIDES stimmt, wird die Analyse-Logik überhaupt geladen
-live_erlaubt = ist_werktag and ist_nach_neun
+# Das System geht NUR in den Live-Modus, wenn es Montag-Freitag UND nach 9 Uhr ist.
+live_aktiv = ist_werktag and ist_nach_neun
 
 # --- 3. HEADER ---
 h_links, h_mitte, h_rechts = st.columns([1, 2, 1])
@@ -26,10 +26,8 @@ with h_mitte:
 
 with h_rechts:
     st.write(f"🚀 Start: {jetzt.strftime('%d.%m.%Y %H:%M:%S')}")
-    if live_erlaubt:
-        st.info("🕒 STATUS: Live-Analyse aktiv")
-    else:
-        st.warning("🕒 STATUS: Standby (Start Mo-Fr 09:00)")
+    status_text = "Live-Analyse aktiv" if live_aktiv else "Warten auf Montag 09:00"
+    st.info(f"🕒 STATUS: {status_text}")
 
 st.divider()
 
@@ -37,16 +35,16 @@ st.divider()
 st.subheader("📈 Markt-Check: Euro/USD | DAX | Nasdaq")
 m1, m2, m3 = st.columns(3)
 
-# Dummy-Werte für das Wochenende/Standby
 val_eurusd, val_dax, val_nasdaq = None, None, None
 
-if live_erlaubt:
+if live_aktiv:
     try:
         data = yf.download(["EURUSD=X", "^GDAXI", "^IXIC"], period="1d", interval="1m", progress=False)
         if not data.empty:
-            val_eurusd = data['Close']['EURUSD=X'].iloc[-1]
-            val_dax = data['Close']['^GDAXI'].iloc[-1]
-            val_nasdaq = data['Close']['^IXIC'].iloc[-1]
+            # Einzelwerte sicher ziehen
+            val_eurusd = data['Close']['EURUSD=X'].iloc[-1] if 'EURUSD=X' in data['Close'] else None
+            val_dax = data['Close']['^GDAXI'].iloc[-1] if '^GDAXI' in data['Close'] else None
+            val_nasdaq = data['Close']['^IXIC'].iloc[-1] if '^IXIC' in data['Close'] else None
     except:
         pass
 
@@ -64,7 +62,7 @@ with m3: display_metric("Nasdaq", val_nasdaq, is_index=True)
 
 st.divider()
 
-# --- 5. BÖRSEN-WETTER (DIE VEREINBARTE DEFAULT ANZEIGE) ---
+# --- 5. BÖRSEN-WETTER (DEFAULT ANZEIGE) ---
 st.subheader("🌦️ Börsen-Wetter (RSI Analyse)")
 
 meine_ticker = [
@@ -74,8 +72,8 @@ meine_ticker = [
 
 w1, w2, w3 = st.columns(3)
 
-# Falls nicht Mo-Fr > 9 Uhr: ALLES in den Normalbereich schieben (Default)
-if not live_erlaubt:
+# Wir erzwingen die Default-Anzeige, solange nicht live_aktiv ist
+if not live_aktiv:
     with w1:
         st.info("🔴 Extrem Tief (RSI < 10%)")
         st.markdown("<span style='color:red;'>[No Data]</span>", unsafe_allow_html=True)
@@ -87,26 +85,26 @@ if not live_erlaubt:
         st.warning("🟣 Extrem Hoch (RSI > 90%)")
         st.markdown("<span style='color:red;'>[No Data]</span>", unsafe_allow_html=True)
 else:
-    # Hier würde nur Montag-Freitag nach 9 Uhr die echte RSI-Logik laufen
+    # Nur wenn live_aktiv=True ist, würde hier der RSI-Code laufen
     st.write("Berechne Live-Daten...")
 
 st.divider()
 
-# --- 6. BIO-CHECK & GESUNDHEIT ---
+# --- 6. BIO-CHECK & BACKUP ---
 st.subheader("🧘 Dein Bio-Check")
 b1, b2 = st.columns(2)
 
 with b1:
-    if st.button(f"Wandsitz erledigt (Heute: {st.session_state.h_count}x)"):
+       if st.button(f"Wandsitz erledigt (Heute: {st.session_state.h_count}x)"):
         st.session_state.h_count += 1
         st.rerun()
-    st.error("WANDSITZ: Atmen! Keine Pressatmung (Gefahr bei Blutdruck)!")
+    st.error("WANDSITZ: Bitte atmen! Keine Pressatmung halten!")
 
 with b2:
     with st.expander("✈️ Reisen & Backup-Infos"):
-        st.write("🥜 Nüsse für Reisen einplanen")
-        st.write("🌱 Sprossen / Rote Bete für Blutdruck")
-        st.write("⚠️ Keine Mundspülung (Chlorhexidin) / Keine Phosphate")
+        st.write("🥜 Nüsse für Reisen")
+        st.write("🌱 Sprossen & Rote Bete")
+        st.write("⚠️ Keine Mundspülung / Keine Phosphate")
 
 time.sleep(60)
 st.rerun()
