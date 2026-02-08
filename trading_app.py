@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
-from datetime import datetime
+from datetime import datetime, time as dt_time
 import time
 
 # --- 1. SETUP ---
@@ -10,26 +10,39 @@ st.set_page_config(page_title="Monitor für dich", layout="wide")
 if 'h_count' not in st.session_state: 
     st.session_state.h_count = 0
 
-# --- 2. HEADER ---
+# --- 2. HANDELSZEITEN-CHECK ---
+def ist_handelszeit():
+    jetzt = datetime.now()
+    # Montag=0, Freitag=4
+    if jetzt.weekday() > 4:
+        return False
+    # Handelsbeginn 09:00 Uhr
+    if jetzt.time() < dt_time(9, 0):
+        return False
+    return True
+
+# --- 3. HEADER ---
 h_links, h_mitte, h_rechts = st.columns([1, 2, 1])
 
 with h_mitte:
     st.markdown("<h1 style='text-align: center;'>🖥️ Ansicht für Dich</h1>", unsafe_allow_html=True)
 
 with h_rechts:
-    jetzt = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-    st.write(f"🚀 Start: {jetzt}")
-    st.info("🕒 STATUS: Live-Analyse aktiv")
+    jetzt_str = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+    st.write(f"🚀 Start: {jetzt_str}")
+    status = "Aktiv" if ist_handelszeit() else "Warten auf Handelsbeginn (09:00)"
+    st.info(f"🕒 STATUS: {status}")
 
 st.divider()
 
-# --- 3. DATENABFRAGE & RSI LOGIK ---
+# --- 4. DATENABFRAGE & RSI LOGIK ---
 def calculate_rsi(ticker_symbol, periods=14):
+    if not ist_handelszeit():
+        return None
     try:
         data = yf.download(ticker_symbol, period="1mo", interval="1d", progress=False)
         if data.empty or len(data) < periods: return None
         
-        # Sicherstellen, dass wir nur die 'Close' Spalte als Series haben
         close = data['Close']
         if isinstance(close, pd.DataFrame):
             close = close.iloc[:, 0]
@@ -50,6 +63,8 @@ def calculate_rsi(ticker_symbol, periods=14):
         return None
 
 def get_market_data():
+    if not ist_handelszeit():
+        return None, None, None
     try:
         data = yf.download(["EURUSD=X", "^GDAXI", "^IXIC"], period="1d", interval="1m", progress=False)
         def get_last(ticker):
@@ -62,7 +77,7 @@ def get_market_data():
     except:
         return None, None, None
 
-# --- 4. MARKT-CHECK ---
+# --- 5. MARKT-CHECK ---
 st.subheader("📈 Markt-Check: Euro/USD | DAX | Nasdaq")
 val_eurusd, val_dax, val_nasdaq = get_market_data()
 m1, m2, m3 = st.columns(3)
@@ -84,7 +99,7 @@ with m3: display_metric("Nasdaq", val_nasdaq, is_index=True)
 
 st.divider()
 
-# --- 5. BÖRSEN-WETTER ---
+# --- 6. BÖRSEN-WETTER ---
 st.subheader("🌦️ Börsen-Wetter (Live RSI Sortierung)")
 
 meine_ticker = [
@@ -97,16 +112,13 @@ no_data_html = "<span style='color:red; font-weight:bold;'>[No Data]</span>"
 
 eiszeit, sonnig, sturm = [], [], []
 
-for t in meine_ticker:
-    rsi_val = calculate_rsi(t)
-    if rsi_val is None:
-        continue
-    if rsi_val < 10:
-        eiszeit.append((t, rsi_val))
-    elif rsi_val > 90:
-        sturm.append((t, rsi_val))
-    else:
-        sonnig.append((t, rsi_val))
+if ist_handelszeit():
+    for t in meine_ticker:
+        rsi_val = calculate_rsi(t)
+        if rsi_val is None: continue
+        if rsi_val < 10: eiszeit.append((t, rsi_val))
+        elif rsi_val > 90: sturm.append((t, rsi_val))
+        else: sonnig.append((t, rsi_val))
 
 with w1:
     st.info("🔴 Eiszeit / Frost (RSI < 10%)")
@@ -125,7 +137,7 @@ with w3:
 
 st.divider()
 
-# --- 6. BIO-CHECK ---
+# --- 7. BIO-CHECK ---
 st.subheader("🧘 Dein Bio-Check")
 b1, b2 = st.columns([1, 1])
 
