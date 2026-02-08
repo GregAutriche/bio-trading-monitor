@@ -91,4 +91,4 @@ st.error("⚠️ **WANDSITZ**: Ruhig atmen! Keine Pressatmung (Blutdruck-Schutz)
 with st.expander("🛡️ Backup-Informationen (Gesundheit & Reisen)"):
     st.write("🌱 **Blutdruck**: Sprossen & Rote Bete (natürliche Senker) [cite: 2025-12-20].")
     st.write("🚫 **Warnung**: Keine Mundspülungen mit Chlorhexidin verwenden [cite: 2025-12-20].")
-    st.write("🥜 **Reisen**: Nüsse als Snack & Österreich Ticket sind bereit [cite: 2026-01-25,
+    st.write("🥜 **Reisen**: Nüsse als Snack & Österreich Ticket sind bereit [cite: 2026-01-25,2026-02-03].")
