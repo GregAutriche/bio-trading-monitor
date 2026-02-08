@@ -1,11 +1,12 @@
 import streamlit as st
 import yfinance as yf
+from datetime import datetime  # Wichtig für den Zeitstempel-Fix
 
 # Seite konfigurieren
 st.set_page_config(page_title="Trading & Bio Dashboard", layout="wide")
 
-# --- 1. VARIABLE TICKER-LISTE ---
-# Hier kannst du jederzeit neue Symbole hinzufügen oder löschen
+# --- 1. VARIABLE TICKER-LISTE (Zentral steuerbar) ---
+# Du kannst hier jederzeit Paare hinzufügen oder entfernen
 meine_ticker = {
     "EUR/USD": "EURUSD=X",
     "DAX Index": "^GDAXI",
@@ -18,13 +19,14 @@ meine_ticker = {
 def hole_daten(symbol):
     try:
         t = yf.Ticker(symbol)
-        # Versuch, 1m-Daten für exakte Uhrzeit zu laden
+        # 1m-Intervall für die exakte Zeit am Handelstag
         df = t.history(period="1d", interval="1m")
         if df.empty:
             df = t.history(period="1d")
         
         if not df.empty:
             kurs = df['Close'].iloc[-1]
+            # Zeitstempel formatieren
             zeit = df.index[-1].strftime('%d.%m. %H:%M')
             return kurs, zeit
         return None, "Keine Daten"
@@ -34,54 +36,64 @@ def hole_daten(symbol):
 # --- 3. DYNAMISCHE ANZEIGE DER WERTE ---
 st.title("📊 Dein Trading- & Bio-Monitor")
 
-# Wir erstellen automatisch so viele Spalten, wie Ticker in der Liste sind
+# Erstellt automatisch Spalten basierend auf der Anzahl deiner Ticker
 cols = st.columns(len(meine_ticker))
 
 for i, (name, symbol) in enumerate(meine_ticker.items()):
     preis, zeitpunkt = hole_daten(symbol)
     
-    # Formatierung je nach Wert (Währung vs. Index)
-    format_str = "{:.4f}" if "USD" in name else "{:,.2f}"
+    # Dezimalstellen je nach Typ anpassen
+    format_str = "{:.4f}" if "EUR/USD" in name else "{:,.2f}"
     
     cols[i].metric(
         label=name, 
         value=format_str.format(preis) if preis else "Markt zu",
-        help=f"Letzter Tick: {zeitpunkt}"
+        help=f"Daten von: {zeitpunkt}"
     )
 
-st.caption(f"Letzte Aktualisierung der variablen Liste: {datetime.now().strftime('%H:%M:%S')} Uhr")
+# Fix für den Zeitstempel unter den Werten
+st.caption(f"Letzte Aktualisierung der Liste: {datetime.now().strftime('%H:%M:%S')} Uhr")
 st.divider()
 
-# --- 4. CHINA-EXPOSURE LOGIK (10/90 REGEL) ---
+# --- 4. BEWERTUNGS-LOGIK (10/90 REGEL) ---
 st.subheader("📈 Markt-Check & China-Exposure Logik")
-# Der 'Fünfer' (05%) aus deinem Screenshot
+
+# Das Eingabefeld mit +/- (dein "Fünfer")
 wert = st.number_input("Aktueller Analyse-Wert (%)", value=5, step=1)
 
-l, m, r = st.columns(3)
-with l:
+st.write("### Bewertungs-Skala:")
+l_col, m_col, r_col = st.columns(3)
+
+with l_col:
     if wert < 10:
         st.error(f"🔴 **EXTREM TIEF**\n\nBereich: < 10%\n\nStatus: AKTIV")
     else:
-        st.info("⚪ Extrem Tief (< 10%)")
-with m:
+        st.info("⚪ Extrem Tief\n\n(< 10%)")
+
+with m_col:
     if 10 <= wert <= 90:
-        st.success(f"🟢 **NORMALBEREICH**\n\nBereich: 10% - 90%")
+        st.success("🟢 **NORMALBEREICH**\n\nBereich: 10% - 90%")
     else:
-        st.info("⚪ Normalbereich (10% - 90%)")
-with r:
+        st.info("⚪ Normalbereich\n\n(10% - 90%)")
+
+with r_col:
     if wert > 90:
         st.error(f"🔴 **EXTREM HOCH**\n\nBereich: > 90%")
     else:
-        st.info("⚪ Extrem Hoch (> 90%)")
+        st.info("⚪ Extrem Hoch\n\n(> 90%)")
 
 st.divider()
 
-# --- 5. BACKUP-INFOS IN EXPANDERN ---
-with st.expander("🧘 Gesundheit & Routine"):
-    st.write("### Routine: WANDSITZ")
-    st.info("⏱️ Dauer: 05 bis 08 Minuten")
-    st.warning("⚠️ Atem-Check: Gleichmäßig atmen, keine Preßatmung!")
+# --- 5. BIO-ROUTINEN (EXPANDER) ---
+with st.expander("🧘 Gesundheit & Wandsitz-Routine"):
+    st.write("### Routine: **WANDSITZ**")
+    st.info("⏱️ Dauer: **05** bis **08** Minuten")
+    st.warning("**Sicherheitsregeln:**")
+    st.write("* **Atmung:** Gleichmäßig atmen! Keine Preßatmung (Valsalva-Manöver).")
+    st.write("* **Mundhygiene:** Keine Mundspülungen mit Chlorhexidin verwenden.")
 
 with st.expander("✈️ Reisen & Ernährung"):
-    st.write(f"🎫 **Ticket:** Österreich Ticket vorhanden")
-    st.write("🥗 **Ernährung:** Fokus auf Sprossen und Rote Bete")
+    st.write(f"* **Ticket:** Österreich-Ticket vorhanden.")
+    st.write("* **Snacks:** Nüsse für die Reise einplanen.")
+    st.write("* **Fokus:** Sprossen und Rote Bete zur Blutdrucksenkung.")
+    st.write("* **Vermeiden:** Phosphate in Fertiggerichten.")
