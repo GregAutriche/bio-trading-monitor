@@ -10,37 +10,45 @@ st.markdown(f"## Start: {heute_name}, {jetzt.strftime('%Y %m %d %H:%M:%S')}")
 st.divider()
 
 # --- 2. MARKT-CHECK FUNKTION ---
-def get_format_data(symbol, decimals=2):
+def get_market_data(symbol, decimals=2):
     try:
         t = yf.Ticker(symbol)
-        # Wir laden 5 Tage, um sicher den letzten Freitag zu finden (wichtig für N/A Titel)
+        # 5 Tage laden, um am Wochenende sicher Daten zu haben
         d = t.history(period="5d")
         if not d.empty:
             val = d['Close'].iloc[-1]
-            return f"{val:,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        return "Lädt..."
-    except: return "Fehler"
+            prev = d['Close'].iloc[-2]
+            diff = ((val - prev) / prev) * 100
+            formatted = f"{val:,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            return formatted, diff
+        return "N/A", 0
+    except: return "N/A", 0
 
 st.subheader("💹 Markt-Check")
 c1, c2, c3 = st.columns(3)
-with c1: st.metric("Euro/USD", get_format_data("EURUSD=X", 4))
-with c2: st.metric("DAX", get_format_data("^GDAXI", 2))
-with c3: st.metric("Nasdaq", get_format_data("^IXIC", 2))
+for col, (label, sym, dec) in zip([c1, c2, c3], [("Euro/USD", "EURUSD=X", 4), ("DAX", "^GDAXI", 2), ("Nasdaq", "^IXIC", 2)]):
+    val, _ = get_market_data(sym, dec)
+    col.metric(label, val)
 st.divider()
 
-# --- 3. DIE 14 AKTIEN (RECHTSBÜNDIG OHNE N/A) ---
+# --- 3. DIE 14 AKTIEN (7x EUROPA & 7x USA) ---
+# Überschrift ohne "No Data" Hinweis
 st.subheader("🇪🇺 7x Europa & 🇺🇸 7x USA")
+
 europa = ["OTP.BU", "MOL.BU", "ADS.DE", "SAP.DE", "ASML.AS", "MC.PA", "SIE.DE"]
 usa = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA"]
 
 def show_aligned_list(title, tickers):
     st.markdown(f"**{title}**")
     for t in tickers:
-        preis = get_format_data(t, 2)
+        preis, diff = get_market_data(t, 2)
+        # Farb-Logik: Grün für Plus, Rot für Minus, Gelb für Neutral/Wochenende
+        farbe = "#28a745" if diff > 0.01 else "#dc3545" if diff < -0.01 else "#ffc107"
+        
         st.markdown(f"""
-            <div style="display: flex; justify-content: space-between; font-family: 'Courier New', monospace; font-size: 1.1rem; border-bottom: 1px solid #f0f2f6; padding: 2px 0;">
+            <div style="display: flex; justify-content: space-between; font-family: monospace; font-size: 1.1rem; border-bottom: 1px solid #f0f2f6; padding: 2px 0;">
                 <span>{t}</span>
-                <span style="font-weight: bold;">{preis}</span>
+                <span style="color: {farbe}; font-weight: bold;">{preis}</span>
             </div>
             """, unsafe_allow_html=True)
 
@@ -53,6 +61,5 @@ st.divider()
 st.subheader("🧘 Bio-Check & Sicherheit")
 st.error("⚠️ WANDSITZ: Atmen! Keine Pressatmung (Blutdruck)! [cite: 2025-12-20]")
 with st.expander("🛡️ Backup-Infos"):
-    st.write("🌱 **Blutdruck**: Sprossen & Rote Bete nutzen [cite: 2025-12-20]")
-    st.write("🥜 **Reise**: Nüsse als Snack & Österreich Ticket aktiv [cite: 2026-02-03, 2026-01-25]")
-    st.write("🚫 **Hygiene**: Keine Mundspülung (Chlorhexidin) [cite: 2025-12-20]")
+    st.write("🌱 **Blutdruck**: Sprossen & Rote Bete [cite: 2025-12-20]")
+    st.write("🥜 **Reise**: Nüsse & Österreich Ticket [cite: 2026-01-25, 2026-02-03]")
