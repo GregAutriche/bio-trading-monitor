@@ -23,31 +23,32 @@ with h_rechts:
 
 st.divider()
 
-# --- 3. MARKT-CHECK (Logik für "No Data" & Formatierung) ---
+# --- 3. MARKT-CHECK (Formatierung & Rote [No Data] Logik) ---
 st.subheader("📈 Markt-Check: Euro/USD | DAX | Nasdaq")
 m1, m2, m3 = st.columns(3)
 
-# Funktion zur sicheren Formatierung
-def format_val(val, precision, is_index=False):
-    if val is None or val == 0:
-        return "No Data"
-    if is_index:
-        # 2 Stellen + Tausendertrenner
-        return f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    # Währung: 4 Stellen
-    return f"{val:.4f}"
+def display_metric(label, val, precision, is_index=False):
+    if val is None:
+        st.write(f"**{label}**")
+        st.markdown(f"<span style='color:red; font-weight:bold;'>[No Data]</span>", unsafe_allow_html=True)
+    else:
+        if is_index:
+            formatted = f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        else:
+            formatted = f"{val:.4f}"
+        st.metric(label, formatted)
 
-# Platzhalter (Diese Variablen werden in der Live-Version durch yfinance-Daten gefüllt)
+# Platzhalter für die Daten (None simuliert fehlende Daten)
 val_eurusd = None 
 val_dax = None
 val_nasdaq = None
 
 with m1: 
-    st.metric("Euro/USD", format_val(val_eurusd, 4))
+    display_metric("Euro/USD", val_eurusd, 4)
 with m2: 
-    st.metric("DAX", format_val(val_dax, 2, is_index=True))
+    display_metric("DAX", val_dax, 2, is_index=True)
 with m3: 
-    st.metric("Nasdaq", format_val(val_nasdaq, 2, is_index=True))
+    display_metric("Nasdaq", val_nasdaq, 2, is_index=True)
 
 st.divider()
 
@@ -57,23 +58,25 @@ meine_titel = []
 
 w1, w2, w3 = st.columns(3)
 
+no_data_html = "<span style='color:red; font-weight:bold;'>[No Data]</span>"
+
 with w1:
     st.info("🔴 Eiszeit / Frost (RSI < 10%)")
-    if not meine_titel: st.write("No Data")
+    if not meine_titel: st.markdown(no_data_html, unsafe_allow_html=True)
     for t in meine_titel:
         if t.get("rsi") is not None and t["rsi"] < 10:
             st.write(f"{t['name']} ({t['ticker']}): {t['rsi']}%")
     
 with w2:
     st.info("🟢 Sonnig / Heiter (10% - 90%)")
-    if not meine_titel: st.write("No Data")
+    if not meine_titel: st.markdown(no_data_html, unsafe_allow_html=True)
     for t in meine_titel:
         if t.get("rsi") is not None and 10 <= t["rsi"] <= 90:
             st.write(f"{t['name']}: {t['rsi']}%")
     
 with w3:
     st.info("🟣 Sturm / Gewitter (RSI > 90%)")
-    if not meine_titel: st.write("No Data")
+    if not meine_titel: st.markdown(no_data_html, unsafe_allow_html=True)
     for t in meine_titel:
         if t.get("rsi") is not None and t["rsi"] > 90:
             st.write(f"{t['name']}: {t['rsi']}%")
@@ -93,9 +96,4 @@ with b1:
 with b2:
     with st.expander("✈️ Check: Reisen"):
         st.write("🥜 Nüsse einplanen")
-        st.write("🌱 Sprossen / Rote Bete")
-        st.write("⚠️ Keine Mundspülung (Chlorhexidin) / Keine Phosphate")
-
-# --- 6. AUTO-REFRESH ---
-time.sleep(60)
-st.rerun()
+        st.write("🌱 Spro
