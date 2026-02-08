@@ -1,15 +1,19 @@
 import streamlit as st
 from datetime import datetime
-import yfinance as yf
-import time
-
-import streamlit as st
-from datetime import datetime
-
 # 1. Zeitdaten ermitteln
 jetzt = datetime.now()
 tage = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
 wochentag = tage[jetzt.weekday()]
+
+# 2. Die von dir gewünschte Zeile beim Start schreiben
+# Format: Start: Wochentag, Jahr Monat Tag Uhrzeit
+st.markdown(f"### Start: {wochentag}, {jetzt.strftime('%Y %m %d %H:%M:%S')}")
+
+
+import streamlit as st
+from datetime import datetime
+import yfinance as yf
+import time
 
 # 2. Die von dir gewünschte Zeile beim Start schreiben
 # Format: Start: Wochentag, Jahr Monat Tag Uhrzeit
@@ -61,4 +65,5 @@ with c2:
 
 time.sleep(60)
 st.rerun()
+
 
