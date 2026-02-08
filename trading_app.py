@@ -1,3 +1,4 @@
+import streamlit as st
 from datetime import datetime
 # 1. Zeitdaten ermitteln
 jetzt = datetime.now()
@@ -64,6 +65,7 @@ with c2:
 
 time.sleep(60)
 st.rerun()
+
 
 
 
