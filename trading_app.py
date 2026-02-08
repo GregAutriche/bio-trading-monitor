@@ -11,23 +11,23 @@ if 'h_count' not in st.session_state:
 
 # --- 2. AUTO-PILOT LOGIK ---
 jetzt = datetime.now()
-ist_boersenzeit = jetzt.weekday() <= 4 and jetzt.hour >= 9 # [cite: 2026-02-07]
+ist_boersenzeit = jetzt.weekday() <= 4 and jetzt.hour >= 9
 
-# --- 3. HEADER-BEREICH (ZENTRIERT & RECHTSBÜNDIG) ---
-# Wir erstellen 3 Spalten: Links (leer), Mitte (Titel), Rechts (Status)
-head_l, head_m, head_r = st.columns([1, 2, 1])
+# --- 3. HEADER (ZENTRIERT & RECHTSBÜNDIG) ---
+# Wir teilen den Kopf in 3 Spalten auf
+h_links, h_mitte, h_rechts = st.columns([1, 2, 1])
 
-with head_m:
-    # Der Haupttitel exakt in der Mitte
-    st.markdown("<h1 style='text-align: center;'>🖥️ Ansicht für Dich 🖥️</h1>", unsafe_allow_html=True)
+with h_mitte:
+    # Haupttitel exakt mittig
+    st.markdown("<h1 style='text-align: center;'>🖥️ Ansicht für Dich</h1>", unsafe_allow_html=True)
 
-with head_r:
-    # Programm-Infos rechtsbündig untereinander
+with h_rechts:
+    # Programmstart und Status rechtsbündig
     st.write("🚀 **Start:** 08.02.2026 12:02:58")
     if ist_boersenzeit:
-        st.success("🟢 LIVE-MODUS") # [cite: 2026-02-07]
+        st.success("🟢 LIVE-MODUS")
     else:
-        st.info("🕒 STANDBY") # [cite: 2026-02-07]
+        st.info("🕒 STANDBY")
 
 st.divider()
 
@@ -45,29 +45,29 @@ with w3:
 st.divider()
 
 # --- 5. MARKT-CHECK (EURO/USD, DAX, NASDAQ) ---
-st.subheader("📈 Markt-Check")
-l, m, r = st.columns(3)
-with l: st.metric("Euro/USD", "Aktiv ab 09:00") [cite: 2026-02-07]
-with m: st.metric("DAX", "Aktiv ab 09:00") [cite: 2026-02-07]
-with r: st.metric("Nasdaq", "Aktiv ab 15:30") [cite: 2026-02-07]
+st.subheader("📈 Markt-Check & Live-Indizes")
+m1, m2, m3 = st.columns(3)
+with m1: st.metric("Euro/USD", "Aktiv ab 09:00")
+with m2: st.metric("DAX", "Aktiv ab 09:00")
+with m3: st.metric("Nasdaq", "Aktiv ab 15:30")
 
 st.divider()
 
-# --- 6. BIO-CHECK ---
+# --- 6. BIO-CHECK (WANDSITZ & REISEN) ---
 st.subheader("🧘 Dein Bio-Check")
-c1, c2 = st.columns([1, 1])
-with c1:
+b1, b2 = st.columns([1, 1])
+
+with b1:
     if st.button(f"Wandsitz erledigt (Heute: {st.session_state.h_count}x)"):
         st.session_state.h_count += 1
         st.rerun()
-with c2:
-    st.error("ACHTUNG: Atmen! Keine Pressatmung!")
+    st.error("ACHTUNG: Atmen! Keine Pressatmung!") [cite: 2025-12-20]
 
-with st.expander("✈️ Check: Reisen"):
-    st.write("🥜 **Nüsse einplanen**") [cite: 2026-02-03]
-    st.write("🌱 **Sprossen / Rote Bete**") [cite: 2025-12-20]
-    st.write("🎫 **Österreich Ticket**") [cite: 2026-01-25]
+with b2:
+    with st.expander("✈️ Check: Reisen"):
+        st.write("🥜 **Nüsse einplanen**")
+        st.write("🌱 **Sprossen / Rote Bete**")
 
-# --- 7. AUTOMATIK-REFRESH ---
+# --- 7. AUTO-REFRESH ---
 time.sleep(60)
 st.rerun()
