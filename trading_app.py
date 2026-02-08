@@ -1,94 +1,87 @@
 import streamlit as st
 import yfinance as yf
-from datetime import datetime
 
 # Seite konfigurieren
 st.set_page_config(page_title="Trading & Bio Dashboard", layout="wide")
 
-# --- 1. FUNKTION FÜR DATENABRUF MIT ZEITSTEMPEL ---
-def get_live_data_with_time(symbol):
+# --- 1. VARIABLE TICKER-LISTE ---
+# Hier kannst du jederzeit neue Symbole hinzufügen oder löschen
+meine_ticker = {
+    "EUR/USD": "EURUSD=X",
+    "DAX Index": "^GDAXI",
+    "NASDAQ 100": "^IXIC",
+    "OTP Bank (HU)": "OTP.BU",
+    "Sopharma (BG)": "SFA.SO"
+}
+
+# --- 2. FUNKTION FÜR VARIABLEN DATENABRUF ---
+def hole_daten(symbol):
     try:
-        ticker = yf.Ticker(symbol)
-        df = ticker.history(period="1d")
+        t = yf.Ticker(symbol)
+        # Versuch, 1m-Daten für exakte Uhrzeit zu laden
+        df = t.history(period="1d", interval="1m")
+        if df.empty:
+            df = t.history(period="1d")
+        
         if not df.empty:
-            price = df['Close'].iloc[-1]
-            time = df.index[-1].strftime('%d.%m. %H:%M')
-            return price, time
+            kurs = df['Close'].iloc[-1]
+            zeit = df.index[-1].strftime('%d.%m. %H:%M')
+            return kurs, zeit
         return None, "Keine Daten"
     except:
         return None, "Fehler"
 
-# Daten abrufen
-eurusd_p, eurusd_t = get_live_data_with_time("EURUSD=X")
-dax_p, dax_t = get_live_data_with_time("^GDAXI")
-nasdaq_p, nasdaq_t = get_live_data_with_time("^IXIC")
-otp_p, otp_t = get_live_data_with_time("OTP.BU")
-sopharma_p, sopharma_t = get_live_data_with_time("SFA.SO")
-
-# --- 2. HEADER & METRIKEN MIT ZEITSTEMPEL ---
+# --- 3. DYNAMISCHE ANZEIGE DER WERTE ---
 st.title("📊 Dein Trading- & Bio-Monitor")
 
-c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("EUR/USD", f"{eurusd_p:.4f}" if eurusd_p else "Markt zu", help=f"Zeit: {eurusd_t}")
-c2.metric("DAX Index", f"{dax_p:,.2f}" if dax_p else "Markt zu", help=f"Zeit: {dax_t}")
-c3.metric("NASDAQ 100", f"{nasdaq_p:,.2f}" if nasdaq_p else "Markt zu", help=f"Zeit: {nasdaq_t}")
-c4.metric("OTP Bank (HU)", f"{otp_p:,.0f}" if otp_p else "Markt zu", help=f"Zeit: {otp_t}")
-c5.metric("Sopharma (BG)", f"{sopharma_p:,.2f}" if sopharma_p else "Markt zu", help=f"Zeit: {sopharma_t}")
+# Wir erstellen automatisch so viele Spalten, wie Ticker in der Liste sind
+cols = st.columns(len(meine_ticker))
 
-# Anzeige der Zeitstempel unter den Metriken für direkte Sichtbarkeit
-st.caption(f"Letzte Aktualisierung: DAX ({dax_t}) | HU ({otp_t}) | BG ({sopharma_t})")
+for i, (name, symbol) in enumerate(meine_ticker.items()):
+    preis, zeitpunkt = hole_daten(symbol)
+    
+    # Formatierung je nach Wert (Währung vs. Index)
+    format_str = "{:.4f}" if "USD" in name else "{:,.2f}"
+    
+    cols[i].metric(
+        label=name, 
+        value=format_str.format(preis) if preis else "Markt zu",
+        help=f"Letzter Tick: {zeitpunkt}"
+    )
 
+st.caption(f"Letzte Aktualisierung der variablen Liste: {datetime.now().strftime('%H:%M:%S')} Uhr")
 st.divider()
 
-# --- 3. CHINA-EXPOSURE & STÄNDIGE LOGIK-ABBILDUNG ---
+# --- 4. CHINA-EXPOSURE LOGIK (10/90 REGEL) ---
 st.subheader("📈 Markt-Check & China-Exposure Logik")
+# Der 'Fünfer' (05%) aus deinem Screenshot
+wert = st.number_input("Aktueller Analyse-Wert (%)", value=5, step=1)
 
-# Simulation/Eingabe des aktuellen Werts
-# (Hier könnte später die automatische Berechnung stehen)
-aktueller_wert = st.number_input("Aktueller Analyse-Wert (%)", value=5, step=1)
-
-st.write("### Bewertungs-Skala:")
-l_col, m_col, r_col = st.columns(3)
-
-# Die Logik wird immer vollständig angezeigt
-with l_col:
-    if aktueller_wert < 10:
-        st.error("🔴 **EXTREM TIEF**\n\nBereich: < 10%\n\n*Status: AKTIV*")
+l, m, r = st.columns(3)
+with l:
+    if wert < 10:
+        st.error(f"🔴 **EXTREM TIEF**\n\nBereich: < 10%\n\nStatus: AKTIV")
     else:
-        st.info("⚪ Extrem Tief\n\n(< 10%)")
-
-with m_col:
-    if 10 <= aktueller_wert <= 90:
-        st.success("🟢 **NORMALBEREICH**\n\nBereich: 10% - 90%\n\n*Status: AKTIV*")
+        st.info("⚪ Extrem Tief (< 10%)")
+with m:
+    if 10 <= wert <= 90:
+        st.success(f"🟢 **NORMALBEREICH**\n\nBereich: 10% - 90%")
     else:
-        st.info("⚪ Normalbereich\n\n(10% - 90%)")
-
-with r_col:
-    if aktueller_wert > 90:
-        st.error("🔴 **EXTREM HOCH**\n\nBereich: > 90%\n\n*Status: AKTIV*")
+        st.info("⚪ Normalbereich (10% - 90%)")
+with r:
+    if wert > 90:
+        st.error(f"🔴 **EXTREM HOCH**\n\nBereich: > 90%")
     else:
-        st.info("⚪ Extrem Hoch\n\n(> 90%)")
+        st.info("⚪ Extrem Hoch (> 90%)")
 
 st.divider()
 
-# --- 4. AUFKLAPPBARE INFORMATIONEN ---
-with st.expander("🧘 Gesundheit & Wandsitz-Routine"):
-    st.write("### Routine: **WANDSITZ**")
-    st.info("⏱️ **Empfohlene Dauer:** 05 bis 08 Minuten")
-    st.warning("**Sicherheitsregeln:**")
-    st.write("* **Atmung:** Gleichmäßig atmen! Keine Preßatmung (Valsalva-Manöver).")
-    st.write("* **Mundhygiene:** Keine Mundspülungen mit Chlorhexidin.")
-    st.write("* **Timing:** Nicht unmittelbar nach dem Essen Zähne putzen oder Kaugummi kauen.")
+# --- 5. BACKUP-INFOS IN EXPANDERN ---
+with st.expander("🧘 Gesundheit & Routine"):
+    st.write("### Routine: WANDSITZ")
+    st.info("⏱️ Dauer: 05 bis 08 Minuten")
+    st.warning("⚠️ Atem-Check: Gleichmäßig atmen, keine Preßatmung!")
 
 with st.expander("✈️ Reisen & Ernährung"):
-    st.write("### Unterwegs")
-    st.write(f"* **Ticket:** Österreich-Ticket vorhanden.")
-    st.write("* **Snacks:** Nüsse für die Reise einplanen.")
-    st.write("### Blutdruck-Ernährung")
-    st.write("* **Fokus:** Sprossen und Rote Bete.")
-    st.write("* **Vermeiden:** Phosphate in Fertiggerichten.")
-    st.write("* **Medikamente:** Wechselwirkung von Grapefruit beachten.")
-
-with st.expander("🆕 Letzte 7 Tage Übersicht"):
-    st.write("### Wochenzusammenfassung")
-    st.write("Hier werden deine täglichen Fortschritte gelistet.")
+    st.write(f"🎫 **Ticket:** Österreich Ticket vorhanden")
+    st.write("🥗 **Ernährung:** Fokus auf Sprossen und Rote Bete")
