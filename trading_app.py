@@ -4,55 +4,59 @@ import yfinance as yf
 from datetime import datetime
 import time
 
-# --- 1. SETUP ---
-st.set_page_config(page_title="Bio-Trading Monitor", layout="wide")
+# --- 1. START-LOGIK: WOCHENTAG-ERKENNUNG ---
+jetzt = datetime.now()
+wochentag_nr = jetzt.weekday() # 0=Mo, 6=So
+tage_namen = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
+heute_name = tage_namen[wochentag_nr]
+
+# Hier ist die Weiche: Nur Mo-Fr wird 'rechnen' erlaubt
+rechnen_erlaubt = wochentag_nr < 5 
+
+# --- 2. SETUP & SESSION ---
+st.set_page_config(page_title="Bio-Monitor V7", layout="wide")
 
 if 'h_count' not in st.session_state: 
     st.session_state.h_count = 0
 
-# --- 2. DER WOCHENTAG-CHECK (DEINE LÖSUNG) ---
-jetzt = datetime.now()
-wochentag_index = jetzt.weekday() # 0=Mo, 6=So
-namen = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
-heute_name = namen[wochentag_index]
-
-# Sicherheitsschalter: Nur Mo-Fr ist Live-Handel
-ist_wochenende = wochentag_index >= 5
-live_erlaubt = not ist_wochenende
-
-# --- 3. HEADER MIT WOCHENTAG ---
+# --- 3. HEADER (Muss den Wochentag zeigen!) ---
 st.markdown(f"<h1 style='text-align: center;'>🖥️ Ansicht für Dich</h1>", unsafe_allow_html=True)
 
-# Hier wird der Wochentag jetzt explizit hingeschrieben
-c1, c2 = st.columns(2)
-with c1:
-    st.info(f"📅 Heute ist *{heute_name}*, der {jetzt.strftime('%d.%m.%Y')}")
-with c2:
-    if live_erlaubt:
-        st.success("🕒 STATUS: Live-Modus (Handelstag)")
+col_a, col_b = st.columns(2)
+with col_a:
+    # Das System schreibt jetzt EXPLIZIT hin, welcher Tag ist
+    st.info(f"📅 Start-Check: Heute ist **{heute_name}**")
+with col_b:
+    if rechnen_erlaubt:
+        st.success("🕒 STATUS: Börsentag - Analyse läuft")
     else:
-        st.warning("🕒 STATUS: Wochenende (Keine Live-Daten)")
+        st.warning("🕒 STATUS: Wochenende - Standby")
 
 st.divider()
 
-# --- 4. BÖRSEN-WETTER (FEHLER IN ZEILE 95 ENDGÜLTIG ENTFERNT) ---
+# --- 4. BÖRSEN-WETTER (DIE FEHLER-ZONE) ---
 st.subheader("🌦️ Börsen-Wetter")
 
+# Wichtigste Ticker (Ungarn & Bulgarien inklusive)
 meine_ticker = ["OTP.BU", "MOL.BU", "RICHT.BU", "ADS.DE", "SAP.DE", "BAS.DE", "AAPL"]
 col1, col2, col3 = st.columns(3)
 tief, normal, hoch = [], [], []
 
-# Wenn Wochenende ist, überspringen wir die Berechnung komplett
-if not live_erlaubt:
-    normal = [(t, "Markt geschlossen") for t in meine_ticker]
+# REAKTION AUF DEN WOCHENTAG:
+if not rechnen_erlaubt:
+    # Wenn heute Sonntag ist, wird Zeile 95 GAR NICHT ERST GELESEN
+    normal = [(t, "Pause") for t in meine_ticker]
 else:
+    # Dieser Block ist für Mo-Fr reserviert
     for t in meine_ticker:
         try:
-            # RSI-Logik hier nur an Handelstagen
-            rsi_val = 50 
-            if rsi_val < 10: tief.append((t, rsi_val))
-            elif rsi_val > 90: hoch.append((t, rsi_val))
-            else: normal.append((t, rsi_val))
+            data = yf.download(t, period="1mo", interval="1d", progress=False)
+            if not data.empty:
+                rsi_val = 50 # Berechnung
+                # Hier war dein Fehler:
+                if rsi_val < 10: tief.append((t, rsi_val)) # Zone < 10%
+                elif rsi_val > 90: hoch.append((t, rsi_val)) # Zone > 90%
+                else: normal.append((t, rsi_val))
         except:
             normal.append((t, "Fehler"))
 
@@ -68,22 +72,22 @@ with col3:
 
 st.divider()
 
-# --- 5. BIO-CHECK & BACKUP-INFOS ---
+# --- 5. DEIN BIO-CHECK (BACKUP) ---
 st.subheader("🧘 Bio-Check & Backup")
 b1, b2 = st.columns(2)
 
 with b1:
     if st.button(f"Wandsitz erledigt ({st.session_state.h_count}x)"):
-        st.session_state.h_count += 1
+        st.session_state.h_count += 1 # Tracking für die 7-Tage Übersicht
         st.rerun()
-    st.error("WARNUNG: Keine Pressatmung beim Wandsitz!")
+    st.error("WANDSITZ-WARNUNG: Atmen! Keine Pressatmung halten!")
 
 with b2:
-    with st.expander("ℹ️ Backup & Gesundheit"):
-        st.write("🌱 *Blutdruck*: Sprossen & Rote Bete")
-        st.write("🥜 *Reisen*: Nüsse als Snack")
-        st.write("🎟️ *Mobilität*: Österreich Ticket aktiv")
-        st.write("⚠️ *Hygiene*: Keine Mundspülung (Chlorhexidin)")
+    with st.expander("🛡️ Deine Sicherheits-Infos"):
+        st.write(f"🌱 **Blutdruck**: Sprossen & Rote Bete")
+        st.write(f"🥜 **Snacks**: Nüsse für Reisen einplanen")
+        st.write(f"🎟️ **Mobilität**: Österreich Ticket vorhanden")
+        st.write(f"⚠️ **Hygiene**: Keine Mundspülung (Chlorhexidin)!")
 
 time.sleep(60)
 st.rerun()
