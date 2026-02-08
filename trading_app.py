@@ -4,6 +4,18 @@ import yfinance as yf
 from datetime import datetime
 import time
 
+# --- WOCHENTAG-CHECK AM START ---
+jetzt = datetime.now()
+wochentag_namen = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
+heute_name = wochentag_namen[jetzt.weekday()]
+
+# Das hier MUSS ganz oben stehen, damit du siehst, was das System denkt:
+st.title(f"Heute ist {heute_name}") 
+st.write(f"Datum: {jetzt.strftime('%d.%m.%Y')}")
+
+# Die Weiche für den Fehler-Stopp:
+ist_wochenende = jetzt.weekday() >= 5
+
 # --- 1. START-LOGIK: WOCHENTAG-ERKENNUNG ---
 jetzt = datetime.now()
 wochentag_nr = jetzt.weekday() # 0=Mo, 6=So
@@ -91,3 +103,4 @@ with b2:
 
 time.sleep(60)
 st.rerun()
+
