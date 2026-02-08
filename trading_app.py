@@ -1,71 +1,45 @@
 import streamlit as st
-from datetime import datetime
-# 1. Zeitdaten ermitteln
-jetzt = datetime.now()
-tage = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
-wochentag = tage[jetzt.weekday()]
-
-# 2. Die von dir gewünschte Zeile beim Start schreiben
-# Format: Start: Wochentag, Jahr Monat Tag Uhrzeit
-st.markdown(f"### Start: {wochentag}, {jetzt.strftime('%Y %m %d %H:%M:%S')}")
-
-
-import streamlit as st
-from datetime import datetime
 import yfinance as yf
-import time
+from datetime import datetime
 
-# 2. Die von dir gewünschte Zeile beim Start schreiben
-# Format: Start: Wochentag, Jahr Monat Tag Uhrzeit
-st.markdown(f"### Start: {wochentag}, {jetzt.strftime('%Y %m %d %H:%M:%S')}")
-
-st.divider()
-
-# --- SETUP ---
-st.set_page_config(page_title="Monitor", layout="wide")
-
-# --- 1. WOCHENTAG-CHECK (DAS ERGEBNIS) ---
+# --- 1. START-ZEILE (DEIN HAUPTWUNSCH) ---
 jetzt = datetime.now()
 tage = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
 heute_name = tage[jetzt.weekday()]
-ist_wochenende = jetzt.weekday() >= 5
 
-# Diese Zeile schreibt den Tag FETT nach ganz oben
-st.markdown(f"# Heute ist {heute_name}")
-st.write(f"Datum: {jetzt.strftime('%d.%m.%Y')}")
-
-if ist_wochenende:
-    st.warning("🕒 STATUS: Wochenende - Börsenanalyse pausiert.")
-else:
-    st.success("🕒 STATUS: Live-Analyse aktiv.")
-
+# Format: Start: Wochentag, Jahr Monat Tag Uhrzeit
+st.markdown(f"## Start: {heute_name}, {jetzt.strftime('%Y %m %d %H:%M:%S')}")
 st.divider()
 
-# --- 2. DIE FEHLER-SPERRE ---
-if ist_wochenende:
-    st.info("Sonntags-Modus: Keine Kursdaten-Abfrage, um Fehler zu vermeiden.")
-    st.write("Morgen ab 09:00 Uhr geht es hier automatisch weiter.")
-else:
-    # Nur hier darf der Code für die Kurse stehen
-    st.write("Kursanalyse läuft...")
+# --- 2. MARKT-CHECK (EURO/USD, DAX, NASDAQ) ---
+st.subheader("💹 Markt-Check")
 
-st.divider()
+def get_price(symbol):
+    try:
+        ticker = yf.Ticker(symbol)
+        # Wir holen den letzten verfügbaren Schlusskurs (auch am Wochenende)
+        data = ticker.history(period="1d")
+        if not data.empty:
+            return round(data['Close'].iloc[-1], 4)
+        return "Keine Daten"
+    except:
+        return "Fehler"
 
-# --- 3. DEIN BIO-CHECK (WIE VEREINBART) ---
-st.subheader("🧘 Bio-Check & Sicherheit")
-c1, c2 = st.columns(2)
+c1, c2, c3 = st.columns(3)
 with c1:
-    st.error("⚠️ WANDSITZ: Atmen! Keine Pressatmung halten! [cite: 2025-12-20]")
-    st.write("🌱 Blutdruck: Sprossen & Rote Bete nutzen [cite: 2025-12-20]")
+    st.metric("Euro/USD", get_price("EURUSD=X"))
 with c2:
-    with st.expander("🛡️ Backup-Infos"):
-        st.write("🎟️ Österreich Ticket aktiv [cite: 2026-01-25]")
-        st.write("🥜 Snack: Nüsse für Reisen [cite: 2026-02-03]")
-        st.write("⚠️ Keine Mundspülung (Chlorhexidin) [cite: 2025-12-20]")
+    st.metric("DAX", get_price("^GDAXI"))
+with c3:
+    st.metric("Nasdaq", get_price("^IXIC"))
 
-time.sleep(60)
-st.rerun()
+st.divider()
 
-
-
-
+# --- 3. BIO-CHECK (DEINE SICHERHEIT) ---
+st.subheader("🧘 Bio-Check & Backup")
+# Hier fügen wir deine wichtigen Erinnerungen ein
+st.error("⚠️ WANDSITZ: Atmen! Pressatmung vermeiden (Blutdruckschutz)! [cite: 2025-12-20]")
+with st.expander("🛡️ Deine gespeicherten Infos"):
+    st.write("🌱 **Ernährung**: Sprossen & Rote Bete [cite: 2025-12-20]")
+    st.write("🥜 **Reisen**: Nüsse als Snack & Österreich Ticket [cite: 2026-02-03, 2026-01-25]")
+    st.write("🚫 **Warnung**: Keine Chlorhexidin-Mundspülungen [cite: 2025-12-20]")
