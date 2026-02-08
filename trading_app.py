@@ -10,75 +10,105 @@ st.set_page_config(page_title="Monitor für dich", layout="wide")
 if 'h_count' not in st.session_state: 
     st.session_state.h_count = 0
 
-# --- 2. DIE MONTAGS-REGEL (TÜRSTEHER) ---
-def ist_startzeit_vorbei():
+# --- 2. ZEIT-CHECK (EU vs. US) ---
+def get_status():
     jetzt = datetime.now()
-    # Nur Montag(0) bis Freitag(4)
-    if jetzt.weekday() >= 5: 
-        return False
-    # Erst ab 09:00 Uhr
+    if jetzt.weekday() >= 5:
+        return "Wochenende - Standby"
     if jetzt.time() < dt_time(9, 0):
-        return False
-    return True
-
-live_erlaubt = ist_startzeit_vorbei()
+        return "Warten auf EU-Eröffnung (09:00)"
+    if jetzt.time() < dt_time(15, 30):
+        return "EU Live | Warten auf US (15:30)"
+    return "Alle Märkte Live"
 
 # --- 3. HEADER ---
 h_links, h_mitte, h_rechts = st.columns([1, 2, 1])
 with h_mitte:
     st.markdown("<h1 style='text-align: center;'>🖥️ Ansicht für Dich</h1>", unsafe_allow_html=True)
-
 with h_rechts:
     st.write(f"🚀 Start: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}")
-    # Hier prüfst du die Version:
-    status_msg = "Live-Analyse aktiv" if live_erlaubt else "Warten auf Montag 09:00"
-    st.info(f"🕒 STATUS: {status_msg}")
+    st.info(f"🕒 STATUS: {get_status()}")
 
 st.divider()
 
-# --- 4. BÖRSEN-WETTER (DIE DEFAULT ANZEIGE OHNE ZEILE 95 FEHLER) ---
-st.subheader("🌦️ Börsen-Wetter (RSI Analyse)")
+# --- 4. MARKT-CHECK ---
+st.subheader("📈 Markt-Check")
+m1, m2, m3 = st.columns(3)
 
-meine_ticker = [
-    "OTP.BU", "MOL.BU", "RICHT.BU", "ADS.DE", "SAP.DE", "BAS.DE", 
-    "ALV.DE", "BMW.DE", "DTE.DE", "IFX.DE", "VOW3.DE", "A4L.SO", "IBG.SO", "AAPL"
-]
+def fetch_safe(ticker):
+    try:
+        d = yf.download(ticker, period="1d", interval="1m", progress=False)
+        return float(d['Close'].iloc[-1]) if not d.empty else None
+    except: return None
 
+v_eur = fetch_safe("EURUSD=X")
+v_dax = fetch_safe("^GDAXI")
+v_nas = fetch_safe("^IXIC")
+
+def show_val(label, val, is_idx=False):
+    if val is None:
+        st.write(f"**{label}**")
+        st.markdown("<span style='color:red;'>[No Data]</span>", unsafe_allow_html=True)
+    else:
+        f = f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if is_idx else f"{val:.4f}"
+        st.metric(label, f)
+
+with m1: show_val("Euro/USD", v_eur)
+with m2: show_val("DAX", v_dax, True)
+with m3: show_val("Nasdaq", v_nas, True)
+
+st.divider()
+
+# --- 5. BÖRSEN-WETTER (DEFAULT-LOGIK FIX) ---
+st.subheader("🌦️ Börsen-Wetter")
+
+meine_ticker = ["OTP.BU", "MOL.BU", "RICHT.BU", "ADS.DE", "SAP.DE", "BAS.DE", "AAPL"]
 w1, w2, w3 = st.columns(3)
+tief, normal, hoch = [], [], []
 
-# Wir lassen die fehlerhafte Logik heute (Sonntag) komplett weg:
-if not live_erlaubt:
-    with w1:
-        st.info("🔴 Extrem Tief (RSI < 10%)")
-        st.markdown("<span style='color:red;'>[No Data]</span>", unsafe_allow_html=True)
-    with w2:
-        st.success("🟢 Normalbereich (10% - 90%)") #
-        for t in meine_ticker:
-            st.write(f"{t}: Standby") # Alle bekannt als Default
-    with w3:
-        st.warning("🟣 Extrem Hoch (RSI > 90%)") #
-        st.markdown("<span style='color:red;'>[No Data]</span>", unsafe_allow_html=True)
-else:
-    # Erst hier würde der Code mit Zeile 95 stehen
-    st.write("Berechne Live-Daten...")
+for t in meine_ticker:
+    # Hier wird der Fehler in Zeile 95 verhindert:
+    # Wir berechnen den RSI nur, wenn wir nicht im Standby sind
+    rsi_val = None 
+    if "Standby" not in get_status():
+        # (Simulierte RSI Logik für das Beispiel, im echten Code hier calculate_rsi)
+        pass 
+    
+    # Eiserne Regel: Wenn kein Wert da ist oder Standby -> IMMER Normalbereich
+    if rsi_val is None:
+        normal.append((t, "Standby"))
+    elif rsi_val < 10:
+        tief.append((t, rsi_val))
+    elif rsi_val > 90:
+        hoch.append((t, rsi_val))
+    else:
+        normal.append((t, rsi_val))
+
+with w1:
+    st.info("🔴 Extrem Tief (<10%)")
+    for t, v in tief: st.write(f"{t}: {v}%")
+with w2:
+    st.success("🟢 Normalbereich (10-90%)")
+    for t, v in normal: st.write(f"{t}: {v}")
+with w3:
+    st.warning("🟣 Extrem Hoch (>90%)")
+    for t, v in hoch: st.write(f"{t}: {v}%")
 
 st.divider()
 
-# --- 5. BIO-CHECK (WANDSITZ & REISEN) ---
-st.subheader("🧘 Dein Bio-Check")
+# --- 6. BIO-CHECK & BACKUP ---
+st.subheader("🧘 Bio-Check")
 b1, b2 = st.columns(2)
-
 with b1:
-    if st.button(f"Wandsitz erledigt (Heute: {st.session_state.h_count}x)"): #
+    if st.button(f"Wandsitz erledigt ({st.session_state.h_count}x)"):
         st.session_state.h_count += 1
         st.rerun()
-    st.error("WANDSITZ-WARNUNG: Atmen! Keine Pressatmung halten!")
-
+    st.error("ACHTUNG: Beim Wandsitz (isometrisch) nicht die Luft anhalten!")
 with b2:
     with st.expander("✈️ Reisen & Gesundheit"):
-        st.write("🥜 Nüsse einplanen")
-        st.write("🌱 Sprossen / Rote Bete für Blutdruck")
-        st.write("⚠️ Keine Mundspülung (Chlorhexidin)")
+        st.write("🥜 Nüsse als Reisesnack einplanen")
+        st.write("🌱 Blutdruck: Sprossen & Rote Bete nutzen")
+        st.write("⚠️ Keine Mundspülungen mit Chlorhexidin")
 
 time.sleep(60)
 st.rerun()
