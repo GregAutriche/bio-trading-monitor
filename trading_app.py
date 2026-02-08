@@ -4,7 +4,7 @@ from datetime import datetime
 import time
 
 # --- 1. SETUP & SESSION STATE ---
-st.set_page_config(page_title="Ansicht für Dich", layout="wide")
+st.set_page_config(page_title="Monitor für Dich", layout="wide")
 
 if 'h_count' not in st.session_state: 
     st.session_state.h_count = 0
@@ -16,7 +16,7 @@ jetzt = datetime.now()
 ist_boersenzeit = jetzt.weekday() <= 4 and jetzt.hour >= 9
 
 # --- 3. HEADER (DEIN DESIGN) ---
-st.title("🖥️ Monitor für dich")
+st.title("🖥️ Ansicht für Dich 🖥️")
 # Fixierte Startzeit laut deinem Wunsch-Design
 st.write("🚀 **Programm gestartet am:** 08.02.2026 12:02:58")
 
@@ -73,4 +73,5 @@ with st.expander("✈️ Check: Reisen"):
 # Aktualisiert das Dashboard jede Minute, um den 09:00 Uhr Start zu prüfen
 time.sleep(60)
 st.rerun()
+
 
