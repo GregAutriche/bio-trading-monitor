@@ -1,70 +1,56 @@
 import streamlit as st
 import yfinance as yf
+import pandas as pd
 from datetime import datetime
 
-# --- 1. START-ZEILE ---
+# --- 1. KONTROLLTURM HEADER ---
 jetzt = datetime.now()
-tage = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
-st.markdown(f"## Start: {tage[jetzt.weekday()]}, {jetzt.strftime('%Y %m %d %H:%M:%S')}")
+st.markdown(f"### 🚀 KONTROLLTURM AKTIV | {jetzt.strftime('%H:%M:%S')} ---")
+st.write(f"🟢 **BASIS: EUR/USD = {yf.Ticker('EURUSD=X').history(period='1d')['Close'].iloc[-1]:.4f}**")
+st.write("☀️ **MARKT-WETTER: ⚠️ Hitzewelle!**") # Statisch wie im Screen oder dynamisch
 st.divider()
 
-# --- 2. MARKT-CHECK FUNKTION ---
-def get_market_data(symbol, decimals=2):
-    try:
-        t = yf.Ticker(symbol)
-        d = t.history(period="14d")
-        name = t.info.get('shortName', symbol)
-        if not d.empty and len(d) > 1:
-            val = d['Close'].iloc[-1]
-            prev = d['Close'].iloc[-2]
-            diff = ((val - prev) / prev) * 100
-            
-            # RSI-Berechnung (Wetter)
-            low14, high14 = d['Close'].min(), d['Close'].max()
-            score = ((val - low14) / (high14 - low14)) * 100 if high14 != low14 else 50
-            wetter = "☀️" if score > 90 else "🌧️" if score < 10 else "☁️"
-            
-            fmt = f"{val:,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            return fmt, diff, wetter, name, round(score, 1)
-        return "N/A", 0, "❓", symbol, 0
-    except: return "N/A", 0, "❓", symbol, 0
+# --- 2. LOGIK FÜR DATEN (RSI & ATR) ---
+def get_monitor_stats(tickers):
+    data_list = []
+    for t_sym in tickers:
+        try:
+            ticker = yf.Ticker(t_sym)
+            df = ticker.history(period="20d")
+            if not df.empty:
+                preis = df['Close'].iloc[-1]
+                # RSI-Näherung (Position in 14d Range)
+                low14, high14 = df['Close'].tail(14).min(), df['Close'].tail(14).max()
+                pos_pct = ((preis - low14) / (high14 - low14)) * 100 if high14 != low14 else 50
+                # ATR (14d Durchschnitt der Tages-Range)
+                atr = (df['High'] - df['Low']).tail(14).mean()
+                
+                # Status-Logik laut deiner Vorgabe [cite: 2026-02-07]
+                status = "Normal"
+                if pos_pct > 90: status = "EXTREM HOCH"
+                elif pos_pct < 10: status = "EXTREM TIEF"
+                
+                data_list.append({
+                    "Symbol": t_sym,
+                    "Preis(EUR)": f"{preis:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+                    "Pos%": round(pos_pct, 1),
+                    "RSI": round(pos_pct, 1), # Im Monitor oft identisch genutzt
+                    "ATR": round(atr, 2),
+                    "Status": status
+                })
+        except: continue
+    return pd.DataFrame(data_list)
 
-st.subheader("💹 Markt-Check & Börsen-Wetter")
-c1, c2, c3 = st.columns(3)
-for col, (lbl, sym, dec) in zip([c1, c2, c3], [("Euro/USD", "EURUSD=X", 4), ("DAX", "^GDAXI", 2), ("Nasdaq", "^IXIC", 2)]):
-    val, _, wet, _, rsi = get_market_data(sym, dec)
-    col.metric(f"{lbl} {wet} ({rsi}%)", val)
+# --- 3. INDIZES TABELLE ---
+st.markdown("#### 📊 INDIZES:")
+indizes_df = get_monitor_stats(["^GDAXI", "^IXIC"])
+st.table(indizes_df)
+
+# --- 4. CHAMPIONS TABELLE ---
+st.markdown("#### 🏆 CHAMPIONS:")
+aktien_symbole = ["ASML.AS", "MC.PA", "SAP.DE", "AAPL", "MSFT", "NVDA", "OTP.BU"]
+champions_df = get_monitor_stats(aktien_symbole)
+st.table(champions_df)
+
 st.divider()
-
-# --- 3. DIE 14 AKTIEN ---
-st.subheader("🇪🇺 7x Europa & 🇺🇸 7x USA")
-with st.expander("📖 Legende: Farben & Symbole"):
-    st.write("☀️/☁️/🌧️ = Wetter (RSI-Wert in Klammern) [cite: 2026-02-07]")
-    st.write("🟢/🔴/🟡 = Kurs-Trend heute [cite: 2026-02-07]")
-
-europa = ["OTP.BU", "MOL.BU", "ADS.DE", "SAP.DE", "ASML.AS", "MC.PA", "SIE.DE"]
-usa = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA"]
-
-def show_aligned_list(title, tickers):
-    st.markdown(f"**{title}**")
-    for t in tickers:
-        preis, diff, wetter, name, rsi = get_market_data(t, 2)
-        farbe = "#28a745" if diff > 0.01 else "#dc3545" if diff < -0.01 else "#ffc107"
-        st.markdown(f"""
-            <div style="display: flex; justify-content: space-between; font-family: sans-serif; border-bottom: 1px solid #f0f2f6; padding: 3px 0;">
-                <span style="font-size: 0.9rem;">{wetter} ({rsi}%) {name}</span>
-                <span style="color: {farbe}; font-weight: bold; font-family: monospace;">{preis}</span>
-            </div>
-            """, unsafe_allow_html=True)
-
-col_eu, col_us = st.columns(2)
-with col_eu: show_aligned_list("Europa Portfolio", europa)
-with col_us: show_aligned_list("USA Portfolio", usa)
-st.divider()
-
-# --- 4. BIO-CHECK & SICHERHEIT (BACKUP) ---
-st.subheader("🧘 Bio-Check & Sicherheit")
-st.error("⚠️ WANDSITZ: Atmen! Keine Pressatmung (Blutdruck)! [cite: 2025-12-20]")
-with st.expander("🛡️ Backup-Infos"):
-    st.write("🌱 **Blutdruck**: Sprossen & Rote Bete [cite: 2025-12-20]")
-    st.write("🥜 **Reise**: Nüsse & Österreich Ticket [cite: 2026-01-25, 2026-02-03]")
+st.write(f"**Update in 30s | Routine: WANDSITZ & RUHIG ATMEN** [cite: 2025-12-20]")
