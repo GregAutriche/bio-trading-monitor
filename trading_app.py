@@ -1,71 +1,65 @@
 import streamlit as st
 import yfinance as yf
+import pandas as pd
 
-# Konfiguration der Seite
+# Seite konfigurieren
 st.set_page_config(page_title="Trading & Bio Dashboard", layout="wide")
 
-# --- 1. DATENABRUF (FAKTEN) ---
-# Hier rufen wir die Live-Kurse ab
-try:
-    # Währungen & Indizes
-    eurusd = yf.Ticker("EURUSD=X").history(period="1d")['Close'].iloc[-1]
-    dax_index = yf.Ticker("^GDAXI").history(period="1d")['Close'].iloc[-1]
-    nasdaq_index = yf.Ticker("^IXIC").history(period="1d")['Close'].iloc[-1]
-    
-    # Beispiel für ungarische/bulgarische Ticker (wie im Profil hinterlegt)
-    # OTP Bank (Ungarn): OTP.BU | Sopharma (Bulgarien): SFA.SO
-    otp_bank = yf.Ticker("OTP.BU").history(period="1d")['Close'].iloc[-1]
-except Exception as e:
-    st.error(f"Fehler beim Abrufen der Marktdaten: {e}")
-    eurusd, dax_index, nasdaq_index, otp_bank = 0, 0, 0, 0
+# --- 1. FUNKTION FÜR DATENABRUF ---
+def get_safe_price(ticker_symbol):
+    try:
+        data = yf.Ticker(ticker_symbol).history(period="5d")
+        if not data.empty:
+            return data['Close'].iloc[-1]
+        return 0.0
+    except:
+        return 0.0
 
-# --- 2. HEADER & METRIKEN (VISUALISIERUNG) ---
-st.title("Dein Trading-Dashboard")
+# Daten abrufen
+eurusd = get_safe_price("EURUSD=X")
+dax = get_safe_price("^GDAXI")
+nasdaq = get_safe_price("^IXIC")
+otp = get_safe_price("OTP.BU")
 
+# --- 2. DASHBOARD LAYOUT ---
+st.title("📊 Trading & Bio-Monitor")
+
+# Kurs-Metriken in einer schönen Reihe
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("EUR/USD", f"{eurusd:.5f}")
-col2.metric("DAX Index", f"{dax_index:,.2f} pkt")
-col3.metric("NASDAQ 100", f"{nasdaq_index:,.2f}")
-col4.metric("OTP Bank (HU)", f"{otp_bank:,.0f} HUF")
+col1.metric("EUR/USD", f"{eurusd:.4f}" if eurusd > 0 else "Markt zu")
+col2.metric("DAX Index", f"{dax:,.2f} pkt" if dax > 0 else "Markt zu")
+col3.metric("NASDAQ 100", f"{nasdaq:,.2f}" if nasdaq > 0 else "Markt zu")
+col4.metric("OTP Bank (HU)", f"{otp:,.0f} HUF" if otp > 0 else "Markt zu")
 
-st.divider()
+st.markdown("---")
 
-# --- 3. TÄGLICHE GESUNDHEITS-ROUTINE (WANDSITZ) ---
-# Backup-Info: Wandsitz zur Blutdrucksenkung
-st.subheader("Tägliche Gesundheits-Routine")
+# --- 3. GESUNDHEIT & ROUTINE (WANDSITZ) ---
+st.subheader("🧘 Tägliche Gesundheits-Routine")
 
-# Der Fix für den SyntaxError: Zahlen als Strings "05" / "08"
-st.write("🧘 **Routine:** WANDSITZ")
-st.info("⏱️ Empfohlene Dauer: **05** bis **08** Minuten")
+# Backup-Informationen & Fortschritt
+c1, c2 = st.columns([1, 2])
+with c1:
+    st.info("⏱️ **WANDSITZ**\n\nDauer: **05** bis **08** Min.")
+with c2:
+    st.warning("**Sicherheitshinweise:**\n\n* Gleichmäßig atmen (Keine Preßatmung!).\n* Kein Chlorhexidin (Mundspülung).\n* Vorsicht bei Phosphaten & Grapefruit.")
 
-# Wichtige Warnhinweise aus deinem Profil
-st.warning("""
-**Wichtige Sicherheitsregeln:**
-* Keine Preßatmung beim Wandsitz (immer gleichmäßig atmen)!
-* Keine Mundspülungen mit Chlorhexidin verwenden.
-* Vorsicht bei Phosphaten in Fertiggerichten.
-""")
+st.markdown("---")
 
-st.divider()
+# --- 4. CHINA-EXPOSURE & MARKT-STATUS ---
+st.subheader("📈 Markt-Check & China-Exposure")
 
-# --- 4. MARKT-CHECK & CHINA-EXPOSURE ---
-st.subheader("Markt-Check & China-Exposure")
+# Schieberegler zum Testen oder Live-Wert
+exposure = st.slider("Aktuelles China-Exposure (%)", 0, 100, 5)
 
-# Statische Fundamentaldaten kombiniert mit Live-Kursen
-# Hier definieren wir den Wert für die 10%/90% Regel
-exposure_wert = 5  # Beispielwert in Prozent
-
-st.write(f"Aktueller China-Exposure-Wert: **{exposure_wert:02d}%**")
-
-if exposure_wert < 10:
-    st.error("🚨 Status: Extrem Tief (< 10%)") #
-elif exposure_wert > 90:
-    st.error("🚀 Status: Extrem Hoch (> 90%)") #
+if exposure < 10:
+    st.error(f"Status: **Extrem Tief** ({exposure}%) - Unter Normalbereich")
+elif exposure > 90:
+    st.error(f"Status: **Extrem Hoch** ({exposure}%) - Über Normalbereich")
 else:
-    st.success("✅ Status: Normalbereich (10% - 90%)") #
+    st.success(f"Status: **Normalbereich** ({exposure}%)")
 
-# --- ZUSÄTZLICHE INFOS ---
-with st.expander("Weitere Informationen (Reisen & Ernährung)"):
-    st.write("* **Reisen:** Nüsse einpacken!")
-    st.write("* **Transport:** Österreich-Ticket ist vorhanden.")
-    st.write("* **Er Ernährung:** Fokus auf Sprossen und Rote Bete zur Blutdrucksenkung.")
+# --- 5. REISE- & INFO-BACKUP ---
+with st.expander("✈️ Reise-Informationen & Ernährung"):
+    st.write(f"* **Ticket:** Österreich Ticket vorhanden.")
+    st.write(f"* **Ernährung:** Fokus auf Sprossen & Rote Bete.")
+    st.write(f"* **Reisen:** Nüsse als Snack einplanen.")
