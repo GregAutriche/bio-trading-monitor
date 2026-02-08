@@ -18,60 +18,66 @@ def hole_daten(info):
         t = yf.Ticker(info["symbol"])
         df = t.history(period="1d")
         if not df.empty:
-            return df['Close'].iloc[-1], df.index[-1].strftime('%d.%m. %H:%M'), False
-        return info["default"], "06.02. 00:00", True
+            # Wir prüfen, ob der Zeitstempel von heute ist
+            ist_heute = df.index[-1].date() == datetime.now().date()
+            return df['Close'].iloc[-1], ist_heute
+        return info["default"], False
     except:
-        return info["default"], "Fehler", True
+        return info["default"], False
 
 # --- 3. HEADER ---
 st.title("📊 Dein Trading- & Bio-Monitor")
 cols = st.columns(len(meine_ticker))
+daten_da = False
+
 for i, (name, info) in enumerate(meine_ticker.items()):
-    preis, zeit, is_def = hole_daten(info)
+    preis, vorhanden = hole_daten(info)
+    if vorhanden: daten_da = True
     format_str = "{:.4f}" if "USD" in name else "{:,.2f}"
     cols[i].metric(label=name, value=format_str.format(preis))
-    if is_def:
-        cols[i].write(f":green[Default ({zeit})]") # Anzeige, dass Default aktiv ist
-    else:
-        cols[i].write(f"Live: {zeit}")
 
 st.divider()
 
-# --- 4. MARKT-CHECK LOGIK (PASSIV VS. AKTIV) ---
+# --- 4. BEWERTUNGS-SKALA MIT STATUS IN ECKIGER KLAMMER ---
 st.subheader("📈 Markt-Check & China-Exposure Logik")
 wert = st.number_input("Aktueller Analyse-Wert (%)", value=5, step=1)
 
-st.write("### Bewertungs-Skala:")
+# Status für die eckige Klammer festlegen
+if daten_da:
+    status_display = ":green[[Daten vorhanden]]"
+else:
+    status_display = ":red[[Keine Daten vorhanden]]"
+
+st.write(f"### Bewertungsskala: {status_display}")
+
 l, m, r = st.columns(3)
 
-# LINKS: EXTREM TIEF
 with l:
-    if wert < 10:
-        st.error("🔴 **EXTREM TIEF**\n\nStatus: AKTIV")
+    if wert < 10: # Deine 10/90 Regel [cite: 2026-02-07]
+        st.error(f"🔴 **EXTREM TIEF**\n\nStatus: AKTIV")
     else:
         st.info("⚪ Extrem Tief (Möglichkeit: < 10%)")
 
-# MITTE: NORMALBEREICH (DEIN WUNSCH)
 with m:
-    if 10 <= wert <= 90:
-        # AKTIV-Zustand: Volles Grün
-        st.success("🟢 **NORMALBEREICH**\n\nStatus: AKTIV")
+    if 10 <= wert <= 90: # Normalbereich Definition [cite: 2026-02-07]
+        st.success(f"🟢 **NORMALBEREICH**\n\nStatus: AKTIV")
     else:
-        # PASSIV-Zustand: Zeigt in Grün, was möglich ist
-        st.write(":green[🟢 **Normalbereich** (Möglichkeit: 10% - 90%)]")
-        st.info("Aktuell: Inaktiv")
+        # Grüne Info-Anzeige der Möglichkeiten [cite: 2026-02-07]
+        st.write(":green[🟢 **Normalbereich**]")
+        st.info("Möglichkeit: 10% - 90%")
 
-# RECHTS: EXTREM HOCH
 with r:
-    if wert > 90:
-        st.error("🔴 **EXTREM HOCH**\n\nStatus: AKTIV")
+    if wert > 90: # Extrem Hoch Definition [cite: 2026-02-07]
+        st.error(f"🔴 **EXTREM HOCH**\n\nStatus: AKTIV")
     else:
         st.info("⚪ Extrem Hoch (Möglichkeit: > 90%)")
 
 st.divider()
 
-# --- 5. BIO-BACKUP ---
+# --- 5. BIO-BACKUP & ROUTINEN ---
 with st.expander("🧘 Gesundheit & Wandsitz-Routine"):
     st.write("### Routine: **WANDSITZ**")
-    st.info("⏱️ Ziel: 05 bis 08 Minuten [cite: 2026-02-03]")
-    st.warning("**Wichtig:** Gleichmäßig atmen! Keine Preßatmung! [cite: 2025-12-20]")
+    st.info("⏱️ Ziel: **05 bis 08 Minuten** [cite: 2026-02-03]")
+    st.warning("**Sicherheitsregel:** Gleichmäßig atmen! Keine Preßatmung! [cite: 2025-12-20]")
+    st.write("* Keine Mundspülungen mit Chlorhexidin verwenden [cite: 2025-12-20].")
+    st.write("* Zähneputzen: Nicht unmittelbar nach dem Essen [cite: 2025-12-20].")
