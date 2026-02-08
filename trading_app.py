@@ -1,78 +1,64 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-from datetime import datetime, timedelta
+import datetime
 
-# Konfiguration der Seite
-st.set_page_config(page_title="Bio-Trading App", layout="wide", initial_sidebar_state="expanded")
+# --- KONTROLLTURM KONFIGURATION ---
+st.set_page_config(page_title="Bio-Trading-Monitor", layout="wide")
 
-# --- GESUNDHEITS-LOGIK ---
-if 'next_check' not in st.session_state:
-    st.session_state.next_check = datetime.now() + timedelta(minutes=10)
+# Akustisches Signal beim Laden/Update (JavaScript)
+st.components.v1.html("""
+    <script>
+    function playBeep() {
+        var context = new AudioContext();
+        var o = context.createOscillator();
+        o.type = 'sine'; o.frequency.setValueAtTime(1000, context.currentTime);
+        o.connect(context.destination); o.start();
+        setTimeout(function(){ o.stop(); }, 400);
+    }
+    window.onload = playBeep;
+    </script>
+""", height=0)
 
-# --- SIDEBAR (DEIN GESUNDHEITS-ZENTRUM) ---
-with st.sidebar:
-    st.title("🧘 Health-Check")
-    st.write(f"Nächster Wandsitz um: *{st.session_state.next_check.strftime('%H:%M:%S')}*")
-    
-    if st.button("✅ Wandsitz erledigt!"):
-        st.session_state.next_check = datetime.now() + timedelta(minutes=10)
-        st.success("Super! Blutdruck gesenkt.")
+def get_status(pos):
+    if pos > 90: return "☀️ EXTREM HOCH"
+    if pos < 10: return "⛈️ EXTREM TIEF"
+    return "Normal"
 
-    st.divider()
-    st.markdown("### 🥗 Ernährungstipps")
-    st.info("• Sprossen & Rote Bete bereit?\n• Keine Mundspülung nach Training!")
-    st.markdown("### 🚅 Unterwegs")
-    st.write("Österreich Ticket dabei? Nutze die Zugfahrt für Atemübungen.")
+# --- DATEN-LOGIK ---
+INDICES = ["^GDAXI", "^IXIC"]
+CHAMPIONS = ["ASML.AS", "MC.PA", "SU.PA", "SAP.DE", "AAPL", "SYK", "MSFT", "NVDA", "OTP.BD", "PKO.WA"]
 
-# --- DATEN-FUNKTION ---
-def get_market_data():
-    symbols = {"EUR/USD": "EURUSD=X", "DAX": "^GDAXI", "NASDAQ": "^IXIC"}
-    results = {}
-    for name, sym in symbols.items():
-        ticker = yf.Ticker(sym)
-        df = ticker.history(period="1d", interval="1m")
-        if not df.empty:
-            last_price = df['Close'].iloc[-1]
-            prev_price = df['Close'].iloc[-60] if len(df) > 60 else last_price
-            roc = ((last_price - prev_price) / prev_price) * 100
-            
-            # RSI Simulation (vereinfacht für die App)
-            delta = df['Close'].diff()
-            up = delta.where(delta > 0, 0).rolling(14).mean()
-            down = (-delta.where(delta < 0, 0)).rolling(14).mean()
-            rsi = 100 - (100 / (1 + (up.iloc[-1] / down.iloc[-1])))
-            
-            results[name] = {"price": last_price, "roc": roc, "rsi": rsi}
-    return results
+@st.cache_data(ttl=15)
+def fetch_data():
+    usd = yf.Ticker("EURUSD=X").history(period="1d")['Close'].iloc[-1]
+    results = []
+    for t in (INDICES + CHAMPIONS):
+        s = yf.Ticker(t); h = s.history(period="60d"); h_y = s.history(period="1y")
+        curr = h['Close'].iloc[-1]
+        pos = ((curr - h_y['Low'].min()) / (h_y['High'].max() - h_y['Low'].min())) * 100
+        p_eur = curr if any(x in t for x in [".DE", ".AS", ".PA", ".BD", "^"]) else curr / usd
+        results.append({"Symbol": t, "Preis(EUR)": round(p_eur, 2), "Pos%": round(pos, 1), "Status": get_status(pos)})
+    return results, usd
 
-# --- HAUPTSEITE ---
-st.title("💹 Dein Bio-Trading Monitor")
-data = get_market_data()
+data, eur_usd = fetch_data()
+df = pd.DataFrame(data)
 
-# Spalten-Layout
-c1, c2, c3 = st.columns(3)
+# --- ANZEIGE (Wie im schwarzen Fenster) ---
+st.title("🛰️ KONTROLLTURM LIVE")
+st.write(f"**Update:** {datetime.datetime.now().strftime('%H:%M:%S')} | **EUR/USD:** {round(eur_usd, 4)}")
 
-with c1:
-    st.metric("EUR/USD (Cyan Fokus)", f"{data['EUR/USD']['price']:.5f}", f"{data['EUR/USD']['roc']:.2f}%")
-    st.write("Währungstrend")
+# Markt-Wetter basierend auf DAX
+dax_pos = df[df['Symbol'] == '^GDAXI']['Pos%'].values[0]
+wetter = "⚠️ Hitzewelle!" if dax_pos > 85 else "⛈️ Gewitter!" if dax_pos < 15 else "🌤️ Heiter"
+st.info(f"**MARKT-WETTER:** {wetter}")
 
-with c2:
-    val = data['DAX']['price']
-    rsi_dax = data['DAX']['rsi']
-    st.metric("DAX Index", f"{val:,.2f} pkt")
-    # RSI Anzeige mit Farblogik
-    if rsi_dax > 70: st.markdown(f"RSI: <span style='color:purple; font-weight:bold'>{rsi_dax:.2f} (HEISS)</span>", unsafe_allow_html=True)
-    elif rsi_dax < 30: st.markdown(f"RSI: <span style='color:orange; font-weight:bold'>{rsi_dax:.2f} (KALT)</span>", unsafe_allow_html=True)
-    else: st.write(f"RSI: {rsi_dax:.2f} (Neutral)")
+# Tabellen abgesetzt
+st.subheader("📊 INDIZES")
+st.dataframe(df[df['Symbol'].isin(INDICES)])
 
-with c3:
-    st.metric("NASDAQ 100", f"{data['NASDAQ']['price']:,.2f}", f"{data['NASDAQ']['roc']:.2f}%")
-    st.write("Wetter: ⛈️ Gewitter")
+st.subheader("🏆 HIDDEN CHAMPIONS")
+st.dataframe(df[df['Symbol'].isin(CHAMPIONS)])
 
-# Divergenz-Check
 st.divider()
-if data['EUR/USD']['roc'] > 0.05 and data['NASDAQ']['roc'] < -0.3:
-    st.error("🚨 DIVERGENZ-ALARM: Dollar steigt & Nasdaq fällt!")
-else:
-    st.success("✅ Markt-Synchronität ist stabil.")
+st.write("🧘 **Routine:** WANDSITZ (90°) & RUHIG ATMEN") [cite: 2026-02-03]
