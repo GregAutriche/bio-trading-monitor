@@ -33,6 +33,7 @@ for i, (name, info) in enumerate(meine_ticker.items()):
     
     format_str = "{:.4f}" if "USD" in name else "{:,.2f}"
     cols[i].metric(label=name, value=format_str.format(preis))
+    # Datum und Status [no data] in Rot [cite: 2026-02-07]
     cols[i].write(f"{zeit} :red[[no data]]" if not live else f"{zeit} :green[[data]]")
 
 st.divider()
@@ -41,26 +42,26 @@ st.divider()
 status_label = ":red[[no data]]" if not ist_live else ":green[[data]]"
 st.subheader(f"📈 Markt-Check & China-Exposure Logik {status_label}")
 
+# Dein Analyse-Wert (5%) [cite: 2026-02-07]
 wert = st.number_input("Aktueller Analyse-Wert (%)", value=5, step=1)
 st.write(f"### Bewertungsskala: {status_label}")
 
 l, m, r = st.columns(3)
 
-# LOGIK: WENN NO DATA -> ALLES NEUTRAL (WIE NORMALBEREICH)
-# WENN DATA -> DEINE REGELN (10/90) AKTIVIEREN [cite: 2026-02-07]
-
+# LOGIK: PUNKTE IMMER ZEIGEN, ABER BOX NUR AKTIV BEI [data]
 with l:
-    # Nur aktiv rot, wenn Daten da sind UND der Wert passt
     if ist_live and wert < 10:
         st.error("🔴 **EXTREM TIEF**\n\nStatus: AKTIV")
     else:
-        st.write("⚪ **Extrem Tief**")
+        # Punkt bleibt rot, aber Box ist neutral grau/blau [cite: 2026-02-07]
+        st.write("🔴 **Extrem Tief**")
         st.info("Möglichkeit: < 10%")
 
 with m:
     if ist_live and 10 <= wert <= 90:
         st.success("🟢 **Normalbereich**\n\nStatus: AKTIV")
     else:
+        # Punkt bleibt grün [cite: 2026-02-07]
         st.write("🟢 **Normalbereich**")
         st.info("Möglichkeit: 10% - 90%")
 
@@ -68,21 +69,23 @@ with r:
     if ist_live and wert > 90:
         st.error("🔴 **EXTREM HOCH**\n\nStatus: AKTIV")
     else:
-        st.write("⚪ **Extrem Hoch**")
+        # Punkt bleibt violett/dunkelblau [cite: 2026-02-07]
+        st.write("🟣 **Extrem Hoch**")
         st.info("Möglichkeit: > 90%")
 
 st.divider()
 
-# --- 5. ZUSAMMENFASSUNG & BACKUP-INFO ---
+# --- 5. BIO-BACKUP ZUSAMMENFASSUNG ---
 with st.expander("🧘 Gesundheit & Wandsitz-Routine"):
     st.write("### Routine: **WANDSITZ**")
     st.info("⏱️ Ziel: **05 bis 08 Minuten** [cite: 2026-02-03]")
-    st.warning("**WICHTIG:** Gleichmäßig atmen! Keine Preßatmung (Valsalva)! [cite: 2025-12-20]")
+    # Wichtigste Warnung für isometrisches Training [cite: 2025-12-20]
+    st.warning("**Sicherheitsregel:** Gleichmäßig atmen! Keine Preßatmung! [cite: 2025-12-20]")
     st.write("* **Blutdruck:** Senkung durch Sprossen und Rote Bete [cite: 2025-12-20].")
-    st.write("* **Warnung:** Keine Mundspülungen mit Chlorhexidin [cite: 2025-12-20].")
-    st.write("* **Timing:** Zähneputzen nicht direkt nach dem Essen [cite: 2025-12-20].")
+    st.write("* **Mund:** Keine Mundspülungen mit Chlorhexidin verwenden [cite: 2025-12-20].")
+    st.write("* **Zähne:** Erst Zeit nach dem Essen vergehen lassen [cite: 2025-12-20].")
 
 with st.expander("✈️ Reisen & Ernährung"):
-    st.write("* **Ticket:** Österreich Ticket vorhanden [cite: 2026-01-25].")
+    st.write(f"* **Ticket:** Österreich Ticket vorhanden [cite: 2026-01-25].")
     st.write("* **Snacks:** Nüsse für die Reise einplanen [cite: 2026-02-03].")
-    st.write("* **Vorsicht:** Phosphate und Grapefruit-Wechselwirkungen beachten [cite: 2025-12-20].")
+    st.write("* **Vorsicht:** Wechselwirkungen mit Grapefruit beachten [cite: 2025-12-20].")
