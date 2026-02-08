@@ -27,28 +27,38 @@ st.divider()
 def calculate_rsi(ticker_symbol, periods=14):
     try:
         data = yf.download(ticker_symbol, period="1mo", interval="1d", progress=False)
-        if data.empty: return None
+        if data.empty or len(data) < periods: return None
         
-        close_delta = data['Close'].diff()
-        up = close_delta.clip(lower=0)
-        down = -1 * close_delta.clip(upper=0)
+        # Sicherstellen, dass wir nur die 'Close' Spalte als Series haben
+        close = data['Close']
+        if isinstance(close, pd.DataFrame):
+            close = close.iloc[:, 0]
+
+        delta = close.diff()
+        up = delta.clip(lower=0)
+        down = -1 * delta.clip(upper=0)
         
-        ma_up = up.rolling(window=periods).mean()
-        ma_down = down.rolling(window=periods).mean()
+        ema_up = up.ewm(com=periods-1, adjust=False).mean()
+        ema_down = down.ewm(com=periods-1, adjust=False).mean()
         
-        rsi = ma_up / ma_down
-        rsi = 100 - (100 / (1 + rsi))
-        return rsi.iloc[-1]
+        rs = ema_up / ema_down
+        rsi = 100 - (100 / (1 + rs))
+        
+        final_val = rsi.iloc[-1]
+        return float(final_val) if not pd.isna(final_val) else None
     except:
         return None
 
 def get_market_data():
     try:
         data = yf.download(["EURUSD=X", "^GDAXI", "^IXIC"], period="1d", interval="1m", progress=False)
-        eur_usd = data['Close']['EURUSD=X'].iloc[-1] if not data['Close']['EURUSD=X'].empty else None
-        dax = data['Close']['^GDAXI'].iloc[-1] if not data['Close']['^GDAXI'].empty else None
-        nasdaq = data['Close']['^IXIC'].iloc[-1] if not data['Close']['^IXIC'].empty else None
-        return eur_usd, dax, nasdaq
+        def get_last(ticker):
+            try:
+                val = data['Close'][ticker].dropna()
+                return val.iloc[-1] if not val.empty else None
+            except: return None
+            
+        return get_last("EURUSD=X"), get_last("^GDAXI"), get_last("^IXIC")
     except:
         return None, None, None
 
@@ -74,10 +84,9 @@ with m3: display_metric("Nasdaq", val_nasdaq, is_index=True)
 
 st.divider()
 
-# --- 5. BÖRSEN-WETTER (AUTOMATISCH) ---
+# --- 5. BÖRSEN-WETTER ---
 st.subheader("🌦️ Börsen-Wetter (Live RSI Sortierung)")
 
-# Hier deine 14 Ticker einpflegen (Beispiel-Liste zum Befüllen)
 meine_ticker = [
     "OTP.BU", "MOL.BU", "RICHT.BU", "ADS.DE", "SAP.DE", "BAS.DE", 
     "ALV.DE", "BMW.DE", "DTE.DE", "IFX.DE", "VOW3.DE", "A4L.SO", "IBG.SO", "AAPL"
@@ -91,8 +100,8 @@ eiszeit, sonnig, sturm = [], [], []
 for t in meine_ticker:
     rsi_val = calculate_rsi(t)
     if rsi_val is None:
-        continue # Wird unten als No Data angezeigt, wenn Listen leer bleiben
-    elif rsi_val < 10:
+        continue
+    if rsi_val < 10:
         eiszeit.append((t, rsi_val))
     elif rsi_val > 90:
         sturm.append((t, rsi_val))
@@ -100,17 +109,17 @@ for t in meine_ticker:
         sonnig.append((t, rsi_val))
 
 with w1:
-    st.error("🔴 Eiszeit / Frost (RSI < 10%)")
+    st.info("🔴 Eiszeit / Frost (RSI < 10%)")
     if not eiszeit: st.markdown(no_data_html, unsafe_allow_html=True)
     for t, v in eiszeit: st.write(f"*{t}*: {v:.2f}%")
 
 with w2:
-    st.success("🟢 Sonnig / Heiter (10% - 90%)")
+    st.info("🟢 Sonnig / Heiter (10% - 90%)")
     if not sonnig: st.markdown(no_data_html, unsafe_allow_html=True)
     for t, v in sonnig: st.write(f"{t}: {v:.2f}%")
 
 with w3:
-    st.warning("🟣 Sturm / Gewitter (RSI > 90%)")
+    st.info("🟣 Sturm / Gewitter (RSI > 90%)")
     if not sturm: st.markdown(no_data_html, unsafe_allow_html=True)
     for t, v in sturm: st.write(f"⚠️ *{t}*: {v:.2f}%")
 
@@ -132,6 +141,5 @@ with b2:
         st.write("🌱 Sprossen / Rote Bete")
         st.write("⚠️ Keine Mundspülung (Chlorhexidin) / Keine Phosphate")
 
-# --- 7. AUTO-REFRESH ---
 time.sleep(60)
 st.rerun()
