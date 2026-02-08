@@ -2,93 +2,101 @@ import streamlit as st
 import yfinance as yf
 from datetime import datetime
 
-# --- KONFIGURATION ---
-st.set_page_config(page_title="Trading & Bio Dashboard", layout="wide")
+# --- 1. KONFIGURATION & TICKER ---
+st.set_page_config(page_title="Trading & Bio Monitor", layout="wide")
 
-# --- 1. VARIABLE TICKER-LISTE & DEFAULTS ---
 meine_ticker = {
-    "EUR/USD": {"symbol": "EURUSD=X", "default": 1.1820},
-    "DAX Index": {"symbol": "^GDAXI", "default": 24717.53},
+    "EUR/USD": {"symbol": "EURUSD=X", "default": 1.1778},
+    "DAX Index": {"symbol": "^GDAXI", "default": 24721.46},
     "NASDAQ 100": {"symbol": "^IXIC", "default": 23031.21}
 }
 
-# --- 2. FUNKTION FÜR DATENABRUF ---
-def hole_daten(info):
+# --- 2. ZENTRALE DATEN-ABFRAGE (DIE ENTSCHEIDUNG) ---
+def check_daten_status():
+    # Wir prüfen beispielhaft am DAX, ob heute gehandelt wird
     try:
-        t = yf.Ticker(info["symbol"])
-        df = t.history(period="1d")
+        test_ticker = yf.Ticker("^GDAXI")
+        df = test_ticker.history(period="1d")
         if not df.empty:
-            ist_aktuell = df.index[-1].date() == datetime.now().date()
-            return df['Close'].iloc[-1], ist_aktuell
-        return info["default"], False
+            # Check, ob der Zeitstempel von heute ist
+            ist_heute = df.index[-1].date() == datetime.now().date()
+            return ist_heute
+        return False
     except:
-        return info["default"], False
+        return False
 
-# --- 3. DATEN LADEN & HEADER ---
+# Die wichtigste Variable für das gesamte Programm
+ist_live = check_daten_status()
+status_label = ":green[[data]]" if ist_live else ":red[[no data]]"
+
+# --- 3. DASHBOARD HEADER ---
 st.title("📊 Dein Trading- & Bio-Monitor")
 
 cols = st.columns(len(meine_ticker))
-daten_da = False
-
 for i, (name, info) in enumerate(meine_ticker.items()):
-    preis, vorhanden = hole_daten(info)
-    if vorhanden: 
-        daten_da = True
-    
+    # Falls nicht live, nimm den Default-Wert aus deinem Screenshot
+    if not ist_live:
+        preis = info["default"]
+        zeit_info = "06.02. 00:00"
+    else:
+        # Hier käme der Live-Abruf (vereinfacht für die Struktur)
+        t = yf.Ticker(info["symbol"])
+        preis = t.history(period="1d")['Close'].iloc[-1]
+        zeit_info = datetime.now().strftime('%d.%m. %H:%M')
+
     format_str = "{:.4f}" if "USD" in name else "{:,.2f}"
     cols[i].metric(label=name, value=format_str.format(preis))
+    cols[i].write(f"Status: {status_label}")
 
 st.divider()
 
 # --- 4. MARKT-CHECK & BEWERTUNGSSKALA ---
-# Status-Text einheitlich [no data] oder [data]
-status_text = ":green[[data]]" if daten_da else ":red[[no data]]"
-
-st.subheader(f"📈 Markt-Check & China-Exposure Logik {status_text}")
+st.subheader(f"📈 Markt-Check & China-Exposure Logik {status_label}")
 wert = st.number_input("Aktueller Analyse-Wert (%)", value=5, step=1)
-st.write(f"### Bewertungsskala: {status_text}")
 
-l_col, m_col, r_col = st.columns(3)
+st.write(f"### Bewertungsskala: {status_label}")
+l, m, r = st.columns(3)
 
-# LINKS: EXTREM TIEF (Jetzt mit der gleichen Logik)
-with l_col:
-    if wert < 10: # Deine Regel: < 10% ist extrem tief
-        st.error(f"🔴 **EXTREM TIEF**\n\nStatus: AKTIV")
+# Logik für alle 3 Bereiche (Punkt + Möglichkeit im inaktiven Zustand)
+# LINKS: EXTREM TIEF
+with l:
+    if wert < 10: # Regel: < 10% [cite: 2026-02-07]
+        st.error("🔴 **EXTREM TIEF**\n\nStatus: AKTIV")
     else:
         st.write("🔴 **Extrem Tief**")
         st.info("Möglichkeit: < 10%")
 
 # MITTE: NORMALBEREICH
-with m_col:
-    if 10 <= wert <= 90: # Deine Regel: 10% - 90% ist normal
-        st.success(f"🟢 **Normalbereich**\n\nStatus: AKTIV")
+with m:
+    if 10 <= wert <= 90: # Regel: 10% - 90% [cite: 2026-02-07]
+        st.success("🟢 **Normalbereich**\n\nStatus: AKTIV")
     else:
         st.write("🟢 **Normalbereich**")
         st.info("Möglichkeit: 10% - 90%")
 
 # RECHTS: EXTREM HOCH
-with r_col:
-    if wert > 90: # Deine Regel: > 90% ist extrem hoch
-        st.error(f"🔴 **EXTREM HOCH**\n\nStatus: AKTIV")
+with r:
+    if wert > 90: # Regel: > 90% [cite: 2026-02-07]
+        st.error("🔴 **EXTREM HOCH**\n\nStatus: AKTIV")
     else:
         st.write("🟣 **Extrem Hoch**")
         st.info("Möglichkeit: > 90%")
 
 st.divider()
 
-# --- 5. BIO-BACKUP INFORMATIONEN ---
+# --- 5. BIO-BACKUP & ROUTINEN ---
 with st.expander("🧘 Gesundheit & Wandsitz-Routine"):
     st.write("### Routine: **WANDSITZ**")
-    st.info("⏱️ Ziel: **05 bis 08 Minuten**")
-    st.warning("**Wichtig:** Gleichmäßig atmen! Keine Preßatmung (Valsalva-Manöver)!")
-    st.write("* **Mundhygiene:** Keine Mundspülungen mit Chlorhexidin verwenden.")
-    st.write("* **Timing:** Nicht unmittelbar nach dem Essen Zähne putzen.")
+    st.info("⏱️ Ziel: **05 bis 08 Minuten** [cite: 2026-02-03]")
+    st.warning("**Sicherheitsregel:** Gleichmäßig atmen! Keine Preßatmung! [cite: 2025-12-20]")
+    st.write("* Keine Mundspülungen mit Chlorhexidin [cite: 2025-12-20]")
+    st.write("* Nicht direkt nach dem Essen Zähne putzen [cite: 2025-12-20]")
 
 with st.expander("✈️ Reisen & Ernährung"):
-    st.write(f"* **Ticket:** Österreich-Ticket vorhanden.")
-    st.write("* **Snacks:** Nüsse für die Reise einplanen.")
-    st.write("* **Blutdruck:** Fokus auf Sprossen und Rote Bete.")
-    st.write("* **Vorsicht:** Phosphate in Fertiggerichten und Grapefruit meiden.")
+    st.write(f"* **Ticket:** Österreich-Ticket vorhanden [cite: 2026-01-25]")
+    st.write("* **Snacks:** Nüsse einplanen [cite: 2026-02-03]")
+    st.write("* **Ernährung:** Sprossen & Rote Bete zur Blutdrucksenkung [cite: 2025-12-20]")
+    st.write("* **Vorsicht:** Phosphate in Fertiggerichten meiden [cite: 2025-12-20]")
 
 # --- 6. 7-TAGE ÜBERSICHT ---
 with st.expander("📅 Letzte 7 Tage Übersicht"):
