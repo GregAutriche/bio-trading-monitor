@@ -1,26 +1,48 @@
 import streamlit as st
+import yfinance as yf
+from datetime import datetime
 
-# --- SPEICHER ---
+# --- 1. SETUP & SPEICHER (SESSION STATE) ---
+st.set_page_config(page_title="Monitor für dich", layout="wide")
+
+# Feste Startzeit des Programms
+if 'start_zeit' not in st.session_state:
+    st.session_state.start_zeit = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+
+# Wandsitz-Logik
 if 'w_zeit' not in st.session_state: st.session_state.w_zeit = 30
 if 'h_count' not in st.session_state: st.session_state.h_count = 0
+if 'serie' not in st.session_state: st.session_state.serie = 0
 
+def click_wandsitz():
+    st.session_state.h_count += 1
+    if st.session_state.h_count == 1:
+        st.session_state.serie += 1
+    if st.session_state.serie >= 7:
+        st.session_state.w_zeit += 10
+        st.session_state.serie = 0
+
+# --- 2. HEADER & ZEITSTEMPEL ---
 st.title("🖥️ Monitor für dich")
-
-# --- 1. BÖRSEN-WETTER (DIE VOLKSMUSIK) ---
-# Wir zeigen hier die Möglichkeiten im gleichen Box-Design wie unten [cite: 2026-02-07]
-st.subheader("🌦️ Börsen-Wetter: ATR & RSI [no data]")
-w1, w2, w3 = st.columns(3)
-
-with w1:
-    st.info("🔴 **Extrem Tief**\n\nWindstill / Frost (< 10%)")
-with w2:
-    st.info("🟢 **Normalbereich**\n\nHeiter bis Wolkig (10% - 90%)")
-with w3:
-    st.info("🟣 **Extrem Hoch**\n\nSturm / Hitze (> 90%)")
+st.write(f"🚀 **Programm gestartet am:** {st.session_state.start_zeit}")
+st.write(f"🕒 **Letztes Daten-Update:** {datetime.now().strftime('%H:%M:%S')} (Sonntag: Markt geschlossen)")
 
 st.divider()
 
-# --- 2. MARKT-CHECK & CHINA-EXPOSURE ---
+# --- 3. BÖRSEN-WETTER (ATR & RSI) OBEN ---
+st.subheader("🌦️ Börsen-Wetter: Die Volksmusik [no data]")
+w1, w2, w3 = st.columns(3)
+
+with w1:
+    st.info("🔴 **Extrem Tief**\n\nWindstill / Frost (< 10%)") #
+with w2:
+    st.info("🟢 **Normalbereich**\n\nHeiter bis Wolkig (10% - 90%)") #
+with w3:
+    st.info("🟣 **Extrem Hoch**\n\nSturm / Hitze (> 90%)") #
+
+st.divider()
+
+# --- 4. MARKT-CHECK & CHINA-EXPOSURE ---
 st.subheader("📈 Markt-Check & China-Exposure [no data]")
 l, m, r = st.columns(3)
 with l: st.info("🔴 **Extrem Tief** (< 10%)")
@@ -29,25 +51,25 @@ with r: st.info("🟣 **Extrem Hoch** (> 90%)")
 
 st.divider()
 
-# --- 3. BIO-CHECK LEISTE (Wandsitz & Gesundheit) ---
+# --- 5. DIE FINALE BIO-CHECK-LEISTE ---
+st.subheader("🧘 Dein Bio-Check")
 c1, c2, c3 = st.columns([2, 1, 1])
 
 with c1:
-    # Der Wandsitz-Button wechselt bei Klick auf Grün [cite: 2026-02-03, 2026-02-07]
+    # Wandsitz-Logik mit grünem Status bei Erfolg
     label = f"Wandsitz: {st.session_state.w_zeit} Sek. Erledigt"
     if st.session_state.h_count > 0:
         st.success(f"✅ {label} | Heute: {st.session_state.h_count}x")
     else:
-        if st.button(label): 
-            st.session_state.h_count += 1
-            st.rerun()
-    # Wichtigster Schutzfaktor [cite: 2025-12-20]
-    st.error("⚠️ **WICHTIG:** Atmen! Keine Preßatmung!")
+        st.button(label, on_click=click_wandsitz)
+    
+    st.error("⚠️ **Atmen! Keine Preßatmung!**") #
+    st.caption(f"Serie: {st.session_state.serie}/7 Tage bis zur Steigerung.")
 
 with c2:
-    st.write("🌱 Sprossen / Rote Bete [cite: 2025-12-20]")
-    st.write("🎫 Österreich Ticket [cite: 2026-01-25]")
+    st.write("🌱 **Sprossen / Rote Bete**") #
+    st.write("🎫 **Österreich Ticket**") #
 
 with c3:
-    st.write("🥜 Nüsse einplanen [cite: 2026-02-03]")
-    st.write("🚫 Kein Chlorhexidin [cite: 2025-12-20]")
+    st.write("🥜 **Nüsse einplanen**") #
+    st.write("🚫 **Kein Chlorhexidin**") #
