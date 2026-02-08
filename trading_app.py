@@ -5,92 +5,88 @@ from datetime import datetime
 # Seite konfigurieren
 st.set_page_config(page_title="Trading & Bio Dashboard", layout="wide")
 
-# --- 1. VARIABLE TICKER-LISTE ---
+# --- 1. VARIABLE TICKER-LISTE & DEFAULTS ---
+# Wir definieren hier Default-Werte für das Wochenende
 meine_ticker = {
-    "EUR/USD": "EURUSD=X",
-    "DAX Index": "^GDAXI",
-    "NASDAQ 100": "^IXIC"
+    "EUR/USD": {"symbol": "EURUSD=X", "default": 1.0850},
+    "DAX Index": {"symbol": "^GDAXI", "default": 18500.0},
+    "NASDAQ 100": {"symbol": "^IXIC", "default": 22500.0}
 }
 
-# --- 2. FUNKTION MIT FEHLERSCHUTZ ---
-def hole_daten(symbol):
+# --- 2. FUNKTION MIT GRÜNER DEFAULT-LOGIK ---
+def hole_daten(name, info):
     try:
-        t = yf.Ticker(symbol)
+        t = yf.Ticker(info["symbol"])
         df = t.history(period="1d")
         if not df.empty:
             kurs = df['Close'].iloc[-1]
             zeit = df.index[-1].strftime('%d.%m. %H:%M')
-            return kurs, zeit
-        return None, "Markt geschlossen"
+            return kurs, zeit, False # False bedeutet: Kein Default
+        return info["default"], "Markt zu", True # True bedeutet: Default aktiv
     except Exception:
-        return None, "Verbindungsfehler"
+        return info["default"], "Verbindung unterbrochen", True
 
 # --- 3. DYNAMISCHE ANZEIGE ---
 st.title("📊 Dein Trading- & Bio-Monitor")
 
 cols = st.columns(len(meine_ticker))
-
-for i, (name, symbol) in enumerate(meine_ticker.items()):
-    preis, zeitpunkt = hole_daten(symbol)
+for i, (name, info) in enumerate(meine_ticker.items()):
+    preis, zeitpunkt, is_default = hole_daten(name, info)
     
-    if preis is not None:
-        format_str = "{:.4f}" if "EUR/USD" in name else "{:,.2f}"
-        anzeige_wert = format_str.format(preis)
-    else:
-        anzeige_wert = "--" 
+    format_str = "{:.4f}" if "EUR/USD" in name else "{:,.2f}"
+    anzeige_wert = format_str.format(preis)
     
-    cols[i].metric(
-        label=name, 
-        value=anzeige_wert,
-        help=f"Info: {zeitpunkt}"
-    )
+    # Wenn es ein Default-Wert ist, färben wir die Info grün
+    status_text = f":green[Default ({zeitpunkt})]" if is_default else f"Live: {zeitpunkt}"
+    
+    cols[i].metric(label=name, value=anzeige_wert, help=status_text)
+    cols[i].write(status_text)
 
-st.caption(f"Letzte System-Prüfung: {datetime.now().strftime('%H:%M:%S')} Uhr")
 st.divider()
 
-# --- 4. BEWERTUNGS-LOGIK (10/90 REGEL) MIT FARBEN ---
+# --- 4. BEWERTUNGS-LOGIK (10/90 REGEL) ---
 st.subheader("📈 Markt-Check & China-Exposure Logik")
 
-# Dein manueller Analyse-Wert
+# Dein aktueller Analyse-Wert (der "Fünfer")
 wert = st.number_input("Aktueller Analyse-Wert (%)", value=5, step=1)
 
 st.write("### Bewertungs-Skala:")
 l_col, m_col, r_col = st.columns(3)
 
 with l_col:
-    if wert < 10:
+    if wert < 10: # Deine Regel: < 10% ist extrem tief
         st.error(f"🔴 **EXTREM TIEF**\n\nBereich: < 10%\n\nStatus: AKTIV")
     else:
         st.info("⚪ Extrem Tief (< 10%)")
 
 with m_col:
-    if 10 <= wert <= 90:
-        # Hier ist nun das gewünschte Grün für den Normalbereich
+    if 10 <= wert <= 90: # Deine Regel: 10% bis 90% ist normal
         st.success(f"🟢 **NORMALBEREICH**\n\nBereich: 10% - 90%\n\nStatus: AKTIV")
     else:
         st.info("⚪ Normalbereich (10% - 90%)")
 
 with r_col:
-    if wert > 90:
+    if wert > 90: # Deine Regel: > 90% ist extrem hoch
         st.error(f"🔴 **EXTREM HOCH**\n\nBereich: > 90%\n\nStatus: AKTIV")
     else:
         st.info("⚪ Extrem Hoch (> 90%)")
 
 st.divider()
 
-# --- 5. BIO-ROUTINEN (BACKUP-INFORMATIONEN) ---
+# --- 5. BACKUP-INFORMATIONEN (WANDSITZ ETC.) ---
 with st.expander("🧘 Gesundheit & Wandsitz-Routine"):
-    st.write("### Routine: **WANDSITZ** (Isometrisch)")
+    st.write("### Routine: **WANDSITZ**")
     st.info("⏱️ Ziel: **05 bis 08 Minuten**")
     st.warning("**Wichtig:** Gleichmäßig atmen! Keine Preßatmung (Valsalva-Manöver)!")
     st.write("* **Mundhygiene:** Keine Mundspülungen mit Chlorhexidin verwenden.")
+    st.write("* **Zähneputzen:** Nicht unmittelbar nach dem Essen putzen.")
 
 with st.expander("✈️ Reisen & Ernährung"):
     st.write(f"* **Ticket:** Österreich-Ticket vorhanden.")
     st.write("* **Snacks:** Immer Nüsse für die Reise einplanen.")
-    st.write("* **Fokus:** Sprossen und Rote Bete zur Blutdrucksenkung.")
+    st.write("* **Blutdruck:** Fokus auf Sprossen und Rote Bete.")
     st.write("* **Vorsicht:** Phosphate in Fertiggerichten und Grapefruit bei Medikamenten meiden.")
 
 with st.expander("🆕 Letzte 7 Tage Übersicht"):
-    st.write("### Tägliche Zusammenfassung")
-    st.write("Wöchentlicher Überblick deiner Fortschritte.")
+    st.write("### Wöchentlicher Überblick")
+    st.write("Protokollierung deiner isometrischen Fortschritte und Marktdaten.")
