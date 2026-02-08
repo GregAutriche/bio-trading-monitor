@@ -2,12 +2,11 @@ import streamlit as st
 import yfinance as yf
 from datetime import datetime
 
-# --- 1. START-ZEILE ---
+# --- 1. START-ZEILE (Wie vereinbart) ---
 jetzt = datetime.now()
 tage = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
 heute_name = tage[jetzt.weekday()]
 
-# Anzeige: Start: Wochentag, Jahr Monat Tag Uhrzeit
 st.markdown(f"## Start: {heute_name}, {jetzt.strftime('%Y %m %d %H:%M:%S')}")
 st.divider()
 
@@ -17,8 +16,9 @@ st.subheader("💹 Markt-Check: Euro/USD | DAX | Nasdaq")
 def get_data(symbol):
     try:
         t = yf.Ticker(symbol)
+        # Am Wochenende wird der letzte Schlusskurs geladen
         d = t.history(period="1d")
-        return round(d['Close'].iloc[-1], 4) if not d.empty else "N/A"
+        return round(d['Close'].iloc[-1], 2) if not d.empty else "N/A"
     except: return "Error"
 
 m1, m2, m3 = st.columns(3)
@@ -28,9 +28,10 @@ with m3: st.metric("Nasdaq", get_data("^IXIC"))
 
 st.divider()
 
-# --- 3. DIE 14 AKTIEN (7x EUROPA & 7x USA) ---
+# --- 3. DIE 14 VEREINBARTEN AKTIEN (7x EUROPA & 7x USA) ---
 st.subheader("🇪🇺 7x Europa & 🇺🇸 7x USA")
 
+# Europa (inkl. HU-Titel als Teil der 7)
 europa = ["OTP.BU", "MOL.BU", "ADS.DE", "SAP.DE", "ASML.AS", "MC.PA", "SIE.DE"]
 usa = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA"]
 
@@ -42,11 +43,11 @@ with c_us:
 
 st.divider()
 
-# --- 4. BIO-CHECK & BACKUP ---
+# --- 4. BIO-CHECK & BACKUP (Zusammenfassung) ---
 st.subheader("🧘 Bio-Check & Sicherheit")
-st.error("⚠️ WANDSITZ: Atmen! Pressatmung vermeiden!")
+st.error("⚠️ WANDSITZ: Atmen! Keine Pressatmung (Blutdruck)! [cite: 2025-12-20]")
 
 with st.expander("🛡️ Backup-Informationen"):
     st.write("🌱 **Blutdruck**: Sprossen & Rote Bete nutzen [cite: 2025-12-20]")
     st.write("🥜 **Reisen**: Nüsse als Snack & Österreich Ticket [cite: 2026-02-03, 2026-01-25]")
-    st.write("🚫 **Warnung**: Keine Mundspülung (Chlorhexidin) [cite: 2025-12-20]")
+    st.write("🚫 **Warnung**: Keine Mundspülung mit Chlorhexidin [cite: 2025-12-20]")
