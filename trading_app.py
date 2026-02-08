@@ -8,19 +8,16 @@ st.set_page_config(page_title="Monitor für dich", layout="wide")
 if 'start_zeit' not in st.session_state:
     st.session_state.start_zeit = "08.02.2026 12:02:58"
 
-if 'w_zeit' not in st.session_state: st.session_state.w_zeit = 30
 if 'h_count' not in st.session_state: st.session_state.h_count = 0
 
 # --- 2. HEADER & STATUS ---
 st.title("🖥️ Monitor für dich")
 st.write(f"🚀 **Programm gestartet am:** {st.session_state.start_zeit}")
-
-# Status-Logik für den automatischen Übergang morgen
-st.write("🕒 **Status:** ⚪ STANDBY (Wochenende - Daten-Check aktiv)")
+st.write("🕒 **Status:** ⚪ STANDBY (Wochenende)")
 
 st.divider()
 
-# --- 3. BÖRSEN-WETTER (Mit deiner Wunsch-Logik) ---
+# --- 3. BÖRSEN-WETTER (Sonnig/Sturm Logik) ---
 st.subheader("🌦️ Börsen-Wetter (ATR & RSI)")
 w1, w2, w3 = st.columns(3)
 
@@ -33,24 +30,30 @@ with w3:
 
 st.divider()
 
-# --- 4. DEIN BIO-CHECK (Fehlerfrei & Aktiv) ---
+# --- 4. MARKT-CHECK & CHINA-EXPOSURE ---
+st.subheader("📈 Markt-Check & China-Exposure [no data]")
+l, m, r = st.columns(3)
+with l: st.info("🔴 Extrem Tief (< 10%)")
+with m: st.info("🟢 Normalbereich (10% - 90%)")
+with r: st.info("🟣 Extrem Hoch (> 90%)")
+
+st.divider()
+
+# --- 5. DEIN BIO-CHECK ---
 st.subheader("🧘 Dein Bio-Check")
 c1, c2, c3 = st.columns([2, 1, 1])
 
 with c1:
-    # Wandsitz-Button
-    btn_label = f"Wandsitz erledigt (Heute: {st.session_state.h_count}x)"
-    if st.button(btn_label):
+    if st.button(f"Wandsitz erledigt (Heute: {st.session_state.h_count}x)"):
         st.session_state.h_count += 1
         st.rerun()
-    
-    # Korrigierte Warnanzeige ohne Syntax-Konflikt
+    # Vereinfachte Fehlermeldung für maximale Stabilität
     st.error("ACHTUNG: Atmen! Keine Pressatmung!")
 
 with c2:
-    st.write("🌱 Sprossen / Rote Bete") [cite: 2025-12-20]
-    st.write("🎫 Österreich Ticket") [cite: 2026-01-25]
+    st.write("🌱 Sprossen / Rote Bete")
+    st.write("🎫 Österreich Ticket")
 
 with c3:
-    st.write("🥜 Nüsse einplanen") [cite: 2026-02-03]
-    st.write("🚫 Kein Chlorhexidin") [cite: 2025-12-20]
+    st.write("🥜 Nüsse einplanen")
+    st.write("🚫 Kein Chlorhexidin")
