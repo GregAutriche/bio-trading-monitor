@@ -1,50 +1,56 @@
 import streamlit as st
 import yfinance as yf
+from datetime import datetime
 
 # Seite konfigurieren
 st.set_page_config(page_title="Trading & Bio Dashboard", layout="wide")
 
-# --- 1. FUNKTION FÜR DATENABRUF ---
-def get_live_data(symbol):
+# --- 1. FUNKTION FÜR DATENABRUF MIT ZEITSTEMPEL ---
+def get_live_data_with_time(symbol):
     try:
         ticker = yf.Ticker(symbol)
-        # 1 Tag Zeitraum. Wenn leer (z.B. Sonntag), wird None zurückgegeben.
         df = ticker.history(period="1d")
-        return df['Close'].iloc[-1] if not df.empty else None
+        if not df.empty:
+            price = df['Close'].iloc[-1]
+            time = df.index[-1].strftime('%d.%m. %H:%M')
+            return price, time
+        return None, "Keine Daten"
     except:
-        return None
+        return None, "Fehler"
 
-# Daten abrufen (Indizes & Deine Ticker)
-eurusd = get_live_data("EURUSD=X")
-dax = get_live_data("^GDAXI")
-nasdaq = get_live_data("^IXIC")
-# Deine Ticker für Ungarn und Bulgarien
-otp_bank = get_live_data("OTP.BU")   # Ungarn
-sopharma = get_live_data("SFA.SO")   # Bulgarien
+# Daten abrufen
+eurusd_p, eurusd_t = get_live_data_with_time("EURUSD=X")
+dax_p, dax_t = get_live_data_with_time("^GDAXI")
+nasdaq_p, nasdaq_t = get_live_data_with_time("^IXIC")
+otp_p, otp_t = get_live_data_with_time("OTP.BU")
+sopharma_p, sopharma_t = get_live_data_with_time("SFA.SO")
 
-# --- 2. HEADER & METRIKEN ---
+# --- 2. HEADER & METRIKEN MIT ZEITSTEMPEL ---
 st.title("📊 Dein Trading- & Bio-Monitor")
 
-col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("EUR/USD", f"{eurusd:.4f}" if eurusd else "Markt zu")
-col2.metric("DAX Index", f"{dax:,.2f} pkt" if dax else "Markt zu")
-col3.metric("NASDAQ 100", f"{nasdaq:,.2f}" if nasdaq else "Markt zu")
-col4.metric("OTP Bank (HU)", f"{otp_bank:,.0f} HUF" if otp_bank else "Markt zu")
-col5.metric("Sopharma (BG)", f"{sopharma:,.2f} BGN" if sopharma else "Markt zu")
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("EUR/USD", f"{eurusd_p:.4f}" if eurusd_p else "Markt zu", help=f"Zeit: {eurusd_t}")
+c2.metric("DAX Index", f"{dax_p:,.2f}" if dax_p else "Markt zu", help=f"Zeit: {dax_t}")
+c3.metric("NASDAQ 100", f"{nasdaq_p:,.2f}" if nasdaq_p else "Markt zu", help=f"Zeit: {nasdaq_t}")
+c4.metric("OTP Bank (HU)", f"{otp_p:,.0f}" if otp_p else "Markt zu", help=f"Zeit: {otp_t}")
+c5.metric("Sopharma (BG)", f"{sopharma_p:,.2f}" if sopharma_p else "Markt zu", help=f"Zeit: {sopharma_t}")
+
+# Anzeige der Zeitstempel unter den Metriken für direkte Sichtbarkeit
+st.caption(f"Letzte Aktualisierung: DAX ({dax_t}) | HU ({otp_t}) | BG ({sopharma_t})")
 
 st.divider()
 
-# --- 3. DIE GESAMTE LOGIK-ABBILDUNG (IMMER SICHTBAR) ---
+# --- 3. CHINA-EXPOSURE & STÄNDIGE LOGIK-ABBILDUNG ---
 st.subheader("📈 Markt-Check & China-Exposure Logik")
 
-# Status festlegen (Beispielwert 05% wie im Bild oder Live-Daten)
-# Falls keine Daten da sind, zeigen wir die Skala neutral
-aktueller_wert = 5 # Hier kannst du deinen dynamischen Wert einsetzen
+# Simulation/Eingabe des aktuellen Werts
+# (Hier könnte später die automatische Berechnung stehen)
+aktueller_wert = st.number_input("Aktueller Analyse-Wert (%)", value=5, step=1)
 
-# Die "Logik-Leiste" - Zeigt immer alle drei Bereiche an
 st.write("### Bewertungs-Skala:")
 l_col, m_col, r_col = st.columns(3)
 
+# Die Logik wird immer vollständig angezeigt
 with l_col:
     if aktueller_wert < 10:
         st.error("🔴 **EXTREM TIEF**\n\nBereich: < 10%\n\n*Status: AKTIV*")
@@ -65,19 +71,18 @@ with r_col:
 
 st.divider()
 
-# --- 4. AUFKLAPPBARE INFORMATIONEN (GESUNDHEIT, REISE, ERNÄHRUNG) ---
-
+# --- 4. AUFKLAPPBARE INFORMATIONEN ---
 with st.expander("🧘 Gesundheit & Wandsitz-Routine"):
     st.write("### Routine: **WANDSITZ**")
     st.info("⏱️ **Empfohlene Dauer:** 05 bis 08 Minuten")
     st.warning("**Sicherheitsregeln:**")
     st.write("* **Atmung:** Gleichmäßig atmen! Keine Preßatmung (Valsalva-Manöver).")
     st.write("* **Mundhygiene:** Keine Mundspülungen mit Chlorhexidin.")
-    st.write("* **Nach dem Essen:** Nicht sofort Zähne putzen oder Kaugummi kauen.")
+    st.write("* **Timing:** Nicht unmittelbar nach dem Essen Zähne putzen oder Kaugummi kauen.")
 
 with st.expander("✈️ Reisen & Ernährung"):
     st.write("### Unterwegs")
-    st.write("* **Ticket:** Österreich Ticket vorhanden.")
+    st.write(f"* **Ticket:** Österreich-Ticket vorhanden.")
     st.write("* **Snacks:** Nüsse für die Reise einplanen.")
     st.write("### Blutdruck-Ernährung")
     st.write("* **Fokus:** Sprossen und Rote Bete.")
@@ -86,4 +91,4 @@ with st.expander("✈️ Reisen & Ernährung"):
 
 with st.expander("🆕 Letzte 7 Tage Übersicht"):
     st.write("### Wochenzusammenfassung")
-    st.write("Hier werden deine Fortschritte beim Wandsitz und Marktbeobachtungen gelistet.")
+    st.write("Hier werden deine täglichen Fortschritte gelistet.")
