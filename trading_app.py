@@ -95,7 +95,7 @@ st.subheader("🧘 Dein Bio-Check")
 b1, b2 = st.columns(2)
 
 with b1:
-       if st.button(f"Wandsitz erledigt (Heute: {st.session_state.h_count}x)"):
+    if st.button(f"Wandsitz erledigt (Heute: {st.session_state.h_count}x)"):
         st.session_state.h_count += 1
         st.rerun()
     st.error("WANDSITZ: Bitte atmen! Keine Pressatmung halten!")
