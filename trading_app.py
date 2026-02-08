@@ -39,7 +39,7 @@ def check_daten_status(info):
     try:
         t = yf.Ticker(info["symbol"])
         df = t.history(period="1d")
-        # Prüfung ob Daten vom heutigen Tag vorliegen
+        # Prüfung ob Daten vom heutigen Tag vorliegen [cite: 2026-02-07]
         if not df.empty and df.index[-1].date() == datetime.now().date():
             return df['Close'].iloc[-1], df.index[-1].strftime('%d.%m. %H:%M'), True
         return info["default"], info["datum"], False
@@ -75,7 +75,7 @@ wert = st.number_input("Aktueller Analyse-Wert (%)", value=5, step=1)
 st.write(f"### Bewertungsskala: {status_label}")
 l, m, r = st.columns(3)
 
-# Neutral-Modus bei [no data], Aktiv-Modus nur bei [data]
+# Neutral-Modus bei [no data], Aktiv-Modus nur bei [data] [cite: 2026-02-07]
 with l:
     if ist_irgendwas_live and wert < 10:
         st.error("🔴 **EXTREM TIEF**\n\nStatus: AKTIV")
@@ -93,3 +93,21 @@ with m:
 with r:
     if ist_irgendwas_live and wert > 90:
         st.error("🔴 **EXTREM HOCH**\n\nStatus: AKTIV")
+    else:
+        st.write("🟣 **Extrem Hoch**")
+        st.info("Möglichkeit: > 90%")
+
+st.divider()
+
+# --- 5. BIO-BACKUP & REISEN ---
+with st.expander("🧘 Gesundheit & Wandsitz-Routine"):
+    st.write("### Routine: **WANDSITZ**")
+    st.info("⏱️ Ziel: **05 bis 08 Minuten** [cite: 2026-02-03]")
+    st.warning("**Wichtig:** Gleichmäßig atmen! Keine Preßatmung! [cite: 2025-12-20]")
+    st.write("* **Blutdruck:** Unterstützung durch Sprossen und Rote Bete [cite: 2025-12-20].")
+    st.write("* **Mund:** Keine chlorhexidinhaltigen Mundspülungen [cite: 2025-12-20].")
+
+with st.expander("✈️ Reisen & Ernährung"):
+    st.write(f"* **Ticket:** Österreich Ticket vorhanden [cite: 2026-01-25].")
+    st.write("* **Snacks:** Nüsse für unterwegs [cite: 2026-02-03].")
+    st.write("* **Vorsicht:** Grapefruit und Phosphate meiden [cite: 2025-12-20].")
