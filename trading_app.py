@@ -4,16 +4,16 @@ import yfinance as yf
 from datetime import datetime
 import pytz
 
-# Fallback-System für stabilen Betrieb
-HAS_AUTO = False
+# Sicherer Import: Die App stürzt nicht ab, wenn das Modul fehlt
 try:
     from streamlit_autorefresh import st_autorefresh
     HAS_AUTO = True
 except Exception:
-    pass
+    HAS_AUTO = False
 
 st.set_page_config(page_title="Kontrollturm Aktiv", layout="wide")
 
+# Refresh alle 5 Minuten, falls verfügbar
 if HAS_AUTO:
     st_autorefresh(interval=300000, key="datarefresh")
 
@@ -30,24 +30,20 @@ def fetch_live_metrics(ticker_symbol, is_currency=False):
         lo, hi = hist['Low'].min(), hist['High'].max()
         pos_percent = ((cp - lo) / (hi - lo)) * 100
         
+        # RSI Logik
         delta = hist['Close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
         rs = gain / (loss + 1e-10)
         rsi_val = 100 - (100 / (1 + rs.iloc[-1]))
         
-        status = "NORMAL"
-        icon = "🌿 🌳" 
-        trend_dot = "🟡"
+        # Deine gewünschten Symbole: Gras & Baum
+        status, icon, trend_dot = "NORMAL", "🌿 🌳", "🟡"
         
         if pos_percent < 10:
-            status = "EXTREM TIEF"
-            icon = "⚡" 
-            trend_dot = "🔴"
+            status, icon, trend_dot = "EXTREM TIEF", "⚡", "🔴"
         elif pos_percent > 90:
-            status = "EXTREM HOCH"
-            icon = "☀️" 
-            trend_dot = "🟢"
+            status, icon, trend_dot = "EXTREM HOCH", "☀️", "🟢"
             
         price_fmt = f"{cp:.4f}" if is_currency else f"{cp:,.0f}"
         return {"Preis": price_fmt, "Pos": pos_percent, "RSI": rsi_val, "Status": status, "Trend": trend_dot, "Icon": icon}
@@ -56,40 +52,27 @@ def fetch_live_metrics(ticker_symbol, is_currency=False):
 
 st.title(f"🚀 KONTROLLTURM AKTIV | {now.strftime('%d.%m.%Y | %H:%M:%S')}")
 
-cols_header = st.columns(3)
-market_tickers = [("EUR/USD", "EURUSD=X", True), ("DAX Index", "^GDAXI", False), ("NASDAQ Composite", "^IXIC", False)]
-
+# Markt-Metriken
+cols = st.columns(3)
+market_tickers = [("EUR/USD", "EURUSD=X", True), ("DAX Index", "^GDAXI", False), ("NASDAQ", "^IXIC", False)]
 for i, (label, sym, is_curr) in enumerate(market_tickers):
-    m_data = fetch_live_metrics(sym, is_curr)
-    if m_data:
-        cols_header[i].metric(label, m_data['Preis'], f"{m_data['Pos']:.1f}% Position")
+    d = fetch_live_metrics(sym, is_curr)
+    if d: cols[i].metric(label, d['Preis'], f"{d['Pos']:.1f}% Pos")
 
 st.divider()
+st.warning("⚠️ Wichtig: Wandsitz (KEINE Pressatmung!), Rote Bete, kein Chlorhexidin!")
 
-with st.expander("ℹ️ Informationsquelle: Strategie-Symbole"):
-    st.write("**🔴 + ⚡ (Tief < 10%):** Kaufzone.")
-    st.write("**🟡 + 🌿 🌳 (10-90%):** Wachstum (Gras & Baum).")
-    st.write("**🟢 + ☀️ (Hoch > 90%):** Erntezeit.")
-
-st.warning("⚠️ Wichtig: Wandsitz (Keine Pressatmung!), Rote Bete, kein Chlorhexidin!")
-st.divider()
-
+# Champions Tabellen
 eu_list = [{"t": "OTP.BU", "n": "OTP Bank"}, {"t": "BAS.DE", "n": "BASF"}, {"t": "SIE.DE", "n": "Siemens"}, {"t": "VOW3.DE", "n": "VW"}, {"t": "SAP.DE", "n": "SAP"}, {"t": "ADS.DE", "n": "Adidas"}, {"t": "BMW.DE", "n": "BMW"}]
 us_list = [{"t": "STLD", "n": "Steel Dynamics"}, {"t": "WMS", "n": "Adv. Drainage"}, {"t": "NVDA", "n": "Nvidia"}, {"t": "AAPL", "n": "Apple"}, {"t": "MSFT", "n": "Microsoft"}, {"t": "GOOGL", "n": "Google"}, {"t": "AMZN", "n": "Amazon"}]
-
-col1, col2 = st.columns(2)
 
 def build_table(stocks):
     rows = []
     for s in stocks:
         d = fetch_live_metrics(s['t'])
-        if d:
-            rows.append({"Trend": d['Trend'], "Wetter": d['Icon'], "Name": s['n'], "Live": d['Preis'], "Pos%": f"{d['Pos']:.1f}%", "RSI": f"{d['RSI']:.1f}", "Status": d['Status']})
+        if d: rows.append({"Trend": d['Trend'], "Wetter": d['Icon'], "Name": s['n'], "Live": d['Preis'], "Pos%": f"{d['Pos']:.1f}%", "RSI": f"{d['RSI']:.1f}"})
     st.table(pd.DataFrame(rows))
 
-with col1:
-    st.subheader("Europa Champions")
-    build_table(eu_list)
-with col2:
-    st.subheader("USA Champions")
-    build_table(us_list)
+c1, c2 = st.columns(2)
+with c1: st.subheader("Europa"); build_table(eu_list)
+with c2: st.subheader("USA"); build_table(us_list)
