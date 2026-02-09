@@ -11,7 +11,7 @@ now = datetime.now(local_tz)
 
 # --- DYNAMISCHE RECHEN-ENGINE ---
 @st.cache_data(ttl=60)
-def fetch_live_metrics(ticker_symbol):
+def fetch_live_metrics(ticker_symbol, is_currency=False):
     try:
         ticker = yf.Ticker(ticker_symbol)
         hist = ticker.history(period="1y")
@@ -20,50 +20,50 @@ def fetch_live_metrics(ticker_symbol):
         lo, hi = hist['Low'].min(), hist['High'].max()
         pos_percent = ((cp - lo) / (hi - lo)) * 100
         
-        # RSI & ATR Berechnung
+        # RSI Berechnung
         delta = hist['Close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
         rs = gain / (loss + 1e-10)
         rsi_val = 100 - (100 / (1 + rs.iloc[-1]))
-        atr_val = (hist['High'] - hist['Low']).rolling(window=14).mean().iloc[-1]
         
         status = "NORMAL"
         trend = "🟡"
         if pos_percent < 10: status, trend = "EXTREM TIEF", "🔴"
         elif pos_percent > 90: status, trend = "EXTREM HOCH", "🟢"
-        return {"Preis": cp, "Pos": pos_percent, "RSI": rsi_val, "ATR": atr_val, "Status": status, "Trend": trend}
+        
+        # Formatierung
+        price_fmt = f"{cp:.4f}" if is_currency else f"{cp:,.0f}"
+        return {"Preis": price_fmt, "Pos": pos_percent, "RSI": rsi_val, "Status": status, "Trend": trend}
     except: return None
 
-# --- LAYOUT START ---
+# --- DASHBOARD START ---
 st.title(f"🚀 KONTROLLTURM AKTIV | {now.strftime('%d.%m.%Y | %H:%M:%S')}")
 
-# A. MARKT-HEADER (Wieder nach oben!)
+# A. MARKT-HEADER (Echte Indizes & 4 Stellen Euro)
 cols_header = st.columns(3)
-market_tickers = [("EUR/USD", "EURUSD=X"), ("DAX (ADR)", "EWG"), ("NASDAQ", "QQQ")]
-for i, (label, sym) in enumerate(market_tickers):
-    m_data = fetch_live_metrics(sym)
+# Ticker-Korrektur: ^GDAXI für DAX Punkte, ^IXIC für NASDAQ Punkte
+market_tickers = [("EUR/USD", "EURUSD=X", True), ("DAX Index", "^GDAXI", False), ("NASDAQ Composite", "^IXIC", False)]
+
+for i, (label, sym, is_curr) in enumerate(market_tickers):
+    m_data = fetch_live_metrics(sym, is_curr)
     if m_data:
-        cols_header[i].metric(label, f"{m_data['Preis']:.2f}", f"{m_data['Pos']:.1f}% Position")
+        cols_header[i].metric(label, m_data['Preis'], f"{m_data['Pos']:.1f}% Position")
 
 st.divider()
 
-# B. DER INFORMATIONSSÄULE-REGLER
-st.subheader("Informationsquelle: Parameter-Definitionen")
-info = st.select_slider("Definition zum Nachschlagen wählen:", options=['ATR Definition', 'RSI Definition', '10/90 Regel'])
-if info == 'ATR Definition':
-    st.info("ATR (Average True Range): Zeigt die Schwankungsbreite der letzten 14 Tage. Je höher, desto nervöser.")
-elif info == 'RSI Definition':
-    st.info("RSI (Relative Strength Index): Überkauft (>70) oder Überverkauft (<30).")
-else:
-    st.info("10/90 Regel: Deine Alarmzone. <10% Position = Extrem Tief!")
+# B. DIE NEUE KLAPPBOX (Statt Slider)
+with st.expander("ℹ️ Informationsquelle: Was bedeuten die Spalte? (Hier klicken zum Aufklappen)"):
+    st.write("**ATR:** Misst die Volatilität. Ein hoher Wert bedeutet nervöse Märkte.")
+    st.write("**RSI:** Relative Stärke. >70 ist heiß (Gefahr), <30 ist unterkühlt (Chance).")
+    st.write("**10/90 Regel:** Deine Strategie. <10% = Extrem Tief, >90% = Extrem Hoch.")
 
-# C. GESUNDHEITS-BACKUP
-st.warning("⚠️ Wichtig: Wandsitz (KEINE Pressatmung!), Sprossen & Rote Bete, kein Chlorhexidin.")
+# C. GESUNDHEITS-CHECK
+st.warning("⚠️ Wichtig: Wandsitz (KEINE Pressatmung!), Sprossen/Rote Bete, kein Chlorhexidin!")
 
 st.divider()
 
-# D. DIE VOLLEN 7 CHAMPIONS
+# D. DIE 14 CHAMPIONS (Vollzählig)
 eu_list = [
     {"t": "OTP.BU", "n": "OTP Bank"}, {"t": "BAS.DE", "n": "BASF"}, {"t": "SIE.DE", "n": "Siemens"}, 
     {"t": "VOW3.DE", "n": "VW"}, {"t": "SAP.DE", "n": "SAP"}, {"t": "ADS.DE", "n": "Adidas"}, {"t": "BMW.DE", "n": "BMW"}
@@ -75,16 +75,16 @@ us_list = [
 
 col1, col2 = st.columns(2)
 
-def draw_table(stocks):
+def show_table(data_list):
     rows = []
-    for s in stocks:
+    for s in data_list:
         d = fetch_live_metrics(s['t'])
-        if d: rows.append({"Trend": d['Trend'], "Name": s['n'], "Live": f"{d['Preis']:.2f}", "Pos%": f"{d['Pos']:.1f}%", "RSI": f"{d['RSI']:.1f}", "Status": d['Status']})
+        if d: rows.append({"Trend": d['Trend'], "Name": s['n'], "Live": d['Preis'], "Pos%": f"{d['Pos']:.1f}%", "RSI": f"{d['RSI']:.1f}", "Status": d['Status']})
     st.table(pd.DataFrame(rows))
 
 with col1:
-    st.subheader("Europa Champions (7 Werte)")
-    draw_table(eu_list)
+    st.subheader("Europa Champions")
+    show_table(eu_list)
 with col2:
-    st.subheader("USA Champions (7 Werte)")
-    draw_table(us_list)
+    st.subheader("USA Champions")
+    show_table(us_list)
