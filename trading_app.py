@@ -4,12 +4,13 @@ import yfinance as yf
 from datetime import datetime
 import pytz
 
-# Fallback, falls die Installation der Zusatzpakete scheitert
+# Fallback-System für stabilen Betrieb
+HAS_AUTO = False
 try:
     from streamlit_autorefresh import st_autorefresh
     HAS_AUTO = True
 except Exception:
-    HAS_AUTO = False
+    pass
 
 st.set_page_config(page_title="Kontrollturm Aktiv", layout="wide")
 
@@ -35,7 +36,6 @@ def fetch_live_metrics(ticker_symbol, is_currency=False):
         rs = gain / (loss + 1e-10)
         rsi_val = 100 - (100 / (1 + rs.iloc[-1]))
         
-        # DEIN NEUES VISUELLES SYSTEM
         status = "NORMAL"
         icon = "🌿 🌳" 
         trend_dot = "🟡"
@@ -66,13 +66,12 @@ for i, (label, sym, is_curr) in enumerate(market_tickers):
 
 st.divider()
 
-with st.expander("ℹ️ Informationsquelle: Was bedeuten die Spalten?"):
-    st.write("**🔴 + ⚡ (Extrem Tief < 10%):** Deine Kaufzone.")
-    st.write("**🟡 + 🌿 🌳 (Normal 10-90%):** Stabiles Wachstum – Gras und Baum.")
-    st.write("**🟢 + ☀️ (Extrem Hoch > 90%):** Heißgelaufen – Zeit für Ernte.")
+with st.expander("ℹ️ Informationsquelle: Strategie-Symbole"):
+    st.write("**🔴 + ⚡ (Tief < 10%):** Kaufzone.")
+    st.write("**🟡 + 🌿 🌳 (10-90%):** Wachstum (Gras & Baum).")
+    st.write("**🟢 + ☀️ (Hoch > 90%):** Erntezeit.")
 
-st.warning("⚠️ Wichtig: Wandsitz (KEINE Pressatmung!), Sprossen/Rote Bete, kein Chlorhexidin!")
-
+st.warning("⚠️ Wichtig: Wandsitz (Keine Pressatmung!), Rote Bete, kein Chlorhexidin!")
 st.divider()
 
 eu_list = [{"t": "OTP.BU", "n": "OTP Bank"}, {"t": "BAS.DE", "n": "BASF"}, {"t": "SIE.DE", "n": "Siemens"}, {"t": "VOW3.DE", "n": "VW"}, {"t": "SAP.DE", "n": "SAP"}, {"t": "ADS.DE", "n": "Adidas"}, {"t": "BMW.DE", "n": "BMW"}]
