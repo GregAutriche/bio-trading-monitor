@@ -3,11 +3,20 @@ import pandas as pd
 import yfinance as yf
 from datetime import datetime
 import pytz
-from streamlit_autorefresh import st_autorefresh
 
-# 1. SETUP & AUTO-REFRESH (Alle 5 Minuten)
+# Prüfen, ob autorefresh installiert ist, sonst überspringen
+try:
+    from streamlit_autorefresh import st_autorefresh
+    HAS_AUTO = True
+except ImportError:
+    HAS_AUTO = False
+
+# 1. SETUP
 st.set_page_config(page_title="Kontrollturm Aktiv", layout="wide")
-st_autorefresh(interval=5 * 60 * 1000, key="datarefresh")
+
+# Auto-Refresh alle 5 Minuten, falls installiert
+if HAS_AUTO:
+    st_autorefresh(interval=5 * 60 * 1000, key="datarefresh")
 
 local_tz = pytz.timezone('Europe/Berlin')
 now = datetime.now(local_tz)
@@ -31,7 +40,7 @@ def fetch_live_metrics(ticker_symbol, is_currency=False):
         rs = gain / (loss + 1e-10)
         rsi_val = 100 - (100 / (1 + rs.iloc[-1]))
         
-        # Symbol-Logik (Blitz, Gras, Baum, Sonne)
+        # Deine neue Symbol-Logik (Blitz, Gras, Baum, Sonne)
         status = "NORMAL"
         icon = "🌿 🌳" 
         trend_dot = "🟡"
