@@ -52,7 +52,7 @@ def fetch_live_metrics(ticker_symbol, is_currency=False):
 
 st.title(f"🚀 KONTROLLTURM AKTIV | {now.strftime('%d.%m.%Y | %H:%M:%S')}")
 
-# Markt-Metriken
+# Markt-Metriken (Dax, Nasdaq, Euro)
 cols = st.columns(3)
 market_tickers = [("EUR/USD", "EURUSD=X", True), ("DAX Index", "^GDAXI", False), ("NASDAQ", "^IXIC", False)]
 for i, (label, sym, is_curr) in enumerate(market_tickers):
@@ -74,5 +74,5 @@ def build_table(stocks):
     st.table(pd.DataFrame(rows))
 
 c1, c2 = st.columns(2)
-with c1: st.subheader("Europa"); build_table(eu_list)
-with c2: st.subheader("USA"); build_table(us_list)
+with c1: st.subheader("Europa Champions"); build_table(eu_list)
+with c2: st.subheader("USA Champions"); build_table(us_list)
