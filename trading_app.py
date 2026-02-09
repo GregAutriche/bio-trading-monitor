@@ -1,98 +1,90 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
 from datetime import datetime
+import pytz
+import time
 
-# SEITEN-KONFIGURATION
-st.set_page_config(page_title="Kontrollturm Live", layout="wide")
+# 1. KONFIGURATION & ZEITZONE
+# ---------------------------------------------------------
+st.set_page_config(page_title="Kontrollturm Aktiv", layout="wide")
+local_tz = pytz.timezone('Europe/Berlin')
 
-# --- 1. DATEN-LOGIK (RSI & ROC) ---
-def get_market_data(symbol):
-    try:
-        t = yf.Ticker(symbol)
-        # 15m Daten für präzise 20-Minuten-RSI & ROC Annäherung [cite: 2026-02-07]
-        df = t.history(period="5d", interval="15m")
-        if df.empty or len(df) < 15: 
-            df = t.history(period="20d")
-        
-        preis = df['Close'].iloc[-1]
-        prev = df['Close'].iloc[-2]
-        diff_heute = ((preis - prev) / prev) * 100
-        
-        # RSI / Position Logik (14 Intervalle) [cite: 2026-02-07]
-        low14, high14 = df['Close'].tail(14).min(), df['Close'].tail(14).max()
-        pos_pct = ((preis - low14) / (high14 - low14)) * 100 if high14 != low14 else 50
-        
-        # ROC Logik (Rate of Change über 14 Intervalle) [cite: 2026-02-07]
-        past_price = df['Close'].iloc[-14]
-        roc_val = ((preis - past_price) / past_price) * 100
-        
-        # Symbole
-        wetter = "☀️" if pos_pct > 90 else "🌧️" if pos_pct < 10 else "☁️"
-        punkt = "🟢" if diff_heute > 0.01 else "🔴" if diff_heute < -0.01 else "🟡"
-        
-        atr = (df['High'] - df['Low']).tail(14).mean()
-        
-        return {
-            "Preis": preis, "Trend": f"{wetter}{punkt}", "Wetter": wetter,
-            "RSI": round(pos_pct, 1), "ROC": round(roc_val, 2), "ATR": round(atr, 2),
-            "Name": t.info.get('shortName', symbol), "Symbol": symbol
-        }
-    except: return None
+# 2. DATEN-FUNKTION (Mit automatischer Aktualisierung alle 60 Sek)
+# ---------------------------------------------------------
+@st.cache_data(ttl=60)
+def get_kita_data():
+    # Hier simulieren wir den Abruf deiner monetären Werte
+    # Ersetze dies durch deine echte Datenquelle (CSV, API oder Google Sheet)
+    data = {
+        "Posten": ["Stunden Kita", "Sprossen Invest", "Sonstiges"],
+        "Wert": [1.0, 45.50, 10.00], # Beispiel für die "eine Stunde" Differenz
+        "Kurs_Status": [95, 12, 50]   # Prozentwert für die Analyse
+    }
+    return pd.DataFrame(data)
 
-# --- 2. HEADER: Wochentag & Datum ---
-jetzt = datetime.now()
-tage = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
-st.markdown(f"### 🚀 KONTROLLTURM AKTIV | {tage[jetzt.weekday()]}, {jetzt.strftime('%d.%m.%Y | %H:%M:%S')}")
+# 3. HEADER & UHRZEIT (Synchron mit deiner Windows-Uhr)
+# ---------------------------------------------------------
+now = datetime.now(local_tz)
+t1, t2 = st.columns([3, 1])
 
-# --- 3. BASIS-MONITOR (Mit RSI & ROC) ---
-c1, c2, c3 = st.columns(3)
-indices = [("EUR/USD", "EURUSD=X"), ("DAX (ADR)", "^GDAXI"), ("NASDAQ", "^IXIC")]
+with t1:
+    st.title("🚀 Kontrollturm Aktiv")
+with t2:
+    st.metric("Lokalzeit (Wien/Berlin)", now.strftime("%H:%M:%S"))
 
-for col, (label, sym) in zip([c1, c2, c3], indices):
-    d = get_market_data(sym)
-    if d:
-        col.metric(
-            f"{label} {d['Trend']}", 
-            f"{d['Preis']:,.4f}" if "USD" in label else f"{d['Preis']:,.2f}", 
-            f"RSI: {d['RSI']}% | ROC: {d['ROC']}%"
-        )
+# 4. MONETÄRE ÜBERSICHT & AKTUALISIERUNG
+# ---------------------------------------------------------
+df = get_kita_data()
 
+st.subheader("Finanzielles Controlling")
+cols = st.columns(len(df))
+
+for i, row in df.iterrows():
+    # Logik für extrem hohe/tiefe Kurse (>90% / <10%)
+    status_color = "normal"
+    if row['Kurs_Status'] > 90:
+        status_color = "inverse" # Rot/Extrem Hoch
+        label_suffix = "⚠️ EXTREM HOCH"
+    elif row['Kurs_Status'] < 10:
+        status_color = "off"
+        label_suffix = "❄️ EXTREM TIEF"
+    else:
+        label_suffix = "(Normalbereich)"
+
+    cols[i].metric(
+        label=f"{row['Posten']} {label_suffix}",
+        value=f"{row['Wert']} €",
+        delta=f"{row['Kurs_Status']}% Auslastung",
+        delta_color=status_color
+    )
+
+# 5. GESUNDHEITS-DASHBOARD (Wandsitz & Blutdruck)
+# ---------------------------------------------------------
 st.divider()
+st.sidebar.header("🛡️ Gesundheits-Check")
+st.sidebar.warning("""
+**WANDSITZ-REMINDER:**
+* Keine Pressatmung!
+* Locker weiteratmen.
+* Lächeln nicht vergessen.
+""")
 
-# --- 4. DETAILLIERTE LEGENDE ---
-with st.expander("📖 System-Details: RSI, ROC & Symbole"):
-    st.write("### 🌦️ Wetter (RSI - Position)")
-    st.write("- ☀️ **Sonne**: Überkauft (> 90%). Markt ist 'heiß' [cite: 2026-02-07].")
-    st.write("- 🌧️ **Regen**: Überverkauft (< 10%). Markt ist 'kalt' [cite: 2026-02-07].")
-    st.write("### 🚀 Dynamik (ROC - Geschwindigkeit)")
-    st.write("- **ROC**: Zeigt die prozentuale Beschleunigung über 14 Intervalle (20-Min-Basis) [cite: 2026-02-07].")
-    st.write("### 🟢🔴 Trend (Tagesänderung)")
-    st.write("- Punktfarbe zeigt die Richtung seit dem letzten Schlusskurs an.")
+st.sidebar.info(f"""
+**Ernährung heute:**
+* Sprossen: ✅
+* Rote Bete: ✅
+* ACE-Hemmer Check: ✅
+""")
 
-# --- 5. CHAMPIONS (7x7 Portfolio) ---
-champions_eu = ["ADS.DE", "SAP.DE", "ASML.AS", "MC.PA", "SIE.DE", "VOW3.DE", "BMW.DE"]
-champions_us = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA"]
+# 6. TICKER-HINWEIS FÜR HUNG/BUL AKTIEN
+# ---------------------------------------------------------
+st.sidebar.write("---")
+st.sidebar.write("**Stock-Suffixe:**")
+st.sidebar.code("Ungarn: .BU\nBulgarien: .SO")
 
-def show_champs(title, symbols):
-    st.write(f"**{title}**")
-    data = [get_market_data(s) for s in symbols]
-    df = pd.DataFrame([d for d in data if d])
-    # Anzeige-Formatierung
-    df["Preis(EUR)"] = df["Preis"].apply(lambda x: f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    df["Pos%"] = df["RSI"].apply(lambda x: f"{x}%")
-    df["Status"] = df["RSI"].apply(lambda x: "EXTREM HOCH" if x > 90 else "EXTREM TIEF" if x < 10 else "Normal")
-    st.dataframe(df[["Trend", "Name", "Preis(EUR)", "Pos%", "ROC", "ATR", "Status"]], hide_index=True, use_container_width=True)
-
-ca, cb = st.columns(2)
-with ca: show_champs("Europa: Deine 7 Hidden Champions", champions_eu)
-with cb: show_champs("USA: Deine 7 Hidden Champions", champions_us)
-
-# --- 6. BIO-CHECK & SICHERHEIT ---
-st.divider()
-st.error("⚠️ **WANDSITZ**: Ruhig atmen! Keine Pressatmung (Blutdruck-Schutz)!")
-with st.expander("🛡️ Backup-Infos (Gesundheit & Reisen)"):
-    st.write("🌱 **Blutdruck**: Sprossen & Rote Bete nutzen [cite: 2025-12-20].")
-    st.write("🥜 **Reisen**: Nüsse als Snack & Österreich Ticket bereit [cite: 2026-01-25, 2026-02-03].")
-    st.write("🚫 **Warnung**: Keine Mundspülungen (Chlorhexidin), kein Zähneputzen direkt nach dem Essen [cite: 2025-12-20].")
-
+# 7. AUTOMATISCHER REFRESH DES BROWSERS (Optional)
+# ---------------------------------------------------------
+# Damit die App sich wirklich von selbst bewegt:
+# st.empty()
+# time.sleep(60)
+# st.rerun()
