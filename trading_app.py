@@ -4,7 +4,7 @@ import yfinance as yf
 from datetime import datetime
 import pytz
 
-# Sicherer Import für Auto-Refresh
+# Sicherer Import: Falls die Installation klemmt, stürzt die App nicht ab
 HAS_AUTO = False
 try:
     from streamlit_autorefresh import st_autorefresh
@@ -15,7 +15,7 @@ except Exception:
 # 1. SETUP
 st.set_page_config(page_title="Kontrollturm Aktiv", layout="wide")
 
-# Auto-Refresh nur starten, wenn das Paket wirklich geladen wurde
+# Automatischer Refresh alle 5 Minuten, nur wenn Paket vorhanden
 if HAS_AUTO:
     st_autorefresh(interval=300000, key="datarefresh")
 
@@ -41,7 +41,7 @@ def fetch_live_metrics(ticker_symbol, is_currency=False):
         rs = gain / (loss + 1e-10)
         rsi_val = 100 - (100 / (1 + rs.iloc[-1]))
         
-        # Deine finale Symbol-Logik
+        # DEIN NEUES SYMBOL-SYSTEM (Baum & Gras)
         status = "NORMAL"
         icon = "🌿 🌳" 
         trend_dot = "🟡"
@@ -73,10 +73,11 @@ for i, (label, sym, is_curr) in enumerate(market_tickers):
 
 st.divider()
 
-with st.expander("ℹ️ Informationsquelle: Symbol-Legende"):
-    st.write("**🔴 + ⚡ (Extrem Tief < 10%):** Die Saat im Sturm.")
-    st.write("**🌿 + 🌳 (Normal 10-90%):** Stabiles Wachstum (Gras & Baum).")
-    st.write("**🟢 + ☀️ (Extrem Hoch > 90%):** Heiße Phase (Sonne).")
+with st.expander("ℹ️ Informationsquelle: Was bedeuten die Symbole?"):
+    st.write("### Deine Strategie-Symbole")
+    st.write("**🔴 + ⚡ (Extrem Tief < 10%):** Die Saat im Sturm – Deine Kaufzone.")
+    st.write("**🟡 + 🌿 🌳 (Normal 10-90%):** Stabiles Wachstum – Gras und Baum.")
+    st.write("**🟢 + ☀️ (Extrem Hoch > 90%):** Heiße Phase – Zeit für Ernte/Vorsicht.")
 
 st.warning("⚠️ Wichtig: Wandsitz (KEINE Pressatmung!), Sprossen/Rote Bete, kein Chlorhexidin!")
 
