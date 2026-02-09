@@ -3,111 +3,109 @@ import pandas as pd
 import yfinance as yf
 from datetime import datetime
 import pytz
-import requests
 
-# 1. SETUP & ZEIT (Korrekt für Wien/Berlin)
+# 1. SETUP
 st.set_page_config(page_title="Kontrollturm Aktiv", layout="wide")
 local_tz = pytz.timezone('Europe/Berlin')
 now = datetime.now(local_tz)
 
-# --- WETTER FUNKTION (Wien) ---
-def get_weather():
-    try:
-        # Wetterdaten für Wien abrufen (Österreich-Kontext)
-        url = "https://api.open-meteo.com/v1/forecast?latitude=48.2085&longitude=16.3721&current_weather=true"
-        response = requests.get(url).json()
-        temp = response['current_weather']['temperature']
-        return f"{temp}°C"
-    except:
-        return "--°C"
-
-# --- DATEN FUNKTION MIT AKTIVER BERECHNUNG ---
+# --- DYNAMISCHE RECHEN-ENGINE (Zieht alles live) ---
 @st.cache_data(ttl=60)
-def get_market_data(symbol):
+def fetch_live_metrics(ticker_symbol):
     try:
-        ticker = yf.Ticker(symbol)
-        # 1-Jahres-Zeitraum für die 52-Wochen-Berechnung
+        ticker = yf.Ticker(ticker_symbol)
         hist = ticker.history(period="1y")
-        if hist.empty:
-            return {"Preis": 0, "Pos%": 0, "Status": "N/A", "Trend": "⚪"}
+        if len(hist) < 20: return None
         
-        current_price = hist['Close'].iloc[-1]
-        low_52w = hist['Low'].min()
-        high_52w = hist['High'].max()
+        # Aktueller Kurs
+        cp = hist['Close'].iloc[-1]
         
-        # Aktive Berechnung der Position im 52-Wochen-Kanal
-        pos_percent = ((current_price - low_52w) / (high_52w - low_52w)) * 100
+        # 10/90 Position (Dynamisch berechnet)
+        lo, hi = hist['Low'].min(), hist['High'].max()
+        pos_percent = ((cp - lo) / (hi - lo)) * 100
         
-        # Deine 10/90 Regel Definition
-        if pos_percent < 10:
-            status = "EXTREM TIEF"
-            trend = "🔴"
-        elif pos_percent > 90:
-            status = "EXTREM HOCH"
-            trend = "🟢"
-        else:
-            status = "NORMAL"
-            trend = "🟡"
+        # RSI (Dynamisch berechnet)
+        delta = hist['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / (loss + 1e-10)
+        rsi_val = 100 - (100 / (1 + rs.iloc[-1]))
+        
+        # ATR (Dynamisch berechnet)
+        atr_val = (hist['High'] - hist['Low']).rolling(window=14).mean().iloc[-1]
+        
+        # Trend-Logik nach deiner Regel
+        status = "NORMAL"
+        trend = "🟡"
+        if pos_percent < 10: status, trend = "EXTREM TIEF", "🔴"
+        elif pos_percent > 90: status, trend = "EXTREM HOCH", "🟢"
             
-        return {
-            "Preis": current_price,
-            "Pos%": pos_percent,
-            "Status": status,
-            "Trend": trend
-        }
+        return {"Preis": cp, "Pos": pos_percent, "RSI": rsi_val, "ATR": atr_val, "Status": status, "Trend": trend}
     except:
-        return {"Preis": 0, "Pos%": 0, "Status": "Error", "Trend": "⚪"}
+        return None
 
-# 3. HEADER & INFOS (Wetter & Gesundheits-Checkliste)
-st.title(f"🚀 KONTROLLTURM AKTIV | {now.strftime('%A, %d.%m.%Y | %H:%M:%S')}")
+# 2. HEADER & INFORMATIONSSÄULE (Slider)
+st.title(f"🚀 KONTROLLTURM AKTIV | {now.strftime('%d.%m.%Y | %H:%M')}")
 
-# Wichtige Gesundheits- und Verhaltensregeln oben
-st.info(f"""
-**Wetter Wien:** {get_weather()} | **Checkliste:** Keine Mundspülungen (Chlorhexidin), kein Kaugummi, Zähneputzen nicht direkt nach dem Essen.
-**Gesundheit:** Vorsicht bei Phosphaten (Fertiggerichte) & Grapefruit-Interaktionen. 
-**Training:** Wandsitz (Vermeidung von Pressatmung/Luftanhalten!).
+st.subheader("Informationsquelle: Parameter-Definitionen")
+info = st.select_slider(
+    'Was bedeuten die Spalten in der Tabelle?',
+    options=['ATR Definition', 'RSI Definition', '10/90 Regel']
+)
+
+if info == 'ATR Definition':
+    st.info("**ATR:** Misst die Volatilität (Schwankungsbreite). Je höher, desto nervöser das Asset.")
+elif info == 'RSI Definition':
+    st.info("**RSI:** Zeigt die relative Stärke. < 30 bedeutet 'ausverkauft' (Chance), > 70 bedeutet 'heißgelaufen' (Gefahr).")
+else:
+    st.info("**10/90 Regel:** Kursstand im Vergleich zum 52-Wochen-Hoch/Tief. Deine Alarm-Zone für Extreme.")
+
+# 3. GESUNDHEITS-BACKUP (Immer präsent)
+st.warning("""
+**Wichtige tägliche Regeln:** 1. **Wandsitz:** Täglich ausführen, aber **KEINE Pressatmung** (Luft nicht anhalten!).
+2. **Ernährung:** Sprossen & Rote Bete (Blutdruck). Keine Phosphate & Grapefruit.
+3. **Hygiene:** Kein Chlorhexidin (Mundspülung), kein Kaugummi.
 """)
 
 st.divider()
 
-# 4. TOP INDIZES (Header-Bereich)
-cols = st.columns(3)
-indices = [("EUR/USD", "EURUSD=X"), ("DAX (ADR)", "EWG"), ("NASDAQ", "QQQ")]
+# 4. CHAMPIONS (Nur Ticker-Listen, keine festen Werte!)
+col1, col2 = st.columns(2)
 
-for i, (label, sym) in enumerate(indices):
-    data = get_market_data(sym)
-    cols[i].metric(label, f"{data['Preis']:.4f}" if "EUR" in label else f"{data['Preis']:.2f}", 
-                   f"{data['Pos%']:.1f}% Position")
+# Nur die Basis-Identität der Aktien hinterlegen
+europa_champions = [
+    {"ticker": "OTP.BU", "name": "OTP Bank"},
+    {"ticker": "BAS.DE", "name": "BASF"},
+    {"ticker": "SIE.DE", "name": "Siemens"},
+    {"ticker": "VOW3.DE", "name": "VW"}
+]
 
-st.divider()
+usa_champions = [
+    {"ticker": "STLD", "name": "Steel Dynamics"},
+    {"ticker": "WMS", "name": "Advanced Drainage"},
+    {"ticker": "NVDA", "name": "Nvidia"}
+]
 
-# 5. CHAMPIONS TABELLEN (Europa & USA)
-col_left, col_right = st.columns(2)
+def build_dynamic_view(stocks):
+    final_rows = []
+    for s in stocks:
+        m = fetch_live_metrics(s['ticker'])
+        if m:
+            final_rows.append({
+                "Trend": m['Trend'],
+                "Name": s['name'],
+                "Live-Preis": f"{m['Preis']:.2f}",
+                "Pos %": f"{m['Pos']:.1f}%",
+                "RSI": f"{m['RSI']:.1f}",
+                "ATR": f"{m['ATR']:.2f}",
+                "Status": m['Status']
+            })
+    return pd.DataFrame(final_rows)
 
-# Deine Auswahl der Champions
-eu_tickers = [('ADS.DE', 'Adidas'), ('SAP.DE', 'SAP'), ('ASML.AS', 'ASML'), 
-              ('SIE.DE', 'Siemens'), ('VOW3.DE', 'VW'), ('BMW.DE', 'BMW'), ('OTP.BU', 'OTP Bank')]
+with col1:
+    st.subheader("Europa Champions (Live gezogen)")
+    st.table(build_dynamic_view(europa_champions))
 
-us_tickers = [('AAPL', 'Apple'), ('MSFT', 'Microsoft'), ('GOOGL', 'Google'), 
-              ('AMZN', 'Amazon'), ('TSLA', 'Tesla'), ('META', 'Meta'), ('NVDA', 'Nvidia')]
-
-def create_table(ticker_list):
-    table_data = []
-    for sym, name in ticker_list:
-        d = get_market_data(sym)
-        table_data.append({
-            "Trend": d['Trend'],
-            "Name": name,
-            "Preis(EUR)": f"{d['Preis']:.2f}",
-            "Pos%": f"{d['Pos%']:.1f}%",
-            "Status": d['Status']
-        })
-    return pd.DataFrame(table_data)
-
-with col_left:
-    st.subheader("Europa: Deine 7 Hidden Champions")
-    st.table(create_table(eu_tickers))
-
-with col_right:
-    st.subheader("USA: Deine 7 Hidden Champions")
-    st.table(create_table(us_tickers))
+with col2:
+    st.subheader("USA Hidden Champions (Live gezogen)")
+    st.table(build_dynamic_view(usa_champions))
