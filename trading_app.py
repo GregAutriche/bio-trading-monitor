@@ -4,44 +4,38 @@ import yfinance as yf
 from datetime import datetime
 import pytz
 
-# Sicherer Import: Falls die Installation klemmt, stürzt die App nicht ab
-HAS_AUTO = False
+# Fallback, falls die Installation der Zusatzpakete scheitert
 try:
     from streamlit_autorefresh import st_autorefresh
     HAS_AUTO = True
 except Exception:
-    pass
+    HAS_AUTO = False
 
-# 1. SETUP
 st.set_page_config(page_title="Kontrollturm Aktiv", layout="wide")
 
-# Automatischer Refresh alle 5 Minuten, nur wenn Paket vorhanden
 if HAS_AUTO:
     st_autorefresh(interval=300000, key="datarefresh")
 
 local_tz = pytz.timezone('Europe/Berlin')
 now = datetime.now(local_tz)
 
-# --- DYNAMISCHE RECHEN-ENGINE ---
 @st.cache_data(ttl=60)
 def fetch_live_metrics(ticker_symbol, is_currency=False):
     try:
         ticker = yf.Ticker(ticker_symbol)
         hist = ticker.history(period="1y")
         if len(hist) < 20: return None
-        
         cp = hist['Close'].iloc[-1]
         lo, hi = hist['Low'].min(), hist['High'].max()
         pos_percent = ((cp - lo) / (hi - lo)) * 100
         
-        # RSI Berechnung
         delta = hist['Close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
         rs = gain / (loss + 1e-10)
         rsi_val = 100 - (100 / (1 + rs.iloc[-1]))
         
-        # DEIN NEUES SYMBOL-SYSTEM (Baum & Gras)
+        # DEIN NEUES VISUELLES SYSTEM
         status = "NORMAL"
         icon = "🌿 🌳" 
         trend_dot = "🟡"
@@ -60,7 +54,6 @@ def fetch_live_metrics(ticker_symbol, is_currency=False):
     except:
         return None
 
-# --- DASHBOARD LAYOUT ---
 st.title(f"🚀 KONTROLLTURM AKTIV | {now.strftime('%d.%m.%Y | %H:%M:%S')}")
 
 cols_header = st.columns(3)
@@ -73,17 +66,15 @@ for i, (label, sym, is_curr) in enumerate(market_tickers):
 
 st.divider()
 
-with st.expander("ℹ️ Informationsquelle: Was bedeuten die Symbole?"):
-    st.write("### Deine Strategie-Symbole")
-    st.write("**🔴 + ⚡ (Extrem Tief < 10%):** Die Saat im Sturm – Deine Kaufzone.")
+with st.expander("ℹ️ Informationsquelle: Was bedeuten die Spalten?"):
+    st.write("**🔴 + ⚡ (Extrem Tief < 10%):** Deine Kaufzone.")
     st.write("**🟡 + 🌿 🌳 (Normal 10-90%):** Stabiles Wachstum – Gras und Baum.")
-    st.write("**🟢 + ☀️ (Extrem Hoch > 90%):** Heiße Phase – Zeit für Ernte/Vorsicht.")
+    st.write("**🟢 + ☀️ (Extrem Hoch > 90%):** Heißgelaufen – Zeit für Ernte.")
 
 st.warning("⚠️ Wichtig: Wandsitz (KEINE Pressatmung!), Sprossen/Rote Bete, kein Chlorhexidin!")
 
 st.divider()
 
-# CHAMPIONS LISTE
 eu_list = [{"t": "OTP.BU", "n": "OTP Bank"}, {"t": "BAS.DE", "n": "BASF"}, {"t": "SIE.DE", "n": "Siemens"}, {"t": "VOW3.DE", "n": "VW"}, {"t": "SAP.DE", "n": "SAP"}, {"t": "ADS.DE", "n": "Adidas"}, {"t": "BMW.DE", "n": "BMW"}]
 us_list = [{"t": "STLD", "n": "Steel Dynamics"}, {"t": "WMS", "n": "Adv. Drainage"}, {"t": "NVDA", "n": "Nvidia"}, {"t": "AAPL", "n": "Apple"}, {"t": "MSFT", "n": "Microsoft"}, {"t": "GOOGL", "n": "Google"}, {"t": "AMZN", "n": "Amazon"}]
 
