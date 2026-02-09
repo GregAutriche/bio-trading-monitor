@@ -4,17 +4,18 @@ import yfinance as yf
 from datetime import datetime
 import pytz
 
-# Versuch das Refresh-Modul sicher zu laden
+# Sicherer Import für Auto-Refresh
+HAS_AUTO = False
 try:
     from streamlit_autorefresh import st_autorefresh
     HAS_AUTO = True
-except ImportError:
-    HAS_AUTO = False
+except Exception:
+    pass
 
 # 1. SETUP
 st.set_page_config(page_title="Kontrollturm Aktiv", layout="wide")
 
-# Automatischer Refresh alle 5 Minuten (300.000 Millisekunden)
+# Auto-Refresh nur starten, wenn das Paket wirklich geladen wurde
 if HAS_AUTO:
     st_autorefresh(interval=300000, key="datarefresh")
 
@@ -40,7 +41,7 @@ def fetch_live_metrics(ticker_symbol, is_currency=False):
         rs = gain / (loss + 1e-10)
         rsi_val = 100 - (100 / (1 + rs.iloc[-1]))
         
-        # Deine neue Symbol-Logik (Blitz, Gras/Baum, Sonne)
+        # Deine finale Symbol-Logik
         status = "NORMAL"
         icon = "🌿 🌳" 
         trend_dot = "🟡"
@@ -62,7 +63,6 @@ def fetch_live_metrics(ticker_symbol, is_currency=False):
 # --- DASHBOARD LAYOUT ---
 st.title(f"🚀 KONTROLLTURM AKTIV | {now.strftime('%d.%m.%Y | %H:%M:%S')}")
 
-# A. MARKT-HEADER (Indizes & Euro)
 cols_header = st.columns(3)
 market_tickers = [("EUR/USD", "EURUSD=X", True), ("DAX Index", "^GDAXI", False), ("NASDAQ Composite", "^IXIC", False)]
 
@@ -73,35 +73,18 @@ for i, (label, sym, is_curr) in enumerate(market_tickers):
 
 st.divider()
 
-# B. DIE AUFKLAPPBOX
-with st.expander("ℹ️ Informationsquelle: Symbol-Legende & Definitionen"):
-    st.write("### Deine Strategie-Symbole")
-    st.write("**🔴 + ⚡ (Extrem Tief < 10%):** Die Saat im Sturm – Deine Kaufzone.")
-    st.write("**🌿 + 🌳 (Normal 10-90%):** Stabiles Wachstum – Gras und Baum.")
-    st.write("**🟢 + ☀️ (Extrem Hoch > 90%):** Heiße Phase – Zeit für Ernte/Vorsicht.")
-    st.divider()
-    st.write("**RSI:** < 30 (Chance), > 70 (Gefahr).")
+with st.expander("ℹ️ Informationsquelle: Symbol-Legende"):
+    st.write("**🔴 + ⚡ (Extrem Tief < 10%):** Die Saat im Sturm.")
+    st.write("**🌿 + 🌳 (Normal 10-90%):** Stabiles Wachstum (Gras & Baum).")
+    st.write("**🟢 + ☀️ (Extrem Hoch > 90%):** Heiße Phase (Sonne).")
 
-# C. GESUNDHEITS-BACKUP
-st.warning("""
-**⚠️ Wichtige tägliche Regeln:**
-* **Wandsitz:** Täglich ausführen, aber **KEINE Pressatmung**!
-* **Ernährung:** Sprossen & Rote Bete. Keine Phosphate & Grapefruit.
-* **Hygiene:** Kein Chlorhexidin, kein Kaugummi.
-""")
+st.warning("⚠️ Wichtig: Wandsitz (KEINE Pressatmung!), Sprossen/Rote Bete, kein Chlorhexidin!")
 
 st.divider()
 
-# D. CHAMPIONS
-eu_list = [
-    {"t": "OTP.BU", "n": "OTP Bank"}, {"t": "BAS.DE", "n": "BASF"}, {"t": "SIE.DE", "n": "Siemens"}, 
-    {"t": "VOW3.DE", "n": "VW"}, {"t": "SAP.DE", "n": "SAP"}, {"t": "ADS.DE", "n": "Adidas"}, {"t": "BMW.DE", "n": "BMW"}
-]
-
-us_list = [
-    {"t": "STLD", "n": "Steel Dynamics"}, {"t": "WMS", "n": "Adv. Drainage"}, {"t": "NVDA", "n": "Nvidia"}, 
-    {"t": "AAPL", "n": "Apple"}, {"t": "MSFT", "n": "Microsoft"}, {"t": "GOOGL", "n": "Google"}, {"t": "AMZN", "n": "Amazon"}
-]
+# CHAMPIONS LISTE
+eu_list = [{"t": "OTP.BU", "n": "OTP Bank"}, {"t": "BAS.DE", "n": "BASF"}, {"t": "SIE.DE", "n": "Siemens"}, {"t": "VOW3.DE", "n": "VW"}, {"t": "SAP.DE", "n": "SAP"}, {"t": "ADS.DE", "n": "Adidas"}, {"t": "BMW.DE", "n": "BMW"}]
+us_list = [{"t": "STLD", "n": "Steel Dynamics"}, {"t": "WMS", "n": "Adv. Drainage"}, {"t": "NVDA", "n": "Nvidia"}, {"t": "AAPL", "n": "Apple"}, {"t": "MSFT", "n": "Microsoft"}, {"t": "GOOGL", "n": "Google"}, {"t": "AMZN", "n": "Amazon"}]
 
 col1, col2 = st.columns(2)
 
@@ -110,15 +93,7 @@ def build_table(stocks):
     for s in stocks:
         d = fetch_live_metrics(s['t'])
         if d:
-            rows.append({
-                "Trend": d['Trend'], 
-                "Wetter": d['Icon'], 
-                "Name": s['n'], 
-                "Live": d['Preis'], 
-                "Pos%": f"{d['Pos']:.1f}%", 
-                "RSI": f"{d['RSI']:.1f}", 
-                "Status": d['Status']
-            })
+            rows.append({"Trend": d['Trend'], "Wetter": d['Icon'], "Name": s['n'], "Live": d['Preis'], "Pos%": f"{d['Pos']:.1f}%", "RSI": f"{d['RSI']:.1f}", "Status": d['Status']})
     st.table(pd.DataFrame(rows))
 
 with col1:
