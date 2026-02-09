@@ -4,7 +4,7 @@ import yfinance as yf
 from datetime import datetime
 import pytz
 
-# Prüfen, ob autorefresh installiert ist, sonst überspringen
+# Sicherheitsabfrage für die Autofresh-Komponente
 try:
     from streamlit_autorefresh import st_autorefresh
     HAS_AUTO = True
@@ -14,7 +14,7 @@ except ImportError:
 # 1. SETUP
 st.set_page_config(page_title="Kontrollturm Aktiv", layout="wide")
 
-# Auto-Refresh alle 5 Minuten, falls installiert
+# Automatischer Refresh alle 5 Minuten, falls installiert
 if HAS_AUTO:
     st_autorefresh(interval=5 * 60 * 1000, key="datarefresh")
 
