@@ -4,39 +4,43 @@ import yfinance as yf
 from datetime import datetime
 import pytz
 
-# Versuch das Refresh-Modul zu laden
+# Versuch das Refresh-Modul sicher zu laden
 try:
     from streamlit_autorefresh import st_autorefresh
     HAS_AUTO = True
-except:
+except ImportError:
     HAS_AUTO = False
 
+# 1. SETUP
 st.set_page_config(page_title="Kontrollturm Aktiv", layout="wide")
 
-# Refresh alle 5 Minuten
+# Automatischer Refresh alle 5 Minuten (300.000 Millisekunden)
 if HAS_AUTO:
     st_autorefresh(interval=300000, key="datarefresh")
 
 local_tz = pytz.timezone('Europe/Berlin')
 now = datetime.now(local_tz)
 
+# --- DYNAMISCHE RECHEN-ENGINE ---
 @st.cache_data(ttl=60)
 def fetch_live_metrics(ticker_symbol, is_currency=False):
     try:
         ticker = yf.Ticker(ticker_symbol)
         hist = ticker.history(period="1y")
         if len(hist) < 20: return None
+        
         cp = hist['Close'].iloc[-1]
         lo, hi = hist['Low'].min(), hist['High'].max()
         pos_percent = ((cp - lo) / (hi - lo)) * 100
         
+        # RSI Berechnung
         delta = hist['Close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
         rs = gain / (loss + 1e-10)
         rsi_val = 100 - (100 / (1 + rs.iloc[-1]))
         
-        # Deine neue Symbol-Logik
+        # Deine neue Symbol-Logik (Blitz, Gras/Baum, Sonne)
         status = "NORMAL"
         icon = "🌿 🌳" 
         trend_dot = "🟡"
@@ -55,8 +59,10 @@ def fetch_live_metrics(ticker_symbol, is_currency=False):
     except:
         return None
 
+# --- DASHBOARD LAYOUT ---
 st.title(f"🚀 KONTROLLTURM AKTIV | {now.strftime('%d.%m.%Y | %H:%M:%S')}")
 
+# A. MARKT-HEADER (Indizes & Euro)
 cols_header = st.columns(3)
 market_tickers = [("EUR/USD", "EURUSD=X", True), ("DAX Index", "^GDAXI", False), ("NASDAQ Composite", "^IXIC", False)]
 
@@ -67,18 +73,35 @@ for i, (label, sym, is_curr) in enumerate(market_tickers):
 
 st.divider()
 
-with st.expander("ℹ️ Informationsquelle (Hier klicken)"):
-    st.write("### Strategie-Symbole")
-    st.write("🔴 + ⚡ : Extrem Tief (< 10%)")
-    st.write("🌿 + 🌳 : Normal (10-90%)")
-    st.write("🟢 + ☀️ : Extrem Hoch (> 90%)")
+# B. DIE AUFKLAPPBOX
+with st.expander("ℹ️ Informationsquelle: Symbol-Legende & Definitionen"):
+    st.write("### Deine Strategie-Symbole")
+    st.write("**🔴 + ⚡ (Extrem Tief < 10%):** Die Saat im Sturm – Deine Kaufzone.")
+    st.write("**🌿 + 🌳 (Normal 10-90%):** Stabiles Wachstum – Gras und Baum.")
+    st.write("**🟢 + ☀️ (Extrem Hoch > 90%):** Heiße Phase – Zeit für Ernte/Vorsicht.")
+    st.divider()
+    st.write("**RSI:** < 30 (Chance), > 70 (Gefahr).")
 
-st.warning("⚠️ Wandsitz (KEINE Pressatmung!), Sprossen/Rote Bete, kein Chlorhexidin!")
+# C. GESUNDHEITS-BACKUP
+st.warning("""
+**⚠️ Wichtige tägliche Regeln:**
+* **Wandsitz:** Täglich ausführen, aber **KEINE Pressatmung**!
+* **Ernährung:** Sprossen & Rote Bete. Keine Phosphate & Grapefruit.
+* **Hygiene:** Kein Chlorhexidin, kein Kaugummi.
+""")
 
 st.divider()
 
-eu_list = [{"t": "OTP.BU", "n": "OTP Bank"}, {"t": "BAS.DE", "n": "BASF"}, {"t": "SIE.DE", "n": "Siemens"}, {"t": "VOW3.DE", "n": "VW"}, {"t": "SAP.DE", "n": "SAP"}, {"t": "ADS.DE", "n": "Adidas"}, {"t": "BMW.DE", "n": "BMW"}]
-us_list = [{"t": "STLD", "n": "Steel Dynamics"}, {"t": "WMS", "n": "Adv. Drainage"}, {"t": "NVDA", "n": "Nvidia"}, {"t": "AAPL", "n": "Apple"}, {"t": "MSFT", "n": "Microsoft"}, {"t": "GOOGL", "n": "Google"}, {"t": "AMZN", "n": "Amazon"}]
+# D. CHAMPIONS
+eu_list = [
+    {"t": "OTP.BU", "n": "OTP Bank"}, {"t": "BAS.DE", "n": "BASF"}, {"t": "SIE.DE", "n": "Siemens"}, 
+    {"t": "VOW3.DE", "n": "VW"}, {"t": "SAP.DE", "n": "SAP"}, {"t": "ADS.DE", "n": "Adidas"}, {"t": "BMW.DE", "n": "BMW"}
+]
+
+us_list = [
+    {"t": "STLD", "n": "Steel Dynamics"}, {"t": "WMS", "n": "Adv. Drainage"}, {"t": "NVDA", "n": "Nvidia"}, 
+    {"t": "AAPL", "n": "Apple"}, {"t": "MSFT", "n": "Microsoft"}, {"t": "GOOGL", "n": "Google"}, {"t": "AMZN", "n": "Amazon"}
+]
 
 col1, col2 = st.columns(2)
 
@@ -87,7 +110,15 @@ def build_table(stocks):
     for s in stocks:
         d = fetch_live_metrics(s['t'])
         if d:
-            rows.append({"Trend": d['Trend'], "Wetter": d['Icon'], "Name": s['n'], "Live": d['Preis'], "Pos%": f"{d['Pos']:.1f}%", "RSI": f"{d['RSI']:.1f}", "Status": d['Status']})
+            rows.append({
+                "Trend": d['Trend'], 
+                "Wetter": d['Icon'], 
+                "Name": s['n'], 
+                "Live": d['Preis'], 
+                "Pos%": f"{d['Pos']:.1f}%", 
+                "RSI": f"{d['RSI']:.1f}", 
+                "Status": d['Status']
+            })
     st.table(pd.DataFrame(rows))
 
 with col1:
