@@ -50,3 +50,64 @@ def get_market_data(symbol):
             trend = "🟡"
             
         return {
+            "Preis": current_price,
+            "Pos%": pos_percent,
+            "Status": status,
+            "Trend": trend
+        }
+    except:
+        return {"Preis": 0, "Pos%": 0, "Status": "Error", "Trend": "⚪"}
+
+# 3. HEADER & INFOS (Wetter & Gesundheits-Checkliste)
+st.title(f"🚀 KONTROLLTURM AKTIV | {now.strftime('%A, %d.%m.%Y | %H:%M:%S')}")
+
+# Wichtige Gesundheits- und Verhaltensregeln oben
+st.info(f"""
+**Wetter Wien:** {get_weather()} | **Checkliste:** Keine Mundspülungen (Chlorhexidin), kein Kaugummi, Zähneputzen nicht direkt nach dem Essen.
+**Gesundheit:** Vorsicht bei Phosphaten (Fertiggerichte) & Grapefruit-Interaktionen. 
+**Training:** Wandsitz (Vermeidung von Pressatmung/Luftanhalten!).
+""")
+
+st.divider()
+
+# 4. TOP INDIZES (Header-Bereich)
+cols = st.columns(3)
+indices = [("EUR/USD", "EURUSD=X"), ("DAX (ADR)", "EWG"), ("NASDAQ", "QQQ")]
+
+for i, (label, sym) in enumerate(indices):
+    data = get_market_data(sym)
+    cols[i].metric(label, f"{data['Preis']:.4f}" if "EUR" in label else f"{data['Preis']:.2f}", 
+                   f"{data['Pos%']:.1f}% Position")
+
+st.divider()
+
+# 5. CHAMPIONS TABELLEN (Europa & USA)
+col_left, col_right = st.columns(2)
+
+# Deine Auswahl der Champions
+eu_tickers = [('ADS.DE', 'Adidas'), ('SAP.DE', 'SAP'), ('ASML.AS', 'ASML'), 
+              ('SIE.DE', 'Siemens'), ('VOW3.DE', 'VW'), ('BMW.DE', 'BMW'), ('OTP.BU', 'OTP Bank')]
+
+us_tickers = [('AAPL', 'Apple'), ('MSFT', 'Microsoft'), ('GOOGL', 'Google'), 
+              ('AMZN', 'Amazon'), ('TSLA', 'Tesla'), ('META', 'Meta'), ('NVDA', 'Nvidia')]
+
+def create_table(ticker_list):
+    table_data = []
+    for sym, name in ticker_list:
+        d = get_market_data(sym)
+        table_data.append({
+            "Trend": d['Trend'],
+            "Name": name,
+            "Preis(EUR)": f"{d['Preis']:.2f}",
+            "Pos%": f"{d['Pos%']:.1f}%",
+            "Status": d['Status']
+        })
+    return pd.DataFrame(table_data)
+
+with col_left:
+    st.subheader("Europa: Deine 7 Hidden Champions")
+    st.table(create_table(eu_tickers))
+
+with col_right:
+    st.subheader("USA: Deine 7 Hidden Champions")
+    st.table(create_table(us_tickers))
