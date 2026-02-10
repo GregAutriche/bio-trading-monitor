@@ -5,63 +5,67 @@ from datetime import datetime
 
 st.set_page_config(page_title="Pro Trading Monitor", layout="wide")
 
-# --- HEADER ---
+# --- HEADER: Datum & Uhrzeit ---
 jetzt = datetime.now()
-st.title(f"📊 Trading Dashboard | {jetzt.strftime('%A, %d.%m.%Y | %H:%M:%S')} Uhr")
+st.markdown(f"## 🕒 {jetzt.strftime('%d.%m.%Y | %H:%M:%S')} Uhr")
 
-# Ticker-Definition
-tickers = {"EUR/USD": "EURUSD=X", "DAX": "^GDAXI", "NASDAQ 100": "^NDX"}
+# Ticker-Liste (Inklusive S&P 1000)
+tickers = {
+    "EUR/USD": "EURUSD=X", 
+    "DAX": "^GDAXI", 
+    "NASDAQ 100": "^NDX",
+    "S&P 1000": "^SP1000"
+}
 
-def get_data():
-    results = {}
-    for name, symbol in tickers.items():
-        t = yf.Ticker(symbol)
-        df = t.history(period="1mo")
-        if not df.empty:
-            current = df['Close'].iloc[-1]
-            # 10/90 Logik & Wetter [cite: 2026-02-07]
-            low, high = df['Low'].min(), df['High'].max()
-            pos = ((current - low) / (high - low)) * 100
-            
-            # Wetter-Logik & Farben
-            if pos > 90: icon, color = "☀️", "red"  # Extrem Hoch
-            elif pos < 10: icon, color = "⛈️", "green" # Extrem Tief
-            else: icon, color = "⛅", "white" # Normal
-            
-            # ATR, ROC, RS
-            df['TR'] = df['High'] - df['Low']
-            atr = df['TR'].rolling(window=14).mean().iloc[-1]
-            roc = ((current - df['Close'].iloc[-10]) / df['Close'].iloc[-10]) * 100
-            
-            results[name] = {
-                "val": f"{current:.8f}" if "USD" in name else f"{current:,.2f}",
-                "pos": pos, "icon": icon, "color": color, "atr": atr, "roc": roc
-            }
-    return results
+def get_market_data():
+    res = {}
+    for name, sym in tickers.items():
+        try:
+            t = yf.Ticker(sym)
+            df = t.history(period="1mo")
+            if not df.empty:
+                curr = df['Close'].iloc[-1]
+                low, high = df['Low'].min(), df['High'].max()
+                pos = ((curr - low) / (high - low)) * 100
+                
+                # Wetter & Farblogik [cite: 2026-02-07]
+                if pos > 90: icon, color = "☀️", "red"
+                elif pos < 10: icon, color = "⛈️", "green"
+                else: icon, color = "⛅", "orange" # Gelb/Orange für Normal
+                
+                # Indikatoren
+                df['TR'] = df['High'] - df['Low']
+                atr = df['TR'].rolling(window=14).mean().iloc[-1]
+                roc = ((curr - df['Close'].iloc[-10]) / df['Close'].iloc[-10]) * 100
+                
+                res[name] = {
+                    "kurs": f"{curr:.8f}" if "USD" in name else f"{curr:,.2f}",
+                    "icon": icon, "color": color, "atr": atr, "roc": roc
+                }
+        except: continue
+    return res
 
-data = get_data()
+data = get_market_data()
 
-# --- LAYOUT OBEN: HAUPTWERTE ---
+# --- REINE WERTE OBEN ---
 cols = st.columns(len(data))
 for i, (name, d) in enumerate(data.items()):
     with cols[i]:
         st.markdown(f"### {d['icon']} {name}")
-        st.markdown(f"## :{d['color']}[{d['val']}]")
+        # Hier wird der Kurs direkt in der Farbe angezeigt
+        st.markdown(f"<h2 style='color:{d['color']};'>{d['kurs']}</h2>", unsafe_allow_html=True)
 
 st.divider()
 
-# --- LAYOUT MITTE: INDIKATOREN ---
-st.write("### 📈 Technische Indikatoren")
-ind_cols = st.columns(3)
+# --- INDIKATOREN DARUNTER ---
+st.write("### 📈 Technische Indikatoren (ATR / ROC)")
+ind_cols = st.columns(len(data))
 for i, (name, d) in enumerate(data.items()):
     with ind_cols[i]:
-        st.info(f"**{name}**")
-        st.metric("ATR (14d)", f"{d['atr']:.4f}")
-        st.metric("ROC (10d)", f"{d['roc']:.2f}%", delta=f"{d['roc']:.2f}%")
+        st.metric(f"ATR {name}", f"{d['atr']:.4f}")
+        st.metric(f"ROC {name}", f"{d['roc']:.2f}%")
 
-# --- LAYOUT UNTEN: SLIDER & ERKLÄRUNG ---
-with st.expander("ℹ️ Erklärung der Werte & Indikatoren"):
-    st.write("**10%/90% Regel:** Grün/Sturm bedeutet Tiefstand (<10%), Rot/Sonne bedeutet Hochstand (>90%) [cite: 2026-02-07].")
-    st.write("**ATR:** Zeigt die tägliche Volatilität an.")
-    st.write("**ROC:** Misst die Geschwindigkeit der Kursbewegung über 10 Tage.")
-    st.write("**Wetter:** ☀️ = Markt heiß gelaufen, ⛈️ = Kaufchance/Tief, ⛅ = Normalbereich.")
+# --- SLIDER / ERKLÄRUNG GANZ UNTEN ---
+with st.expander("ℹ️ Erklärung & Hilfe"):
+    st.write("**Wetter-Symbole:** Zeigen die 10/90 Regel. ⛈️ = Tief (<10%), ☀️ = Hoch (>90%) [cite: 2026-02-07].")
+    st.write("**Farben:** Grün bedeutet günstig, Rot bedeutet teuer.")
