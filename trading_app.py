@@ -19,7 +19,6 @@ st.info(f"Sitzung gestartet um: {st.session_state['start_zeit']}")
 tickers = {
     "EUR/USD": "EURUSD=X", 
     "DAX": "^GDAXI", 
-    "NASDAQ 100": "^NDX",
     "S&P 1000": "^SP1000"
 }
 
@@ -85,3 +84,4 @@ with st.expander("📊 Sitzungs-Dokumentation (Live-Werte)"):
 # Automatischer Refresh für die Live-Interpretation
 time.sleep(2)
 st.rerun()
+
