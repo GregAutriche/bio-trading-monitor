@@ -1,12 +1,27 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+from datetime import datetime
+import locale
+
+# Versuche deutsche Zeitformatierung zu setzen
+try:
+    locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
+except:
+    pass # Fallback auf Standard, falls de_DE nicht auf dem Server ist
 
 st.set_page_config(page_title="Trading Monitor", layout="wide")
 
-st.title("📊 Dein Trading & China-Exposure Monitor")
+# --- ZEIT- UND DATUMSANZEIGE ---
+jetzt = datetime.now()
+wochentag = jetzt.strftime("%A")
+datum = jetzt.strftime("%d.%m.%Y")
+uhrzeit = jetzt.strftime("%H:%M:%S")
 
-# Ticker Definition
+st.title(f"📊 Trading Monitor")
+st.subheader(f"Heute ist {wochentag}, der {datum} | {uhrzeit} Uhr")
+
+# --- FINANZDATEN ---
 tickers = {
     "EUR/USD": "EURUSD=X",
     "DAX": "^GDAXI",
@@ -17,28 +32,20 @@ tickers = {
 def get_data():
     results = []
     for name, symbol in tickers.items():
-        ticker = yf.Ticker(symbol)
-        hist = ticker.history(period="1y")
-        
-        if not hist.empty:
-            current = hist['Close'].iloc[-1]
-            low_52w = hist['Low'].min()
-            high_52w = hist['High'].max()
-            
-            # 10% / 90% Logik
-            pos = ((current - low_52w) / (high_52w - low_52w)) * 100
-            
-            if pos > 90: status = "🔴 Extrem Hoch (>90%)"
-            elif pos < 10: status = "🟢 Extrem Tief (<10%)"
-            else: status = "⚪ Normalbereich"
-            
-            # Formatierung: Dollar mit 8 Stellen, Indizes mit 2
-            val_str = f"{current:.8f}" if name == "EUR/USD" else f"{current:,.2f}"
-            
-            results.append({"Asset": name, "Wert": val_str, "Bereich": status})
+        try:
+            ticker = yf.Ticker(symbol)
+            hist = ticker.history(period="1y")
+            if not hist.empty:
+                current = hist['Close'].iloc[-1]
+                # Deine 10/90 Regel Logik
+                low_52w, high_52w = hist['Low'].min(), hist['High'].max()
+                pos = ((current - low_52w) / (high_52w - low_52w)) * 100
+                
+                status = "🔴 EXTREM HOCH" if pos > 90 else "🟢 EXTREM TIEF" if pos < 10 else "⚪ Normal"
+                val_str = f"{current:.8f}" if name == "EUR/USD" else f"{current:,.2f}"
+                results.append({"Asset": name, "Wert": val_str, "Status": status})
+        except:
+            continue
     return pd.DataFrame(results)
 
-data_df = get_data()
-st.table(data_df)
-
-st.info("Hinweis: DAX-Werte mit hoher China-Exposition (VW, BASF, SAP) manuell im Auge behalten.")
+st.table(get_data())
