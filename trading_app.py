@@ -42,7 +42,7 @@ def get_live_data():
                 # 10/90 Logik für Wetter & Farbe [cite: 2026-02-07]
                 hist = t.history(period="1y")
                 low, high = hist['Low'].min(), hist['High'].max()
-                pos = ((curr - low) / (high - low)) * 100
+                pos = ((curr - low) / (high - low)) * 10000
                 
                 if pos > 90: icon, color = "☀️", "red"
                 elif pos < 10: icon, color = "⛈️", "green"
@@ -84,4 +84,5 @@ with st.expander("📊 Sitzungs-Dokumentation (Live-Werte)"):
 # Automatischer Refresh für die Live-Interpretation
 time.sleep(2)
 st.rerun()
+
 
