@@ -2,14 +2,20 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 from datetime import datetime
+import time
 
-st.set_page_config(page_title="Pro Trading Monitor", layout="wide")
+st.set_page_config(page_title="Sitzungs-Monitor", layout="wide")
 
-# --- HEADER: Datum & Uhrzeit ---
+# --- INITIALISIERUNG DES START-WERTS (SESSION STATE) ---
+if 'start_daten' not in st.session_state:
+    st.session_state['start_daten'] = {}
+    st.session_state['start_zeit'] = datetime.now().strftime('%H:%M:%S')
+
+# --- HEADER ---
 jetzt = datetime.now()
 st.markdown(f"## 🕒 {jetzt.strftime('%d.%m.%Y | %H:%M:%S')} Uhr")
+st.info(f"Sitzung gestartet um: {st.session_state['start_zeit']}")
 
-# Ticker-Liste (Inklusive S&P 1000)
 tickers = {
     "EUR/USD": "EURUSD=X", 
     "DAX": "^GDAXI", 
@@ -17,55 +23,65 @@ tickers = {
     "S&P 1000": "^SP1000"
 }
 
-def get_market_data():
+def get_live_data():
     res = {}
     for name, sym in tickers.items():
         try:
             t = yf.Ticker(sym)
-            df = t.history(period="1mo")
+            df = t.history(period="1d") # Nur heutige Daten
             if not df.empty:
                 curr = df['Close'].iloc[-1]
-                low, high = df['Low'].min(), df['High'].max()
+                
+                # Speichere den ALLERERSTEN Wert dieser Sitzung
+                if name not in st.session_state['start_daten']:
+                    st.session_state['start_daten'][name] = curr
+                
+                start_val = st.session_state['start_daten'][name]
+                diff = curr - start_val
+                diff_pct = (diff / start_val) * 100 if start_val != 0 else 0
+                
+                # 10/90 Logik für Wetter & Farbe [cite: 2026-02-07]
+                hist = t.history(period="1y")
+                low, high = hist['Low'].min(), hist['High'].max()
                 pos = ((curr - low) / (high - low)) * 100
                 
-                # Wetter & Farblogik [cite: 2026-02-07]
                 if pos > 90: icon, color = "☀️", "red"
                 elif pos < 10: icon, color = "⛈️", "green"
-                else: icon, color = "⛅", "orange" # Gelb/Orange für Normal
-                
-                # Indikatoren
-                df['TR'] = df['High'] - df['Low']
-                atr = df['TR'].rolling(window=14).mean().iloc[-1]
-                roc = ((curr - df['Close'].iloc[-10]) / df['Close'].iloc[-10]) * 100
+                else: icon, color = "⛅", "orange"
                 
                 res[name] = {
                     "kurs": f"{curr:.8f}" if "USD" in name else f"{curr:,.2f}",
-                    "icon": icon, "color": color, "atr": atr, "roc": roc
+                    "start": f"{start_val:.8f}" if "USD" in name else f"{start_val:,.2f}",
+                    "icon": icon, "color": color, "diff": diff, "diff_pct": diff_pct
                 }
         except: continue
     return res
 
-data = get_market_data()
+data = get_live_data()
 
-# --- REINE WERTE OBEN ---
+# --- ANZEIGE OBEN: LIVE-KURSE ---
 cols = st.columns(len(data))
 for i, (name, d) in enumerate(data.items()):
     with cols[i]:
         st.markdown(f"### {d['icon']} {name}")
-        # Hier wird der Kurs direkt in der Farbe angezeigt
         st.markdown(f"<h2 style='color:{d['color']};'>{d['kurs']}</h2>", unsafe_allow_html=True)
+        # Live-Differenz zur Sitzung
+        color_diff = "green" if d['diff'] >= 0 else "red"
+        st.markdown(f"Seit Start: <b style='color:{color_diff};'>{d['diff']:+.4f} ({d['diff_pct']:+.2f}%)</b>", unsafe_allow_html=True)
 
 st.divider()
 
-# --- INDIKATOREN DARUNTER ---
-st.write("### 📈 Technische Indikatoren (ATR / ROC)")
-ind_cols = st.columns(len(data))
-for i, (name, d) in enumerate(data.items()):
-    with ind_cols[i]:
-        st.metric(f"ATR {name}", f"{d['atr']:.4f}")
-        st.metric(f"ROC {name}", f"{d['roc']:.2f}%")
+# --- SLIDER FÜR DETAILS & DOKUMENTATION ---
+with st.expander("📊 Sitzungs-Dokumentation (Live-Werte)"):
+    doc_df = pd.DataFrame([
+        {"Asset": k, "Start-Kurs": v["start"], "Aktuell": v["kurs"], "Änderung": f"{v['diff_pct']:+.2f}%"} 
+        for k, v in data.items()
+    ])
+    st.table(doc_df)
+    if st.button("Sitzungswerte zurücksetzen"):
+        st.session_state.clear()
+        st.rerun()
 
-# --- SLIDER / ERKLÄRUNG GANZ UNTEN ---
-with st.expander("ℹ️ Erklärung & Hilfe"):
-    st.write("**Wetter-Symbole:** Zeigen die 10/90 Regel. ⛈️ = Tief (<10%), ☀️ = Hoch (>90%) [cite: 2026-02-07].")
-    st.write("**Farben:** Grün bedeutet günstig, Rot bedeutet teuer.")
+# Automatischer Refresh für die Live-Interpretation
+time.sleep(2)
+st.rerun()
