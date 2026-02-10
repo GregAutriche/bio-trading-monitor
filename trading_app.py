@@ -1,78 +1,58 @@
-import streamlit as st
-import pandas as pd
 import yfinance as yf
-from datetime import datetime
-import pytz
+import pandas as pd
 
-# Sicherer Import: Die App stürzt nicht ab, wenn das Modul fehlt
-try:
-    from streamlit_autorefresh import st_autorefresh
-    HAS_AUTO = True
-except Exception:
-    HAS_AUTO = False
+# 1. Konfiguration & Ticker-Symbole
+# S&P 1000 wird oft durch den ETF 'IVOO' oder den Index ^SP1000 repräsentiert
+tickers = {
+    "EUR/USD": "EURUSD=X",
+    "DAX": "^GDAXI",
+    "NASDAQ 100": "^NDX",
+    "S&P 1000": "^SP1000"
+}
 
-st.set_page_config(page_title="Kontrollturm Aktiv", layout="wide")
+# China-Exposition (Beispielwerte für DAX-Schwergewichte)
+china_exposure = {
+    "SAP.DE": "ca. 10%",
+    "BASF.DE": "ca. 15%",
+    "VOW3.DE": "ca. 35%",  # Hohes Risiko
+}
 
-# Refresh alle 5 Minuten, falls verfügbar
-if HAS_AUTO:
-    st_autorefresh(interval=300000, key="datarefresh")
-
-local_tz = pytz.timezone('Europe/Berlin')
-now = datetime.now(local_tz)
-
-@st.cache_data(ttl=60)
-def fetch_live_metrics(ticker_symbol, is_currency=False):
-    try:
-        ticker = yf.Ticker(ticker_symbol)
-        hist = ticker.history(period="1y")
-        if len(hist) < 20: return None
-        cp = hist['Close'].iloc[-1]
-        lo, hi = hist['Low'].min(), hist['High'].max()
-        pos_percent = ((cp - lo) / (hi - lo)) * 100
+def get_market_data():
+    print(f"{'Asset':<12} | {'Kurs':<15} | {'Status (10/90)'}")
+    print("-" * 45)
+    
+    for name, ticker in tickers.items():
+        data = yf.Ticker(ticker)
+        # Aktuellen Kurs und 52-Wochen-Bereich für die 10/90 Regel laden
+        info = data.history(period="1y")
         
-        # RSI Logik
-        delta = hist['Close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rs = gain / (loss + 1e-10)
-        rsi_val = 100 - (100 / (1 + rs.iloc[-1]))
-        
-        # Deine gewünschten Symbole: Gras & Baum
-        status, icon, trend_dot = "NORMAL", "🌿 🌳", "🟡"
-        
-        if pos_percent < 10:
-            status, icon, trend_dot = "EXTREM TIEF", "⚡", "🔴"
-        elif pos_percent > 90:
-            status, icon, trend_dot = "EXTREM HOCH", "☀️", "🟢"
+        if not info.empty:
+            current_price = info['Close'].iloc[-1]
+            low_52w = info['Low'].min()
+            high_52w = info['High'].max()
             
-        price_fmt = f"{cp:.4f}" if is_currency else f"{cp:,.0f}"
-        return {"Preis": price_fmt, "Pos": pos_percent, "RSI": rsi_val, "Status": status, "Trend": trend_dot, "Icon": icon}
-    except:
-        return None
+            # Berechnung der relativen Position (0 bis 100%)
+            position = ((current_price - low_52w) / (high_52w - low_52w)) * 100
+            
+            # Status-Logik (Deine Regel)
+            if position > 90:
+                status = "EXTREM HOCH (>90%)"
+            elif position < 10:
+                status = "EXTREM TIEF (<10%)"
+            else:
+                status = "Normalbereich"
+            
+            # Formatierung: EUR/USD mit 6 Stellen, Indizes mit 2 Stellen
+            if name == "EUR/USD":
+                print(f"{name:<12} | {current_price:<15.6f} | {status}")
+            else:
+                print(f"{name:<12} | {current_price:<15.2f} | {status}")
+        else:
+            print(f"{name:<12} | Datenfehler")
 
-st.title(f"🚀 KONTROLLTURM AKTIV | {now.strftime('%d.%m.%Y | %H:%M:%S')}")
-
-# Markt-Metriken (Dax, Nasdaq, Euro)
-cols = st.columns(3)
-market_tickers = [("EUR/USD", "EURUSD=X", True), ("DAX Index", "^GDAXI", False), ("NASDAQ", "^IXIC", False)]
-for i, (label, sym, is_curr) in enumerate(market_tickers):
-    d = fetch_live_metrics(sym, is_curr)
-    if d: cols[i].metric(label, d['Preis'], f"{d['Pos']:.1f}% Pos")
-
-st.divider()
-st.warning("⚠️ Wichtig: Wandsitz (KEINE Pressatmung!), Rote Bete, kein Chlorhexidin!")
-
-# Champions Tabellen
-eu_list = [{"t": "OTP.BU", "n": "OTP Bank"}, {"t": "BAS.DE", "n": "BASF"}, {"t": "SIE.DE", "n": "Siemens"}, {"t": "VOW3.DE", "n": "VW"}, {"t": "SAP.DE", "n": "SAP"}, {"t": "ADS.DE", "n": "Adidas"}, {"t": "BMW.DE", "n": "BMW"}]
-us_list = [{"t": "STLD", "n": "Steel Dynamics"}, {"t": "WMS", "n": "Adv. Drainage"}, {"t": "NVDA", "n": "Nvidia"}, {"t": "AAPL", "n": "Apple"}, {"t": "MSFT", "n": "Microsoft"}, {"t": "GOOGL", "n": "Google"}, {"t": "AMZN", "n": "Amazon"}]
-
-def build_table(stocks):
-    rows = []
-    for s in stocks:
-        d = fetch_live_metrics(s['t'])
-        if d: rows.append({"Trend": d['Trend'], "Wetter": d['Icon'], "Name": s['n'], "Live": d['Preis'], "Pos%": f"{d['Pos']:.1f}%", "RSI": f"{d['RSI']:.1f}"})
-    st.table(pd.DataFrame(rows))
-
-c1, c2 = st.columns(2)
-with c1: st.subheader("Europa Champions"); build_table(eu_list)
-with c2: st.subheader("USA Champions"); build_table(us_list)
+if __name__ == "__main__":
+    print("--- Dein App-Dashboard (Stand: 2026) ---")
+    get_market_data()
+    print("\n--- China-Exposition DAX-Referenz ---")
+    for stock, exposure in china_exposure.items():
+        print(f"{stock}: {exposure}")
