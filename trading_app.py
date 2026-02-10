@@ -16,7 +16,7 @@ wochentag_de = {
 }
 tag_name = wochentag_de.get(jetzt.strftime("%A"), jetzt.strftime("%A"))
 
-st.title("📊 Dein Premium Trading Monitor")
+st.title("📊 Monitor 📊")
 st.markdown(f"### 🕒 {tag_name}, {jetzt.strftime('%d.%m.%Y')} | {jetzt.strftime('%H:%M:%S')} Uhr")
 
 # --- FINANZDATEN ABFRAGE ---
@@ -56,5 +56,6 @@ def get_data():
 st.table(get_data())
 
 # Automatisches Neuladen alle 60 Sekunden für die Aktualisierung
-time.sleep(60)
+time.sleep(65)
 st.rerun()
+
