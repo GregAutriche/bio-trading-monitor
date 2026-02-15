@@ -119,6 +119,22 @@ with st.expander("🇺🇸 US MARKT WERTE (TECH DERIVATIVES)", expanded=False):
     for asset in us_list:
         render_row(asset, data.get(asset))
 
+# --- 4. EXPANDER: ERKLÄRUNG & HANDLUNGSINFO ---
+with st.expander("💡 INTERPRETATION & HANDLUNGSINFO", expanded=False):
+    st.markdown("""
+    ### 🌦️ Das Börsen-Wetter verstehen
+    Die Icons basieren auf der prozentualen Veränderung seit dem Öffnen des Terminals:
+    
+    *   ☀️ **SONNIG (> 0.5%):** Starke Kaufdynamik. **Handlung:** Trends folgen, Gewinne laufen lassen.
+    *   🌤️ **HEITER (0% bis 0.5%):** Stabiler Aufwärtstrend. **Handlung:** Bullisch orientiert bleiben, selektive Käufe.
+    *   ☁️ **WOLKIG (0% bis -0.5%):** Seitwärtsbewegung oder leichte Schwäche. **Handlung:** Abwarten (**WAIT**), keine überstürzten Aktionen.
+    *   ⛈️ **GEWITTER (< -0.5%):** Erhöhter Verkaufsdruck. **Handlung:** Absichern (**SELL/SHORT**), Vorsicht bei Long-Positionen.
+    
+    ---
+    **Hinweis:** Die Werte werden im Vergleich zum Zeitpunkt des ersten Ladens (Initialwert) gemessen. 
+    Nutze den **Manual Refresh**, um die aktuelle Marktveränderung neu zu kalkulieren.
+    """)
+
 # --- PROTOKOLL ---
 with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
     if st.session_state.history_log:
@@ -126,3 +142,4 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
