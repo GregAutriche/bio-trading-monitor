@@ -126,7 +126,7 @@ with st.expander("FOKUS: 🪙 US MARKET (S&P500)", expanded=False):
         render_row(asset, data.get(asset))
 
 # --- 4. EXPANDER: ERKLÄRUNG & HANDLUNGSINFO ---
-with st.expander("FOKUS: 💡 MARKT-KOMPASS + HANDLUNGSINFO", expanded=False):
+with st.expander("💡 MARKT-KOMPASS + HANDLUNGSINFO 💡", expanded=False):
     # Dynamische Analyse-Logik
     all_assets = list(data.values())
     if all_assets:
@@ -171,4 +171,5 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
