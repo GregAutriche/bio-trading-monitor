@@ -1,5 +1,6 @@
 import streamlit as st
 import yfinance as yf
+import plotly.graph_objects as go
 from datetime import datetime
 
 # --- 1. TERMINAL LOOK & FARBEN (CSS) ---
@@ -144,3 +145,4 @@ for label, sym in [("APPLE", "AAPL"), ("MICROSOFT", "MSFT")]:
     if data.get(sym):
         compact_row(label, "☀️", "Sonnig", "🟢", "Buy", 
                     f"{data[sym]['price']:.2f}", data[sym]['delta'])
+
