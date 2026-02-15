@@ -83,13 +83,14 @@ st.markdown("### 📈 Fokus/Markt-Indizes")
 
 # Euro Stoxx Zeile
 if data["STOXX"]:
-    c1, c2, c3 = st.columns([2, 1, 1])
+ c1, c2, c3 = st.columns([0.5, 0.5, 3])
     with c1:
-        st.write("## ☁️")
-        st.caption("Wetter: Bewölkt")
-        st.write("## ⚪")
-        st.caption("Action: Wait")
+        st.write("## ☀️")
+        st.caption("Wetter: Heiter")
     with c2:
+        st.write("## 🟢")
+        st.caption("Action: Bullisch")
+    with c3:
         st.metric("EURO STOXX 50", f"{data['STOXX']['price']:.2f}", f"{data['STOXX']['delta']:.2f}%")
 
 
@@ -214,6 +215,7 @@ with col_info2:
     """)
 
 st.warning("⚠️ **Risikohinweis:** Die hier angezeigten 'Actions' basieren auf einem algorithmischen Wetter-Modell und stellen keine direkte Anlageberatung dar.")
+
 
 
 
