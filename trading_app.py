@@ -108,7 +108,7 @@ st.markdown("---")
 st.markdown("### 📈 FOKUS/ Markt-Indizes")
 
 # EUROSTOXX
-if data.get("^STOXX50E") and data["STOXX"] is not None:
+if data.get("^STOXX50E") and data["^STOXX50E"] is not None:
     compact_row(
         "EUROSTOXX", 
         "☁️", "Bewölkt", 
@@ -154,6 +154,7 @@ for label, sym in tickers:
         st.write(f"ℹ️ {label}: Daten werden geladen...")
 
 st.markdown("---")
+
 
 
 
