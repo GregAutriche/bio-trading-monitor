@@ -94,8 +94,7 @@ st.markdown("---")
 
 st.markdown("### 📈 FOKUS/ Markt-Indizes")
 if data["STOXX"]:
-    compact_row("EURO STOXX 50", f"{data['STOXX']['price']:.2f}", f"{data['STOXX']['delta']:.2f}%", 
-                "☁️", "Bewölkt", "⚪", "Wait")
+    compact_row("EURO STOXX 50", "☁️", "Bewölkt", "⚪", "Wait", f"{data['STOXX']['price']:.2f}", f"{data['STOXX']['delta']:.2f}%")
 st.write("")
 if data["SP"]:
     compact_row("S&P INDEX", "☀️", "Sonnig", "🟢", "Buy", f"{data['SP']['price']:.2f}", f"{data['SP']['delta']:.2f}%")
@@ -147,6 +146,7 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
 
 
