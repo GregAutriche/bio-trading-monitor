@@ -103,23 +103,27 @@ with h2:
 # --- 6. MAIN FOCUS (Währung & Indizes) ---
 st.markdown("<p class='focus-header'>### 🌍 GLOBAL MACRO FOCUS</p>", unsafe_allow_html=True)
 
-# Das Protokoll-Fenster bleibt direkt unter der ersten Überschrift
+# Protokoll-Expander
 with st.expander("📊 PROTOKOLLIERUNG DER VERÄNDERUNG EINBLENDEN"):
     if st.session_state.history_log:
         st.table(pd.DataFrame(st.session_state.history_log).iloc[::-1].head(15))
-    else:
-        st.write("Warte auf Daten...")
 
-# Korrekte Reihenfolge: Währung vor Indizes
-if "EUR/USD" in data: 
-    render_row("EUR/USD", data["EUR/USD"], "{:.5f}")
+# EXPLIZITE ABFRAGE FÜR EUR/USD (Ganz oben)
+# Wir prüfen beide gängigen Schlüssel, um sicherzugehen
+eur_usd_data = data.get("EUR/USD") or data.get("EURUSD=X")
 
+if eur_usd_data:
+    render_row("EUR/USD", eur_usd_data, "{:.6f}")
+else:
+    # Falls der Abruf fehlgeschlagen ist, zeigen wir eine Platzhalterzeile oder nichts
+    st.write("🔄 EUR/USD Daten werden geladen...")
+
+# Danach die Indizes
 if "EUROSTOXX 50" in data: 
     render_row("EUROSTOXX 50", data["EUROSTOXX 50"])
 
 if "S&P 500" in data: 
     render_row("S&P 500", data["S&P 500"])
-
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # --- 7. US DERIVATIVES (7 SELECTED) ---
@@ -134,5 +138,6 @@ for asset in eu_list: render_row(asset, data.get(asset))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
