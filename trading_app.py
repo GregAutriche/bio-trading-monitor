@@ -2,14 +2,6 @@ import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
 from datetime import datetime
-
-# Direkt nach dem Daten-Import einfügen:
-st.write("### 🛠 Debug-Modus")
-if not data:
-    st.error("⚠️ Das 'data' Dictionary ist komplett leer!")
-else:
-    st.success(f"✅ Es wurden {len(data)} Indizes geladen.")
-    st.json(data) # Zeigt die gesamte Struktur der Daten an
     
 # --- 1. TERMINAL LOOK (CSS) ---
 st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
@@ -53,6 +45,14 @@ def get_live_data():
 
 data = get_live_data()
 now = datetime.now()
+
+# Direkt nach dem Daten-Import einfügen:
+st.write("### 🛠 Debug-Modus")
+if not data:
+    st.error("⚠️ Das 'data' Dictionary ist komplett leer!")
+else:
+    st.success(f"✅ Es wurden {len(data)} Indizes geladen.")
+    st.json(data) # Zeigt die gesamte Struktur der Daten an
 
 # --- 3. HELFER-FUNKTIONEN ---
 def compact_row(label, weather_icon, weather_text, action_dot, action_text, price, delta):
@@ -180,6 +180,7 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
 
 
