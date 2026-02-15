@@ -44,7 +44,7 @@ def get_weather_info(delta):
     else: return "⛈️", "GEWITTER", "🔴", "SELL"
 
 def fetch_data():
-    symbols = {
+     symbols = {
         "EURUSD=X": "EUR/USD", "^GSPC": "S&P 500", "^STOXX50E": "EUROSTOXX 50",
         "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
         "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "SIE.DE": "SIEMENS", "TTE.PA": "TOTALENERGIES", "ALV.DE": "ALLIANZ", "OR.PA": "L'OREAL"
@@ -55,11 +55,16 @@ def fetch_data():
     for ticker, label in symbols.items():
         try:
             t = yf.Ticker(ticker)
+            # Am Wochenende (heute: 15.02.2026) liefert period="2d" die Freitagsschlusskurse
             df = t.history(period="2d") 
             if not df.empty:
                 curr = df['Close'].iloc[-1]
+                
+                # Ersterfassung der Werte
+                is_new = False
                 if label not in st.session_state.initial_values:
                     st.session_state.initial_values[label] = curr
+                    is_new = True # Markierung für initialen Log-Eintrag
                 
                 start = st.session_state.initial_values[label]
                 diff = curr - start
@@ -67,7 +72,8 @@ def fetch_data():
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
                 results[label] = {"price": curr, "delta": delta, "diff": diff, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt}
                 
-                if diff != 0:
+                # FIX: Logge wenn sich etwas ändert ODER wenn das Asset gerade erst geladen wurde
+                if diff != 0 or is_new:
                     st.session_state.history_log.append({
                         "Zeit": current_time, "Asset": label, "Betrag": f"{curr:.4f}",
                         "Veränderung": f"{diff:+.4f}", "Anteil %": f"{delta:+.3f}%"
@@ -157,5 +163,6 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
