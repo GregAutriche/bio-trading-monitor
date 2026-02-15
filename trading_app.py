@@ -96,7 +96,7 @@ def render_row(label, d, f_str="{:.2f}"):
 
 # --- 5. HEADER ---
 h1, h2 = st.columns([2, 1])
-with h1: st.title("☁️ BÖRSEN-WETTER")
+with h1: st.title("☁️ TERMINAL")
 with h2: 
     st.markdown(f"<div style='text-align:right;'><p style='margin:0; color:#888888;'>{datum_heute}</p><h3 style='margin:0; color:#00ff00;'>{now_display.strftime('%H:%M:%S')}</h3></div>", unsafe_allow_html=True)
 
@@ -139,15 +139,3 @@ for asset in eu_list: render_row(asset, data.get(asset))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
-
-
-
-
-
-
-
-
-
-
-
-
