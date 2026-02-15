@@ -28,7 +28,7 @@ st.markdown("""
 # --- 2. DATENFUNKTION ---
 def get_live_data():
     # Anpassung auf STOXX 600 (^STOXX600E) und S&P 250 (^SP1000)
-    mapping = {"EURUSD": "EURUSD=X", "^STOXX": "^STOXX250E", "SP": "^GSPC"}
+    mapping = {"EURUSD": "EURUSD=X", "^STOXX100E": "^STOXX250E", "SP": "^GSPC"}
     results = {}
     for key, ticker in mapping.items():
         try:
@@ -178,6 +178,7 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
 
 
