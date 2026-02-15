@@ -1,4 +1,3 @@
-*** code ***
 import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
@@ -155,6 +154,7 @@ for label, sym in tickers:
         st.write(f"ℹ️ {label}: Daten werden geladen...")
 
 st.markdown("---")
+
 
 
 
