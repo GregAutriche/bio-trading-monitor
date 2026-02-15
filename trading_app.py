@@ -3,8 +3,8 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import time
 
-# --- 1. CONFIG & CSS (Maximale Sichtbarkeit) ---
-st.set_page_config(layout="wide", page_title="Terminal")
+# --- 1. CONFIG & STYLING ---
+st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
 
 st.markdown("""
     <style>
@@ -13,18 +13,22 @@ st.markdown("""
         color: #e0e0e0 !important;
         font-family: 'Courier New', Courier, monospace;
     }
-    [data-testid="stMetricValue"] { font-size: 26px !important; color: #ffffff !important; }
-    .weather-icon { font-size: 24px !important; margin: 0; }
-    .product-label { font-size: 22px !important; font-weight: bold; color: #00ff00 !important; margin-left: -20px; }
-    .focus-header { color: #aaaaaa !important; font-weight: bold; margin-top: 15px; text-transform: uppercase; }
+    /* Metrik-Anpassung */
+    [data-testid="stMetricValue"] { font-size: 24px !important; color: #ffffff !important; }
+    [data-testid="stMetricDelta"] { font-size: 16px !important; }
     
-    /* Protokoll Box */
+    /* Effektiver Wert unter dem Delta */
+    .effektiver-wert { font-size: 14px; color: #aaaaaa; margin-top: -15px; font-weight: bold; }
+    
+    .weather-icon { font-size: 24px !important; margin: 0; }
+    .product-label { font-size: 22px !important; font-weight: bold; color: #00ff00 !important; margin-left: -25px; }
+    .focus-header { color: #888888 !important; font-weight: bold; margin-top: 15px; }
+    
+    /* Boxen für Protokoll & Legende */
     .log-container { background-color: #111; border: 1px solid #444; padding: 10px; border-radius: 5px; }
+    .legend-box { background-color: #0e1117; border: 2px solid #00ff00; padding: 15px; border-radius: 10px; }
     .pos-val { color: #00ff00; font-weight: bold; }
     .neg-val { color: #ff4b4b; font-weight: bold; }
-    
-    /* Legende Box */
-    .legend-box { background-color: #0e1117; border: 2px solid #00ff00; padding: 15px; border-radius: 10px; }
     
     hr { border-top: 1px solid #444; margin: 10px 0; }
     </style>
@@ -53,9 +57,10 @@ def fetch_data():
                 if label not in st.session_state.initial_values:
                     st.session_state.initial_values[label] = curr
                 start = st.session_state.initial_values[label]
-                delta = ((curr - start) / start) * 100
+                diff = curr - start
+                delta = (diff / start) * 100
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
-                results[label] = {"price": curr, "delta": delta, "start": start, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt}
+                results[label] = {"price": curr, "delta": delta, "diff": diff, "start": start, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt}
         except: pass
     return results
 
@@ -70,20 +75,24 @@ def render_row(label, d, f_str="{:.2f}"):
     with cols[1]: st.write(f"{d['wt']}")
     with cols[2]: st.markdown(f"<p class='weather-icon'>{d['a']}</p>", unsafe_allow_html=True)
     with cols[3]: st.write(f"{d['at']}")
-    with cols[4]: st.metric(label="", value=f_str.format(d['price']), delta=f"{d['delta']:+.3f}%")
+    with cols[4]: 
+        st.metric(label="", value=f_str.format(d['price']), delta=f"{d['delta']:+.3f}%")
+        # DER EFFEKTIVE WERT DIREKT UNTER DEM DELTA
+        color_class = "pos-val" if d['diff'] >= 0 else "neg-val"
+        st.markdown(f"<p class='effektiver-wert'>Absolut: <span class='{color_class}'>{d['diff']:+.4f}</span></p>", unsafe_allow_html=True)
     with cols[5]: st.markdown(f"<p class='product-label'>{label}</p>", unsafe_allow_html=True)
 
 # --- 5. HEADER ---
 h1, h2 = st.columns([2, 1])
-with h1: st.title("☁️ Terminal")
+with h1: st.title("☁️ BÖRSEN-WETTER")
 with h2: 
-    st.markdown(f"<div style='text-align:right;'><p style='margin:0; color:#00ff00;'>LETZTES UPDATE:</p><h3 style='margin:0;'>{now.strftime('%H:%M:%S')}</h3></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align:right;'><p style='margin:0; color:#00ff00;'>LETZTES UPDATE (KORR.):</p><h3 style='margin:0;'>{now.strftime('%H:%M:%S')}</h3></div>", unsafe_allow_html=True)
 
 st.markdown("---")
 
 # --- 6. FOCUS/ WÄHRUNG & INDIZES ---
 st.markdown("<p class='focus-header'>### 🌍 FOCUS/ WÄHRUNG</p>", unsafe_allow_html=True)
-render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
+render_row("EUR/USD", data.get("EUR/USD"), "{:.4f}")
 
 st.markdown("---")
 st.markdown("<p class='focus-header'>### 📈 FOCUS/ INDIZES</p>", unsafe_allow_html=True)
@@ -92,15 +101,15 @@ render_row("S&P 500", data.get("S&P 500"))
 
 # --- SLIDER 1 & PROTOKOLL ---
 st.write("")
-show_log = st.slider("PROTOKOLLIERUNG DER VERÄNDERUNG EINBLENDEN", 0, 1, 1)
+show_log = st.slider("PROTOKOLLIERUNG DER VERÄNDERUNG EINBLENDEN", 0, 1, 1, key="s1")
 if show_log:
     st.markdown("<div class='log-container'>", unsafe_allow_html=True)
     cols_log = st.columns(len(data))
     for i, (name, v) in enumerate(data.items()):
         color_class = "pos-val" if v['delta'] >= 0 else "neg-val"
         cols_log[i].markdown(f"**{name}**")
-        cols_log[i].markdown(f"Start: `{v['start']:.2f}`")
-        cols_log[i].markdown(f"Diff: <span class='{color_class}'>{v['delta']:+.2f}%</span>", unsafe_allow_html=True)
+        cols_log[i].caption(f"Start: {v['start']:.2f}")
+        cols_log[i].markdown(f"<span class='{color_class}'>{v['diff']:+.4f}</span>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("---")
@@ -112,11 +121,11 @@ render_row("MICROSOFT", data.get("MICROSOFT"))
 
 # --- SLIDER 2 & BESCHREIBUNG ---
 st.write("")
-show_desc = st.slider("BESCHREIBUNG DER SYMBOLE & INFORMATION EINBLENDEN", 0, 1, 1)
+show_desc = st.slider("BESCHREIBUNG DER SYMBOLE & INFORMATION EINBLENDEN", 0, 1, 1, key="s2")
 if show_desc:
     st.markdown("""
     <div class='legend-box'>
-        <table style='width:100%; border:none;'>
+        <table style='width:100%; border:none; color:white;'>
             <tr>
                 <td>☀️ <b>SONNIG:</b> > +0.5%</td>
                 <td>🌤️ <b>HEITER:</b> > 0%</td>
@@ -127,7 +136,7 @@ if show_desc:
                 <td>🟢 <b>BUY/BULL:</b> Positiv</td>
                 <td>🔴 <b>SELL/BEAR:</b> Negativ</td>
                 <td>⚪ <b>WAIT:</b> Neutral</td>
-                <td><b style='color:#00ff00;'>LIVE DATA ACTIVE</b></td>
+                <td><b style='color:#00ff00;'>LIVE SYSTEM</b></td>
             </tr>
         </table>
     </div>
@@ -136,6 +145,3 @@ if show_desc:
 # --- 8. REFRESH ---
 time.sleep(60)
 st.rerun()
-
-
-
