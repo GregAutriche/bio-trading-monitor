@@ -101,28 +101,30 @@ with h2:
     st.markdown(f"<div style='text-align:right;'><p style='margin:0; color:#888888;'>{datum_heute}</p><h3 style='margin:0; color:#00ff00;'>{now_display.strftime('%H:%M:%S')}</h3></div>", unsafe_allow_html=True)
 
 # --- 6. MAIN FOCUS (Währung & Indizes) ---
+# --- 6. MAIN FOCUS ---
 st.markdown("<p class='focus-header'>### 🌍 GLOBAL MACRO FOCUS</p>", unsafe_allow_html=True)
 
-# Protokoll-Expander
+# Protokoll-Fenster
 with st.expander("📊 PROTOKOLLIERUNG DER VERÄNDERUNG EINBLENDEN"):
     if st.session_state.history_log:
         st.table(pd.DataFrame(st.session_state.history_log).iloc[::-1].head(15))
 
-# EXPLIZITE ABFRAGE FÜR EUR/USD (Ganz oben)
-# Wir prüfen beide gängigen Schlüssel, um sicherzugehen
-eur_usd_data = data.get("EUR/USD") or data.get("EURUSD=X")
+# EUR/USD ANZEIGE-FIX
+# Wir suchen explizit nach dem Schlüssel "EUR/USD"
+eur_data = data.get("EUR/USD")
 
-if eur_usd_data:
-    render_row("EUR/USD", eur_usd_data, "{:.6f}")
+if eur_data:
+    render_row("EUR/USD", eur_data, "{:.6f}")
 else:
-    # Falls der Abruf fehlgeschlagen ist, zeigen wir eine Platzhalterzeile oder nichts
-    st.write("🔄 EUR/USD Daten werden geladen...")
+    # Das ist die Meldung, die du im letzten Bild siehst. 
+    # Wenn das erscheint, konnte yfinance den Kurs "EURUSD=X" nicht abrufen.
+    st.warning("⚠️ EUR/USD Daten aktuell nicht verfügbar (Ticker: EURUSD=X)")
 
-# Danach die Indizes
-if "EUROSTOXX 50" in data: 
+# Indizes folgen darunter
+if "EUROSTOXX 50" in data:
     render_row("EUROSTOXX 50", data["EUROSTOXX 50"])
 
-if "S&P 500" in data: 
+if "S&P 500" in data:
     render_row("S&P 500", data["S&P 500"])
 st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -138,6 +140,7 @@ for asset in eu_list: render_row(asset, data.get(asset))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
