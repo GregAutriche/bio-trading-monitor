@@ -98,13 +98,13 @@ st.write("") # Platzhalter
 if data["SP"]:
     c1, c2, c3 = st.columns([2, 1, 1])
     with c1:
-        st.metric("S&P INDEX", f"{data['SP']['price']:.2f}", f"{data['SP']['delta']:.2f}%")
-    with c2:
         st.write("## ☀️")
         st.caption("Wetter: Sonnig")
-    with c3:
         st.write("## 🟢")
         st.caption("Action: Buy")
+
+    with c2:
+        st.metric("S&P INDEX", f"{data['SP']['price']:.2f}", f"{data['SP']['delta']:.2f}%")
 
 st.markdown("---")
 
@@ -213,6 +213,7 @@ with col_info2:
     """)
 
 st.warning("⚠️ **Risikohinweis:** Die hier angezeigten 'Actions' basieren auf einem algorithmischen Wetter-Modell und stellen keine direkte Anlageberatung dar.")
+
 
 
 
