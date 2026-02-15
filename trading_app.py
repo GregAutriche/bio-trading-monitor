@@ -27,7 +27,8 @@ st.markdown("""
 
 # --- 2. DATENFUNKTION ---
 def get_live_data():
-    mapping = {"EURUSD": "EURUSD=X", "STOXX": "^STOXX50E", "SP": "^GSPC"}
+    # Anpassung auf STOXX 600 (^STOXX600E) und S&P 1000 (^SP1000)
+    mapping = {"EURUSD": "EURUSD=X", "STOXX": "^STOXX600E", "SP": "^SP1000"}
     results = {}
     for key, ticker in mapping.items():
         try:
@@ -46,9 +47,9 @@ data = get_live_data()
 now = datetime.now()
 
 # --- 3. HELFER-FUNKTIONEN ---
-def compact_row(label, price, delta, weather_icon, weather_text, action_dot, action_text):
+def compact_row(label, weather_icon, weather_text, action_dot, action_text, price, delta):
     # Spalten: Kursbox | Wetter | Action (eng gruppiert)
-    c1, c2, c3 = st.columns([0.4, 0.4,2.5])
+    c1, c2, c3 = st.columns([0.4, 0.4, 2.5])
     with c1:
         st.metric(label, price, delta)
     with c2:
@@ -63,7 +64,7 @@ def stock_row(ticker, name, price, change, weather_icon, action_text, action_col
     dot = color_map.get(action_color, "⚪")
     col1, col2, col3 = st.columns([2.5, 0.4, 0.4])
     with col1:
-        st.markdown(f"**{ticker}** | {name} <br> `{price} ({change})`", unsafe_allow_html=True)
+        st.markdown(f"{ticker} | {name} <br> {price} ({change})", unsafe_allow_html=True)
     with col2:
         st.markdown(f"### {weather_icon}")
     with col3:
@@ -80,7 +81,7 @@ with header_col1:
         """, unsafe_allow_html=True)
 with header_col2:
     st.write(f"### {now.strftime('%y%m%d')}")
-    st.write(f"**LIVE TERMINAL**")
+    st.write(f"LIVE TERMINAL")
 
 
 st.markdown("---")
@@ -94,10 +95,10 @@ st.markdown("---")
 
 st.markdown("### 📈 FOKUS/ Markt-Indizes")
 if data["STOXX"]:
-    compact_row("EURO STOXX 50", "☁️", "Bewölkt", "⚪", "Wait", f"{data['STOXX']['price']:.2f}", f"{data['STOXX']['delta']:.2f}%")
+    compact_row("STOXX 600", "☁️", "Bewölkt", "⚪", "Wait", f"{data['STOXX']['price']:.2f}", f"{data['STOXX']['delta']:.2f}%")
 st.write("")
 if data["SP"]:
-    compact_row("S&P INDEX", "☀️", "Sonnig", "🟢", "Buy", f"{data['SP']['price']:.2f}", f"{data['SP']['delta']:.2f}%")
+    compact_row("S&P 1000", "☀️", "Sonnig", "🟢", "Buy", f"{data['SP']['price']:.2f}", f"{data['SP']['delta']:.2f}%")
 
 st.markdown("---")
 
@@ -111,7 +112,6 @@ if data["SP"]:
 st.markdown("---")
 
 st.markdown("### 📈 FOKUS/ Aktien")
-
 st.subheader("/ Europa")
 with st.container(border=True):
     stock_row("ASML", "ASML Holding", "942.10€", "+0.5%", "☀️", "Buy", "Green")
@@ -146,8 +146,3 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
-
-
-
-
-
