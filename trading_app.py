@@ -57,7 +57,7 @@ else:
 # --- 3. HELFER-FUNKTIONEN ---
 def compact_row(label, weather_icon, weather_text, action_dot, action_text, price, delta):
     # Spalten: Kursbox | Wetter | Action (eng gruppiert)
-    c1, c2, c3 = st.columns([2.5,0.4, 0.4])
+    c1, c2, c3 = st.columns([0.4, 0.4, 2.5])
     with c1:
         st.markdown(f"### {weather_icon}")
         st.caption(weather_text)
@@ -178,6 +178,7 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
 
 
