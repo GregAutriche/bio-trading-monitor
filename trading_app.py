@@ -1,201 +1,119 @@
 import streamlit as st
-import yfinance as yf
-import plotly.graph_objects as go
+import pandas as pd
 from datetime import datetime
-    
-# --- 1. TERMINAL LOOK (CSS) ---
-st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
 
-st.markdown("""
-    <style>
-    .stApp { background-color: #000000; }
-    [data-testid="stMetric"] {
-        background-color: #0a0a0a;
-        border: 1px solid #1f1f1f;
-        padding: 15px;
-        border-radius: 10px;
-    }
-    h1, h2, h3, p, span, label {
-        color: #e0e0e0 !important;
-        font-family: 'Courier New', Courier, monospace;
-    }
-    hr { border-top: 1px solid #333; }
-    /* Entfernt Standard-Abstände für kompaktere Darstellung */
-    .stMarkdown div p { margin-bottom: 0px; }
-    </style>
-    """, unsafe_allow_html=True)
+# --- 1. FUNKTIONEN (Das Layout der Zeilen) ---
+def compact_row(label, weather_icon, weather_text, signal_icon, signal_text, price, delta):
+    """Erzeugt eine Zeile: Label | Wetter | Aktion | Preis & Delta"""
+    cols = st.columns([2, 1, 1.5, 1, 1.5, 2, 2])
+    with cols[0]:
+        st.write(f"**{label}**")
+    with cols[1]:
+        st.write(weather_icon)
+    with cols[2]:
+        st.write(weather_text)
+    with cols[3]:
+        st.write(signal_icon)
+    with cols[4]:
+        st.write(signal_text)
+    with cols[5]:
+        st.write(f"**{price}**")
+    with cols[6]:
+        color = "green" if "+" in delta else "red"
+        st.markdown(f"<span style='color:{color}'>{delta}</span>", unsafe_allow_html=True)
 
-# --- 2. DATENFUNKTION ---
-def get_live_data():
-    # Anpassung auf STOXX 50 (^STOXX50E) und S&P 250 (^SP1000)
-    mapping = {"EURUSD": "EURUSD=X", "^EUROst_50": "^STOXX50E", "SP": "^GSPC"}
-    results = {}
-    for key, ticker in mapping.items():
-        try:
-            t = yf.Ticker(ticker)
-            df = t.history(period="5d")
-            if not df.empty:
-                results[key] = {
-                    "price": df['Close'].iloc[-1],
-                    "delta": ((df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]) * 100,
-                    "df": df
-                }
-        except: results[key] = None
-    return results
-
-data = get_live_data()
+# --- 2. DATEN-SIMULATION / LADEN ---
+# (Hier steht normalerweise dein yfinance-Code. Ich nutze dein 'data' Objekt)
 now = datetime.now()
 
-# Direkt nach dem Daten-Import einfügen:
-st.write("### 🛠 Debug-Modus")
-if not data:
-    st.error("⚠️ Das 'data' Dictionary ist komplett leer!")
-else:
-    st.success(f"✅ Es wurden {len(data)} Indizes geladen.")
-    st.json(data) # Zeigt die gesamte Struktur der Daten an
+# --- 3. SEITEN-KONFIGURATION ---
+st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
 
-# --- 3. HELFER-FUNKTIONEN ---
-def compact_row(label, weather_icon, weather_text, action_dot, action_text, price, delta):
-    # Spalten: Wetter | Action | Kursbox (eng gruppiert)
-    c1, c2, c3 = st.columns([0.4, 0.4, 2.5])
-    with c1:
-        st.markdown(f"### {weather_icon}")
-        st.caption(weather_text)
-    with c2:
-        st.markdown(f"### {action_dot}")
-        st.caption(action_text)
-    with c3:
-        st.metric(label, price, delta)
-
-def stock_row(ticker, name, price, change, weather_icon, action_text, action_color):
-    color_map = {"Green": "🟢", "White": "⚪", "Red": "🔴"}
-    dot = color_map.get(action_color, "⚪")
-    col1, col2, col3 = st.columns([0.4, 0.4,2.5])
-    with col1:
-        st.markdown(f"{ticker} | {name} <br> {price} ({change})", unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"### {weather_icon}")
-    with col3:
-        st.markdown(f"### {dot}")
-
-
-# --- 4. HEADER (RECHTSBÜNDIGES UPDATE) ---
+# --- 4. HEADER ---
 header_col1, header_col2 = st.columns([2, 1])
+
 with header_col1:
-    st.markdown(f"""
-        <div style="text-align: right;">
-            <p style="color: #888; font-size: 0.8rem;">Letztes Update:</p>
-            <h3 style="margin-top: 0;">{now.strftime('%A, %H:%M')}</h3>
-        </div>
-        """, unsafe_allow_html=True)
+    st.title("☁️ Börsen-Wetter Terminal")
+
 with header_col2:
-    st.write(f"### {now.strftime('%y%m%d')}")
-    st.write(f"LIVE TERMINAL")
+    # Rechtsbündige Anzeige von Datum und Uhrzeit
+    st.markdown(f"""
+        <div style="text-align: right; padding-right: 20px;">
+            <div style="font-size: 24px; font-weight: bold; font-family: monospace;">
+                {now.strftime('%d.%m.%Y')}
+            </div>
+            <div style="font-size: 16px; font-family: monospace; opacity: 0.7;">
+                {now.strftime('%H:%M')} LIVE TERMINAL
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
 st.markdown("---")
 
-# --- 5. SEKTIONEN ---
-st.markdown("### 💱 FOKUS/ Währung")
-if data["EURUSD"]:
-    compact_row("EUR/USD", "☀️", "Heiter", "🟢", "Bullisch", f"{data['EURUSD']['price']:.4f}", f"{data['EURUSD']['delta']:.2f}%")
+# --- 5. HAUPTBEREICH (Sektionen) ---
+
+# --- WÄHRUNG ---
+st.markdown("### 🌍 FOKUS/ Währung")
+if data.get("EURUSD") and data["EURUSD"] is not None:
+    compact_row(
+        "EUR/USD", 
+        "☀️", "Heiter", 
+        "🟢", "Bullisch", 
+        f"{data['EURUSD']['price']:.4f}", 
+        f"{data['EURUSD']['delta']:.2f}%"
+    )
+else:
+    st.info("EUR/USD Daten momentan nicht verfügbar.")
 
 st.markdown("---")
 
+# --- MARKT-INDIZES ---
 st.markdown("### 📈 FOKUS/ Markt-Indizes")
-# 1. Debug-Info (nur für dich sichtbar, falls mal was fehlt)
-with st.expander("System-Check: Verfügbare Daten"):
-    st.write("Folgende Kürzel wurden geladen:", list(data.keys()))
 
-# 2. Dynamische Anzeige: Er zeigt nur an, was wirklich da ist
-# Wir prüfen jeden Index einzeln, damit einer den anderen nicht blockiert
-
-if data.get("^STOXX50E"):
-    compact_row("^STOXX50E", "...", "Bewölkt", "...", "Wait", 
-                f"{data['STOXX']['price']:.2f}", 
-                f"{data['STOXX']['delta']:.2f}%")
+# EUROSTOXX
+if data.get("STOXX") and data["STOXX"] is not None:
+    compact_row(
+        "EUROSTOXX", 
+        "☁️", "Bewölkt", 
+        "⚪", "Wait", 
+        f"{data['STOXX']['price']:.2f}", 
+        f"{data['STOXX']['delta']:.2f}%"
+    )
 else:
-    st.info("EUROSTOXX nicht verfügbar (Börse geschlossen?).")
+    st.info("EUROSTOXX: Keine Daten (Ticker prüfen oder Wochenende).")
 
-st.write("") # Kleiner Abstand
+st.write("") 
 
-if data.get("SP"):
-    compact_row("S&P 1000", "...", "Sonnig", "...", "Buy", 
-                f"{data['SP']['price']:.2f}", 
-                f"{data['SP']['delta']:.2f}%")
+# S&P 1000
+if data.get("SP") and data["SP"] is not None:
+    compact_row(
+        "S&P 1000", 
+        "☀️", "Sonnig", 
+        "🟢", "Buy", 
+        f"{data['SP']['price']:.2f}", 
+        f"{data['SP']['delta']:.2f}%"
+    )
 else:
-    st.info("S&P Daten konnten nicht geladen werden.")
-# Debug-Ausgabe: Zeigt alle verfügbaren Schlüssel in den Logs an
-print(f"DEBUG: Vorhandene Indizes in 'data': {list(data.keys())}")
-if data.get("STOXX"):
-    # ... dein restlicher Code
-    if data["STOXX"]:
-        compact_row("STOXX 600", "☁️", "Bewölkt", "⚪", "Wait", f"{data['STOXX']['price']:.2f}", f"{data['STOXX']['delta']:.2f}%")
-    st.write("")
-    if data["SP"]:
-        compact_row("S&P 1000", "☀️", "Sonnig", "🟢", "Buy", f"{data['SP']['price']:.2f}", f"{data['SP']['delta']:.2f}%")
+    st.info("S&P 1000: Daten aktuell nicht verfügbar.")
 
 st.markdown("---")
 
-st.markdown("### 📊 FOKUS/ Analyse-Grafik")
-if data["SP"]:
-    df_chart = data["SP"]["df"]
-    fig = go.Figure(data=[go.Candlestick(x=df_chart.index, open=df_chart['Open'], high=df_chart['High'], low=df_chart['Low'], close=df_chart['Close'])])
-    fig.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis_rangeslider_visible=False, height=350)
-    st.plotly_chart(fig, use_container_width=True)
+# --- AKTIEN ---
+st.markdown("### 🍎 FOKUS/ Aktien-Analyse")
+
+# Liste deiner Aktien (Beispielhaft)
+tickers = [("APPLE", "AAPL"), ("MICROSOFT", "MSFT"), ("TESLA", "TSLA")]
+
+for label, sym in tickers:
+    if data.get(sym) and data[sym] is not None:
+        compact_row(
+            label, 
+            "☀️", "Sonnig", 
+            "🟢", "Buy", 
+            f"{data[sym]['price']:.2f}", 
+            f"{data[sym]['delta']:.2f}%"
+        )
+    else:
+        st.write(f"ℹ️ {label}: Daten werden geladen...")
 
 st.markdown("---")
-
-st.markdown("### 📈 FOKUS/ Aktien")
-st.subheader("/ Europa")
-with st.container(border=True):
-    stock_row("ASML", "ASML Holding", "942.10€", "+0.5%", "☀️", "Buy", "Green")
-    st.divider()
-    stock_row("SAP", "SAP SE", "178.40€", "-0.2%", "☁️", "Wait", "White")
-    st.divider()
-    stock_row("MC.PA", "LVMH", "845.20€", "+0.9%", "☀️", "Buy", "Green")
-    st.divider()
-    stock_row("SIE", "Siemens AG", "182.30€", "+0.5%", "☀️", "Buy", "Green")
-    st.divider()
-    stock_row("ALV", "Allianz SE", "264.10€", "+1.2%", "☀️", "Buy", "Green")
-    st.divider()
-    stock_row("AIR", "Airbus SE", "158.90€", "-0.2%", "☁️", "Wait", "White")
-    st.divider()
-    stock_row("SAN", "Sanofi", "89.40€", "+0.3%", "☁️", "Wait", "White")
-
-st.subheader("/ USA")
-with st.container(border=True):
-    stock_row("NVDA", "NVIDIA Corp", "894.10$", "+3.2%", "☀️", "Buy", "Green")
-    st.divider()
-    stock_row("AAPL", "Apple Inc", "172.50$", "-0.7%", "🌧️", "Sell", "Red")
-    st.divider()
-    stock_row("MSFT", "Microsoft", "415.20$", "+0.4%", "☀️", "Buy", "Green")
-    st.divider()
-    stock_row("AMZN", "Amazon", "178.10$", "-0.1%", "☁️", "Wait", "White")
-    st.divider()
-    stock_row("META", "Meta Platforms", "485.40$", "-0.8%", "☁️", "Wait", "White")
-    st.divider()
-    stock_row("TSLA", "Tesla Inc", "163.20$", "-1.5%", "🌧️", "Sell", "Red")
-    st.divider()
-    stock_row("GOOGL", "Alphabet Inc", "148.30$", "+0.4%", "☀️", "Buy", "Green")
-
-st.divider()
-st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
