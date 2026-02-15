@@ -72,23 +72,23 @@ def stock_row(ticker, name, price, change, weather_icon, action_text, action_col
 # --- 4. HEADER (RECHTSBÜNDIGES UPDATE) ---
 header_col1, header_col2 = st.columns([2, 1])
 with header_col1:
-    st.write(f"### {now.strftime('%y%m%d')}")
-    st.write(f"**LIVE TERMINAL**")
-with header_col2:
     st.markdown(f"""
         <div style="text-align: right;">
             <p style="color: #888; font-size: 0.8rem;">Letztes Update:</p>
             <h3 style="margin-top: 0;">{now.strftime('%A, %H:%M')}</h3>
         </div>
         """, unsafe_allow_html=True)
+with header_col2:
+    st.write(f"### {now.strftime('%y%m%d')}")
+    st.write(f"**LIVE TERMINAL**")
+
 
 st.markdown("---")
 
 # --- 5. SEKTIONEN ---
 st.markdown("### 💱 FOKUS/ Währung")
 if data["EURUSD"]:
-    compact_row("EUR/USD", f"{data['EURUSD']['price']:.4f}", f"{data['EURUSD']['delta']:.2f}%", 
-                "☀️", "Heiter", "🟢", "Bullisch")
+    compact_row("EUR/USD", "☀️", "Heiter", "🟢", "Bullisch" f"{data['EURUSD']['price']:.4f}", f"{data['EURUSD']['delta']:.2f}%")
 
 st.markdown("---")
 
@@ -148,4 +148,5 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
