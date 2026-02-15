@@ -108,7 +108,7 @@ with h1:
     st.title("☁️ BÖRSEN-WETTER")
 with h2: 
     # Hier wird jetzt Datum und Uhrzeit generiert
-    datum_heute = datetime.now().strftime('%d.%m.%Y')
+    datum_heute = datetime.now().strftime('%Y.%m.%d')
     uhrzeit_jetzt = (datetime.now() - timedelta(hours=1)).strftime('%H:%M:%S')
     
     st.markdown(f"""
@@ -154,4 +154,5 @@ if "MICROSOFT" in data:
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"):
         st.rerun()
+
 
