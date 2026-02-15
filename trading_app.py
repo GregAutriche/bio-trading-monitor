@@ -103,7 +103,7 @@ st.markdown("---")
 # WÄHRUNG
 st.markdown("### 🌍 FOKUS/ Währung")
 if data.get("EURUSD"):
-    compact_row("EUR/USD", data['EURUSD']['price'], data['EURUSD']['delta'], "{:.4f}")
+    compact_row("EUR/USD", data['EURUSD']['price'], data['EURUSD']['delta'], "{:.6f}")
 
 st.markdown("---")
 
@@ -141,6 +141,7 @@ for label, sym in [("APPLE", "AAPL"), ("MICROSOFT", "MSFT")]:
 # --- 8. AUTOMATISCHER REFRESH ---
 time.sleep(update_seconds)
 st.rerun()
+
 
 
 
