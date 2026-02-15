@@ -15,9 +15,9 @@ st.markdown("""
     }
     [data-testid="stMetricValue"] { font-size: 24px !important; color: #ffffff !important; }
     .weather-icon { font-size: 22px !important; margin: 0; display: inline; }
-    /* Rückt den Namen extrem nah an den Kurs */
     .product-label { font-size: 20px !important; font-weight: bold; color: #00ff00 !important; margin-left: -20px; }
     .focus-header { color: #888888 !important; font-weight: bold; margin-bottom: 5px; margin-top: 10px; }
+    .desc-box { background-color: #111111; padding: 15px; border-radius: 5px; border: 1px solid #333; }
     hr { border-top: 1px solid #333; margin: 8px 0; }
     </style>
     """, unsafe_allow_html=True)
@@ -57,12 +57,11 @@ def fetch_data():
     return results
 
 data = fetch_data()
-now = datetime.now() - timedelta(hours=-1)
+now = datetime.now() - timedelta(hours=1)
 
-# --- 4. ZEILEN-AUFBAU (Kurs und Name eng beieinander) ---
+# --- 4. ZEILEN-AUFBAU ---
 def render_row(label, d, f_str="{:.2f}"):
     if not d: return
-    # Spalten: Wetter(0.4) | Text(0.8) | Action(0.4) | Text(0.8) | Kurs(1.5) | Name(2.0)
     cols = st.columns([0.4, 0.8, 0.4, 0.8, 1.5, 2.0])
     with cols[0]: st.markdown(f"<p class='weather-icon'>{d['w']}</p>", unsafe_allow_html=True)
     with cols[1]: st.write(f"{d['wt']}")
@@ -75,18 +74,11 @@ def render_row(label, d, f_str="{:.2f}"):
 h1, h2 = st.columns([2, 1])
 with h1: st.title("☁️ BÖRSEN-WETTER")
 with h2: 
-    st.markdown(f"""
-        <div style='text-align:right;'>
-            <p style='margin:0; color:#00ff00;'>Letztes Update:</p>
-            <h3 style='margin:0;'>{now.strftime('%H:%M:%S')}</h3>
-            <small>{now.strftime('%d.%m.%Y')}</small>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align:right;'><p style='margin:0; color:#00ff00;'>Letztes Update:</p><h3 style='margin:0;'>{now.strftime('%H:%M:%S')}</h3><small>{now.strftime('%d.%m.%Y')}</small></div>", unsafe_allow_html=True)
 
 st.markdown("---")
 
-# --- 6. ANZEIGE MIT ÜBERSCHRIFTEN ---
-
+# --- 6. ANZEIGE ---
 st.markdown("<p class='focus-header'>### 🌍 FOCUS/ WÄHRUNG</p>", unsafe_allow_html=True)
 render_row("EUR/USD", data.get("EUR/USD"), "{:.4f}")
 
@@ -96,24 +88,43 @@ st.markdown("<p class='focus-header'>### 📈 FOCUS/ INDIZES</p>", unsafe_allow_
 render_row("EUROSTOXX", data.get("EUROSTOXX"))
 render_row("S&P 500", data.get("S&P 500"))
 
-# --- 7. DOKUMENTATION & STEUERUNG (Zentraler Block) ---
+# ERSTER SLIDER (Zwischen Indizes und Aktien)
 st.write("")
-# Expander zur Dokumentation (muss jetzt sichtbar sein!)
-with st.expander("📊 SESSION-DOKUMENTATION (STARTWERTE VERGLEICH)"):
-    for label, values in data.items():
-        if values:
-            st.write(f"**{label}**: Startkurs `{values['start']:.4f}`")
+update_sec_1 = st.slider("Update-Intervall 1 (Sekunden):", 10, 300, 60, key="slider_mid")
 
-# Slider direkt darunter
-update_sec = st.slider("Update-Intervall (Sekunden):", 10, 300, 60, key="fixed_slider")
 st.markdown("---")
 
 st.markdown("<p class='focus-header'>### 🍎 FOCUS/ AKTIEN</p>", unsafe_allow_html=True)
 render_row("APPLE", data.get("APPLE"))
 render_row("MICROSOFT", data.get("MICROSOFT"))
 
+# ZWEITER SLIDER (Unter Aktien)
+st.write("")
+update_sec_2 = st.slider("Update-Intervall 2 (Sekunden):", 10, 300, 60, key="slider_bottom")
+
+st.markdown("---")
+
+# --- 7. BESCHREIBUNG DER SYMBOLE (Gesamte Informationen) ---
+st.markdown("### 📝 BESCHREIBUNG DER SYMBOLE")
+with st.container():
+    st.markdown("<div class='desc-box'>", unsafe_allow_html=True)
+    col_desc1, col_desc2 = st.columns(2)
+    
+    with col_desc1:
+        st.write("**Aktuelle Session-Parameter:**")
+        for label, values in data.items():
+            if values:
+                st.write(f"• {label}: Startkurs `{values['start']:.4f}` | Aktuell `{values['price']:.4f}`")
+    
+    with col_desc2:
+        st.write("**Wetter-Logik Info:**")
+        st.write("☀️ > 0.5% | 🌤️ > 0% | ☁️ > -0.5% | ⛈️ < -0.5%")
+        st.write("🟢 = BUY/BULL-Signal | 🔴 = SELL-Signal | ⚪ = Neutral")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
 # --- 8. REFRESH ---
-time.sleep(update_sec)
+# Es wird der kleinere Wert der beiden Slider für den Refresh genommen
+final_wait = min(update_sec_1, update_sec_2)
+time.sleep(final_wait)
 st.rerun()
-
-
