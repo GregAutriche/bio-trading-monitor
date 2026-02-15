@@ -27,7 +27,7 @@ st.markdown("""
 
 # --- 2. DATENFUNKTION ---
 def get_live_data():
-    # Anpassung auf STOXX 600 (^STOXX600E) und S&P 250 (^SP1000)
+    # Anpassung auf STOXX 50 (^STOXX50E) und S&P 250 (^SP1000)
     mapping = {"EURUSD": "EURUSD=X", "^STOXX50E": "^STOXX50E", "SP": "^GSPC"}
     results = {}
     for key, ticker in mapping.items():
@@ -109,11 +109,11 @@ with st.expander("System-Check: Verfügbare Daten"):
 # Wir prüfen jeden Index einzeln, damit einer den anderen nicht blockiert
 
 if data.get("STOXX"):
-    compact_row("STOXX50E", "...", "Bewölkt", "...", "Wait", 
+    compact_row("^STOXX50E", "...", "Bewölkt", "...", "Wait", 
                 f"{data['STOXX']['price']:.2f}", 
                 f"{data['STOXX']['delta']:.2f}%")
 else:
-    st.info("STOXX 600 momentan nicht verfügbar (Börse geschlossen?).")
+    st.info("EUROSTOXX nicht verfügbar (Börse geschlossen?).")
 
 st.write("") # Kleiner Abstand
 
@@ -179,6 +179,7 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
 
 
