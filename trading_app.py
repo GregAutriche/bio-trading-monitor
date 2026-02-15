@@ -15,8 +15,9 @@ st.markdown("""
     }
     [data-testid="stMetricValue"] { font-size: 24px !important; color: #ffffff !important; }
     .weather-icon { font-size: 22px !important; margin: 0; display: inline; }
-    .product-label { font-size: 20px !important; font-weight: bold; color: #00ff00 !important; margin-left: -50px; }
-    .focus-header { color: #888888 !important; font-weight: bold; margin-bottom: 5px; }
+    /* Rückt den Namen extrem nah an den Kurs */
+    .product-label { font-size: 20px !important; font-weight: bold; color: #00ff00 !important; margin-left: -20px; }
+    .focus-header { color: #888888 !important; font-weight: bold; margin-bottom: 5px; margin-top: 10px; }
     hr { border-top: 1px solid #333; margin: 8px 0; }
     </style>
     """, unsafe_allow_html=True)
@@ -58,11 +59,11 @@ def fetch_data():
 data = fetch_data()
 now = datetime.now() - timedelta(hours=1)
 
-# --- 4. ZEILEN-AUFBAU (Engere Spalten für Name hinter Betrag) ---
+# --- 4. ZEILEN-AUFBAU (Kurs und Name eng beieinander) ---
 def render_row(label, d, f_str="{:.2f}"):
     if not d: return
-    # Wetter | Wetter-Text | Action | Action-Text | Kurs+Delta | Produktname (eng beieinander)
-    cols = st.columns([0.4, 0.8, 0.4, 0.8, 2, 2.5])
+    # Spalten: Wetter(0.4) | Text(0.8) | Action(0.4) | Text(0.8) | Kurs(1.5) | Name(2.0)
+    cols = st.columns([0.4, 0.8, 0.4, 0.8, 1.5, 2.0])
     with cols[0]: st.markdown(f"<p class='weather-icon'>{d['w']}</p>", unsafe_allow_html=True)
     with cols[1]: st.write(f"{d['wt']}")
     with cols[2]: st.markdown(f"<p class='weather-icon'>{d['a']}</p>", unsafe_allow_html=True)
@@ -95,17 +96,17 @@ st.markdown("<p class='focus-header'>### 📈 FOCUS/ INDIZES</p>", unsafe_allow_
 render_row("EUROSTOXX", data.get("EUROSTOXX"))
 render_row("S&P 500", data.get("S&P 500"))
 
-# --- 7. SLIDER & EXPANDER (DOKUMENTATION) ---
+# --- 7. DOKUMENTATION & STEUERUN
+G (Zentraler Block) ---
 st.write("")
-# Der Slider steht jetzt ganz klar getrennt
-update_sec = st.slider("Update-Intervall (Sekunden):", 10, 300, 60, key="slider_v3")
-
-# Der Expander dokumentiert die Session-Startwerte
-with st.expander("📊 SESSION-DOKUMENTATION (STARTWERTE)"):
+# Expander zur Dokumentation (muss jetzt sichtbar sein!)
+with st.expander("📊 SESSION-DOKUMENTATION (STARTWERTE VERGLEICH)"):
     for label, values in data.items():
         if values:
-            st.write(f"**{label}**: Startkurs bei Session-Beginn: `{values['start']:.4f}`")
+            st.write(f"**{label}**: Startkurs `{values['start']:.4f}`")
 
+# Slider direkt darunter
+update_sec = st.slider("Update-Intervall (Sekunden):", 10, 300, 60, key="fixed_slider")
 st.markdown("---")
 
 st.markdown("<p class='focus-header'>### 🍎 FOCUS/ AKTIEN</p>", unsafe_allow_html=True)
