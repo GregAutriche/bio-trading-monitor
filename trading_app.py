@@ -1,5 +1,7 @@
 import streamlit as st
 import yfinance as yf
+import plotly.graph_objects as go
+from datetime import datetime
 # Direkt nach dem Daten-Import einfügen:
 st.write("### 🛠 Debug-Modus")
 if not data:
@@ -7,9 +9,7 @@ if not data:
 else:
     st.success(f"✅ Es wurden {len(data)} Indizes geladen.")
     st.json(data) # Zeigt die gesamte Struktur der Daten an
-import plotly.graph_objects as go
-from datetime import datetime
-
+    
 # --- 1. TERMINAL LOOK (CSS) ---
 st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
 
@@ -179,6 +179,7 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
 
 
