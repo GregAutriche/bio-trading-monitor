@@ -143,17 +143,19 @@ if "S&P 500" in data:
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # --- 7. STOCKS / EQUITIES ---
-st.markdown("<p class='focus-header'>### 🍏 SELECTED EQUITIES</p>", unsafe_allow_html=True)
+st.markdown("<p class='focus-header'>### 📉 INDEX-DERIVATE (AUSWAHL)</p>", unsafe_allow_html=True)
 
+# Hier ziehen wir die Werte, die als Bestätigung für die Indizes dienen
 if "APPLE" in data:
-    render_row("APPLE INC.", data["APPLE"])
+    render_row("APPLE (S&P 500 Repr.)", data["APPLE"])
 if "MICROSOFT" in data:
-    render_row("MICROSOFT CORP.", data["MICROSOFT"])
+    render_row("MICROSOFT (S&P 500 Repr.)", data["MICROSOFT"])
 
 # --- 8. SIDEBAR ---
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"):
         st.rerun()
+
 
 
 
