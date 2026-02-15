@@ -148,18 +148,18 @@ st.markdown("<hr>", unsafe_allow_html=True)
 st.markdown("<p class='focus-header'>### 🇺🇸 US MARKET DERIVATIVES</p>", unsafe_allow_html=True)
 us_list = ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]
 for asset in us_list: render_row(asset, data.get(asset))
-
-with st.expander("📈 AKTIEN MÄRKTE (US & EU DERIVATIVES)", expanded=True):
-    st.markdown("<p class='focus-header'>### 🇺🇸 US MARKET</p>", unsafe_allow_html=True)
-    us_list = ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]
-    for asset in us_list: 
-        render_row(asset, data.get(asset))
-    
+   
     st.markdown("<hr>", unsafe_allow_html=True)
     
     st.markdown("<p class='focus-header'>### 🇪🇺 EU MARKET</p>", unsafe_allow_html=True)
     eu_list = ["ASML", "LVMH", "SAP", "SIEMENS", "TOTALENERGIES", "ALLIANZ", "L'OREAL"]
     for asset in eu_list: 
+        render_row(asset, data.get(asset))
+
+with st.expander("📈 AKTIEN MÄRKTE (US & EU DERIVATIVES)", expanded=True):
+    st.markdown("<p class='focus-header'>### 🇺🇸 US MARKET</p>", unsafe_allow_html=True)
+    us_list = ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]
+    for asset in us_list: 
         render_row(asset, data.get(asset))
 
 # --- 8. EU DERIVATIVES (7 SELECTED) ---
@@ -169,6 +169,7 @@ for asset in eu_list: render_row(asset, data.get(asset))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
