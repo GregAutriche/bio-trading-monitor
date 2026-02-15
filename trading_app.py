@@ -153,14 +153,14 @@ with st.expander("💡 MARKT-KOMPASS & HANDLUNGSINFO", expanded=False):
         elif avg_delta < 0.2:
             st.info(f"💤 **LOW VOLA:** Markt schläft ({avg_delta:.2f}% Bewegung). Kaum Ausbruchspotenzial.")
 
-    st.markdown("---")
+        st.markdown("---")
     st.markdown("""
     ### 🌦️ Strategie-Legende
     *   ☀️ **SONNIG (> +0.5%):** **BUY** | Trendstärke. Gewinne laufen lassen.
     *   🌤️ **HEITER (0% bis +0.5%):** **BULL** | Stabile Lage. Rücksetzer kaufen.
     *   ☁️ **WOLKIG (0% bis -0.5%):** **WAIT** | Keine klare Richtung. Füße stillhalten.
     *   ⛈️ **GEWITTER (< -0.5%):** **SELL** | Verkaufsdruck. Short-Chancen oder Cash.
-    """)
+    
     ---
     **Hinweis:** Die Messung erfolgt gegen den Initialwert beim Start. Nutze den **Manual Refresh** für ein Reset.
     """)
@@ -172,3 +172,4 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
