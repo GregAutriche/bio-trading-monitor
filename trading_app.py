@@ -71,7 +71,7 @@ def get_live_data():
 data = get_live_data()
 
 # ZEITKORREKTUR: Korrektur um -1 Stunde (wegen Systemuhr-Fehler)
-now = datetime.now() - timedelta(hours=0)
+now = datetime.now() - timedelta(hours=-1)
 
 # --- 4. LAYOUT FUNKTION ---
 def compact_row(label, price, delta_val, format_str="{:.2f}"):
@@ -141,6 +141,7 @@ for label, sym in [("APPLE", "AAPL"), ("MICROSOFT", "MSFT")]:
 # --- 8. AUTOMATISCHER REFRESH ---
 time.sleep(update_seconds)
 st.rerun()
+
 
 
 
