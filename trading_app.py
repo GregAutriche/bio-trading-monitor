@@ -101,7 +101,6 @@ with h2:
     st.markdown(f"<div style='text-align:right;'><p style='margin:0; color:#888888;'>{datum_heute}</p><h3 style='margin:0; color:#00ff00;'>{now_display.strftime('%H:%M:%S')}</h3></div>", unsafe_allow_html=True)
 
 # --- 6. MAIN FOCUS (Währung & Indizes) ---
-# --- 6. MAIN FOCUS (Währung & Indizes) ---
 st.markdown("<p class='focus-header'>### 🌍 GLOBAL MACRO FOCUS</p>", unsafe_allow_html=True)
 
 # Das Protokoll-Fenster bleibt direkt unter der ersten Überschrift
@@ -113,7 +112,7 @@ with st.expander("📊 PROTOKOLLIERUNG DER VERÄNDERUNG EINBLENDEN"):
 
 # Korrekte Reihenfolge: Währung vor Indizes
 if "EUR/USD" in data: 
-    render_row("EUR/USD", data["EUR/USD"], "{:.6f}")
+    render_row("EUR/USD", data["EUR/USD"], "{:.5f}")
 
 if "EUROSTOXX 50" in data: 
     render_row("EUROSTOXX 50", data["EUROSTOXX 50"])
@@ -135,4 +134,5 @@ for asset in eu_list: render_row(asset, data.get(asset))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
