@@ -105,7 +105,7 @@ def render_row(label, d, f_str="{:.2f}"):
 # --- 5. HEADER ---
 h1, h2 = st.columns([2, 1])
 with h1: 
-    st.title("☁️ BÖRSEN-WETTER")
+    st.title("☁️ TERMINAL")
 with h2: 
     # Hier wird jetzt Datum und Uhrzeit generiert
     datum_heute = datetime.now().strftime('%Y.%m.%d')
@@ -154,5 +154,6 @@ if "MICROSOFT" in data:
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"):
         st.rerun()
+
 
 
