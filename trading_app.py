@@ -44,10 +44,16 @@ def get_weather_info(delta):
     else: return "⛈️", "GEWITTER", "🔴", "SELL"
 
 def fetch_data():
+    # Vereinheitlichte Ticker und Labels
     symbols = {
-        "EUR/USD": "EURUSD=X", "EUROSTOXX": "^STOXX50E", "^GSPC": "S&P 500",
-        "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
-        "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "SIE.DE": "SIEMENS", "TTE.PA": "TOTALENERGIES", "ALV.DE": "ALLIANZ", "OR.PA": "L'OREAL"
+        "EURUSD=X": "EUR/USD",
+        "^STOXX50E": "EUROSTOXX 50", # Label korrigiert
+        "^GSPC": "S&P 500",
+        "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", 
+        "NVDA": "NVIDIA", "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
+        "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", 
+        "SIE.DE": "SIEMENS", "TTE.PA": "TOTALENERGIES", 
+        "ALV.DE": "ALLIANZ", "OR.PA": "L'OREAL"
     }
     results = {}
     current_time = datetime.now().strftime('%H:%M:%S')
@@ -55,7 +61,8 @@ def fetch_data():
     for ticker, label in symbols.items():
         try:
             t = yf.Ticker(ticker)
-            df = t.history(period="1d")
+            # Nutze period="2d" um auch am Wochenende den letzten Schlusskurs zu erhalten
+            df = t.history(period="2d") 
             if not df.empty:
                 curr = df['Close'].iloc[-1]
                 if label not in st.session_state.initial_values:
@@ -63,16 +70,17 @@ def fetch_data():
                 
                 start = st.session_state.initial_values[label]
                 diff = curr - start
-                delta = (diff / start) * 100
+                delta = (diff / start) * 100 if start != 0 else 0
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
                 results[label] = {"price": curr, "delta": delta, "diff": diff, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt}
                 
-                # Nur loggen wenn sich wirklich was verändert hat (optional)
+                # Log-Eintrag
                 st.session_state.history_log.append({
-                    "Zeit": current_time, "Asset": label, "Betrag": f"{curr:.6f}" if "USD" in label else f"{curr:.2f}",
-                    "Veränderung": f"{diff:+.6f}" if "USD" in label else f"{diff:+.4f}", "Anteil %": f"{delta:+.3f}%"
+                    "Zeit": current_time, "Asset": label, "Betrag": f"{curr:.4f}",
+                    "Veränderung": f"{diff:+.4f}", "Anteil %": f"{delta:+.3f}%"
                 })
-        except: pass
+        except Exception as e:
+            pass
     return results
 
 data = fetch_data()
@@ -112,19 +120,17 @@ with st.expander("📊 PROTOKOLLIERUNG DER VERÄNDERUNG EINBLENDEN"):
 # Wir suchen explizit nach dem Schlüssel "EUR/USD"
 eur_data = data.get("EUR/USD")
 
+eur_data = data.get("EUR/USD")
 if eur_data:
-    render_row("EUR/USD", eur_data, "{:.6f}")
-else:
-    # Das ist die Meldung, die du im letzten Bild siehst. 
-    # Wenn das erscheint, konnte yfinance den Kurs "EURUSD=X" nicht abrufen.
-    st.warning("⚠️ EUR/USD Daten aktuell nicht verfügbar (Ticker: EURUSD=X)")
+    render_row("EUR/USD", eur_data, "{:.4f}")
 
-# Indizes folgen darunter
-if "EUROSTOXX 50" in data:
-    render_row("EUROSTOXX 50", data["^STOXX50E"])
+stoxx_data = data.get("EUROSTOXX 50")
+if stoxx_data:
+    render_row("EUROSTOXX 50", stoxx_data)
 
-if "S&P 500" in data:
-    render_row("S&P 500", data["S&P 500"])
+sp_data = data.get("S&P 500")
+if sp_data:
+    render_row("S&P 500", sp_data)
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # --- 7. US DERIVATIVES (7 SELECTED) ---
@@ -139,6 +145,7 @@ for asset in eu_list: render_row(asset, data.get(asset))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
