@@ -22,7 +22,7 @@ st.markdown("""
     [data-testid="stMetricDelta"] { font-size: 16px !important; }
     .effektiver-wert { font-size: 14px; color: #aaaaaa; margin-top: -15px; font-weight: bold; }
     .product-label { font-size: 20px !important; font-weight: bold; color: #00ff00 !important; margin-left: -20px; }
-    .focus-header { color: #888888 !important; font-weight: bold; margin-top: 20px; border-bottom: 1px solid #444; }
+    .focus-header { color: #888888 !important; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #444; }
     
     .pos-val { color: #00ff00; font-weight: bold; }
     .neg-val { color: #ff4b4b; font-weight: bold; }
@@ -44,16 +44,10 @@ def get_weather_info(delta):
     else: return "⛈️", "GEWITTER", "🔴", "SELL"
 
 def fetch_data():
-    # Vereinheitlichte Ticker und Labels
     symbols = {
-        "EURUSD=X": "EUR/USD",
-        "^STOXX50E": "EUROSTOXX 50", # Label korrigiert
-        "^GSPC": "S&P 500",
-        "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", 
-        "NVDA": "NVIDIA", "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
-        "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", 
-        "SIE.DE": "SIEMENS", "TTE.PA": "TOTALENERGIES", 
-        "ALV.DE": "ALLIANZ", "OR.PA": "L'OREAL"
+        "EURUSD=X": "EUR/USD", "^GSPC": "S&P 500", "^STOXX50E": "EUROSTOXX 50",
+        "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
+        "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "SIE.DE": "SIEMENS", "TTE.PA": "TOTALENERGIES", "ALV.DE": "ALLIANZ", "OR.PA": "L'OREAL"
     }
     results = {}
     current_time = datetime.now().strftime('%H:%M:%S')
@@ -61,7 +55,6 @@ def fetch_data():
     for ticker, label in symbols.items():
         try:
             t = yf.Ticker(ticker)
-            # Nutze period="2d" um auch am Wochenende den letzten Schlusskurs zu erhalten
             df = t.history(period="2d") 
             if not df.empty:
                 curr = df['Close'].iloc[-1]
@@ -74,20 +67,19 @@ def fetch_data():
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
                 results[label] = {"price": curr, "delta": delta, "diff": diff, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt}
                 
-                # Log-Eintrag
-                st.session_state.history_log.append({
-                    "Zeit": current_time, "Asset": label, "Betrag": f"{curr:.4f}",
-                    "Veränderung": f"{diff:+.4f}", "Anteil %": f"{delta:+.3f}%"
-                })
-        except Exception as e:
-            pass
+                # Nur loggen wenn Veränderung stattfindet
+                if diff != 0:
+                    st.session_state.history_log.append({
+                        "Zeit": current_time, "Asset": label, "Betrag": f"{curr:.4f}",
+                        "Veränderung": f"{diff:+.4f}", "Anteil %": f"{delta:+.3f}%"
+                    })
+        except: pass
     return results
 
 data = fetch_data()
 now_display = datetime.now() - timedelta(hours=1)
 datum_heute = datetime.now().strftime('%d.%m.%Y')
 
-# --- 4. ZEILEN-AUFBAU ---
 def render_row(label, d, f_str="{:.2f}"):
     if not d: return
     cols = st.columns([0.4, 0.8, 0.4, 0.8, 1.5, 2.0])
@@ -98,50 +90,38 @@ def render_row(label, d, f_str="{:.2f}"):
     with cols[4]: 
         st.metric(label="", value=f_str.format(d['price']), delta=f"{d['delta']:+.3f}%")
         color_class = "pos-val" if d['diff'] >= 0 else "neg-val"
-        diff_fmt = f"{d['diff']:+.6f}" if "USD" in label else f"{d['diff']:+.6f}"
+        diff_fmt = f"{d['diff']:+.6f}" if "USD" in label or "/" in label else f"{d['diff']:+.4f}"
         st.markdown(f"<p class='effektiver-wert'>Absolut: <span class='{color_class}'>{diff_fmt}</span></p>", unsafe_allow_html=True)
     with cols[5]: st.markdown(f"<p class='product-label'>{label}</p>", unsafe_allow_html=True)
 
-# --- 5. HEADER ---
+# --- HEADER ---
 h1, h2 = st.columns([2, 1])
 with h1: st.title("☁️ TERMINAL")
 with h2: 
     st.markdown(f"<div style='text-align:right;'><p style='margin:0; color:#888888;'>{datum_heute}</p><h3 style='margin:0; color:#00ff00;'>{now_display.strftime('%H:%M:%S')}</h3></div>", unsafe_allow_html=True)
 
-# --- 6. MAIN FOCUS (Währung & Indizes) ---
-st.markdown("<p class='focus-header'>### 🌍 GLOBAL MACRO FOCUS</p>", unsafe_allow_html=True)
+# --- SLIDER 1: GLOBAL MACRO ---
+with st.expander("🌍 1. WÄHRUNGEN & INDIZES", expanded=True):
+    render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
+    render_row("S&P 500", data.get("S&P 500"), "{:.2f}")
+    render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"), "{:.2f}")
 
-# Protokoll-Fenster
-with st.expander("📊 PROTOKOLLIERUNG DER VERÄNDERUNG EINBLENDEN"):
+# --- SLIDER 2: EUROSTOXX AKTIEN ---
+with st.expander("🇪🇺 2. EUROSTOXX WERTE (EU MARKET)", expanded=False):
+    eu_list = ["ASML", "LVMH", "SAP", "SIEMENS", "TOTALENERGIES", "ALLIANZ", "L'OREAL"]
+    for asset in eu_list:
+        render_row(asset, data.get(asset))
+
+# --- SLIDER 3: US AKTIEN ---
+with st.expander("🇺🇸 3. US MARKT WERTE (DERIVATIVES)", expanded=False):
+    us_list = ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]
+    for asset in us_list:
+        render_row(asset, data.get(asset))
+
+# --- PROTOKOLL (Optional am Ende) ---
+with st.expander("📊 PROTOKOLLIERUNG DER VERÄNDERUNG"):
     if st.session_state.history_log:
         st.table(pd.DataFrame(st.session_state.history_log).iloc[::-1].head(15))
-
-# EUR/USD ANZEIGE-FIX
-# Wir suchen explizit nach dem Schlüssel "EUR/USD"
-eur_data = data.get("EUR/USD")
-
-eur_data = data.get("EUR/USD")
-if eur_data:
-    render_row("EUR/USD", eur_data, "{:.6f}")
-
-stoxx_data = data.get("EUROSTOXX 50")
-if stoxx_data:
-    render_row("EUROSTOXX 50", stoxx_data)
-
-sp_data = data.get("S&P 500")
-if sp_data:
-    render_row("S&P 500", sp_data)
-st.markdown("<hr>", unsafe_allow_html=True)
-
-# --- 7. US DERIVATIVES (7 SELECTED) ---
-st.markdown("<p class='focus-header'>### 🇺🇸 US MARKET DERIVATIVES</p>", unsafe_allow_html=True)
-us_list = ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]
-for asset in us_list: render_row(asset, data.get(asset))
-
-# --- 8. EU DERIVATIVES (7 SELECTED) ---
-st.markdown("<p class='focus-header'>### 🇪🇺 EU MARKET DERIVATIVES</p>", unsafe_allow_html=True)
-eu_list = ["ASML", "LVMH", "SAP", "SIEMENS", "TOTALENERGIES", "ALLIANZ", "L'OREAL"]
-for asset in eu_list: render_row(asset, data.get(asset))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
