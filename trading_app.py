@@ -94,6 +94,28 @@ if data["EURUSD"]:
 st.markdown("---")
 
 st.markdown("### 📈 FOKUS/ Markt-Indizes")
+# 1. Debug-Info (nur für dich sichtbar, falls mal was fehlt)
+with st.expander("System-Check: Verfügbare Daten"):
+    st.write("Folgende Kürzel wurden geladen:", list(data.keys()))
+
+# 2. Dynamische Anzeige: Er zeigt nur an, was wirklich da ist
+# Wir prüfen jeden Index einzeln, damit einer den anderen nicht blockiert
+
+if data.get("STOXX"):
+    compact_row("STOXX 600", "...", "Bewölkt", "...", "Wait", 
+                f"{data['STOXX']['price']:.2f}", 
+                f"{data['STOXX']['delta']:.2f}%")
+else:
+    st.info("STOXX 600 momentan nicht verfügbar (Börse geschlossen?).")
+
+st.write("") # Kleiner Abstand
+
+if data.get("SP"):
+    compact_row("S&P 1000", "...", "Sonnig", "...", "Buy", 
+                f"{data['SP']['price']:.2f}", 
+                f"{data['SP']['delta']:.2f}%")
+else:
+    st.info("S&P Daten konnten nicht geladen werden.")
 # Debug-Ausgabe: Zeigt alle verfügbaren Schlüssel in den Logs an
 print(f"DEBUG: Vorhandene Indizes in 'data': {list(data.keys())}")
 if data.get("STOXX"):
@@ -150,6 +172,7 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
 
 
