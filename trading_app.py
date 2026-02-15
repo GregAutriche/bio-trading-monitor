@@ -55,7 +55,7 @@ st.markdown("---")
 
 # --- WÄHRUNG ---
 st.markdown("### 🌍 FOKUS/ Währung")
-if data.get("EURUSD") and data["EURUSD"] is not None:
+if data["EURUSD"]:
     compact_row(
         "EUR/USD", 
         "☀️", "Heiter", 
@@ -118,4 +118,5 @@ for label, sym in tickers:
         st.write(f"ℹ️ {label}: Daten werden geladen...")
 
 st.markdown("---")
+
 
