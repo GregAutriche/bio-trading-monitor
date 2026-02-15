@@ -98,8 +98,7 @@ if data["STOXX"]:
                 "☁️", "Bewölkt", "⚪", "Wait")
 st.write("")
 if data["SP"]:
-    compact_row("S&P INDEX", f"{data['SP']['price']:.2f}", f"{data['SP']['delta']:.2f}%", 
-                "☀️", "Sonnig", "🟢", "Buy")
+    compact_row("S&P INDEX", "☀️", "Sonnig", "🟢", "Buy", f"{data['SP']['price']:.2f}", f"{data['SP']['delta']:.2f}%")
 
 st.markdown("---")
 
@@ -148,6 +147,7 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
 
 
