@@ -114,13 +114,13 @@ render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"), "{:.2f}")
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # --- 2. EXPANDER: EUROSTOXX AKTIEN ---
-with st.expander("🇪🇺 EUROSTOXX WERTE (EU MARKET)", expanded=False):
+with st.expander("EUROSTOXX WERTE (EU MARKET)", expanded=False):
     eu_list = ["ASML", "LVMH", "SAP", "SIEMENS", "TOTALENERGIES", "ALLIANZ", "L'OREAL"]
     for asset in eu_list:
         render_row(asset, data.get(asset))
 
 # --- 3. EXPANDER: US TECH AKTIEN ---
-with st.expander("🇺🇸 US MARKT WERTE (TECH DERIVATIVES)", expanded=False):
+with st.expander("US MARKT WERTE (S&P500)", expanded=False):
     us_list = ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]
     for asset in us_list:
         render_row(asset, data.get(asset))
@@ -171,6 +171,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
