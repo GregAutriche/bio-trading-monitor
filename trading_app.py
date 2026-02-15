@@ -3,94 +3,133 @@ import yfinance as yf
 import plotly.graph_objects as go
 from datetime import datetime
 
-# --- 1. DARK MODE & LAYOUT SETUP ---
-st.set_page_config(layout="wide", page_title="Börsen-Wetter Dashboard")
+# --- 1. TERMINAL LOOK (CSS) ---
+st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
 
-# Erzwingt schwarzen Hintergrund via CSS
+# Hier erzwingen wir echtes Schwarz und saubere Boxen
 st.markdown("""
     <style>
-    .main {
+    /* Hintergrund der gesamten App */
+    .stApp {
         background-color: #000000;
     }
-    .stMetric {
-        background-color: #111111;
-        padding: 15px;
+    /* Stil für die Kurs-Boxen */
+    [data-testid="stMetric"] {
+        background-color: #0a0a0a;
+        border: 1px solid #1f1f1f;
+        padding: 20px;
         border-radius: 10px;
-        border: 1px solid #333333;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     }
+    /* Text-Farben korrigieren */
     h1, h2, h3, p, span {
-        color: #ffffff !important;
+        color: #e0e0e0 !important;
+        font-family: 'Courier New', Courier, monospace;
+    }
+    hr {
+        border: 0;
+        border-top: 1px solid #333;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. DATENABRUF ---
-def get_data():
-    tickers = {"EURUSD": "EURUSD=X", "STOXX": "^STOXX50E", "SP": "^GSPC"}
-    res = {}
-    for k, v in tickers.items():
-        ticker = yf.Ticker(v)
-        df = ticker.history(period="5d")
-        if not df.empty:
-            res[k] = {"val": df['Close'].iloc[-1], "delta": ((df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]) * 100, "df": df}
-    return res
+# --- 2. DATENFUNKTION ---
+def get_live_data():
+    # Ticker: EURUSD, Euro Stoxx 50, S&P 500
+    mapping = {"EURUSD": "EURUSD=X", "STOXX": "^STOXX50E", "SP": "^GSPC"}
+    results = {}
+    for key, ticker in mapping.items():
+        try:
+            t = yf.Ticker(ticker)
+            df = t.history(period="5d")
+            if not df.empty:
+                results[key] = {
+                    "price": df['Close'].iloc[-1],
+                    "delta": ((df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]) * 100,
+                    "df": df
+                }
+        except: results[key] = None
+    return results
 
-data = get_data()
+data = get_live_data()
 now = datetime.now()
 
-# --- 3. HEADER (YYMMDD) ---
+# --- 3. LAYOUT NACH SKIZZE ---
+
+# Header
 st.write(f"### {now.strftime('%y%m%d')}")
-st.write(f"**{now.strftime('%A, %H:%M')} (Letztes Update)**")
-st.divider()
+st.write(f"**{now.strftime('%A, %H:%M')} (LIVE TERMINAL)**")
+st.markdown("---")
 
-# --- 4. SEKTION 1: EUR/USD (Obere Zeile) ---
-if "EURUSD" in data:
-    st.subheader("Währungs-Fokus")
-    c1, c2, c3 = st.columns([1, 1, 1])
-    c1.metric("EUR/USD", f"{data['EURUSD']['val']:.4f}", f"{data['EURUSD']['delta']:.2f}%")
-    c2.write("☀️ **Wetter:** Heiter")
-    c3.write("🔵 **Action:** Monitoring")
+# SEKTION 1: EUR/USD (Breite Zeile)
+if data["EURUSD"]:
+    st.markdown("### 💱 Währungs-Fokus")
+    c1, c2, c3 = st.columns([2, 1, 1])
+    with c1:
+        st.metric("EUR/USD", f"{data['EURUSD']['price']:.4f}", f"{data['EURUSD']['delta']:.2f}%")
+    with c2:
+        st.write("## ☀️")
+        st.caption("Wetter: Heiter")
+    with c3:
+        st.write("## 🟢")
+        st.caption("Action: Bullisch")
 
-st.divider()
+st.markdown("---")
 
-# --- 5. SEKTION 2: INDIZES (Untereinander) ---
-st.subheader("Markt-Indizes")
+# SEKTION 2: INDIZES (Unterreinander in Zeilen)
+st.markdown("### 📈 Markt-Indizes")
 
-# Zeile: Euro Stoxx
-if "STOXX" in data:
-    c1, c2, c3 = st.columns([1, 1, 1])
-    c1.metric("Euro Stoxx 50", f"{data['STOXX']['val']:.2f}", f"{data['STOXX']['delta']:.2f}%")
-    c2.write("☁️ **Wetter:** Bewölkt")
-    c3.write("⚪ **Action:** Wait")
+# Euro Stoxx Zeile
+if data["STOXX"]:
+    c1, c2, c3 = st.columns([2, 1, 1])
+    with c1:
+        st.metric("EURO STOXX 50", f"{data['STOXX']['price']:.2f}", f"{data['STOXX']['delta']:.2f}%")
+    with c2:
+        st.write("## ☁️")
+        st.caption("Wetter: Bewölkt")
+    with c3:
+        st.write("## ⚪")
+        st.caption("Action: Wait")
 
-st.write("") # Abstandhalter
+st.write("") # Platzhalter
 
-# Zeile: S&P
-if "SP" in data:
-    c1, c2, c3 = st.columns([1, 1, 1])
-    c1.metric("S&P Index", f"{data['SP']['val']:.2f}", f"{data['SP']['delta']:.2f}%")
-    c2.write("☀️ **Wetter:** Sonnig")
-    c3.write("🟢 **Action:** Buy")
+# S&P Zeile
+if data["SP"]:
+    c1, c2, c3 = st.columns([2, 1, 1])
+    with c1:
+        st.metric("S&P INDEX", f"{data['SP']['price']:.2f}", f"{data['SP']['delta']:.2f}%")
+    with c2:
+        st.write("## ☀️")
+        st.caption("Wetter: Sonnig")
+    with c3:
+        st.write("## 🟢")
+        st.caption("Action: Buy")
 
-st.divider()
+st.markdown("---")
 
-# --- 6. SEKTION 3: GRAFIK ---
-st.subheader("Grafik")
-if "SP" in data:
+# SEKTION 3: GRAFIK
+st.markdown("### 📊 Analyse-Grafik")
+if data["SP"]:
+    df_chart = data["SP"]["df"]
     fig = go.Figure(data=[go.Candlestick(
-        x=data["SP"]["df"].index,
-        open=data["SP"]["df"]['Open'], high=data["SP"]["df"]['High'],
-        low=data["SP"]["df"]['Low'], close=data["SP"]["df"]['Close']
+        x=df_chart.index, open=df_chart['Open'], high=df_chart['High'], 
+        low=df_chart['Low'], close=df_chart['Close']
     )])
-    fig.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis_rangeslider_visible=False)
+    fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        xaxis_rangeslider_visible=False,
+        height=400
+    )
     st.plotly_chart(fig, use_container_width=True)
 
-# --- 7. SEKTION 4: DETAIL INFO & LEGENDE ---
-st.divider()
-col_l1, col_l2 = st.columns(2)
-with col_l1:
-    st.markdown("**Symbol-Legende:**")
-    st.markdown("* ☀️ Sonne = Bullisch\n* ☁️ Wolken = Neutral\n* 🌧️ Regen = Bärisch")
-with col_l2:
-    st.markdown("**System-Info:**")
-    st.write("Daten: Yahoo Finance | Hintergrund: Deep Black")
+# SEKTION 4: DETAILS
+st.markdown("---")
+col_a, col_b = st.columns(2)
+with col_a:
+    st.markdown("**Wetter-Legende:**")
+    st.write("☀️ Bullisch | ☁️ Neutral | 🌧️ Bärisch")
+with col_b:
+    st.markdown("**Detail Info:**")
+    st.write("Korrelation Markt/Wetter aktiv. Daten via yFinance.")
