@@ -101,15 +101,27 @@ with h2:
     st.markdown(f"<div style='text-align:right;'><p style='margin:0; color:#888888;'>{datum_heute}</p><h3 style='margin:0; color:#00ff00;'>{now_display.strftime('%H:%M:%S')}</h3></div>", unsafe_allow_html=True)
 
 # --- 6. MAIN FOCUS (Währung & Indizes) ---
+# --- 6. MAIN FOCUS (Währung & Indizes) ---
 st.markdown("<p class='focus-header'>### 🌍 GLOBAL MACRO FOCUS</p>", unsafe_allow_html=True)
 
-with st.expander("📊 PROTOKOLLIERUNG DER VERÄNDERUNG (Sitzungsbeginn bis aktuell)"):
+# Das Protokoll-Fenster bleibt direkt unter der ersten Überschrift
+with st.expander("📊 PROTOKOLLIERUNG DER VERÄNDERUNG EINBLENDEN"):
     if st.session_state.history_log:
         st.table(pd.DataFrame(st.session_state.history_log).iloc[::-1].head(15))
+    else:
+        st.write("Warte auf Daten...")
 
-if "EUR/USD" in data: render_row("EUR/USD", data["EUR/USD"], "{:.6f}")
-if "EUROSTOXX 50" in data: render_row("EUROSTOXX 50", data["EUROSTOXX 50"])
-if "S&P 500" in data: render_row("S&P 500", data["S&P 500"])
+# Korrekte Reihenfolge: Währung vor Indizes
+if "EUR/USD" in data: 
+    render_row("EUR/USD", data["EUR/USD"], "{:.6f}")
+
+if "EUROSTOXX 50" in data: 
+    render_row("EUROSTOXX 50", data["EUROSTOXX 50"])
+
+if "S&P 500" in data: 
+    render_row("S&P 500", data["S&P 500"])
+
+st.markdown("<hr>", unsafe_allow_html=True)
 
 # --- 7. US DERIVATIVES (7 SELECTED) ---
 st.markdown("<p class='focus-header'>### 🇺🇸 US MARKET DERIVATIVES</p>", unsafe_allow_html=True)
@@ -123,3 +135,4 @@ for asset in eu_list: render_row(asset, data.get(asset))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
