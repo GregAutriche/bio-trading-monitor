@@ -71,7 +71,7 @@ def get_live_data():
 data = get_live_data()
 
 # ZEITKORREKTUR: Hier passen wir die Uhrzeit an (Systemzeit - 1 Stunde)
-now = datetime.now() - timedelta(hours=1)
+now = datetime.now() - timedelta(hours=-1)
 
 # --- 5. LAYOUT-FUNKTION ---
 def compact_row(label, weather_icon, weather_text, signal_icon, signal_text, price, delta_val):
@@ -123,3 +123,4 @@ for label, sym in [("APPLE", "AAPL"), ("MICROSOFT", "MSFT")]:
 # --- 8. AUTOMATISCHER REFRESH ---
 time.sleep(update_seconds)
 st.rerun()
+
