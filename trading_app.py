@@ -28,12 +28,12 @@ st.markdown("""
 # --- 2. DATENFUNKTION ---
 def get_live_data():
     # Anpassung auf STOXX 600 (^STOXX600E) und S&P 1000 (^SP1000)
-    mapping = {"EURUSD": "EURUSD=X", "STOXX": "^STOXX600E", "SP": "^SP1000"}
+    mapping = {"EURUSD": "EURUSD=X", "STOXX": "^STOXX250E", "SP": "^GSPC"}
     results = {}
     for key, ticker in mapping.items():
         try:
             t = yf.Ticker(ticker)
-            df = t.history(period="5d")
+            df = t.history(period="20d")
             if not df.empty:
                 results[key] = {
                     "price": df['Close'].iloc[-1],
@@ -90,8 +90,6 @@ with header_col1:
 with header_col2:
     st.write(f"### {now.strftime('%y%m%d')}")
     st.write(f"LIVE TERMINAL")
-
-
 st.markdown("---")
 
 # --- 5. SEKTIONEN ---
@@ -180,6 +178,7 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
 
 
