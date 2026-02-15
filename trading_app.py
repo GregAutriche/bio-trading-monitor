@@ -144,8 +144,6 @@ def stock_row(ticker, name, price, change, weather_icon, action_text, action_col
     with col1:
         # Wetter-Icon (Zentriert)
         st.markdown(f"### {weather_icon}")
-
-    with col2:
         # Action-Punkt und Text
         color_map = {"Green": "🟢", "White": "⚪", "Red": "🔴"}
         dot = color_map.get(action_color, "⚪")
@@ -214,5 +212,6 @@ with col_info2:
     """)
 
 st.warning("⚠️ **Risikohinweis:** Die hier angezeigten 'Actions' basieren auf einem algorithmischen Wetter-Modell und stellen keine direkte Anlageberatung dar.")
+
 
 
