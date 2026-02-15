@@ -1,5 +1,6 @@
 import streamlit as st
-import pandas as pd
+import yfinance as yf
+import plotly.graph_objects as go
 from datetime import datetime
 
 # --- 1. FUNKTIONEN (Das Layout der Zeilen) ---
@@ -117,3 +118,4 @@ for label, sym in tickers:
         st.write(f"ℹ️ {label}: Daten werden geladen...")
 
 st.markdown("---")
+
