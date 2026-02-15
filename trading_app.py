@@ -94,7 +94,11 @@ if data["EURUSD"]:
 st.markdown("---")
 
 st.markdown("### 📈 FOKUS/ Markt-Indizes")
-if data["stoxx"]:
+# Debug-Ausgabe: Zeigt alle verfügbaren Schlüssel in den Logs an
+print(f"DEBUG: Vorhandene Indizes in 'data': {list(data.keys())}")
+if data.get("STOXX"):
+    # ... dein restlicher Code
+if data["STOXX"]:
     compact_row("STOXX 600", "☁️", "Bewölkt", "⚪", "Wait", f"{data['STOXX']['price']:.2f}", f"{data['STOXX']['delta']:.2f}%")
 st.write("")
 if data["SP"]:
@@ -146,4 +150,5 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
