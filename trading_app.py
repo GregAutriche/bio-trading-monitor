@@ -1,5 +1,6 @@
 import streamlit as st
 import yfinance as yf
+import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import time
 
@@ -140,4 +141,5 @@ for label, sym in [("APPLE", "AAPL"), ("MICROSOFT", "MSFT")]:
 # --- 8. AUTOMATISCHER REFRESH ---
 time.sleep(update_seconds)
 st.rerun()
+
 
