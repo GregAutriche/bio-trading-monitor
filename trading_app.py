@@ -96,8 +96,7 @@ st.markdown("<p class='focus-header'>### 📈 FOCUS/ INDIZES</p>", unsafe_allow_
 render_row("EUROSTOXX", data.get("EUROSTOXX"))
 render_row("S&P 500", data.get("S&P 500"))
 
-# --- 7. DOKUMENTATION & STEUERUN
-G (Zentraler Block) ---
+# --- 7. DOKUMENTATION & STEUERUNG (Zentraler Block) ---
 st.write("")
 # Expander zur Dokumentation (muss jetzt sichtbar sein!)
 with st.expander("📊 SESSION-DOKUMENTATION (STARTWERTE VERGLEICH)"):
@@ -116,3 +115,4 @@ render_row("MICROSOFT", data.get("MICROSOFT"))
 # --- 8. REFRESH ---
 time.sleep(update_sec)
 st.rerun()
+
