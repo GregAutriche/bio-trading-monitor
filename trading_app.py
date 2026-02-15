@@ -3,14 +3,12 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import pandas as pd
 
-# --- 1. CONFIG & STYLING ---
+# --- 1. CONFIG & STYLING (Bleibt unverändert) ---
 st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
 
 st.markdown("""
     <style>
     .stApp { background-color: #000000; }
-    
-    /* REGLER UND UNNÖTIGE UI ENTFERNEN */
     div[data-testid="stSlider"], .stSlider { display: none !important; }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
@@ -22,17 +20,12 @@ st.markdown("""
     }
     [data-testid="stMetricValue"] { font-size: 24px !important; color: #ffffff !important; }
     [data-testid="stMetricDelta"] { font-size: 16px !important; }
-    
     .effektiver-wert { font-size: 14px; color: #aaaaaa; margin-top: -15px; font-weight: bold; }
     .weather-icon { font-size: 24px !important; margin: 0; }
     .product-label { font-size: 22px !important; font-weight: bold; color: #00ff00 !important; margin-left: -25px; }
     .focus-header { color: #888888 !important; font-weight: bold; margin-top: 15px; }
     
-    .log-container { background-color: #111; border: 1px solid #444; padding: 10px; border-radius: 5px; }
-    .legend-box { background-color: #0e1117; border: 2px solid #00ff00; padding: 15px; border-radius: 10px; }
-    .pos-val { color: #00ff00; font-weight: bold; }
-    .neg-val { color: #ff4b4b; font-weight: bold; }
-    
+    .stTable { background-color: #050505; color: #e0e0e0; }
     hr { border-top: 1px solid #444; margin: 10px 0; }
     </style>
     """, unsafe_allow_html=True)
@@ -43,7 +36,7 @@ if 'initial_values' not in st.session_state:
 if 'history_log' not in st.session_state:
     st.session_state.history_log = []
 
-# --- 3. LOGIK ---
+# --- 3. LOGIK (Zieht nun die 7 US und 7 EU Werte) ---
 def get_weather_info(delta):
     if delta > 0.5: return "☀️", "SONNIG", "🟢", "BUY"
     elif delta >= 0: return "🌤️", "HEITER", "🟢", "BULL"
@@ -51,7 +44,15 @@ def get_weather_info(delta):
     else: return "⛈️", "GEWITTER", "🔴", "SELL"
 
 def fetch_data():
-    symbols = {"EUR/USD": "EURUSD=X", "EUROSTOXX": "^STOXX50E", "S&P 500": "^GSPC", "APPLE": "AAPL", "MICROSOFT": "MSFT"}
+    # Definition der 7 US und 7 EU Werte als Index-Ableitungen
+    symbols = {
+        # 7x USA
+        "APPLE": "AAPL", "MICROSOFT": "MSFT", "AMAZON": "AMZN", 
+        "NVIDIA": "NVDA", "ALPHABET": "GOOGL", "META": "META", "TESLA": "TSLA",
+        # 7x EUROPA
+        "ASML": "ASML", "LVMH": "MC.PA", "SAP": "SAP.DE", 
+        "SIEMENS": "SIE.DE", "TOTALENERGIES": "TTE.PA", "ALLIANZ": "ALV.DE", "L'OREAL": "OR.PA"
+    }
     results = {}
     current_time = datetime.now().strftime('%H:%M:%S')
     
@@ -69,24 +70,24 @@ def fetch_data():
                 delta = (diff / start) * 100
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
                 
-                results[label] = {"price": curr, "delta": delta, "diff": diff, "start": start, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt}
+                results[label] = {"price": curr, "delta": delta, "diff": diff, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt}
                 
-                # Eintrag ins Protokoll
                 st.session_state.history_log.append({
                     "Zeit": current_time,
                     "Asset": label,
-                    "Preis": f"{curr:.6f}" if label == "EUR/USD" else f"{curr:.2f}",
-                    "Veränderung": f"{diff:+.6f}" if label == "EUR/USD" else f"{diff:+.2f}",
-                    "Prozent": f"{delta:+.3f}%"
+                    "Betrag": f"{curr:.2f}",
+                    "Veränderung": f"{diff:+.4f}",
+                    "Anteil %": f"{delta:+.3f}%"
                 })
         except: pass
     return results
 
 data = fetch_data()
-now = datetime.now() - timedelta(hours=1)
+now_display = datetime.now() - timedelta(hours=1)
+datum_heute = datetime.now().strftime('%d.%m.%Y')
 
-# --- 4. ZEILEN-AUFBAU (Fix für den ValueError) ---
-def render_row(label, d, f_str="{:.2f}"):
+# --- 4. ZEILEN-AUFBAU ---
+def render_row(label, d):
     if not d: return
     cols = st.columns([0.4, 0.8, 0.4, 0.8, 1.5, 2.0])
     with cols[0]: st.markdown(f"<p class='weather-icon'>{d['w']}</p>", unsafe_allow_html=True)
@@ -94,68 +95,45 @@ def render_row(label, d, f_str="{:.2f}"):
     with cols[2]: st.markdown(f"<p class='weather-icon'>{d['a']}</p>", unsafe_allow_html=True)
     with cols[3]: st.write(f"{d['at']}")
     with cols[4]: 
-        st.metric(label="", value=f_str.format(d['price']), delta=f"{d['delta']:+.3f}%")
-# Korrektur: String-Formatierung vorab berechnen, um Verschachtelungsfehler zu vermeiden
+        st.metric(label="", value=f"{d['price']:.2f}", delta=f"{d['delta']:+.3f}%")
         color_class = "pos-val" if d['diff'] >= 0 else "neg-val"
-        diff_display = f"{d['diff']:+.6f}" if label == "EUR/USD" else f"{d['diff']:+.4f}"
-        
-        st.markdown(f"<p class='effektiver-wert'>Absolut: <span class='{color_class}'>{diff_display}</span></p>", unsafe_allow_html=True)
+        st.markdown(f"<p class='effektiver-wert'>Absolut: <span class='{color_class}'>{d['diff']:+.4f}</span></p>", unsafe_allow_html=True)
     with cols[5]: st.markdown(f"<p class='product-label'>{label}</p>", unsafe_allow_html=True)
 
-# --- 5. HEADER ---
+# --- 5. HEADER (Mit Datum & Zeit) ---
 h1, h2 = st.columns([2, 1])
-with h1: 
-    st.title("☁️ TERMINAL")
+with h1: st.title("☁️ BÖRSEN-WETTER")
 with h2: 
-    # Hier wird jetzt Datum und Uhrzeit generiert
-    datum_heute = datetime.now().strftime('%Y.%m.%d')
-    uhrzeit_jetzt = (datetime.now() - timedelta(hours=1)).strftime('%H:%M:%S')
-    
     st.markdown(f"""
         <div style='text-align:right;'>
-            <p style='margin:0; color:#888888; font-size:14px;'>SYSTEM-ZEITSTEMPEL:</p>
-            <h4 style='margin:0; color:#00ff00;'>{datum_heute}</h4>
-            <h3 style='margin:0; color:#ffffff;'>{uhrzeit_jetzt}</h3>
+            <p style='margin:0; color:#888888; font-size:12px;'>STATUS: {datum_heute}</p>
+            <h3 style='margin:0; color:#00ff00;'>{now_display.strftime('%H:%M:%S')}</h3>
         </div>
     """, unsafe_allow_html=True)
 
 st.markdown("---")
 
-# --- 6. FOCUS / CURRENCIES & INDICES ---
-st.markdown("<p class='focus-header'>### 🌍 FOCUS / CURRENCIES & INDICES</p>", unsafe_allow_html=True)
+# --- 6. ANZEIGE US & EU ---
+st.markdown("<p class='focus-header'>### 🇺🇸 US MARKET DERIVATIVES (SELECTED 7)</p>", unsafe_allow_html=True)
 
-# PROTOKOLL EXPANDER
 with st.expander("📊 PROTOKOLLIERUNG DER VERÄNDERUNG EINBLENDEN"):
     if st.session_state.history_log:
-        # Konvertiere Log in DataFrame für saubere Anzeige
-        df_log = pd.DataFrame(st.session_state.history_log)
-        st.dataframe(df_log.iloc[::-1], use_container_width=True) # Neueste oben
-    else:
-        st.write("Keine Daten im Protokoll.")
+        st.table(pd.DataFrame(st.session_state.history_log).iloc[::-1])
 
-if "EUR/USD" in data:
-    render_row("EUR/USD", data["EUR/USD"], "{:.6f}")
-if "EUROSTOXX" in data:
-    render_row("EUROSTOXX 50", data["EUROSTOXX"])
-if "S&P 500" in data:
-    render_row("S&P 500", data["S&P 500"])
+# US Sektion
+us_list = ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]
+for asset in us_list:
+    render_row(asset, data.get(asset))
 
 st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown("<p class='focus-header'>### 🇪🇺 EU MARKET DERIVATIVES (SELECTED 7)</p>", unsafe_allow_html=True)
 
-# --- 7. STOCKS / EQUITIES ---
-st.markdown("<p class='focus-header'>### 📉 INDEX-DERIVATE (AUSWAHL)</p>", unsafe_allow_html=True)
-
-# Hier ziehen wir die Werte, die als Bestätigung für die Indizes dienen
-if "APPLE" in data:
-    render_row("APPLE (S&P 500 Repr.)", data["APPLE"])
-if "MICROSOFT" in data:
-    render_row("MICROSOFT (S&P 500 Repr.)", data["MICROSOFT"])
+# EU Sektion
+eu_list = ["ASML", "LVMH", "SAP", "SIEMENS", "TOTALENERGIES", "ALLIANZ", "L'OREAL"]
+for asset in eu_list:
+    render_row(asset, data.get(asset))
 
 # --- 8. SIDEBAR ---
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"):
         st.rerun()
-
-
-
-
