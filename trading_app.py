@@ -123,7 +123,7 @@ with st.expander("🛠️ SESSION-ANALYSE & UPDATE-SLIDER"):
             start_val = data[key]['start']
             current_val = data[key]['price']
             diff = current_val - start_val
-            st.write(f"*{key}*: Start: {start_val:.4f} → Aktuell: {current_val:.4f} (Diff: {diff:+.4f})")
+            st.write(f"*{key}*: Start: {start_val:.6f} → Aktuell: {current_val:.6f} (Diff: {diff:+.6f})")
     
     st.markdown("---")
     # Der Slider für das Update-Intervall
@@ -141,6 +141,7 @@ for label, sym in [("APPLE", "AAPL"), ("MICROSOFT", "MSFT")]:
 # --- 8. AUTOMATISCHER REFRESH ---
 time.sleep(update_seconds)
 st.rerun()
+
 
 
 
