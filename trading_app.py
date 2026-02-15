@@ -83,7 +83,7 @@ def fetch_data():
 
 data = fetch_data()
 now_display = datetime.now() - timedelta(hours=1)
-datum_heute = datetime.now().strftime('%d.%m.%Y')
+datum_heute = datetime.now().strftime('%Y.%m.%d')
 
 def render_row(label, d, f_str="{:.2f}"):
     if not d: return
@@ -160,7 +160,6 @@ with st.expander("💡 MARKT-KOMPASS & HANDLUNGSINFO", expanded=False):
     *   🌤️ **HEITER (0% bis +0.5%):** **BULL** | Stabile Lage. Rücksetzer kaufen.
     *   ☁️ **WOLKIG (0% bis -0.5%):** **WAIT** | Keine klare Richtung. Füße stillhalten.
     *   ⛈️ **GEWITTER (< -0.5%):** **SELL** | Verkaufsdruck. Short-Chancen oder Cash.
-    
     ---
     **Hinweis:** Die Messung erfolgt gegen den Initialwert beim Start. Nutze den **Manual Refresh** für ein Reset.
     """)
@@ -172,4 +171,5 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
