@@ -97,7 +97,7 @@ st.markdown("---")
 
 # --- WÄHRUNG ---
 st.markdown("### 🌍 FOKUS/ Währung")
-if data.get["EURUSD"]:
+if data["EURUSD"]:
     compact_row("EUR/USD", "☀️", "Heiter","🟢", "Bullisch", f"{data['EURUSD']['price']:.4f}", f"{data['EURUSD']['delta']:.2f}%")
 else:
     st.info("EUR/USD Daten momentan nicht verfügbar.")
@@ -154,6 +154,7 @@ for label, sym in tickers:
         st.write(f"ℹ️ {label}: Daten werden geladen...")
 
 st.markdown("---")
+
 
 
 
