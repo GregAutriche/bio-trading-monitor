@@ -48,15 +48,15 @@ now = datetime.now()
 # --- 3. HELFER-FUNKTIONEN ---
 def compact_row(label, price, delta, weather_icon, weather_text, action_dot, action_text):
     # Spalten: Kursbox | Wetter | Action (eng gruppiert)
-    c1, c2, c3 = st.columns([2.5, 0.4, 0.4])
+    c1, c2, c3 = st.columns([0.4, 0.4,2.5])
     with c1:
-        st.metric(label, price, delta)
-    with c2:
         st.markdown(f"### {weather_icon}")
         st.caption(weather_text)
-    with c3:
+    with c2:
         st.markdown(f"### {action_dot}")
         st.caption(action_text)
+    with c3:
+        st.metric(label, price, delta)
 
 def stock_row(ticker, name, price, change, weather_icon, action_text, action_color):
     color_map = {"Green": "🟢", "White": "⚪", "Red": "🔴"}
@@ -148,3 +148,4 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
