@@ -2,125 +2,95 @@ import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
 from datetime import datetime
-import pandas as pd
 
-# --- KONFIGURATION ---
+# --- 1. DARK MODE & LAYOUT SETUP ---
 st.set_page_config(layout="wide", page_title="Börsen-Wetter Dashboard")
 
-# --- FUNKTION FÜR LIVE-DATEN ---
-def get_market_data():
-    # Ticker-Definitionen
-    tickers = {
-        "EURUSD": "EURUSD=X",
-        "EUROSTOXX": "^STOXX50E",  # Euro Stoxx 50 (Standard-Ticker)
-        "SP1000": "^GSPC"          # S&P 500 (als verlässlicher Proxy für S&P 1000)
+# Erzwingt schwarzen Hintergrund via CSS
+st.markdown("""
+    <style>
+    .main {
+        background-color: #000000;
     }
-    results = {}
-    for key, symbol in tickers.items():
-        try:
-            ticker = yf.Ticker(symbol)
-            # Daten der letzten 5 Tage für stabilen Delta-Vergleich
-            df = ticker.history(period="5d")
-            if not df.empty:
-                current = df['Close'].iloc[-1]
-                prev = df['Close'].iloc[-2]
-                delta = ((current - prev) / prev) * 100
-                results[key] = {"val": current, "delta": delta, "df": df}
-        except:
-            results[key] = None
-    return results
+    .stMetric {
+        background-color: #111111;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #333333;
+    }
+    h1, h2, h3, p, span {
+        color: #ffffff !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-# Daten abrufen
-data = get_market_data()
+# --- 2. DATENABRUF ---
+def get_data():
+    tickers = {"EURUSD": "EURUSD=X", "STOXX": "^STOXX50E", "SP": "^GSPC"}
+    res = {}
+    for k, v in tickers.items():
+        ticker = yf.Ticker(v)
+        df = ticker.history(period="5d")
+        if not df.empty:
+            res[k] = {"val": df['Close'].iloc[-1], "delta": ((df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]) * 100, "df": df}
+    return res
 
-# --- 1. ZEILE: DATUM & UPDATE (YYMMDD) ---
+data = get_data()
 now = datetime.now()
+
+# --- 3. HEADER (YYMMDD) ---
 st.write(f"### {now.strftime('%y%m%d')}")
 st.write(f"**{now.strftime('%A, %H:%M')} (Letztes Update)**")
 st.divider()
 
-# --- 2. ZEILE: EUR/USD ---
-st.subheader("Währungs-Fokus")
-if data["EURUSD"]:
-    val = data["EURUSD"]["val"]
-    delta = data["EURUSD"]["delta"]
-    col1, col2, col3 = st.columns([1, 1, 1])
-    col1.metric("EUR/USD", f"{val:.4f}", f"{delta:.2f}%")
-    col2.write("☀️ **Wetter:** Heiter")
-    col2.caption("Wetterdaten-Platzhalter")
-    col3.write("🔵 **Action:** Monitoring")
+# --- 4. SEKTION 1: EUR/USD (Obere Zeile) ---
+if "EURUSD" in data:
+    st.subheader("Währungs-Fokus")
+    c1, c2, c3 = st.columns([1, 1, 1])
+    c1.metric("EUR/USD", f"{data['EURUSD']['val']:.4f}", f"{data['EURUSD']['delta']:.2f}%")
+    c2.write("☀️ **Wetter:** Heiter")
+    c3.write("🔵 **Action:** Monitoring")
+
 st.divider()
 
-# --- 3. ZEILE: INDIZES UNTEREINANDER ---
+# --- 5. SEKTION 2: INDIZES (Untereinander) ---
 st.subheader("Markt-Indizes")
 
-# Euro Stoxx Zeile
-if data["EUROSTOXX"]:
-    col1, col2, col3 = st.columns([1, 1, 1])
-    col1.metric("Euro Stoxx 50", f"{data['EUROSTOXX']['val']:.2f}", f"{data['EUROSTOXX']['delta']:.2f}%")
-    col2.write("☁️ **Wetter:** Bewölkt")
-    col3.write("⚪ **Action:** Wait")
+# Zeile: Euro Stoxx
+if "STOXX" in data:
+    c1, c2, c3 = st.columns([1, 1, 1])
+    c1.metric("Euro Stoxx 50", f"{data['STOXX']['val']:.2f}", f"{data['STOXX']['delta']:.2f}%")
+    c2.write("☁️ **Wetter:** Bewölkt")
+    c3.write("⚪ **Action:** Wait")
 
-st.write("") # Kleiner Abstand
+st.write("") # Abstandhalter
 
-# S&P 1000 Zeile
-if data["SP1000"]:
-    col1, col2, col3 = st.columns([1, 1, 1])
-    col1.metric("S&P Index", f"{data['SP1000']['val']:.2f}", f"{data['SP1000']['delta']:.2f}%")
-    col2.write("☀️ **Wetter:** Sonnig")
-    col3.write("🟢 **Action:** Buy")
+# Zeile: S&P
+if "SP" in data:
+    c1, c2, c3 = st.columns([1, 1, 1])
+    c1.metric("S&P Index", f"{data['SP']['val']:.2f}", f"{data['SP']['delta']:.2f}%")
+    c2.write("☀️ **Wetter:** Sonnig")
+    c3.write("🟢 **Action:** Buy")
 
 st.divider()
 
-# --- 4. ZEILE: GRAFIK (Candlestick) ---
+# --- 6. SEKTION 3: GRAFIK ---
 st.subheader("Grafik")
-if data["SP1000"]:
-    df_chart = data["SP1000"]["df"]
+if "SP" in data:
     fig = go.Figure(data=[go.Candlestick(
-        x=df_chart.index,
-        open=df_chart['Open'],
-        high=df_chart['High'],
-        low=df_chart['Low'],
-        close=df_chart['Close'],
-        name="Marktverlauf"
+        x=data["SP"]["df"].index,
+        open=data["SP"]["df"]['Open'], high=data["SP"]["df"]['High'],
+        low=data["SP"]["df"]['Low'], close=data["SP"]["df"]['Close']
     )])
-    fig.update_layout(
-        template="plotly_dark",
-        xaxis_rangeslider_visible=False,
-        height=450,
-        margin=dict(l=0, r=0, t=0, b=0)
-    )
+    fig.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
 
-# --- 5. ZEILE: DETAIL INFO / BESCHREIBUNG (Mit Wetter-Legende) ---
+# --- 7. SEKTION 4: DETAIL INFO & LEGENDE ---
 st.divider()
-st.subheader("Analyse-Details & Symbol-Legende")
-
-# Drei Spalten für eine bessere Übersicht
-col_info1, col_info2, col_info3 = st.columns([1.5, 1.5, 1])
-
-with col_info1:
-    st.markdown("""
-    **Über dieses Dashboard:**
-    Dieses Monitor-System korreliert globale Wetterdaten mit der Performance der wichtigsten Marktindizes. 
-    Ziel ist es, kurzfristige Volatilitätsmuster zu erkennen, die durch externe Umweltfaktoren beeinflusst werden könnten.
-    """)
-
-with col_info2:
-    st.markdown("""
-    **Wetter-Interpretation:**
-    * ☀️ **Sonne:** Positive Marktstimmung / Bullisch (Kaufdruck).
-    * ☁️ **Wolken:** Neutrale Phase / Seitwärtsbewegung (Abwarten).
-    * 🌧️ **Regen:** Negative Stimmung / Bärisch (Verkaufsdruck).
-    * ⚡ **Gewitter:** Hohe Volatilität / Warnsignal (Gefahr).
-    """)
-
-with col_info3:
-    st.markdown(f"""
-    **System-Status:**
-    * **Quelle:** Yahoo Finance
-    * **Basis:** EUR / USD
-    * **Update:** {now.strftime('%H:%M')}
-    """)
-
-st.warning("⚠️ **Risikohinweis:** Die Wetter-Symbole dienen der visuellen Unterstützung der Marktpsychologie und stellen keine Anlageberatung dar.")
+col_l1, col_l2 = st.columns(2)
+with col_l1:
+    st.markdown("**Symbol-Legende:**")
+    st.markdown("* ☀️ Sonne = Bullisch\n* ☁️ Wolken = Neutral\n* 🌧️ Regen = Bärisch")
+with col_l2:
+    st.markdown("**System-Info:**")
+    st.write("Daten: Yahoo Finance | Hintergrund: Deep Black")
