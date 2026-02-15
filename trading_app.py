@@ -88,7 +88,7 @@ st.markdown("---")
 # --- 5. SEKTIONEN ---
 st.markdown("### 💱 FOKUS/ Währung")
 if data["EURUSD"]:
-    compact_row("EUR/USD", "☀️", "Heiter", "🟢", "Bullisch" f"{data['EURUSD']['price']:.4f}", f"{data['EURUSD']['delta']:.2f}%")
+    compact_row("EUR/USD", "☀️", "Heiter", "🟢", "Bullisch", f"{data['EURUSD']['price']:.4f}", f"{data['EURUSD']['delta']:.2f}%")
 
 st.markdown("---")
 
@@ -148,5 +148,6 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
 
