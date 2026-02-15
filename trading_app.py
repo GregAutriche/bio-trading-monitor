@@ -110,7 +110,7 @@ with st.expander("📊 PROTOKOLLIERUNG DER VERÄNDERUNG EINBLENDEN"):
 
 # EUR/USD ANZEIGE-FIX
 # Wir suchen explizit nach dem Schlüssel "EUR/USD"
-eur_data = data.get("EUR/USD")
+eur_data = data.get("EURUSD=X")
 
 if eur_data:
     render_row("EUR/USD", eur_data, "{:.6f}")
@@ -139,3 +139,4 @@ for asset in eu_list: render_row(asset, data.get(asset))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
