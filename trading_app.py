@@ -1,91 +1,70 @@
 import streamlit as st
-import yfinance as yf
-import pandas as pd
+import plotly.graph_objects as go
 from datetime import datetime
-import time
 
-st.set_page_config(page_title="Sitzungs-Monitor", layout="wide")
+# Seiteneinstellungen (Dark Mode wird durch Streamlit/Browser-Theming gesteuert)
+st.set_page_config(layout="wide", page_title="Börsen-Wetter Dashboard")
 
-# --- INITIALISIERUNG DES START-WERTS (SESSION STATE) ---
-if 'start_daten' not in st.session_state:
-    st.session_state['start_daten'] = {}
-    st.session_state['start_zeit'] = datetime.now().strftime('%H:%M:%S')
+# 1. HEADER: Datum und Uhrzeit (YYMMDD)
+now = datetime.now()
+timestamp_str = now.strftime("%y%m%d")
+update_info = now.strftime("%A, %H:%M (Letztes Update)")
 
-# --- HEADER ---
-jetzt = datetime.now()
-st.markdown(f"## 🕒 {jetzt.strftime('%d.%m.%Y | %H:%M:%S')} Uhr")
-st.info(f"Sitzung gestartet um: {st.session_state['start_zeit']}")
+st.write(f"### {timestamp_str}")
+st.write(f"**{update_info}**")
+st.divider()
 
-tickers = {
-    "EUR/USD": "EURUSD=X", 
-    "DAX": "^GDAXI", 
-    "NASDAQ250": "^NASDAQ250",
-    "S&P 1000": "^SP1000"
-}
-
-def get_live_data():
-    res = {}
-    for name, sym in tickers.items():
-        try:
-            t = yf.Ticker(sym)
-            df = t.history(period="1d") # Nur heutige Daten
-            if not df.empty:
-                curr = df['Close'].iloc[-1]
-                
-                # Speichere den ALLERERSTEN Wert dieser Sitzung
-                if name not in st.session_state['start_daten']:
-                    st.session_state['start_daten'][name] = curr
-                
-                start_val = st.session_state['start_daten'][name]
-                diff = curr - start_val
-                diff_pct = (diff / start_val) * 100 if start_val != 0 else 0
-                
-                # 10/90 Logik für Wetter & Farbe [cite: 2026-02-07]
-                hist = t.history(period="1y")
-                low, high = hist['Low'].min(), hist['High'].max()
-                pos = ((curr - low) / (high - low)) * 100
-                
-                if pos > 90: icon, color = "☀️", "red"
-                elif pos < 10: icon, color = "⛈️", "green"
-                else: icon, color = "⛅", "orange"
-                
-                res[name] = {
-                    "kurs": f"{curr:.8f}" if "USD" in name else f"{curr:,.2f}",
-                    "start": f"{start_val:.8f}" if "USD" in name else f"{start_val:,.2f}",
-                    "icon": icon, "color": color, "diff": diff, "diff_pct": diff_pct
-                }
-        except: continue
-    return res
-
-data = get_live_data()
-
-# --- ANZEIGE OBEN: LIVE-KURSE ---
-cols = st.columns(len(data))
-for i, (name, d) in enumerate(data.items()):
-    with cols[i]:
-        st.markdown(f"### {d['icon']} {name}")
-        st.markdown(f"<h2 style='color:{d['color']};'>{d['kurs']}</h2>", unsafe_allow_html=True)
-        # Live-Differenz zur Sitzung
-        color_diff = "green" if d['diff'] >= 0 else "red"
-        st.markdown(f"Seit Start: <b style='color:{color_diff};'>{d['diff']:+.4f} ({d['diff_pct']:+.2f}%)</b>", unsafe_allow_html=True)
+# 2. SEKTION 1: EUR/USD (Einzelne Zeile)
+# Hier simulieren wir die Daten (Wert / Wetter / Action)
+st.subheader("Währungs-Fokus")
+col_eurusd = st.columns([1, 1, 1])
+with col_eurusd[0]:
+    st.metric(label="EUR/USD", value="1.0822", delta="+0.15%")
+with col_eurusd[1]:
+    st.write("☀️ **Wetter:** Heiter")
+with col_eurusd[2]:
+    st.write("🟢 **Action:** Halten / Bullisch")
 
 st.divider()
 
-# --- SLIDER FÜR DETAILS & DOKUMENTATION ---
-with st.expander("📊 Sitzungs-Dokumentation (Live-Werte)"):
-    doc_df = pd.DataFrame([
-        {"Asset": k, "Start-Kurs": v["start"], "Aktuell": v["kurs"], "Änderung": f"{v['diff_pct']:+.2f}%"} 
-        for k, v in data.items()
-    ])
-    st.table(doc_df)
-    if st.button("Sitzungswerte zurücksetzen"):
-        st.session_state.clear()
-        st.rerun()
+# 3. SEKTION 2: Indizes untereinander
+st.subheader("Markt-Indizes")
 
-# Automatischer Refresh für die Live-Interpretation
-time.sleep(2)
-st.rerun()
+# Euro Stoxx 600 Zeile
+col_stoxx = st.columns([1, 1, 1])
+with col_stoxx[0]:
+    st.metric(label="Euro Stoxx 600", value="490.10", delta="-0.5%", delta_color="inverse")
+with col_stoxx[1]:
+    st.write("🌧️ **Wetter:** Regen")
+with col_stoxx[2]:
+    st.write("🔴 **Action:** Absichern")
 
+# S&P 1000 Zeile
+col_sp = st.columns([1, 1, 1])
+with col_sp[0]:
+    st.metric(label="S&P 1000", value="5,230.55", delta="+1.2%")
+with col_sp[1]:
+    st.write("☀️ **Wetter:** Sonnig")
+with col_sp[2]:
+    st.write("🟢 **Action:** Kaufen")
 
+st.divider()
 
+# 4. SEKTION 3: GRAFIK (Candlestick Chart)
+st.subheader("Markt-Grafik (Korrelation)")
 
+# Beispielhafte Chart-Daten
+fig = go.Figure(data=[go.Candlestick(
+    x=['2024-05-18', '2024-05-19', '2024-05-20', '2024-05-21'],
+    open=[100, 105, 102, 108],
+    high=[110, 107, 105, 112],
+    low=[98, 101, 99, 106],
+    close=[105, 102, 104, 110]
+)])
+
+# Wetter-Icons als Annotationen in der Grafik hinzufügen
+fig.add_annotation(x='2024-05-19', y=108, text="🌧️", showarrow=False, font=dict(size=20))
+fig.add_annotation(x='2024-05-21', y=113, text="☀️", showarrow=False, font=dict(size=20))
+
+fig.update_layout(
+    template="plotly_dark",
