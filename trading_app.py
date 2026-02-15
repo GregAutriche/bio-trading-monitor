@@ -1,80 +1,97 @@
 import streamlit as st
+import yfinance as yf
 import plotly.graph_objects as go
 from datetime import datetime
+import pandas as pd
 
-# Seiteneinstellungen (Dark Mode wird durch Streamlit/Browser-Theming gesteuert)
+# --- KONFIGURATION ---
 st.set_page_config(layout="wide", page_title="Börsen-Wetter Dashboard")
 
-# 1. HEADER: Datum und Uhrzeit (YYMMDD)
+# --- FUNKTION FÜR LIVE-DATEN ---
+def get_market_data():
+    # Ticker-Definitionen
+    tickers = {
+        "EURUSD": "EURUSD=X",
+        "EUROSTOXX": "^STOXX50E",  # Euro Stoxx 50 (Standard-Ticker)
+        "SP1000": "^GSPC"          # S&P 500 (als verlässlicher Proxy für S&P 1000)
+    }
+    results = {}
+    for key, symbol in tickers.items():
+        try:
+            ticker = yf.Ticker(symbol)
+            # Daten der letzten 5 Tage für stabilen Delta-Vergleich
+            df = ticker.history(period="5d")
+            if not df.empty:
+                current = df['Close'].iloc[-1]
+                prev = df['Close'].iloc[-2]
+                delta = ((current - prev) / prev) * 100
+                results[key] = {"val": current, "delta": delta, "df": df}
+        except:
+            results[key] = None
+    return results
+
+# Daten abrufen
+data = get_market_data()
+
+# --- 1. ZEILE: DATUM & UPDATE (YYMMDD) ---
 now = datetime.now()
-timestamp_str = now.strftime("%y%m%d")
-update_info = now.strftime("%A, %H:%M (Letztes Update)")
-
-st.write(f"### {timestamp_str}")
-st.write(f"**{update_info}**")
+st.write(f"### {now.strftime('%y%m%d')}")
+st.write(f"**{now.strftime('%A, %H:%M')} (Letztes Update)**")
 st.divider()
 
-# 2. SEKTION 1: EUR/USD (Einzelne Zeile)
-# Hier simulieren wir die Daten (Wert / Wetter / Action)
+# --- 2. ZEILE: EUR/USD ---
 st.subheader("Währungs-Fokus")
-col_eurusd = st.columns([1, 1, 1])
-with col_eurusd[0]:
-    st.metric(label="EUR/USD", value="1.0822", delta="+0.15%")
-with col_eurusd[1]:
-    st.write("☀️ **Wetter:** Heiter")
-with col_eurusd[2]:
-    st.write("🟢 **Action:** Halten / Bullisch")
-
+if data["EURUSD"]:
+    val = data["EURUSD"]["val"]
+    delta = data["EURUSD"]["delta"]
+    col1, col2, col3 = st.columns([1, 1, 1])
+    col1.metric("EUR/USD", f"{val:.4f}", f"{delta:.2f}%")
+    col2.write("☀️ **Wetter:** Heiter")
+    col2.caption("Wetterdaten-Platzhalter")
+    col3.write("🔵 **Action:** Monitoring")
 st.divider()
 
-# 3. SEKTION 2: Indizes untereinander
+# --- 3. ZEILE: INDIZES UNTEREINANDER ---
 st.subheader("Markt-Indizes")
 
-# Euro Stoxx 600 Zeile
-col_stoxx = st.columns([1, 1, 1])
-with col_stoxx[0]:
-    st.metric(label="Euro Stoxx 600", value="490.10", delta="-0.5%", delta_color="inverse")
-with col_stoxx[1]:
-    st.write("🌧️ **Wetter:** Regen")
-with col_stoxx[2]:
-    st.write("🔴 **Action:** Absichern")
+# Euro Stoxx Zeile
+if data["EUROSTOXX"]:
+    col1, col2, col3 = st.columns([1, 1, 1])
+    col1.metric("Euro Stoxx 50", f"{data['EUROSTOXX']['val']:.2f}", f"{data['EUROSTOXX']['delta']:.2f}%")
+    col2.write("☁️ **Wetter:** Bewölkt")
+    col3.write("⚪ **Action:** Wait")
+
+st.write("") # Kleiner Abstand
 
 # S&P 1000 Zeile
-col_sp = st.columns([1, 1, 1])
-with col_sp[0]:
-    st.metric(label="S&P 1000", value="5,230.55", delta="+1.2%")
-with col_sp[1]:
-    st.write("☀️ **Wetter:** Sonnig")
-with col_sp[2]:
-    st.write("🟢 **Action:** Kaufen")
+if data["SP1000"]:
+    col1, col2, col3 = st.columns([1, 1, 1])
+    col1.metric("S&P Index", f"{data['SP1000']['val']:.2f}", f"{data['SP1000']['delta']:.2f}%")
+    col2.write("☀️ **Wetter:** Sonnig")
+    col3.write("🟢 **Action:** Buy")
 
 st.divider()
 
-# 4. SEKTION 3: GRAFIK (Candlestick Chart)
-st.subheader("Markt-Grafik (Korrelation)")
+# --- 4. ZEILE: GRAFIK (Candlestick) ---
+st.subheader("Grafik")
+if data["SP1000"]:
+    df_chart = data["SP1000"]["df"]
+    fig = go.Figure(data=[go.Candlestick(
+        x=df_chart.index,
+        open=df_chart['Open'],
+        high=df_chart['High'],
+        low=df_chart['Low'],
+        close=df_chart['Close'],
+        name="Marktverlauf"
+    )])
+    fig.update_layout(
+        template="plotly_dark",
+        xaxis_rangeslider_visible=False,
+        height=450,
+        margin=dict(l=0, r=0, t=0, b=0)
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-# Beispielhafte Chart-Daten
-fig = go.Figure(data=[go.Candlestick(
-    x=['2024-05-18', '2024-05-19', '2024-05-20', '2024-05-21'],
-    open=[100, 105, 102, 108],
-    high=[110, 107, 105, 112],
-    low=[98, 101, 99, 106],
-    close=[105, 102, 104, 110]
-)])
-
-# Wetter-Icons als Annotationen in der Grafik hinzufügen
-fig.add_annotation(x='2024-05-19', y=108, text="🌧️", showarrow=False, font=dict(size=20))
-fig.add_annotation(x='2024-05-21', y=113, text="☀️", showarrow=False, font=dict(size=20))
-
-fig.update_layout(
-    template="plotly_dark",
-    xaxis_rangeslider_visible=False,
-    height=500,
-    margin=dict(l=10, r=10, t=10, b=10)
-)
-
-st.plotly_chart(fig, use_container_width=True)
-
-# 5. FUSSZEILE: Detail Info / Beschreibung
+# --- 5. ZEILE: DETAIL INFO ---
 st.divider()
-st.info("**Detail Info / Beschreibung:**\n\nDieses Dashboard zeigt die Korrelation zwischen globalen Wetterereignissen und der Marktvolatilität. Der S&P 1000 dient hierbei als Indikator für die US-Märkte, während der EUR/USD die währungsspezifische Dynamik abbildet.")
+st.info("**Detail Info / Beschreibung:**\n\nDas Dashboard zeigt die Korrelation zwischen Wetter-Indikatoren und Marktpreisen. Daten werden live über die Yahoo Finance API bezogen.")
