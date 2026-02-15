@@ -64,14 +64,13 @@ st.markdown("---")
 # SEKTION 1: EUR/USD (Breite Zeile)
 if data["EURUSD"]:
     st.markdown("### 💱 FOKUS/ Währung")
-    c1, c2, c3 = st.columns([0.5, 0.5, 3])
+    c1, c2 = st.columns([3, 3])
     with c1:
         st.write("## ☀️")
         st.caption("Wetter: Heiter")
-    with c2:
         st.write("## 🟢")
         st.caption("Action: Bullisch")
-    with c3:
+    with c2:
         st.metric("EUR/USD", f"{data['EURUSD']['price']:.4f}", f"{data['EURUSD']['delta']:.2f}%")
 
 
@@ -214,6 +213,7 @@ with col_info2:
     """)
 
 st.warning("⚠️ **Risikohinweis:** Die hier angezeigten 'Actions' basieren auf einem algorithmischen Wetter-Modell und stellen keine direkte Anlageberatung dar.")
+
 
 
 
