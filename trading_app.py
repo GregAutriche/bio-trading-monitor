@@ -3,10 +3,9 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import time
 
-# --- 1. CONFIG ---
+# --- 1. KONFIGURATION & STYLING (Projektor-Optimiert) ---
 st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
 
-# CSS für maximale Sichtbarkeit auf dem Projektor
 st.markdown("""
     <style>
     .stApp { background-color: #000000; }
@@ -14,21 +13,26 @@ st.markdown("""
         color: #e0e0e0 !important;
         font-family: 'Courier New', Courier, monospace;
     }
-    /* Macht die Metriken und Icons auf der Leinwand größer */
-    [data-testid="stMetricValue"] { font-size: 40px !important; color: #ffffff !important; }
-    [data-testid="stMetricDelta"] { font-size: 24px !important; }
-    .big-icon { font-size: 50px !important; }
+    /* Große Metriken für die Leinwand */
+    [data-testid="stMetricValue"] { font-size: 38px !important; color: #ffffff !important; font-weight: bold !important; }
+    [data-testid="stMetricDelta"] { font-size: 22px !important; }
+    .big-icon { font-size: 48px !important; margin: 0; padding: 0; }
     hr { border-top: 1px solid #444; }
+    
+    /* Slider Styling */
+    .stSlider label { font-size: 20px !important; color: #00ff00 !important; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. SESSION STATE ---
+# --- 2. SESSION STATE (Startwerte für Session-Vergleich) ---
 if 'initial_values' not in st.session_state:
     st.session_state.initial_values = {}
+if 'last_valid_data' not in st.session_state:
+    st.session_state.last_valid_data = {}
 
-# --- 3. LOGIK ---
+# --- 3. WETTER- & DATEN-LOGIK ---
 def get_weather_info(delta):
-    # Logik für das IMMER-ANZEIGEN (auch bei 0)
+    # Logik für das IMMER-ANZEIGEN (auch bei Start = 0)
     if delta > 0.5: return "☀️", "SONNIG", "🟢", "BUY"
     elif delta >= 0: return "🌤️", "HEITER", "🟢", "BULL"
     elif delta > -0.5: return "☁️", "WOLKIG", "⚪", "WAIT"
@@ -46,56 +50,91 @@ def fetch_data():
             df = t.history(period="1d")
             if not df.empty:
                 curr = df['Close'].iloc[-1]
+                # Startwert beim ersten Ausführen fixieren
                 if label not in st.session_state.initial_values:
                     st.session_state.initial_values[label] = curr
+                
                 start = st.session_state.initial_values[label]
                 delta = ((curr - start) / start) * 100
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
-                results[label] = {"price": curr, "delta": delta, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt}
-        except: pass
+                
+                res = {
+                    "price": curr, "delta": delta, "start": start,
+                    "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt
+                }
+                results[label] = res
+                st.session_state.last_valid_data[label] = res
+            else:
+                results[label] = st.session_state.last_valid_data.get(label)
+        except:
+            results[label] = st.session_state.last_valid_data.get(label)
     return results
 
+# Daten laden & Zeitkorrektur (-1 Stunde)
 data = fetch_data()
-now = datetime.now() - timedelta(hours=1) # Zeit-Korrektur
+now = datetime.now() - timedelta(hours=1)
 
-# --- 4. ZEILEN-AUFBAU (Die besprochene Reihenfolge) ---
+# --- 4. ZEILEN-AUFBAU (Hierarchie: Wetter -> Action -> Kurs -> Name) ---
 def render_weather_row(label, d, format_str="{:.2f}"):
     if not d: return
-    # Spalten-Gewichtung für Projektor: Wetter(2) | Action(2) | Kurs(4) | Name(3)
-    c1, c2, c3, c4, c5, c6 = st.columns([1, 1.5, 1, 1.5, 4, 3])
+    # Spaltenaufteilung: Wetter(2) | Action(2) | Kurs/Delta(4) | Produktname(3)
+    c1, c2, c3, c4, c5, c6 = st.columns([0.8, 1.2, 0.8, 1.2, 4, 3])
     with c1: st.markdown(f"<p class='big-icon'>{d['w']}</p>", unsafe_allow_html=True)
-    with c2: st.markdown(f"### {d['wt']}")
-    with c3: st.markdown(f"### {d['a']}")
-    with c4: st.markdown(f"### {d['at']}")
-    with c5: st.metric(label="Aktuell", value=format_str.format(d['price']), delta=f"{d['delta']:+.4f}%")
-    with c6: st.markdown(f"## {label}")
+    with c2: st.write(f"### {d['wt']}")
+    with c3: st.markdown(f"<p class='big-icon'>{d['a']}</p>", unsafe_allow_html=True)
+    with c4: st.write(f"### {d['at']}")
+    with c5: st.metric(label="Session-Kurs", value=format_str.format(d['price']), delta=f"{d['delta']:+.4f}%")
+    with c6: st.write(f"## {label}")
 
-# --- 5. HEADER ---
-col_h1, col_h2 = st.columns([2, 1])
-with col_h1: st.title("☁️ BÖRSEN-WETTER LIVE")
-with col_h2:
-    st.markdown(f"<div style='text-align:right;'><h2 style='color:#00ff00 !important;'>{now.strftime('%H:%M:%S')}</h2><p>{now.strftime('%d.%m.%Y')}</p></div>", unsafe_allow_html=True)
+# --- 5. HEADER (Zeitkorrektur integriert) ---
+h_col1, h_col2 = st.columns([2, 1])
+with h_col1: 
+    st.title("☁️ BÖRSEN-WETTER TERMINAL")
+with h_col2:
+    st.markdown(f"""
+        <div style='text-align:right; border-right: 5px solid #00ff00; padding-right: 15px;'>
+            <h2 style='color:#00ff00 !important; margin:0;'>{now.strftime('%H:%M:%S')}</h2>
+            <p style='margin:0; opacity: 0.7;'>{now.strftime('%d.%m.%Y')} LIVE</p>
+        </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("---")
 
-# --- 6. SEKTIONEN ---
-st.subheader("🌍 WÄHRUNGEN")
+# --- 6. ANZEIGE DER SEKTIONEN ---
+
+# 1. Währung
+st.subheader("🌍 WÄHRUNG")
 render_weather_row("EUR/USD", data.get("EUR/USD"), "{:.4f}")
 
 st.markdown("---")
+
+# 2. Indizes
 st.subheader("📈 INDIZES")
 render_weather_row("EUROSTOXX", data.get("EUROSTOXX"))
 render_weather_row("S&P 500", data.get("S&P 500"))
 
-# DER SLIDER ALS ERGÄNZUNG UNTER DEN INDIZES
+# 3. ERGÄNZUNG: SLIDER & SESSION-INFO (Zentral platziert)
 st.write("")
-update_sec = st.slider("Update-Takt (Sekunden):", 10, 300, 60)
+with st.container():
+    # Klappbarer Bereich für die Startwerte
+    with st.expander("📊 SESSION-DETAILS (STARTWERTE VERGLEICH)"):
+        cols_info = st.columns(len(data))
+        for i, (name, vals) in enumerate(data.items()):
+            if vals:
+                cols_info[i].write(f"**{name}**")
+                cols_info[i].info(f"Start: {vals['start']:.4f}")
+
+    # Der Slider zur Intervallsteuerung
+    update_sec = st.slider("UPDATE-INTERVALL (SEKUNDEN):", 10, 300, 60)
+    st.caption(f"Aktualisierung erfolgt alle {update_sec} Sekunden.")
+
 st.markdown("---")
 
+# 4. Aktien
 st.subheader("🍎 AKTIEN")
 render_weather_row("APPLE", data.get("APPLE"))
 render_weather_row("MICROSOFT", data.get("MICROSOFT"))
 
-# --- 7. REFRESH ---
+# --- 7. AUTOMATISCHER REFRESH ---
 time.sleep(update_sec)
 st.rerun()
