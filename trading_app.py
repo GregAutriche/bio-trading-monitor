@@ -3,7 +3,7 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import time
 
-# --- 1. CONFIG & STYLING ---
+# --- 1. CONFIG & STYLING (Stabilisierte Größen) ---
 st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
 
 st.markdown("""
@@ -17,8 +17,9 @@ st.markdown("""
     .weather-icon { font-size: 22px !important; margin: 0; display: inline; }
     .product-label { font-size: 20px !important; font-weight: bold; color: #00ff00 !important; margin-left: -20px; }
     .focus-header { color: #888888 !important; font-weight: bold; margin-bottom: 5px; margin-top: 10px; }
-    .desc-box { background-color: #111111; padding: 15px; border-radius: 5px; border: 1px solid #333; }
     hr { border-top: 1px solid #333; margin: 8px 0; }
+    /* Style für den neuen Beschreibungsblock */
+    .info-block { border: 1px solid #444; padding: 15px; background-color: #111; border-radius: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -59,7 +60,7 @@ def fetch_data():
 data = fetch_data()
 now = datetime.now() - timedelta(hours=1)
 
-# --- 4. ZEILEN-AUFBAU ---
+# --- 4. ZEILEN-AUFBAU (Kurs und Name eng beieinander) ---
 def render_row(label, d, f_str="{:.2f}"):
     if not d: return
     cols = st.columns([0.4, 0.8, 0.4, 0.8, 1.5, 2.0])
@@ -88,9 +89,9 @@ st.markdown("<p class='focus-header'>### 📈 FOCUS/ INDIZES</p>", unsafe_allow_
 render_row("EUROSTOXX", data.get("EUROSTOXX"))
 render_row("S&P 500", data.get("S&P 500"))
 
-# ERSTER SLIDER (Zwischen Indizes und Aktien)
+# DER SLIDER (wie gehabt unter den Indizes)
 st.write("")
-update_sec_1 = st.slider("Update-Intervall 1 (Sekunden):", 10, 300, 60, key="slider_mid")
+update_sec = st.slider("Update-Intervall (Sekunden):", 10, 300, 60, key="main_slider")
 
 st.markdown("---")
 
@@ -98,33 +99,25 @@ st.markdown("<p class='focus-header'>### 🍎 FOCUS/ AKTIEN</p>", unsafe_allow_h
 render_row("APPLE", data.get("APPLE"))
 render_row("MICROSOFT", data.get("MICROSOFT"))
 
-# ZWEITER SLIDER (Unter Aktien)
-st.write("")
-update_sec_2 = st.slider("Update-Intervall 2 (Sekunden):", 10, 300, 60, key="slider_bottom")
-
 st.markdown("---")
 
-# --- 7. BESCHREIBUNG DER SYMBOLE (Gesamte Informationen) ---
-st.markdown("### 📝 BESCHREIBUNG DER SYMBOLE")
+# --- 7. ERGÄNZUNG UNTEN: BESCHREIBUNG INFORMATION ---
+st.subheader("📝 BESCHREIBUNG DER SYMBOLE & INFORMATION")
 with st.container():
-    st.markdown("<div class='desc-box'>", unsafe_allow_html=True)
-    col_desc1, col_desc2 = st.columns(2)
-    
-    with col_desc1:
-        st.write("**Aktuelle Session-Parameter:**")
+    st.markdown("<div class='info-block'>", unsafe_allow_html=True)
+    c_info1, c_info2 = st.columns(2)
+    with c_info1:
+        st.write("**Bedeutung Wetter & Signale:**")
+        st.write("☀️ **Sonnig**: Starker Trend (> 0.5%) | 🌤️ **Heiter**: Positiv (>= 0%)")
+        st.write("☁️ **Wolkig**: Leicht negativ | ⛈️ **Gewitter**: Starker Abfall (< -0.5%)")
+        st.write("🟢 **BUY**: Kaufsignal | 🔴 **SELL**: Verkaufssignal | ⚪ **WAIT**: Neutral")
+    with c_info2:
+        st.write("**Session-Dokumentation (Startkurse):**")
         for label, values in data.items():
             if values:
-                st.write(f"• {label}: Startkurs `{values['start']:.4f}` | Aktuell `{values['price']:.4f}`")
-    
-    with col_desc2:
-        st.write("**Wetter-Logik Info:**")
-        st.write("☀️ > 0.5% | 🌤️ > 0% | ☁️ > -0.5% | ⛈️ < -0.5%")
-        st.write("🟢 = BUY/BULL-Signal | 🔴 = SELL-Signal | ⚪ = Neutral")
-    
+                st.write(f"• {label}: Startwert `{values['start']:.4f}`")
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 8. REFRESH ---
-# Es wird der kleinere Wert der beiden Slider für den Refresh genommen
-final_wait = min(update_sec_1, update_sec_2)
-time.sleep(final_wait)
+time.sleep(update_sec)
 st.rerun()
