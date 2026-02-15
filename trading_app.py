@@ -140,16 +140,16 @@ st.markdown("### 📈 Aktien-Fokus")
 # Funktion für eine einheitliche Zeile (3 Spalten)
 def stock_row(ticker, name, price, change, weather_icon, action_text, action_color):
     col1, col2, col3 = st.columns([2, 1, 1])
-    
+
     with col1:
+        # Wetter-Icon (Zentriert)
+        st.markdown(f"### {weather_icon}")
+    
+    with col2:
         # Ticker und Preis-Info
         st.markdown(f"**{ticker}** <br> <small>{name}</small>", unsafe_allow_html=True)
         st.caption(f"{price} ({change})")
-        
-    with col2:
-        # Wetter-Icon (Zentriert)
-        st.markdown(f"### {weather_icon}")
-        
+            
     with col3:
         # Action-Punkt und Text
         color_map = {"Green": "🟢", "White": "⚪", "Red": "🔴"}
@@ -214,3 +214,4 @@ with col_info2:
     """)
 
 st.warning("⚠️ **Risikohinweis:** Die hier angezeigten 'Actions' basieren auf einem algorithmischen Wetter-Modell und stellen keine direkte Anlageberatung dar.")
+
