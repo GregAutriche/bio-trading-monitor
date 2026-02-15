@@ -63,7 +63,7 @@ st.markdown("---")
 
 # SEKTION 1: EUR/USD (Breite Zeile)
 if data["EURUSD"]:
-    st.markdown("### 💱 Währungs-Fokus")
+    st.markdown("### 💱 Fokus/Wetter")
     c1, c2, c3 = st.columns([2, 1, 1])
     with c1:
         st.write("## ☀️")
@@ -78,7 +78,7 @@ if data["EURUSD"]:
 st.markdown("---")
 
 # SEKTION 2: INDIZES (Unterreinander in Zeilen)
-st.markdown("### 📈 Markt-Indizes")
+st.markdown("### 📈 Fokus/Markt-Indizes")
 
 # Euro Stoxx Zeile
 if data["STOXX"]:
@@ -109,7 +109,7 @@ if data["SP"]:
 st.markdown("---")
 
 # SEKTION 3: GRAFIK
-st.markdown("### 📊 Analyse-Grafik")
+st.markdown("### 📊 Fokus/Grafik")
 if data["SP"]:
     df_chart = data["SP"]["df"]
     fig = go.Figure(data=[go.Candlestick(
@@ -213,6 +213,7 @@ with col_info2:
     """)
 
 st.warning("⚠️ **Risikohinweis:** Die hier angezeigten 'Actions' basieren auf einem algorithmischen Wetter-Modell und stellen keine direkte Anlageberatung dar.")
+
 
 
 
