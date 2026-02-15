@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from datetime import datetime
 
 # --- 1. TERMINAL LOOK (CSS) ---
-st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
+st.set_page_config(layout="wide", page_title="Terminal")
 st.markdown("""
     <style>
     .stApp { background-color: #000000; }
@@ -98,7 +98,7 @@ st.markdown("---")
 # --- WÄHRUNG ---
 st.markdown("### 🌍 FOKUS/ Währung")
 if data["EURUSD"]:
-    compact_row("EUR/USD", "☀️", "Heiter","🟢", "Bullisch", f"{data['EURUSD']['price']:.4f}", f"{data['EURUSD']['delta']:.2f}%")
+    compact_row("☀️", "Heiter","🟢", "Bullisch", "EUR/USD", f"{data['EURUSD']['price']:.4f}", f"{data['EURUSD']['delta']:.2f}%")
 else:
     st.info("EUR/USD Daten momentan nicht verfügbar.")
 
@@ -154,6 +154,7 @@ for label, sym in tickers:
         st.write(f"ℹ️ {label}: Daten werden geladen...")
 
 st.markdown("---")
+
 
 
 
