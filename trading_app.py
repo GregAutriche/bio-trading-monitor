@@ -45,7 +45,7 @@ def get_weather_info(delta):
 
 def fetch_data():
     symbols = {
-        "EUR/USD=X": "EURUSD", "^STOXX50E": "EUROSTOXX 50", "^GSPC": "S&P 500",
+        "EUR/USD": "EURUSD=X", "^STOXX50E": "EUROSTOXX 50", "^GSPC": "S&P 500",
         "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
         "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "SIE.DE": "SIEMENS", "TTE.PA": "TOTALENERGIES", "ALV.DE": "ALLIANZ", "OR.PA": "L'OREAL"
     }
@@ -101,7 +101,6 @@ with h2:
     st.markdown(f"<div style='text-align:right;'><p style='margin:0; color:#888888;'>{datum_heute}</p><h3 style='margin:0; color:#00ff00;'>{now_display.strftime('%H:%M:%S')}</h3></div>", unsafe_allow_html=True)
 
 # --- 6. MAIN FOCUS (Währung & Indizes) ---
-# --- 6. MAIN FOCUS ---
 st.markdown("<p class='focus-header'>### 🌍 GLOBAL MACRO FOCUS</p>", unsafe_allow_html=True)
 
 # Protokoll-Fenster
@@ -140,6 +139,7 @@ for asset in eu_list: render_row(asset, data.get(asset))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
