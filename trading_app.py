@@ -1,4 +1,3 @@
-*** CODE ***
 import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
@@ -214,3 +213,4 @@ with col_info2:
     """)
 
 st.warning("⚠️ **Risikohinweis:** Die hier angezeigten 'Actions' basieren auf einem algorithmischen Wetter-Modell und stellen keine direkte Anlageberatung dar.")
+
