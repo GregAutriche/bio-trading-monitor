@@ -106,7 +106,7 @@ with h2:
     st.markdown(f"<div style='text-align:right;'><p style='margin:0; color:#888888;'>{datum_heute}</p><h3 style='margin:0; color:#00ff00;'>{now_display.strftime('%H:%M:%S')}</h3></div>", unsafe_allow_html=True)
 
 # --- 1. DEFAULT ANZEIGE (WÄHRUNG & INDIZES) ---
-st.markdown("<p class='focus-header'>### 🌍 FOKUS/ GLOBAL MACRO FOCUS 🌍</p>", unsafe_allow_html=True)
+st.markdown("<p class='focus-header'>🌍 FOKUS/ GLOBAL MACRO FOCUS 🌍</p>", unsafe_allow_html=True)
 render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
 render_row("S&P 500", data.get("S&P 500"), "{:.2f}")
 render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"), "{:.2f}")
@@ -171,5 +171,6 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
