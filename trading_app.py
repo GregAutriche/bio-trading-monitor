@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import time
 
 # --- 1. CONFIG & CSS (Maximale Sichtbarkeit) ---
-st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
+st.set_page_config(layout="wide", page_title="Terminal")
 
 st.markdown("""
     <style>
@@ -136,3 +136,4 @@ if show_desc:
 # --- 8. REFRESH ---
 time.sleep(60)
 st.rerun()
+
