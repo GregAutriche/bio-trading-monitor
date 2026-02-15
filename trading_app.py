@@ -68,3 +68,13 @@ fig.add_annotation(x='2024-05-21', y=113, text="☀️", showarrow=False, font=d
 
 fig.update_layout(
     template="plotly_dark",
+    xaxis_rangeslider_visible=False,
+    height=500,
+    margin=dict(l=10, r=10, t=10, b=10)
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
+# 5. FUSSZEILE: Detail Info / Beschreibung
+st.divider()
+st.info("**Detail Info / Beschreibung:**\n\nDieses Dashboard zeigt die Korrelation zwischen globalen Wetterereignissen und der Marktvolatilität. Der S&P 1000 dient hierbei als Indikator für die US-Märkte, während der EUR/USD die währungsspezifische Dynamik abbildet.")
