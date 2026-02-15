@@ -149,8 +149,6 @@ st.markdown("<p class='focus-header'>### 🇺🇸 US MARKET DERIVATIVES</p>", un
 us_list = ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]
 for asset in us_list: render_row(asset, data.get(asset))
    
-    st.markdown("<hr>", unsafe_allow_html=True)
-    
     st.markdown("<p class='focus-header'>### 🇪🇺 EU MARKET</p>", unsafe_allow_html=True)
     eu_list = ["ASML", "LVMH", "SAP", "SIEMENS", "TOTALENERGIES", "ALLIANZ", "L'OREAL"]
     for asset in eu_list: 
@@ -169,6 +167,7 @@ for asset in eu_list: render_row(asset, data.get(asset))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
