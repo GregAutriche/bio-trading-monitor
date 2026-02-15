@@ -63,7 +63,7 @@ st.markdown("---")
 
 # SEKTION 1: EUR/USD (Breite Zeile)
 if data["EURUSD"]:
-    st.markdown("### 💱 FOKUS / Währung")
+    st.markdown("### 💱 FOKUS/ Währung")
     c1, c2, c3 = st.columns([0.5, 0.5, 3])
     with c1:
         st.write("## ☀️")
@@ -79,7 +79,7 @@ if data["EURUSD"]:
 st.markdown("---")
 
 # SEKTION 2: INDIZES (Unterreinander in Zeilen)
-st.markdown("### 📈 Markt-Indizes")
+st.markdown("### 📈 FOKUS/ Markt-Indizes")
 
 # Euro Stoxx Zeile
 if data["STOXX"]:
@@ -110,7 +110,7 @@ if data["SP"]:
 st.markdown("---")
 
 # SEKTION 3: GRAFIK
-st.markdown("### 📊 Analyse-Grafik")
+st.markdown("### 📊 FOKUS/ Analyse-Grafik")
 if data["SP"]:
     df_chart = data["SP"]["df"]
     fig = go.Figure(data=[go.Candlestick(
@@ -137,7 +137,7 @@ with col_b:
     st.write("Korrelation Markt/Wetter aktiv. Daten via yFinance.")
 
 # Titel der Sektion 5; Aktien-Fokus
-st.markdown("### 📈 Aktien-Fokus")
+st.markdown("### 📈 FOKUS/ Aktien")
 
 # Funktion für eine einheitliche Zeile (3 Spalten)
 def stock_row(ticker, name, price, change, weather_icon, action_text, action_color):
@@ -157,7 +157,7 @@ def stock_row(ticker, name, price, change, weather_icon, action_text, action_col
         st.caption(f"{price} ({change})")
 
 # --- BEREICH 1: EUROPA ---
-st.subheader("Europa")
+st.subheader("FOKUS/ Europa")
 with st.container(border=True):
     stock_row("ASML", "ASML Holding", "942.10€", "+0.5%", "☀️", "Buy", "Green")
     st.divider()
@@ -174,7 +174,7 @@ with st.container(border=True):
     stock_row("SAN", "Sanofi", "89.40€", "+0.3%", "☁️", "Wait", "White")
 
 # --- BEREICH 2: USA ---
-st.subheader("USA")
+st.subheader("FOKUS/ USA")
 with st.container(border=True):
     stock_row("NVDA", "NVIDIA Corp", "894.10$", "+3.2%", "☀️", "Buy", "Green")
     st.divider()
@@ -214,6 +214,7 @@ with col_info2:
     """)
 
 st.warning("⚠️ **Risikohinweis:** Die hier angezeigten 'Actions' basieren auf einem algorithmischen Wetter-Modell und stellen keine direkte Anlageberatung dar.")
+
 
 
 
