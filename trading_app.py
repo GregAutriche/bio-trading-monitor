@@ -84,13 +84,13 @@ st.markdown("### 📈 Markt-Indizes")
 if data["STOXX"]:
     c1, c2, c3 = st.columns([2, 1, 1])
     with c1:
-        st.metric("EURO STOXX 50", f"{data['STOXX']['price']:.2f}", f"{data['STOXX']['delta']:.2f}%")
-    with c2:
         st.write("## ☁️")
         st.caption("Wetter: Bewölkt")
-    with c3:
         st.write("## ⚪")
         st.caption("Action: Wait")
+    with c2:
+        st.metric("EURO STOXX 50", f"{data['STOXX']['price']:.2f}", f"{data['STOXX']['delta']:.2f}%")
+
 
 st.write("") # Platzhalter
 
@@ -213,6 +213,7 @@ with col_info2:
     """)
 
 st.warning("⚠️ **Risikohinweis:** Die hier angezeigten 'Actions' basieren auf einem algorithmischen Wetter-Modell und stellen keine direkte Anlageberatung dar.")
+
 
 
 
