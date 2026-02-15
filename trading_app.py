@@ -121,7 +121,7 @@ else:
 
 # Indizes folgen darunter
 if "EUROSTOXX 50" in data:
-    render_row("EUROSTOXX 50", data["EUROSTOXX"])
+    render_row("EUROSTOXX 50", data["^STOXX50E"])
 
 if "S&P 500" in data:
     render_row("S&P 500", data["S&P 500"])
@@ -139,5 +139,6 @@ for asset in eu_list: render_row(asset, data.get(asset))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
