@@ -134,7 +134,64 @@ with col_b:
     st.markdown("**Detail Info:**")
     st.write("Korrelation Markt/Wetter aktiv. Daten via yFinance.")
 
-# --- 5. ZEILE: DETAIL INFO / BESCHREIBUNG (Optimiert) ---
+# Titel der Sektion 5; Aktien-Fokus
+st.markdown("### 📈 Aktien-Fokus")
+
+# Funktion für eine einheitliche Zeile (3 Spalten)
+def stock_row(ticker, name, price, change, weather_icon, action_text, action_color):
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        # Ticker und Preis-Info
+        st.markdown(f"**{ticker}** <br> <small>{name}</small>", unsafe_allow_html=True)
+        st.caption(f"{price} ({change})")
+        
+    with col2:
+        # Wetter-Icon (Zentriert)
+        st.markdown(f"### {weather_icon}")
+        
+    with col3:
+        # Action-Punkt und Text
+        color_map = {"Green": "🟢", "White": "⚪", "Red": "🔴"}
+        dot = color_map.get(action_color, "⚪")
+        st.markdown(f"{dot} **{action_text}**")
+
+# --- BEREICH 1: EUROPA ---
+st.subheader("Europa")
+with st.container(border=True):
+    stock_row("ASML", "ASML Holding", "942.10€", "+0.5%", "☀️", "Buy", "Green")
+    st.divider()
+    stock_row("SAP", "SAP SE", "178.40€", "-0.2%", "☁️", "Wait", "White")
+    st.divider()
+    stock_row("MC.PA", "LVMH", "845.20€", "+0.9%", "☀️", "Buy", "Green")
+    st.divider()
+    stock_row("SIE", "Siemens AG", "182.30€", "+0.5%", "☀️", "Buy", "Green")
+    st.divider()
+    stock_row("ALV", "Allianz SE", "264.10€", "+1.2%", "☀️", "Buy", "Green")
+    st.divider()
+    stock_row("AIR", "Airbus SE", "158.90€", "-0.2%", "☁️", "Wait", "White")
+    st.divider()
+    stock_row("SAN", "Sanofi", "89.40€", "+0.3%", "☁️", "Wait", "White")
+
+# --- BEREICH 2: USA ---
+st.subheader("USA")
+with st.container(border=True):
+    stock_row("NVDA", "NVIDIA Corp", "894.10$", "+3.2%", "☀️", "Buy", "Green")
+    st.divider()
+    stock_row("AAPL", "Apple Inc", "172.50$", "-0.7%", "🌧️", "Sell", "Red")
+    st.divider()
+    stock_row("MSFT", "Microsoft", "415.20$", "+0.4%", "☀️", "Buy", "Green")
+    st.divider()
+    stock_row("AMZN", "Amazon", "178.10$", "-0.1%", "☁️", "Wait", "White")
+    st.divider()
+    stock_row("META", "Meta Platforms", "485.40$", "-0.8%", "☁️", "Wait", "White")
+    st.divider()
+    stock_row("TSLA", "Tesla Inc", "163.20$", "-1.5%", "🌧️", "Sell", "Red")
+    st.divider()
+    stock_row("GOOGL", "Alphabet Inc", "148.30$", "+0.4%", "☀️", "Buy", "Green")
+
+
+# --- 8. ZEILE: DETAIL INFO / BESCHREIBUNG (Optimiert) ---
 st.divider()
 st.subheader("Analyse-Details & Methodik")
 
