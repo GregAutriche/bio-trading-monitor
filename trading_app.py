@@ -127,31 +127,40 @@ with st.expander("🇺🇸 US MARKT WERTE (TECH DERIVATIVES)", expanded=False):
 
 # --- 4. EXPANDER: ERKLÄRUNG & HANDLUNGSINFO ---
 with st.expander("💡 MARKT-KOMPASS & HANDLUNGSINFO", expanded=False):
-    # Logik für die Zusammenfassung
+    # Dynamische Analyse-Logik
     all_assets = list(data.values())
     if all_assets:
         sunny_count = len([a for a in all_assets if a['wt'] == "SONNIG"])
         stormy_count = len([a for a in all_assets if a['wt'] == "GEWITTER"])
         total = len(all_assets)
         
+        # Volatilitäts-Check: Wie stark weichen die Werte im Schnitt ab?
+        avg_delta = sum(abs(a['delta']) for a in all_assets) / total
+        
         st.markdown("### 📊 AKTUELLE LAGE-ANALYSE")
+        
+        # 1. Stimmungs-Check
         if sunny_count > total * 0.4:
-            st.success(f"🔥 **STRONG BULLISH:** {sunny_count} von {total} Werten sind im grünen Bereich. Fokus auf Long-Einstiege.")
+            st.success(f"🔥 **STRONG BULLISH:** {sunny_count} von {total} Werten sind im Kaufbereich. Fokus auf Long-Einstiege.")
         elif stormy_count > total * 0.4:
-            st.error(f"⚠️ **BEARISH ALERT:** {stormy_count} von {total} Werten zeigen Gewitter. Absicherung Priorität.")
+            st.error(f"⚠️ **BEARISH ALERT:** {stormy_count} von {total} Werten zeigen Gewitter. Absicherung hat Priorität.")
         else:
-            st.info(f"⚖️ **NEUTRAL / MIXED:** Der Markt sucht eine Richtung. Abwarten und Einzelwerte beobachten.")
+            st.info(f"⚖️ **NEUTRAL / MIXED:** Der Markt sucht eine Richtung. Abwarten empfohlen.")
+
+        # 2. Volatilitäts-Warnung (Neu)
+        if avg_delta > 1.5:
+            st.warning(f"⚡ **HOHE VOLATILITÄT:** Die durchschnittliche Schwankung liegt bei {avg_delta:.2f}%. Erhöhtes Risiko für Stop-Fischer!")
+        elif avg_delta < 0.2:
+            st.info(f"💤 **LOW VOLA:** Markt schläft ({avg_delta:.2f}% Bewegung). Kaum Ausbruchspotenzial.")
 
     st.markdown("---")
     st.markdown("""
-    ### 🌦️ Legende & Strategie
-    Die Icons basieren auf der Veränderung seit dem Öffnen des Terminals:
-    
-    *   ☀️ **SONNIG (> +0.5%):** **BUY** | Starke Dynamik. Trends folgen, Stop-Loss nachziehen.
-    *   🌤️ **HEITER (0% bis +0.5%):** **BULL** | Stabiler Markt. Rücksetzer für Einstiege nutzen.
-    *   ☁️ **WOLKIG (0% bis -0.5%):** **WAIT** | Seitwärtsphase. Keine Hebelpositionen eröffnen.
-    *   ⛈️ **GEWITTER (< -0.5%):** **SELL** | Verkaufsdruck. Short-Chancen prüfen oder Cash-Quote erhöhen.
-    
+    ### 🌦️ Strategie-Legende
+    *   ☀️ **SONNIG (> +0.5%):** **BUY** | Trendstärke. Gewinne laufen lassen.
+    *   🌤️ **HEITER (0% bis +0.5%):** **BULL** | Stabile Lage. Rücksetzer kaufen.
+    *   ☁️ **WOLKIG (0% bis -0.5%):** **WAIT** | Keine klare Richtung. Füße stillhalten.
+    *   ⛈️ **GEWITTER (< -0.5%):** **SELL** | Verkaufsdruck. Short-Chancen oder Cash.
+    """)
     ---
     **Hinweis:** Die Messung erfolgt gegen den Initialwert beim Start. Nutze den **Manual Refresh** für ein Reset.
     """)
@@ -163,6 +172,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
