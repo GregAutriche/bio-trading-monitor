@@ -13,11 +13,11 @@ st.markdown("""
         color: #e0e0e0 !important;
         font-family: 'Courier New', Courier, monospace;
     }
-    [data-testid="stMetricValue"] { font-size: 26px !important; color: #ffffff !important; }
-    .weather-icon { font-size: 22px !important; margin: 0; }
-    .product-label { font-size: 18px !important; font-weight: bold; color: #00ff00 !important; }
-    .focus-header { color: #555555 !important; font-weight: bold; margin-top: 15px; }
-    hr { border-top: 1px solid #333; margin: 10px 0; }
+    [data-testid="stMetricValue"] { font-size: 24px !important; color: #ffffff !important; }
+    .weather-icon { font-size: 22px !important; margin: 0; display: inline; }
+    .product-label { font-size: 20px !important; font-weight: bold; color: #00ff00 !important; margin-left: -50px; }
+    .focus-header { color: #888888 !important; font-weight: bold; margin-bottom: 5px; }
+    hr { border-top: 1px solid #333; margin: 8px 0; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -48,7 +48,7 @@ def fetch_data():
                 start = st.session_state.initial_values[label]
                 delta = ((curr - start) / start) * 100
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
-                res = {"price": curr, "delta": delta, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt}
+                res = {"price": curr, "delta": delta, "start": start, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt}
                 results[label] = res
                 st.session_state.last_valid[label] = res
             else: results[label] = st.session_state.last_valid.get(label)
@@ -58,18 +58,19 @@ def fetch_data():
 data = fetch_data()
 now = datetime.now() - timedelta(hours=1)
 
-# --- 4. ZEILEN-AUFBAU ---
+# --- 4. ZEILEN-AUFBAU (Engere Spalten für Name hinter Betrag) ---
 def render_row(label, d, f_str="{:.2f}"):
     if not d: return
-    cols = st.columns([0.5, 1, 0.5, 1, 3, 2])
+    # Wetter | Wetter-Text | Action | Action-Text | Kurs+Delta | Produktname (eng beieinander)
+    cols = st.columns([0.4, 0.8, 0.4, 0.8, 2, 2.5])
     with cols[0]: st.markdown(f"<p class='weather-icon'>{d['w']}</p>", unsafe_allow_html=True)
     with cols[1]: st.write(f"{d['wt']}")
     with cols[2]: st.markdown(f"<p class='weather-icon'>{d['a']}</p>", unsafe_allow_html=True)
     with cols[3]: st.write(f"{d['at']}")
-    with cols[4]: st.metric(label="Session", value=f_str.format(d['price']), delta=f"{d['delta']:+.4f}%")
+    with cols[4]: st.metric(label="", value=f_str.format(d['price']), delta=f"{d['delta']:+.3f}%")
     with cols[5]: st.markdown(f"<p class='product-label'>{label}</p>", unsafe_allow_html=True)
 
-# --- 5. HEADER (Mit 'Letztes Update') ---
+# --- 5. HEADER ---
 h1, h2 = st.columns([2, 1])
 with h1: st.title("☁️ BÖRSEN-WETTER")
 with h2: 
@@ -94,15 +95,23 @@ st.markdown("<p class='focus-header'>### 📈 FOCUS/ INDIZES</p>", unsafe_allow_
 render_row("EUROSTOXX", data.get("EUROSTOXX"))
 render_row("S&P 500", data.get("S&P 500"))
 
-# --- SLIDER (Muss hier stehen!) ---
+# --- 7. SLIDER & EXPANDER (DOKUMENTATION) ---
 st.write("")
-update_sec = st.slider("Update-Intervall (Sekunden):", 10, 300, 60, key="refresh_slider")
+# Der Slider steht jetzt ganz klar getrennt
+update_sec = st.slider("Update-Intervall (Sekunden):", 10, 300, 60, key="slider_v3")
+
+# Der Expander dokumentiert die Session-Startwerte
+with st.expander("📊 SESSION-DOKUMENTATION (STARTWERTE)"):
+    for label, values in data.items():
+        if values:
+            st.write(f"**{label}**: Startkurs bei Session-Beginn: `{values['start']:.4f}`")
+
 st.markdown("---")
 
 st.markdown("<p class='focus-header'>### 🍎 FOCUS/ AKTIEN</p>", unsafe_allow_html=True)
 render_row("APPLE", data.get("APPLE"))
 render_row("MICROSOFT", data.get("MICROSOFT"))
 
-# --- 7. REFRESH ---
+# --- 8. REFRESH ---
 time.sleep(update_sec)
 st.rerun()
