@@ -99,7 +99,7 @@ def compact_row(label, weather_icon, weather_text, signal_icon, signal_text, pri
 header_col1, header_col2 = st.columns([2, 1])
 
 with header_col1:
-    st.title("☁️ Börsen-Wetter Terminal")
+    st.title("☁️ Börsen-Wetter")
 
 with header_col2:
     # Rechtsbündiges Update mit Datum und sekundengenauer Uhrzeit
@@ -145,4 +145,5 @@ for label, sym in [("APPLE", "AAPL"), ("MICROSOFT", "MSFT")]:
     if data.get(sym):
         compact_row(label, "☀️", "Sonnig", "🟢", "Buy", 
                     f"{data[sym]['price']:.2f}", data[sym]['delta'])
+
 
