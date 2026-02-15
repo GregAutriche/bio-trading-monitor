@@ -92,11 +92,12 @@ if data["SP1000"]:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-# --- 5. ZEILE: DETAIL INFO / BESCHREIBUNG (Optimiert) ---
+# --- 5. ZEILE: DETAIL INFO / BESCHREIBUNG (Mit Wetter-Legende) ---
 st.divider()
-st.subheader("Analyse-Details & Methodik")
+st.subheader("Analyse-Details & Symbol-Legende")
 
-col_info1, col_info2 = st.columns(2)
+# Drei Spalten für eine bessere Übersicht
+col_info1, col_info2, col_info3 = st.columns([1.5, 1.5, 1])
 
 with col_info1:
     st.markdown("""
@@ -106,12 +107,20 @@ with col_info1:
     """)
 
 with col_info2:
-    st.markdown(f"""
-    **Technische Parameter:**
-    * **Datenquelle:** Yahoo Finance API (Echtzeit-Streams)
-    * **Währungsbasis:** EUR (Alle US-Werte werden umgerechnet)
-    * **Aktualisierungsrate:** Bei jedem Browser-Refresh
-    * **Status:** System läuft stabil im Live-Modus
+    st.markdown("""
+    **Wetter-Interpretation:**
+    * ☀️ **Sonne:** Positive Marktstimmung / Bullisch (Kaufdruck).
+    * ☁️ **Wolken:** Neutrale Phase / Seitwärtsbewegung (Abwarten).
+    * 🌧️ **Regen:** Negative Stimmung / Bärisch (Verkaufsdruck).
+    * ⚡ **Gewitter:** Hohe Volatilität / Warnsignal (Gefahr).
     """)
 
-st.warning("⚠️ **Risikohinweis:** Die hier angezeigten 'Actions' basieren auf einem algorithmischen Wetter-Modell und stellen keine direkte Anlageberatung dar.")
+with col_info3:
+    st.markdown(f"""
+    **System-Status:**
+    * **Quelle:** Yahoo Finance
+    * **Basis:** EUR / USD
+    * **Update:** {now.strftime('%H:%M')}
+    """)
+
+st.warning("⚠️ **Risikohinweis:** Die Wetter-Symbole dienen der visuellen Unterstützung der Marktpsychologie und stellen keine Anlageberatung dar.")
