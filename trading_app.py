@@ -57,7 +57,7 @@ def fetch_data():
     return results
 
 data = fetch_data()
-now = datetime.now() - timedelta(hours=1)
+now = datetime.now() - timedelta(hours=-1)
 
 # --- 4. ZEILEN-AUFBAU (Kurs und Name eng beieinander) ---
 def render_row(label, d, f_str="{:.2f}"):
@@ -115,4 +115,5 @@ render_row("MICROSOFT", data.get("MICROSOFT"))
 # --- 8. REFRESH ---
 time.sleep(update_sec)
 st.rerun()
+
 
