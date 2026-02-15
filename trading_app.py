@@ -1,4 +1,4 @@
-mport streamlit as st
+import streamlit as st
 import yfinance as yf
 from datetime import datetime, timedelta
 import time
@@ -140,3 +140,4 @@ for label, sym in [("APPLE", "AAPL"), ("MICROSOFT", "MSFT")]:
 # --- 8. AUTOMATISCHER REFRESH ---
 time.sleep(update_seconds)
 st.rerun()
+
