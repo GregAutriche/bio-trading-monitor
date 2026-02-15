@@ -64,7 +64,7 @@ st.markdown("---")
 # SEKTION 1: EUR/USD (Breite Zeile)
 if data["EURUSD"]:
     st.markdown("### 💱 FOKUS/ Währung")
-    c1, c2 = st.columns([2.5, 0.4, 0.4]])
+    c1, c2, c3 = st.columns([2.5, 0.4, 0.4]])
     with c1:
         st.write("## ☀️")
         st.caption("Wetter: Heiter")
@@ -214,6 +214,7 @@ with col_info2:
     """)
 
 st.warning("⚠️ **Risikohinweis:** Die hier angezeigten 'Actions' basieren auf einem algorithmischen Wetter-Modell und stellen keine direkte Anlageberatung dar.")
+
 
 
 
