@@ -114,7 +114,7 @@ render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"), "{:.2f}")
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # --- 2. EXPANDER: EUROSTOXX AKTIEN ---
-with st.expander("EUROPA (EUROSTOXX 50)", expanded=False):
+with st.expander("€ EUROPA (EUROSTOXX 50)", expanded=False):
     eu_list = ["ASML", "LVMH", "SAP", "SIEMENS", "TOTALENERGIES", "ALLIANZ", "L'OREAL"]
     for asset in eu_list:
         render_row(asset, data.get(asset))
@@ -171,6 +171,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
