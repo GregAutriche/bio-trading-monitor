@@ -26,7 +26,7 @@ st.markdown("""
     
     .pos-val { color: #00ff00; font-weight: bold; }
     .neg-val { color: #ff4b4b; font-weight: bold; }
-    hr { border-top: 1px solid #444; margin: 10px 0; }
+    hr { border-top: 1px solid #444; margin: 15px 0; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -67,7 +67,6 @@ def fetch_data():
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
                 results[label] = {"price": curr, "delta": delta, "diff": diff, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt}
                 
-                # Nur loggen wenn Veränderung stattfindet
                 if diff != 0:
                     st.session_state.history_log.append({
                         "Zeit": current_time, "Asset": label, "Betrag": f"{curr:.4f}",
@@ -100,26 +99,28 @@ with h1: st.title("☁️ TERMINAL")
 with h2: 
     st.markdown(f"<div style='text-align:right;'><p style='margin:0; color:#888888;'>{datum_heute}</p><h3 style='margin:0; color:#00ff00;'>{now_display.strftime('%H:%M:%S')}</h3></div>", unsafe_allow_html=True)
 
-# --- SLIDER 1: GLOBAL MACRO ---
-with st.expander("🌍 1. WÄHRUNGEN & INDIZES", expanded=True):
-    render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
-    render_row("S&P 500", data.get("S&P 500"), "{:.2f}")
-    render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"), "{:.2f}")
+# --- 1. DEFAULT ANZEIGE (WÄHRUNG & INDIZES) ---
+st.markdown("<p class='focus-header'>### 🌍 GLOBAL MACRO FOCUS</p>", unsafe_allow_html=True)
+render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
+render_row("S&P 500", data.get("S&P 500"), "{:.2f}")
+render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"), "{:.2f}")
 
-# --- SLIDER 2: EUROSTOXX AKTIEN ---
-with st.expander("🇪🇺 2. EUROSTOXX WERTE (EU MARKET)", expanded=False):
+st.markdown("<hr>", unsafe_allow_html=True)
+
+# --- 2. EXPANDER: EUROSTOXX AKTIEN ---
+with st.expander("🇪🇺 EUROSTOXX WERTE (EU MARKET)", expanded=False):
     eu_list = ["ASML", "LVMH", "SAP", "SIEMENS", "TOTALENERGIES", "ALLIANZ", "L'OREAL"]
     for asset in eu_list:
         render_row(asset, data.get(asset))
 
-# --- SLIDER 3: US AKTIEN ---
-with st.expander("🇺🇸 3. US MARKT WERTE (DERIVATIVES)", expanded=False):
+# --- 3. EXPANDER: US TECH AKTIEN ---
+with st.expander("🇺🇸 US MARKT WERTE (TECH DERIVATIVES)", expanded=False):
     us_list = ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]
     for asset in us_list:
         render_row(asset, data.get(asset))
 
-# --- PROTOKOLL (Optional am Ende) ---
-with st.expander("📊 PROTOKOLLIERUNG DER VERÄNDERUNG"):
+# --- PROTOKOLL ---
+with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
     if st.session_state.history_log:
         st.table(pd.DataFrame(st.session_state.history_log).iloc[::-1].head(15))
 
