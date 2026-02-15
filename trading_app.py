@@ -1,5 +1,12 @@
 import streamlit as st
 import yfinance as yf
+# Direkt nach dem Daten-Import einfügen:
+st.write("### 🛠 Debug-Modus")
+if not data:
+    st.error("⚠️ Das 'data' Dictionary ist komplett leer!")
+else:
+    st.success(f"✅ Es wurden {len(data)} Indizes geladen.")
+    st.json(data) # Zeigt die gesamte Struktur der Daten an
 import plotly.graph_objects as go
 from datetime import datetime
 
@@ -172,6 +179,7 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
 
 
