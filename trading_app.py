@@ -45,7 +45,7 @@ def get_weather_info(delta):
 
 def fetch_data():
     symbols = {
-        "EUR/USD": "EURUSD=X", "e-Stoxxx": "^STOXX50E", "^GSPC": "S&P 500",
+        "EUR/USD": "EURUSD=X", "EUROSTOXX": "^STOXX50E", "^GSPC": "S&P 500",
         "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
         "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "SIE.DE": "SIEMENS", "TTE.PA": "TOTALENERGIES", "ALV.DE": "ALLIANZ", "OR.PA": "L'OREAL"
     }
@@ -139,6 +139,7 @@ for asset in eu_list: render_row(asset, data.get(asset))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
