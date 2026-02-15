@@ -1,3 +1,4 @@
+*** CODE ***
 import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
@@ -63,15 +64,14 @@ st.markdown("---")
 
 # SEKTION 1: EUR/USD (Breite Zeile)
 if data["EURUSD"]:
-    st.markdown("### 💱 Fokus/Wetter")
+    st.markdown("### 💱 Währungs-Fokus")
     c1, c2, c3 = st.columns([0.5, 0.5, 3])
     with c1:
         st.write("## ☀️")
         st.caption("Wetter: Heiter")
-    with c2:
         st.write("## 🟢")
         st.caption("Action: Bullisch")
-    with c3:
+    with c2:
         st.metric("EUR/USD", f"{data['EURUSD']['price']:.4f}", f"{data['EURUSD']['delta']:.2f}%")
 
 
@@ -79,18 +79,17 @@ if data["EURUSD"]:
 st.markdown("---")
 
 # SEKTION 2: INDIZES (Unterreinander in Zeilen)
-st.markdown("### 📈 Fokus/Markt-Indizes")
+st.markdown("### 📈 Markt-Indizes")
 
 # Euro Stoxx Zeile
 if data["STOXX"]:
- c1, c2, c3 = st.columns([0.5, 0.5, 3])
+    c1, c2, c3 = st.columns([2, 1, 1])
     with c1:
-        st.write("## ☀️")
-        st.caption("Wetter: Heiter")
+        st.write("## ☁️")
+        st.caption("Wetter: Bewölkt")
+        st.write("## ⚪")
+        st.caption("Action: Wait")
     with c2:
-        st.write("## 🟢")
-        st.caption("Action: Bullisch")
-    with c3:
         st.metric("EURO STOXX 50", f"{data['STOXX']['price']:.2f}", f"{data['STOXX']['delta']:.2f}%")
 
 
@@ -102,7 +101,7 @@ if data["SP"]:
     with c1:
         st.write("## ☀️")
         st.caption("Wetter: Sonnig")
-        st.write("## 🟢") 
+        st.write("## 🟢")
         st.caption("Action: Buy")
 
     with c2:
@@ -111,7 +110,7 @@ if data["SP"]:
 st.markdown("---")
 
 # SEKTION 3: GRAFIK
-st.markdown("### 📊 Fokus/Grafik")
+st.markdown("### 📊 Analyse-Grafik")
 if data["SP"]:
     df_chart = data["SP"]["df"]
     fig = go.Figure(data=[go.Candlestick(
@@ -215,25 +214,3 @@ with col_info2:
     """)
 
 st.warning("⚠️ **Risikohinweis:** Die hier angezeigten 'Actions' basieren auf einem algorithmischen Wetter-Modell und stellen keine direkte Anlageberatung dar.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
