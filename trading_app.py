@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import time
 
 # --- 1. CONFIG & STYLING ---
-st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
+st.set_page_config(layout="wide", page_title="Terminal")
 
 st.markdown("""
     <style>
@@ -152,3 +152,4 @@ with st.sidebar:
     
     if st.button("🔄 MANUAL REFRESH"):
         st.rerun()
+
