@@ -133,3 +133,27 @@ with col_a:
 with col_b:
     st.markdown("**Detail Info:**")
     st.write("Korrelation Markt/Wetter aktiv. Daten via yFinance.")
+
+# --- 5. ZEILE: DETAIL INFO / BESCHREIBUNG (Optimiert) ---
+st.divider()
+st.subheader("Analyse-Details & Methodik")
+
+col_info1, col_info2 = st.columns(2)
+
+with col_info1:
+    st.markdown("""
+    **Über dieses Dashboard:**
+    Dieses Monitor-System korreliert globale Wetterdaten mit der Performance der wichtigsten Marktindizes. 
+    Ziel ist es, kurzfristige Volatilitätsmuster zu erkennen, die durch externe Umweltfaktoren beeinflusst werden könnten.
+    """)
+
+with col_info2:
+    st.markdown(f"""
+    **Technische Parameter:**
+    * **Datenquelle:** Yahoo Finance API (Echtzeit-Streams)
+    * **Währungsbasis:** EUR (Alle US-Werte werden umgerechnet)
+    * **Aktualisierungsrate:** Bei jedem Browser-Refresh
+    * **Status:** System läuft stabil im Live-Modus
+    """)
+
+st.warning("⚠️ **Risikohinweis:** Die hier angezeigten 'Actions' basieren auf einem algorithmischen Wetter-Modell und stellen keine direkte Anlageberatung dar.")
