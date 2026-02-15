@@ -106,7 +106,7 @@ with h2:
     st.markdown(f"<div style='text-align:right;'><p style='margin:0; color:#888888;'>{datum_heute}</p><h3 style='margin:0; color:#00ff00;'>{now_display.strftime('%H:%M:%S')}</h3></div>", unsafe_allow_html=True)
 
 # --- 1. DEFAULT ANZEIGE (WÄHRUNG & INDIZES) ---
-st.markdown("<p class='focus-header'>### 🌍 GLOBAL MACRO FOCUS</p>", unsafe_allow_html=True)
+st.markdown("<p class='focus-header'>### 🌍 FOKUS/ GLOBAL MACRO FOCUS 🌍</p>", unsafe_allow_html=True)
 render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
 render_row("S&P 500", data.get("S&P 500"), "{:.2f}")
 render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"), "{:.2f}")
@@ -114,19 +114,19 @@ render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"), "{:.2f}")
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # --- 2. EXPANDER: EUROSTOXX AKTIEN ---
-with st.expander("€ EUROPA (EUROSTOXX 50)", expanded=False):
+with st.expander("FOKUS: € EUROPA (EUROSTOXX 50)", expanded=False):
     eu_list = ["ASML", "LVMH", "SAP", "SIEMENS", "TOTALENERGIES", "ALLIANZ", "L'OREAL"]
     for asset in eu_list:
         render_row(asset, data.get(asset))
 
 # --- 3. EXPANDER: US TECH AKTIEN ---
-with st.expander("🪙 US MARKET (S&P500)", expanded=False):
+with st.expander("FOKUS: 🪙 US MARKET (S&P500)", expanded=False):
     us_list = ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]
     for asset in us_list:
         render_row(asset, data.get(asset))
 
 # --- 4. EXPANDER: ERKLÄRUNG & HANDLUNGSINFO ---
-with st.expander("💡 MARKT-KOMPASS + HANDLUNGSINFO", expanded=False):
+with st.expander("FOKUS: 💡 MARKT-KOMPASS + HANDLUNGSINFO", expanded=False):
     # Dynamische Analyse-Logik
     all_assets = list(data.values())
     if all_assets:
@@ -171,3 +171,4 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
