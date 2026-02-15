@@ -93,7 +93,7 @@ with header_col1:
 with header_col2:
     st.markdown(f"""
         <div style="text-align: right; border-right: 4px solid #00ff00; padding-right: 15px;">
-            <p style="margin:0; font-size: 14px; opacity: 0.6; color: #00ff00 !important;">LETZTES UPDATE (KORRIGIERT)</p>
+            <p style="margin:0; font-size: 14px; opacity: 0.6; color: #00ff00 !important;">LETZTES UPDATE</p>
             <p style="margin:0; font-size: 24px; font-weight: bold;">{now.strftime('%d.%m.%Y')}</p>
             <p style="margin:0; font-size: 18px; color: #00ff00 !important;">{now.strftime('%H:%M:%S')} LIVE</p>
             <p style="margin:0; font-size: 12px; opacity: 0.5;">Intervall: {update_seconds}s</p>
@@ -123,4 +123,5 @@ for label, sym in [("APPLE", "AAPL"), ("MICROSOFT", "MSFT")]:
 # --- 8. AUTOMATISCHER REFRESH ---
 time.sleep(update_seconds)
 st.rerun()
+
 
