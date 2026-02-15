@@ -24,7 +24,28 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 1. FUNKTIONEN (Das Layout der Zeilen) ---
+# --- 2. DATENFUNKTION ---
+def get_live_data():
+    # Anpassung auf STOXX 50 (^STOXX50E) und S&P 250 (^SP1000)
+    mapping = {"EURUSD": "EURUSD=X", "^EUROst_50": "^STOXX50E", "SP": "^GSPC"}
+    results = {}
+    for key, ticker in mapping.items():
+        try:
+            t = yf.Ticker(ticker)
+            df = t.history(period="5d")
+            if not df.empty:
+                results[key] = {
+                    "price": df['Close'].iloc[-1],
+                    "delta": ((df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]) * 100,
+                    "df": df
+                }
+        except: results[key] = None
+    return results
+
+data = get_live_data()
+now = datetime.now()
+
+# --- 3. FUNKTIONEN (Das Layout der Zeilen) ---
 def compact_row(label, weather_icon, weather_text, signal_icon, signal_text, price, delta):
     """Erzeugt eine Zeile: Label | Wetter | Aktion | Preis & Delta"""
     cols = st.columns([2, 1, 1.5, 1, 1.5, 2, 2])
@@ -133,6 +154,7 @@ for label, sym in tickers:
         st.write(f"ℹ️ {label}: Daten werden geladen...")
 
 st.markdown("---")
+
 
 
 
