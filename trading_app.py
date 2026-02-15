@@ -98,7 +98,7 @@ def render_row(label, d, f_str="{:.2f}"):
     with cols[4]: 
         st.metric(label="", value=f_str.format(d['price']), delta=f"{d['delta']:+.3f}%")
         color_class = "pos-val" if d['diff'] >= 0 else "neg-val"
-        diff_fmt = f"{d['diff']:+.6f}" if "USD" in label else f"{d['diff']:+.4f}"
+        diff_fmt = f"{d['diff']:+.6f}" if "USD" in label else f"{d['diff']:+.6f}"
         st.markdown(f"<p class='effektiver-wert'>Absolut: <span class='{color_class}'>{diff_fmt}</span></p>", unsafe_allow_html=True)
     with cols[5]: st.markdown(f"<p class='product-label'>{label}</p>", unsafe_allow_html=True)
 
@@ -122,7 +122,7 @@ eur_data = data.get("EUR/USD")
 
 eur_data = data.get("EUR/USD")
 if eur_data:
-    render_row("EUR/USD", eur_data, "{:.4f}")
+    render_row("EUR/USD", eur_data, "{:.6f}")
 
 stoxx_data = data.get("EUROSTOXX 50")
 if stoxx_data:
@@ -145,6 +145,7 @@ for asset in eu_list: render_row(asset, data.get(asset))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
