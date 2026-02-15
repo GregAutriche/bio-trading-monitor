@@ -104,9 +104,20 @@ def render_row(label, d, f_str="{:.2f}"):
 
 # --- 5. HEADER ---
 h1, h2 = st.columns([2, 1])
-with h1: st.title("☁️ BÖRSEN-WETTER")
+with h1: 
+    st.title("☁️ BÖRSEN-WETTER")
 with h2: 
-    st.markdown(f"<div style='text-align:right;'><p style='margin:0; color:#00ff00;'>LETZTES UPDATE:</p><h3 style='margin:0;'>{now.strftime('%H:%M:%S')}</h3></div>", unsafe_allow_html=True)
+    # Hier wird jetzt Datum und Uhrzeit generiert
+    datum_heute = datetime.now().strftime('%d.%m.%Y')
+    uhrzeit_jetzt = (datetime.now() - timedelta(hours=1)).strftime('%H:%M:%S')
+    
+    st.markdown(f"""
+        <div style='text-align:right;'>
+            <p style='margin:0; color:#888888; font-size:14px;'>SYSTEM-ZEITSTEMPEL:</p>
+            <h4 style='margin:0; color:#00ff00;'>{datum_heute}</h4>
+            <h3 style='margin:0; color:#ffffff;'>{uhrzeit_jetzt}</h3>
+        </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -143,3 +154,4 @@ if "MICROSOFT" in data:
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"):
         st.rerun()
+
