@@ -70,13 +70,14 @@ def compact_row(label, weather_icon, weather_text, action_dot, action_text, pric
 def stock_row(ticker, name, price, change, weather_icon, action_text, action_color):
     color_map = {"Green": "🟢", "White": "⚪", "Red": "🔴"}
     dot = color_map.get(action_color, "⚪")
-    col1, col2, col3 = st.columns([2.5, 0.4, 0.4])
+    col1, col2, col3 = st.columns([0.4, 0.4,2.5])
     with col1:
         st.markdown(f"{ticker} | {name} <br> {price} ({change})", unsafe_allow_html=True)
     with col2:
         st.markdown(f"### {weather_icon}")
     with col3:
         st.markdown(f"### {dot}")
+
 
 # --- 4. HEADER (RECHTSBÜNDIGES UPDATE) ---
 header_col1, header_col2 = st.columns([2, 1])
@@ -108,7 +109,7 @@ with st.expander("System-Check: Verfügbare Daten"):
 # Wir prüfen jeden Index einzeln, damit einer den anderen nicht blockiert
 
 if data.get("STOXX"):
-    compact_row("STOXX 600", "...", "Bewölkt", "...", "Wait", 
+    compact_row("STOXX50E", "...", "Bewölkt", "...", "Wait", 
                 f"{data['STOXX']['price']:.2f}", 
                 f"{data['STOXX']['delta']:.2f}%")
 else:
@@ -178,6 +179,7 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
 
 
