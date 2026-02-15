@@ -100,7 +100,8 @@ if data["SP"]:
     with c1:
         st.write("## ☀️")
         st.caption("Wetter: Sonnig")
-        st.write("## 🟢") - st.caption("Action: Buy")
+        st.write("## 🟢") 
+        st.caption("Action: Buy")
 
     with c2:
         st.metric("S&P INDEX", f"{data['SP']['price']:.2f}", f"{data['SP']['delta']:.2f}%")
@@ -212,6 +213,7 @@ with col_info2:
     """)
 
 st.warning("⚠️ **Risikohinweis:** Die hier angezeigten 'Actions' basieren auf einem algorithmischen Wetter-Modell und stellen keine direkte Anlageberatung dar.")
+
 
 
 
