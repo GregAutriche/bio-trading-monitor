@@ -2,6 +2,7 @@ import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
 from datetime import datetime
+
 # Direkt nach dem Daten-Import einfügen:
 st.write("### 🛠 Debug-Modus")
 if not data:
@@ -179,6 +180,7 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
 
 
