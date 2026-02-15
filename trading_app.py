@@ -127,7 +127,7 @@ with st.expander("🛠️ SESSION-ANALYSE & UPDATE-SLIDER"):
     
     st.markdown("---")
     # Der Slider für das Update-Intervall
-    update_seconds = st.slider("Update-Intervall (Sekunden):", min_value=10, max_value=300, value=60, step=10)
+    update_seconds = st.slider("Update-Intervall (Sekunden):", min_value=40, max_value=300, value=60, step=10)
     st.info(f"Nächstes Update in {update_seconds} Sekunden.")
 
 st.markdown("---")
@@ -141,6 +141,7 @@ for label, sym in [("APPLE", "AAPL"), ("MICROSOFT", "MSFT")]:
 # --- 8. AUTOMATISCHER REFRESH ---
 time.sleep(update_seconds)
 st.rerun()
+
 
 
 
