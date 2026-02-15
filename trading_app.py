@@ -28,7 +28,7 @@ st.markdown("""
 # --- 2. DATENFUNKTION ---
 def get_live_data():
     # Anpassung auf STOXX 50 (^STOXX50E) und S&P 250 (^SP1000)
-    mapping = {"EURUSD": "EURUSD=X", "^STOXX50E": "^STOXX50E", "SP": "^GSPC"}
+    mapping = {"EURUSD": "EURUSD=X", "^EUROst_50": "^STOXX50E", "SP": "^GSPC"}
     results = {}
     for key, ticker in mapping.items():
         try:
@@ -56,7 +56,7 @@ else:
 
 # --- 3. HELFER-FUNKTIONEN ---
 def compact_row(label, weather_icon, weather_text, action_dot, action_text, price, delta):
-    # Spalten: Kursbox | Wetter | Action (eng gruppiert)
+    # Spalten: Wetter | Action | Kursbox (eng gruppiert)
     c1, c2, c3 = st.columns([0.4, 0.4, 2.5])
     with c1:
         st.markdown(f"### {weather_icon}")
@@ -108,7 +108,7 @@ with st.expander("System-Check: Verfügbare Daten"):
 # 2. Dynamische Anzeige: Er zeigt nur an, was wirklich da ist
 # Wir prüfen jeden Index einzeln, damit einer den anderen nicht blockiert
 
-if data.get("STOXX"):
+if data.get("^STOXX50E"):
     compact_row("^STOXX50E", "...", "Bewölkt", "...", "Wait", 
                 f"{data['STOXX']['price']:.2f}", 
                 f"{data['STOXX']['delta']:.2f}%")
@@ -179,6 +179,7 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
 
 
 
