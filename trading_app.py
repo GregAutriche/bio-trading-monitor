@@ -3,7 +3,7 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import time
 
-# --- 1. CONFIG & STYLING (Größen angepasst) ---
+# --- 1. CONFIG & STYLING ---
 st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
 
 st.markdown("""
@@ -13,16 +13,10 @@ st.markdown("""
         color: #e0e0e0 !important;
         font-family: 'Courier New', Courier, monospace;
     }
-    /* Metriken */
-    [data-testid="stMetricValue"] { font-size: 28px !important; color: #ffffff !important; }
-    [data-testid="stMetricDelta"] { font-size: 18px !important; }
-    
-    /* Symbole kleiner machen */
-    .weather-icon { font-size: 24px !important; margin: 0; }
-    
-    /* Produktbezeichnung kleiner */
-    .product-label { font-size: 20px !important; font-weight: bold; color: #00ff00 !important; }
-    
+    [data-testid="stMetricValue"] { font-size: 26px !important; color: #ffffff !important; }
+    .weather-icon { font-size: 22px !important; margin: 0; }
+    .product-label { font-size: 18px !important; font-weight: bold; color: #00ff00 !important; }
+    .focus-header { color: #555555 !important; font-weight: bold; margin-top: 15px; }
     hr { border-top: 1px solid #333; margin: 10px 0; }
     </style>
     """, unsafe_allow_html=True)
@@ -64,7 +58,7 @@ def fetch_data():
 data = fetch_data()
 now = datetime.now() - timedelta(hours=1)
 
-# --- 4. ZEILEN-AUFBAU (Reihenfolge: Wetter -> Action -> Kurs -> Name) ---
+# --- 4. ZEILEN-AUFBAU ---
 def render_row(label, d, f_str="{:.2f}"):
     if not d: return
     cols = st.columns([0.5, 1, 0.5, 1, 3, 2])
@@ -75,24 +69,37 @@ def render_row(label, d, f_str="{:.2f}"):
     with cols[4]: st.metric(label="Session", value=f_str.format(d['price']), delta=f"{d['delta']:+.4f}%")
     with cols[5]: st.markdown(f"<p class='product-label'>{label}</p>", unsafe_allow_html=True)
 
-# --- 5. HEADER ---
+# --- 5. HEADER (Mit 'Letztes Update') ---
 h1, h2 = st.columns([2, 1])
-with h1: st.subheader("☁️ BÖRSEN-WETTER")
-with h2: st.markdown(f"<div style='text-align:right;'><h3 style='color:#00ff00;margin:0;'>{now.strftime('%H:%M:%S')}</h3><small>{now.strftime('%d.%m.%Y')}</small></div>", unsafe_allow_html=True)
+with h1: st.title("☁️ BÖRSEN-WETTER")
+with h2: 
+    st.markdown(f"""
+        <div style='text-align:right;'>
+            <p style='margin:0; color:#00ff00;'>Letztes Update:</p>
+            <h3 style='margin:0;'>{now.strftime('%H:%M:%S')}</h3>
+            <small>{now.strftime('%d.%m.%Y')}</small>
+        </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("---")
 
-# --- 6. ANZEIGE ---
+# --- 6. ANZEIGE MIT ÜBERSCHRIFTEN ---
+
+st.markdown("<p class='focus-header'>### 🌍 FOCUS/ WÄHRUNG</p>", unsafe_allow_html=True)
 render_row("EUR/USD", data.get("EUR/USD"), "{:.4f}")
+
 st.markdown("---")
+
+st.markdown("<p class='focus-header'>### 📈 FOCUS/ INDIZES</p>", unsafe_allow_html=True)
 render_row("EUROSTOXX", data.get("EUROSTOXX"))
 render_row("S&P 500", data.get("S&P 500"))
 
-# --- SLIDER (Fest unter den Indizes platziert) ---
+# --- SLIDER (Muss hier stehen!) ---
 st.write("")
-update_sec = st.slider("UPDATE INTERVALL (SEK):", 10, 300, 60)
+update_sec = st.slider("Update-Intervall (Sekunden):", 10, 300, 60, key="refresh_slider")
 st.markdown("---")
 
+st.markdown("<p class='focus-header'>### 🍎 FOCUS/ AKTIEN</p>", unsafe_allow_html=True)
 render_row("APPLE", data.get("APPLE"))
 render_row("MICROSOFT", data.get("MICROSOFT"))
 
