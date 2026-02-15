@@ -120,19 +120,34 @@ with st.expander("🇺🇸 US MARKT WERTE (TECH DERIVATIVES)", expanded=False):
         render_row(asset, data.get(asset))
 
 # --- 4. EXPANDER: ERKLÄRUNG & HANDLUNGSINFO ---
-with st.expander("💡 INTERPRETATION & HANDLUNGSINFO", expanded=False):
+with st.expander("💡 MARKT-KOMPASS & HANDLUNGSINFO", expanded=False):
+    # Logik für die Zusammenfassung
+    all_assets = list(data.values())
+    if all_assets:
+        sunny_count = len([a for a in all_assets if a['wt'] == "SONNIG"])
+        stormy_count = len([a for a in all_assets if a['wt'] == "GEWITTER"])
+        total = len(all_assets)
+        
+        st.markdown("### 📊 AKTUELLE LAGE-ANALYSE")
+        if sunny_count > total * 0.4:
+            st.success(f"🔥 **STRONG BULLISH:** {sunny_count} von {total} Werten sind im grünen Bereich. Fokus auf Long-Einstiege.")
+        elif stormy_count > total * 0.4:
+            st.error(f"⚠️ **BEARISH ALERT:** {stormy_count} von {total} Werten zeigen Gewitter. Absicherung Priorität.")
+        else:
+            st.info(f"⚖️ **NEUTRAL / MIXED:** Der Markt sucht eine Richtung. Abwarten und Einzelwerte beobachten.")
+
+    st.markdown("---")
     st.markdown("""
-    ### 🌦️ Das Börsen-Wetter verstehen
-    Die Icons basieren auf der prozentualen Veränderung seit dem Öffnen des Terminals:
+    ### 🌦️ Legende & Strategie
+    Die Icons basieren auf der Veränderung seit dem Öffnen des Terminals:
     
-    *   ☀️ **SONNIG (> 0.5%):** Starke Kaufdynamik. **Handlung:** Trends folgen, Gewinne laufen lassen.
-    *   🌤️ **HEITER (0% bis 0.5%):** Stabiler Aufwärtstrend. **Handlung:** Bullisch orientiert bleiben, selektive Käufe.
-    *   ☁️ **WOLKIG (0% bis -0.5%):** Seitwärtsbewegung oder leichte Schwäche. **Handlung:** Abwarten (**WAIT**), keine überstürzten Aktionen.
-    *   ⛈️ **GEWITTER (< -0.5%):** Erhöhter Verkaufsdruck. **Handlung:** Absichern (**SELL/SHORT**), Vorsicht bei Long-Positionen.
+    *   ☀️ **SONNIG (> +0.5%):** **BUY** | Starke Dynamik. Trends folgen, Stop-Loss nachziehen.
+    *   🌤️ **HEITER (0% bis +0.5%):** **BULL** | Stabiler Markt. Rücksetzer für Einstiege nutzen.
+    *   ☁️ **WOLKIG (0% bis -0.5%):** **WAIT** | Seitwärtsphase. Keine Hebelpositionen eröffnen.
+    *   ⛈️ **GEWITTER (< -0.5%):** **SELL** | Verkaufsdruck. Short-Chancen prüfen oder Cash-Quote erhöhen.
     
     ---
-    **Hinweis:** Die Werte werden im Vergleich zum Zeitpunkt des ersten Ladens (Initialwert) gemessen. 
-    Nutze den **Manual Refresh**, um die aktuelle Marktveränderung neu zu kalkulieren.
+    **Hinweis:** Die Messung erfolgt gegen den Initialwert beim Start. Nutze den **Manual Refresh** für ein Reset.
     """)
 
 # --- PROTOKOLL ---
@@ -142,4 +157,5 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
