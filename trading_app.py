@@ -71,7 +71,7 @@ def fetch_data():
                     "Zeit": current_time,
                     "Asset": label,
                     "Preis": f"{curr:.6f}" if label == "EUR/USD" else f"{curr:.2f}",
-                    "Veränderung": f"{diff:+.6f}" if label == "EUR/USD" else f"{diff:+.2f}",
+                    "Veränderung": f"{diff:+.6f}" if label == "EUR/USD" else f"{diff:+.6f}",
                     "Prozent": f"{delta:+.3f}%"
                 })
         except: pass
@@ -96,7 +96,7 @@ def render_row(label, d, f_str="{:.2f}"):
 
 # --- 5. HEADER ---
 h1, h2 = st.columns([2, 1])
-with h1: st.title("☁️ BÖRSEN-WETTER")
+with h1: st.title("☁️ TERMINAL")
 with h2: 
     st.markdown(f"<div style='text-align:right;'><p style='margin:0; color:#00ff00;'>LETZTES UPDATE (KORR.):</p><h3 style='margin:0;'>{now.strftime('%H:%M:%S')}</h3></div>", unsafe_allow_html=True)
 
@@ -114,7 +114,7 @@ with st.expander("📊 PROTOKOLLIERUNG DER VERÄNDERUNG EINBLENDEN (Sitzungsbegi
         st.write("Warte auf Dateneingang...")
 
 if "EUR/USD" in data:
-    render_row("EUR/USD", data["EUR/USD"], "{:.6f}") # 6 Nachkommastellen für USD
+    render_row("EUR/USD", data["EUR/USD"], "{:.6f}") 
 if "EUROSTOXX" in data:
     render_row("EUROSTOXX 50", data["EUROSTOXX"])
 if "S&P 500" in data:
@@ -136,3 +136,4 @@ with st.sidebar:
     st.markdown("""<div class='legend-box'>... (wie bisher) ...</div>""", unsafe_allow_html=True)
     if st.button("🔄 MANUAL REFRESH"):
         st.rerun()
+
