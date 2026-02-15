@@ -97,4 +97,50 @@ def compact_row(label, weather_icon, weather_text, signal_icon, signal_text, pri
 # --- 5. HEADER (Datum & Uhrzeit rechtsbündig) ---
 header_col1, header_col2 = st.columns([2, 1])
 
-with header_col
+with header_col1:
+    st.title("☁️ Börsen-Wetter Terminal")
+
+with header_col2:
+    # Rechtsbündiges Update mit Datum und sekundengenauer Uhrzeit
+    st.markdown(f"""
+        <div style="text-align: right; border-right: 4px solid #00ff00; padding-right: 15px;">
+            <p style="margin:0; font-size: 14px; opacity: 0.6; color: #00ff00 !important;">LETZTES UPDATE</p>
+            <p style="margin:0; font-size: 24px; font-weight: bold;">{now.strftime('%d.%m.%Y')}</p>
+            <p style="margin:0; font-size: 18px; color: #00ff00 !important;">{now.strftime('%H:%M:%S')} LIVE</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("---")
+
+# --- 6. ANZEIGE DER SEKTIONEN ---
+
+# WÄHRUNG
+st.markdown("### 🌍 FOKUS/ Währung")
+if data.get("EURUSD"):
+    compact_row("EUR/USD", "☀️", "Heiter", "🟢", "Bullisch", 
+                f"{data['EURUSD']['price']:.4f}", data['EURUSD']['delta'])
+else:
+    st.info("EUR/USD: Daten aktuell nicht verfügbar.")
+
+st.markdown("---")
+
+# MARKT-INDIZES
+st.markdown("### 📈 FOKUS/ Markt-Indizes")
+if data.get("STOXX"):
+    compact_row("EUROSTOXX", "☁️", "Bewölkt", "⚪", "Wait", 
+                f"{data['STOXX']['price']:.2f}", data['STOXX']['delta'])
+else:
+    st.info("EUROSTOXX: Keine Daten (Ticker prüfen oder Wochenende).")
+
+if data.get("SP"):
+    compact_row("S&P 500", "☀️", "Sonnig", "🟢", "Buy", 
+                f"{data['SP']['price']:.2f}", data['SP']['delta'])
+
+st.markdown("---")
+
+# AKTIEN
+st.markdown("### 🍎 FOKUS/ Aktien-Analyse")
+for label, sym in [("APPLE", "AAPL"), ("MICROSOFT", "MSFT")]:
+    if data.get(sym):
+        compact_row(label, "☀️", "Sonnig", "🟢", "Buy", 
+                    f"{data[sym]['price']:.2f}", data[sym]['delta'])
