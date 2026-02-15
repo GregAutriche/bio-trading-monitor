@@ -112,20 +112,9 @@ with h2:
 st.markdown("<p class='focus-header'>### 🌍 GLOBAL MACRO FOCUS</p>", unsafe_allow_html=True)
 
 # Protokoll-Fenster
-with st.expander("🌍 GLOBAL MACRO FOCUS (WÄHRUNGEN & INDIZES)", expanded=True):
-    # EUR/USD
-    eur_data = data.get("EUR/USD")
-    if eur_data:
-        render_row("EUR/USD", eur_data, "{:.6f}")
-
-    # Indizes
-    stoxx_data = data.get("EUROSTOXX 50")
-    if stoxx_data:
-        render_row("EUROSTOXX 50", stoxx_data, "{:.2f}")
-
-    sp_data = data.get("S&P 500")
-    if sp_data:
-        render_row("S&P 500", sp_data, "{:.2f}")
+with st.expander("📊 PROTOKOLLIERUNG DER VERÄNDERUNG EINBLENDEN"):
+    if st.session_state.history_log:
+        st.table(pd.DataFrame(st.session_state.history_log).iloc[::-1].head(15))
 
 # EUR/USD ANZEIGE-FIX
 # Wir suchen explizit nach dem Schlüssel "EUR/USD"
@@ -148,17 +137,6 @@ st.markdown("<hr>", unsafe_allow_html=True)
 st.markdown("<p class='focus-header'>### 🇺🇸 US MARKET DERIVATIVES</p>", unsafe_allow_html=True)
 us_list = ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]
 for asset in us_list: render_row(asset, data.get(asset))
-   
-    st.markdown("<p class='focus-header'>### 🇪🇺 EU MARKET</p>", unsafe_allow_html=True)
-    eu_list = ["ASML", "LVMH", "SAP", "SIEMENS", "TOTALENERGIES", "ALLIANZ", "L'OREAL"]
-    for asset in eu_list: 
-        render_row(asset, data.get(asset))
-
-with st.expander("📈 AKTIEN MÄRKTE (US & EU DERIVATIVES)", expanded=True):
-    st.markdown("<p class='focus-header'>### 🇺🇸 US MARKET</p>", unsafe_allow_html=True)
-    us_list = ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]
-    for asset in us_list: 
-        render_row(asset, data.get(asset))
 
 # --- 8. EU DERIVATIVES (7 SELECTED) ---
 st.markdown("<p class='focus-header'>### 🇪🇺 EU MARKET DERIVATIVES</p>", unsafe_allow_html=True)
@@ -167,12 +145,3 @@ for asset in eu_list: render_row(asset, data.get(asset))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
-
-
-
-
-
-
-
-
-
