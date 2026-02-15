@@ -157,7 +157,7 @@ def stock_row(ticker, name, price, change, weather_icon, action_text, action_col
         st.caption(f"{price} ({change})")
 
 # --- BEREICH 1: EUROPA ---
-st.subheader("FOKUS/ Europa")
+st.subheader("/ Europa")
 with st.container(border=True):
     stock_row("ASML", "ASML Holding", "942.10€", "+0.5%", "☀️", "Buy", "Green")
     st.divider()
@@ -174,7 +174,7 @@ with st.container(border=True):
     stock_row("SAN", "Sanofi", "89.40€", "+0.3%", "☁️", "Wait", "White")
 
 # --- BEREICH 2: USA ---
-st.subheader("FOKUS/ USA")
+st.subheader("/ USA")
 with st.container(border=True):
     stock_row("NVDA", "NVIDIA Corp", "894.10$", "+3.2%", "☀️", "Buy", "Green")
     st.divider()
@@ -214,6 +214,7 @@ with col_info2:
     """)
 
 st.warning("⚠️ **Risikohinweis:** Die hier angezeigten 'Actions' basieren auf einem algorithmischen Wetter-Modell und stellen keine direkte Anlageberatung dar.")
+
 
 
 
