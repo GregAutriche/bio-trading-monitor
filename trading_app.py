@@ -94,7 +94,7 @@ if data["EURUSD"]:
 st.markdown("---")
 
 st.markdown("### 📈 FOKUS/ Markt-Indizes")
-if data["STOXX"]:
+if data["stoxx"]:
     compact_row("STOXX 600", "☁️", "Bewölkt", "⚪", "Wait", f"{data['STOXX']['price']:.2f}", f"{data['STOXX']['delta']:.2f}%")
 st.write("")
 if data["SP"]:
@@ -146,3 +146,4 @@ with st.container(border=True):
 
 st.divider()
 st.warning("⚠️ Risikohinweis: Algorithmisches Wetter-Modell. Keine Anlageberatung.")
+
