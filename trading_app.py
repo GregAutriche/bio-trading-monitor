@@ -83,7 +83,7 @@ st.markdown("---")
 
 # --- 6. FOCUS/ WÄHRUNG & INDIZES ---
 st.markdown("<p class='focus-header'>### 🌍 FOCUS/ WÄHRUNG</p>", unsafe_allow_html=True)
-render_row("EUR/USD", data.get("EUR/USD"), "{:.4f}")
+render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
 
 st.markdown("---")
 st.markdown("<p class='focus-header'>### 📈 FOCUS/ INDIZES</p>", unsafe_allow_html=True)
@@ -136,5 +136,6 @@ if show_desc:
 # --- 8. REFRESH ---
 time.sleep(60)
 st.rerun()
+
 
 
