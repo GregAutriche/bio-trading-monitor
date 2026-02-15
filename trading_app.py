@@ -3,6 +3,27 @@ import yfinance as yf
 import plotly.graph_objects as go
 from datetime import datetime
 
+# --- 1. TERMINAL LOOK (CSS) ---
+st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
+st.markdown("""
+    <style>
+    .stApp { background-color: #000000; }
+    [data-testid="stMetric"] {
+        background-color: #0a0a0a;
+        border: 1px solid #1f1f1f;
+        padding: 15px;
+        border-radius: 10px;
+    }
+    h1, h2, h3, p, span, label {
+        color: #e0e0e0 !important;
+        font-family: 'Courier New', Courier, monospace;
+    }
+    hr { border-top: 1px solid #333; }
+    /* Entfernt Standard-Abstände für kompaktere Darstellung */
+    .stMarkdown div p { margin-bottom: 0px; }
+    </style>
+    """, unsafe_allow_html=True)
+
 # --- 1. FUNKTIONEN (Das Layout der Zeilen) ---
 def compact_row(label, weather_icon, weather_text, signal_icon, signal_text, price, delta):
     """Erzeugt eine Zeile: Label | Wetter | Aktion | Preis & Delta"""
@@ -112,6 +133,7 @@ for label, sym in tickers:
         st.write(f"ℹ️ {label}: Daten werden geladen...")
 
 st.markdown("---")
+
 
 
 
