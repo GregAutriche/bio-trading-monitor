@@ -4,6 +4,7 @@ try:
 except ImportError:
     os.system('pip install streamlit-autorefresh')
     from streamlit_autorefresh import st_autorefresh
+    st_autorefresh(interval=30000, key="datarefresh")
 
 import streamlit as st
 import yfinance as yf
@@ -178,6 +179,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
