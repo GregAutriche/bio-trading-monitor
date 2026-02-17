@@ -105,18 +105,38 @@ datum_heute = datetime.now().strftime('%Y.%m.%d')
 
 def render_row(label, d, f_str="{:.2f}"):
     if not d: return
-    cols = st.columns([0.4, 0.8, 0.4, 0.8, 1.5, 2.0])
-    with cols[0]: st.write(d['w'])
-    with cols[1]: st.write(d['wt'])
-    with cols[2]: st.write(d['a'])
-    with cols[3]: st.write(d['at'])
-    with cols[4]: 
+    # Spaltenaufteilung: Status 1, Status 2, Werte, Label
+    cols = st.columns([0.5, 0.5, 1.5, 2.0])
+    
+    # Gemeinsames Styling für die vertikale Ausrichtung
+    status_style = "display: flex; flex-direction: column; align-items: center; justify-content: center;"
+
+    with cols[0]: # Wetter-Status
+        st.markdown(f"""
+            <div style='{status_style}'>
+                <span style='font-size: 20px;'>{d['w']}</span>
+                <span style='font-size: 10px; color: #888888; font-weight: bold;'>{d['wt']}</span>
+            </div>
+        """, unsafe_allow_html=True)
+        
+    with cols[1]: # Action-Status
+        st.markdown(f"""
+            <div style='{status_style}'>
+                <span style='font-size: 16px;'>{d['a']}</span>
+                <span style='font-size: 10px; color: #888888; font-weight: bold;'>{d['at']}</span>
+            </div>
+        """, unsafe_allow_html=True)
+        
+    with cols[2]: # Preis & Delta
         st.metric(label="", value=f_str.format(d['price']), delta=f"{d['delta']:+.3f}%")
         color_class = "pos-val" if d['diff'] >= 0 else "neg-val"
         diff_fmt = f"{d['diff']:+.6f}" if "USD" in label or "/" in label else f"{d['diff']:+.4f}"
-        st.markdown(f"<p class='effektiver-wert'>Absolut: <span class='{color_class}'>{diff_fmt}</span></p>", unsafe_allow_html=True)
-    with cols[5]: st.markdown(f"<p class='product-label'>{label}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p class='effektiver-wert'>Abs.: <span class='{color_class}'>{diff_fmt}</span></p>", unsafe_allow_html=True)
+        
+    with cols[3]: # Asset Name
+        st.markdown(f"<p class='product-label' style='margin-top: 10px;'>{label}</p>", unsafe_allow_html=True)
 
+    
 # --- HEADER ---
 h1, h2 = st.columns([2, 1])
 with h1: st.title("☁️ TERMINAL")
@@ -196,6 +216,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
