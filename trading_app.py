@@ -85,11 +85,14 @@ def fetch_data():
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
                 results[label] = {"price": curr, "delta": delta, "diff": diff, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt}
                 
-                # FIX: Logge wenn sich etwas ändert ODER wenn das Asset gerade erst geladen wurde
                 if diff != 0 or is_new:
                     st.session_state.history_log.append({
-                        "Zeit": current_time, "Asset": label, "Betrag": f"{curr:.4f}",
-                        "Veränderung": f"{diff:+.4f}", "Anteil %": f"{delta:+.3f}%"
+                        "Status": a_icon,  # Das Icon (🟢/🔴) ersetzt die Zahl 65
+                        "Zeit": current_time, 
+                        "Asset": label, 
+                        "Betrag": f"{curr:.4f}",
+                        "Veränderung": f"{diff:+.4f}", 
+                        "Anteil %": f"{delta:+.3f}%"
                     })
         except: pass
     return results
@@ -203,3 +206,4 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
