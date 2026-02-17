@@ -9,6 +9,9 @@ import streamlit as st
 import yfinance as yf
 from datetime import datetime, timedelta
 import pandas as pd
+import time
+time.sleep(30)
+st.rerun()
 
 # --- 1. CONFIG & STYLING ---
 st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
@@ -178,6 +181,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
