@@ -48,7 +48,7 @@ st.markdown("""
 # --- 2. SESSION STATE ---
 # Initialwerte für Assets
 if 'initial_values' not in st.session_state:
-    st.session_state.initial_values = {}
+    st.session_state.session_start = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
 
 # Historie für das Protokoll
 if 'history_log' not in st.session_state:
@@ -57,7 +57,7 @@ if 'history_log' not in st.session_state:
 # Sitzungsstart (nur einmalig beim ersten Laden)
 if 'session_start' not in st.session_state:
     now_corrected = datetime.now() + timedelta(hours=1)
-    st.session_state.session_start = datetime.now().strftime('%H:%M:%S')
+    st.session_state.session_start = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
 
 # Letztes Update (wird bei jedem Durchlauf aktualisiert)
 st.session_state.last_update = datetime.now().strftime('%H:%M:%S')
@@ -76,6 +76,8 @@ def fetch_data():
         "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "SIE.DE": "SIEMENS", "TTE.PA": "TOTALENERGIES", "ALV.DE": "ALLIANZ", "OR.PA": "L'OREAL"
     }
     results = {}
+    aktuell = datetime.now() + timedelta(hours=1)
+    st.session_state.last_update = aktuell.strftime('%H:%M:%S')
     current_time = datetime.now().strftime('%H:%M:%S')
     
     for ticker, label in symbols.items():
@@ -216,6 +218,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
