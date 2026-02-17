@@ -1,4 +1,6 @@
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
+st_autorefresh(interval=30000, key="datarefresh")
 import yfinance as yf
 from datetime import datetime, timedelta
 import pandas as pd
@@ -171,3 +173,4 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
