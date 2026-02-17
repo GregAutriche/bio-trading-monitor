@@ -123,9 +123,10 @@ with h1: st.title("☁️ TERMINAL")
 with h2: 
    st.markdown(f"""
         <div style='text-align:right;'>
-            <p style='margin:0; color:#888888; font-size: 14px;'>Heute: {datum_heute}</p>
-            <p style='margin:0; color:#888888; font-size: 12px;'>Update: {st.session_state.last_update}</p>
-            <h2 style='margin:0; color:#00ff00; font-size: 32px; font-weight: bold;'>Start: {st.session_state.session_start}</h2>
+            <h2 style='margin:0; color:#e0e0e0; font-size: 28px; font-weight: bold;'>Heute: {datum_heute}</h2>
+            <h2 style='margin:0; color:#00ff00; font-size: 28px; font-weight: bold;'>Update: {st.session_state.last_update}</h2>
+            <hr style='margin: 10px 0 5px 0; border-color: #444;'>
+            <p style='margin:0; color:#888888; font-size: 14px;'>Start: {st.session_state.session_start}</p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -195,6 +196,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
