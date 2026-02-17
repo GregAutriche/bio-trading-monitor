@@ -121,10 +121,11 @@ def render_row(label, d, f_str="{:.2f}"):
 h1, h2 = st.columns([2, 1])
 with h1: st.title("☁️ TERMINAL")
 with h2: 
-    st.markdown(f"""
+   st.markdown(f"""
         <div style='text-align:right;'>
-            <p style='margin:0; color:#888888; font-size: 12px;'>Start: {st.session_state.session_start} | Heute: {datum_heute}</p>
-            <h3 style='margin:0; color:#00ff00;'>Update: {st.session_state.last_update}</h3>
+            <p style='margin:0; color:#888888; font-size: 14px;'>Heute: {datum_heute}</p>
+            <p style='margin:0; color:#888888; font-size: 12px;'>Update: {st.session_state.last_update}</p>
+            <h2 style='margin:0; color:#00ff00; font-size: 32px; font-weight: bold;'>Start: {st.session_state.session_start}</h2>
         </div>
     """, unsafe_allow_html=True)
     
@@ -194,6 +195,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
