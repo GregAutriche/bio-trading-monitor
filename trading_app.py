@@ -80,12 +80,23 @@ def fetch_data():
                     is_new = True # Markierung für initialen Log-Eintrag
                 else:
                     is_new = False
+                last_logged_price = next((log['Betrag'] for log in reversed(st.session_state.history_log) if log['Asset'] == label), None)
                 
                 start = st.session_state.initial_values[label]
                 diff = curr - start
                 delta = (diff / start) * 100 if start != 0 else 0
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
                 results[label] = {"price": curr, "delta": delta, "diff": diff, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt}
+
+if is_new or (last_logged_price is not None and float(last_logged_price) != float(curr)):
+    st.session_state.history_log.append({
+        "Status": a_icon,
+        "Zeit": current_time, 
+        "Asset": label, 
+        "Betrag": f"{curr:.4f}",
+        "Veränderung": f"{diff:+.4f}", 
+        "Anteil %": f"{delta:+.3f}%"
+    })
                 
                 if diff != 0 or is_new:
                     st.session_state.history_log.append({
@@ -212,6 +223,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN 📊"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
