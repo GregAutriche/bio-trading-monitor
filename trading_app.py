@@ -56,6 +56,7 @@ if 'history_log' not in st.session_state:
 
 # Sitzungsstart (nur einmalig beim ersten Laden)
 if 'session_start' not in st.session_state:
+    now_corrected = datetime.now() + timedelta(hours=1)
     st.session_state.session_start = datetime.now().strftime('%H:%M:%S')
 
 # Letztes Update (wird bei jedem Durchlauf aktualisiert)
@@ -215,6 +216,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
