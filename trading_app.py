@@ -126,7 +126,7 @@ def render_row(label, d, f_str="{:.2f}"):
         
 # --- HEADER ---
 h1, h2 = st.columns([2, 1])
-with h1: st.title("☁️ TERMINAL")
+with h1: st.title("📡 TERMINAL 📡")
 with h2: 
    st.markdown(f"""
         <div style='text-align:right;'>
@@ -203,6 +203,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
