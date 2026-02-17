@@ -108,22 +108,29 @@ def render_row(label, d, f_str="{:.2f}"):
     # Spaltenaufteilung: Status 1, Status 2, Werte, Label
     cols = st.columns([0.5, 0.5, 1.5, 2.0])
     
-    # Gemeinsames Styling für die vertikale Ausrichtung
-    status_style = "display: flex; flex-direction: column; align-items: center; justify-content: center;"
+    # Farblogik basierend auf dem Delta
+    if d['delta'] > 0:
+        status_color = "#00ff00" # Leuchtendes Grün
+    elif d['delta'] < -0.5:
+        status_color = "#ff4b4b" # Alarm-Rot
+    else:
+        status_color = "#aaaaaa" # Neutrales Grau
 
-    with cols[0]: # Wetter-Status
+    status_style = f"display: flex; flex-direction: column; align-items: center; justify-content: center; color: {status_color};"
+
+    with cols[0]: # Wetter-Status (z.B. SONNIG)
         st.markdown(f"""
             <div style='{status_style}'>
                 <span style='font-size: 20px;'>{d['w']}</span>
-                <span style='font-size: 10px; color: #888888; font-weight: bold;'>{d['wt']}</span>
+                <span style='font-size: 10px; font-weight: bold; text-transform: uppercase;'>{d['wt']}</span>
             </div>
         """, unsafe_allow_html=True)
         
-    with cols[1]: # Action-Status
+    with cols[1]: # Action-Status (z.B. BUY)
         st.markdown(f"""
             <div style='{status_style}'>
                 <span style='font-size: 16px;'>{d['a']}</span>
-                <span style='font-size: 10px; color: #888888; font-weight: bold;'>{d['at']}</span>
+                <span style='font-size: 10px; font-weight: bold; text-transform: uppercase;'>{d['at']}</span>
             </div>
         """, unsafe_allow_html=True)
         
@@ -216,6 +223,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
