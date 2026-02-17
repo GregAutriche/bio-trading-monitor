@@ -78,6 +78,8 @@ def fetch_data():
                 if label not in st.session_state.initial_values:
                     st.session_state.initial_values[label] = curr
                     is_new = True # Markierung für initialen Log-Eintrag
+                else:
+                    is_new = False
                 
                 start = st.session_state.initial_values[label]
                 diff = curr - start
@@ -210,6 +212,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN 📊"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
