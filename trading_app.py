@@ -111,8 +111,13 @@ def render_row(label, d, f_str="{:.2f}"):
 h1, h2 = st.columns([2, 1])
 with h1: st.title("☁️ TERMINAL")
 with h2: 
-    st.markdown(f"<div style='text-align:right;'><p style='margin:0; color:#888888;'>{datum_heute}</p><h3 style='margin:0; color:#00ff00;'>{now_display.strftime('%H:%M:%S')}</h3></div>", unsafe_allow_html=True)
-
+    st.markdown(f"""
+        <div style='text-align:right;'>
+            <p style='margin:0; color:#888888; font-size: 12px;'>Start: {st.session_state.session_start} | Heute: {datum_heute}</p>
+            <h3 style='margin:0; color:#00ff00;'>Update: {st.session_state.last_update}</h3>
+        </div>
+    """, unsafe_allow_html=True)
+    
 # --- 1. DEFAULT ANZEIGE (WÄHRUNG & INDIZES) ---
 st.markdown("<p class='focus-header'>🌍 FOKUS/ GLOBAL MACRO FOCUS 🌍</p>", unsafe_allow_html=True)
 render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
@@ -179,6 +184,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
