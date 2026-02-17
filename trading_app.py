@@ -9,6 +9,7 @@ try:
 except ImportError:
     os.system('pip install streamlit-autorefresh')
     from streamlit_autorefresh import st_autorefresh
+    
 st_autorefresh(interval=30000, key="datarefresh")
 
 # --- 1. CONFIG & STYLING ---
@@ -17,30 +18,17 @@ st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
 st.markdown("""
     <style>
     .stApp { background-color: #000000; }
-    
-    /* Grund-Schriftart */
     h1, h2, h3, p, span, label, div {
         color: #e0e0e0 !important;
         font-family: 'Courier New', Courier, monospace;
     }
-
-    /* Metric-Werte sauber trennen */
     [data-testid="stMetricValue"] { font-size: 22px !important; color: #ffffff !important; }
     [data-testid="stMetricDelta"] { font-size: 14px !important; }
-    
-    /* Absolut-Werte unter die Metric */
     .effektiver-wert { font-size: 11px; color: #aaaaaa; margin-top: -5px; font-weight: bold; }
-    
-    /* Produkt-Label (Grün) */
     .product-label { font-size: 18px !important; font-weight: bold; color: #00ff00 !important; margin: 0; }
-    
-    /* Fokus-Header (Grau) */
     .focus-header { color: #888888 !important; font-weight: bold; margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 5px; }
-    
     .pos-val { color: #00ff00; }
     .neg-val { color: #ff4b4b; }
-    
-    /* Zeilenabstände fixieren */
     div[data-testid="column"] { display: flex; flex-direction: column; justify-content: center; }
     </style>
     """, unsafe_allow_html=True)
@@ -218,6 +206,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
