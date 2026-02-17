@@ -42,7 +42,7 @@ st.markdown("""
 if 'initial_values' not in st.session_state:
     st.session_state.initial_values = {}
 if 'history_log' not in st.session_state:
-    st.session_state.history_log = []
+    st.session_state.last_update = datetime.now().strftime('%H:%M:%S')
 
 # --- 3. LOGIK ---
 def get_weather_info(delta):
@@ -184,6 +184,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
