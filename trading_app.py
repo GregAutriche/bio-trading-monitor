@@ -106,43 +106,23 @@ datum_heute = datetime.now().strftime('%Y.%m.%d')
 def render_row(label, d, f_str="{:.2f}"):
     if not d: return
     # Spaltenaufteilung: Status 1, Status 2, Werte, Label
-    cols = st.columns([0.5, 0.5, 1.5, 2.0])
+    cols = st.columns([0.4, 0.4, 1.4, 2.0])
     
-    # Farblogik basierend auf dem Delta
-    if d['delta'] > 0:
-        status_color = "#00ff00" # Leuchtendes Grün
-    elif d['delta'] < -0.5:
-        status_color = "#ff4b4b" # Alarm-Rot
-    else:
-        status_color = "#aaaaaa" # Neutrales Grau
+    # Farblogik
+    s_color = "#00ff00" if d['delta'] > 0 else "#ff4b4b" if d['delta'] < -0.5 else "#aaaaaa"
+    status_style = f"display: flex; flex-direction: column; align-items: center; line-height: 1.1; color: {s_color};"
 
-    status_style = f"display: flex; flex-direction: column; align-items: center; justify-content: center; color: {status_color};"
-
-    with cols[0]: # Wetter-Status (z.B. SONNIG)
-        st.markdown(f"""
-            <div style='{status_style}'>
-                <span style='font-size: 20px;'>{d['w']}</span>
-                <span style='font-size: 10px; font-weight: bold; text-transform: uppercase;'>{d['wt']}</span>
-            </div>
-        """, unsafe_allow_html=True)
-        
-    with cols[1]: # Action-Status (z.B. BUY)
-        st.markdown(f"""
-            <div style='{status_style}'>
-                <span style='font-size: 16px;'>{d['a']}</span>
-                <span style='font-size: 10px; font-weight: bold; text-transform: uppercase;'>{d['at']}</span>
-            </div>
-        """, unsafe_allow_html=True)
-        
-    with cols[2]: # Preis & Delta
+    with cols[0]:
+        st.markdown(f"<div style='{status_style}'><span style='font-size: 18px;'>{d['w']}</span><span style='font-size: 9px; font-weight: bold;'>{d['wt']}</span></div>", unsafe_allow_html=True)
+    with cols[1]:
+        st.markdown(f"<div style='{status_style}'><span style='font-size: 14px;'>{d['a']}</span><span style='font-size: 9px; font-weight: bold;'>{d['at']}</span></div>", unsafe_allow_html=True)
+    with cols[2]: 
         st.metric(label="", value=f_str.format(d['price']), delta=f"{d['delta']:+.3f}%")
-        color_class = "pos-val" if d['diff'] >= 0 else "neg-val"
-        diff_fmt = f"{d['diff']:+.6f}" if "USD" in label or "/" in label else f"{d['diff']:+.4f}"
-        st.markdown(f"<p class='effektiver-wert'>Abs.: <span class='{color_class}'>{diff_fmt}</span></p>", unsafe_allow_html=True)
-        
-    with cols[3]: # Asset Name
-        st.markdown(f"<p class='product-label' style='margin-top: 10px;'>{label}</p>", unsafe_allow_html=True)
-
+        c_class = "pos-val" if d['diff'] >= 0 else "neg-val"
+        d_fmt = f"{d['diff']:+.6f}" if "USD" in label or "/" in label else f"{d['diff']:+.4f}"
+        st.markdown(f"<p class='effektiver-wert'>Abs: <span class='{c_class}'>{d_fmt}</span></p>", unsafe_allow_html=True)
+    with cols[3]: 
+        st.markdown(f"<p class='product-label'>{label}</p>", unsafe_allow_html=True)
     
 # --- HEADER ---
 h1, h2 = st.columns([2, 1])
@@ -223,6 +203,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
