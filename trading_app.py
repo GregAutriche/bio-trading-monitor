@@ -95,7 +95,8 @@ if diff != 0 or is_new:
         "Veränderung": f"{diff:+.4f}", 
         "Anteil %": f"{delta:+.3f}%"
                     })
-        except: pass
+        except: Exception: 
+            pass
     return results
 
 data = fetch_data()
@@ -207,6 +208,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
