@@ -200,7 +200,7 @@ with st.expander("💡 MARKT-KOMPASS + HANDLUNGSINFO 💡", expanded=False):
     """)
 
 # --- PROTOKOLL ---
-with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
+with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN 📊"):
     if st.session_state.history_log:
         df_log = pd.DataFrame(st.session_state.history_log).iloc[::-1]
         st.dataframe(
@@ -210,6 +210,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
