@@ -44,6 +44,8 @@ def get_weather_info(delta):
     else: return "⛈️", "GEWITTER", "🔴", "SELL"
 
 def fetch_data():
+               start = st.session_state.initial_values[label]
+               diff = curr - start
     symbols = {
         "EURUSD=X": "EUR/USD", "^GSPC": "S&P 500", "^STOXX50E": "EUROSTOXX 50",
         "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
@@ -171,6 +173,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
