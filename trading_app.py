@@ -62,53 +62,44 @@ def fetch_data():
     }
     results = {}
     aktuell = datetime.now() + timedelta(hours=1)
-    st.session_state.last_update = aktuell.strftime('%H:%M:%S')
-    current_time = datetime.now().strftime('%H:%M:%S')
+    current_time = aktuell.strftime('%H:%M:%S')
+    st.session_state.last_update = current_time
     
     for ticker, label in symbols.items():
-        try:
+        try: # Start des geschützten Bereichs
             t = yf.Ticker(ticker)
-            # Am Wochenende (heute: 15.02.2026) liefert period="2d" die Freitagsschlusskurse
-            df = t.history(period="2d") 
+            df = t.history(period="5d") 
             if not df.empty:
                 curr = df['Close'].iloc[-1]
                 
-                # Ersterfassung der Werte
                 is_new = False
                 if label not in st.session_state.initial_values:
                     st.session_state.initial_values[label] = curr
-                    is_new = True # Markierung für initialen Log-Eintrag
-                else:
-                    is_new = False
-                last_logged_price = next((log['Betrag'] for log in reversed(st.session_state.history_log) if log['Asset'] == label), None)
+                    is_new = True 
                 
                 start = st.session_state.initial_values[label]
                 diff = curr - start
                 delta = (diff / start) * 100 if start != 0 else 0
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
                 results[label] = {"price": curr, "delta": delta, "diff": diff, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt}
-
-if is_new or (last_logged_price is not None and float(last_logged_price) != float(curr)):
-    st.session_state.history_log.append({
-        "Status": a_icon,
-        "Zeit": current_time, 
-        "Asset": label, 
-        "Betrag": f"{curr:.4f}",
-        "Veränderung": f"{diff:+.4f}", 
-        "Anteil %": f"{delta:+.3f}%"
-    })
                 
-                if diff != 0 or is_new:
+                # --- PRÜFUNG: Nur bei Preisänderung loggen ---
+                last_logged_price = next((log['Betrag'] for log in reversed(st.session_state.history_log) if log['Asset'] == label), None)
+
+                if is_new or (last_logged_price is not None and float(last_logged_price) != float(curr)):
                     st.session_state.history_log.append({
-                        "Status": a_icon,  # Jetzt an erster Stelle
+                        "Status": a_icon,
                         "Zeit": current_time, 
                         "Asset": label, 
                         "Betrag": f"{curr:.4f}",
                         "Veränderung": f"{diff:+.4f}", 
                         "Anteil %": f"{delta:+.3f}%"
                     })
-        except: pass
+        except Exception: # DIESER TEIL MUSS NACH DEM LOGGING KOMMEN
+            pass 
+            
     return results
+
 
 data = fetch_data()
 now_display = datetime.now() - timedelta(hours=1)
@@ -223,6 +214,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN 📊"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
