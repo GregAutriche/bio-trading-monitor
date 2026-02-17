@@ -1,15 +1,15 @@
 import os
+import streamlit as st
+import yfinance as yf
+from datetime import datetime, timedelta
+import pandas as pd
+
 try:
     from streamlit_autorefresh import st_autorefresh
 except ImportError:
     os.system('pip install streamlit-autorefresh')
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=30000, key="datarefresh")
-
-import streamlit as st
-import yfinance as yf
-from datetime import datetime, timedelta
-import pandas as pd
 
 # --- 1. CONFIG & STYLING ---
 st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
@@ -218,6 +218,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
