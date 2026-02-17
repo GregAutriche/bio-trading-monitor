@@ -39,10 +39,20 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 2. SESSION STATE ---
+# Initialwerte für Assets
 if 'initial_values' not in st.session_state:
     st.session_state.initial_values = {}
+
+# Historie für das Protokoll
 if 'history_log' not in st.session_state:
-    st.session_state.last_update = datetime.now().strftime('%H:%M:%S')
+    st.session_state.history_log = []
+
+# Sitzungsstart (nur einmalig beim ersten Laden)
+if 'session_start' not in st.session_state:
+    st.session_state.session_start = datetime.now().strftime('%H:%M:%S')
+
+# Letztes Update (wird bei jedem Durchlauf aktualisiert)
+st.session_state.last_update = datetime.now().strftime('%H:%M:%S')
 
 # --- 3. LOGIK ---
 def get_weather_info(delta):
@@ -184,6 +194,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
