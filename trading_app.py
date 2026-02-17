@@ -87,7 +87,7 @@ def fetch_data():
                 
                 if diff != 0 or is_new:
                     st.session_state.history_log.append({
-                        "Status": a_icon,  # Das Icon (🟢/🔴) ersetzt die Zahl 65
+                        "Status": a_icon,  # Jetzt an erster Stelle
                         "Zeit": current_time, 
                         "Asset": label, 
                         "Betrag": f"{curr:.4f}",
@@ -206,4 +206,5 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
