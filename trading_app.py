@@ -17,24 +17,26 @@ st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
 st.markdown("""
     <style>
     .stApp { background-color: #000000; }
-    div[data-testid="stSlider"], .stSlider { display: none !important; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-
+    /* Reduziert den Abstand zwischen Streamlit-Elementen */
+    .block-container { padding-top: 1rem; padding-bottom: 0rem; }
+    div[data-testid="stVerticalBlock"] > div { margin-top: -10px; margin-bottom: -10px; }
+    
+    /* Kompakteres Metric-Design */
+    [data-testid="stMetricValue"] { font-size: 20px !important; color: #ffffff !important; line-height: 1; }
+    [data-testid="stMetricDelta"] { font-size: 14px !important; }
+    [data-testid="stMetric"] { padding: 0px !important; }
+    
     h1, h2, h3, p, span, label, div {
         color: #e0e0e0 !important;
         font-family: 'Courier New', Courier, monospace;
     }
-    [data-testid="stMetricValue"] { font-size: 24px !important; color: #ffffff !important; }
-    [data-testid="stMetricDelta"] { font-size: 16px !important; }
-    .effektiver-wert { font-size: 14px; color: #aaaaaa; margin-top: -15px; font-weight: bold; }
-    .product-label { font-size: 20px !important; font-weight: bold; color: #00ff00 !important; margin-left: -20px; }
-    .focus-header { color: #888888 !important; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #444; }
+    .effektiver-wert { font-size: 11px; color: #aaaaaa; margin-top: -18px; font-weight: bold; }
+    .product-label { font-size: 18px !important; font-weight: bold; color: #00ff00 !important; margin-top: 5px; }
+    .focus-header { color: #888888 !important; font-weight: bold; margin-bottom: 2px; border-bottom: 1px solid #333; font-size: 14px; }
     
-    .pos-val { color: #00ff00; font-weight: bold; }
-    .neg-val { color: #ff4b4b; font-weight: bold; }
-    hr { border-top: 1px solid #444; margin: 15px 0; }
+    .pos-val { color: #00ff00; }
+    .neg-val { color: #ff4b4b; }
+    hr { border-top: 1px solid #333; margin: 5px 0; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -203,6 +205,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
