@@ -207,10 +207,10 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
             df_log, 
             hide_index=True, 
             use_container_width=True)
-        st.table(pd.DataFrame(st.session_state.history_log).iloc[::-1].head(15))
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
