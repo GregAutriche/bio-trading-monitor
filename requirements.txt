@@ -1,6 +1,6 @@
 streamlit>=1.31.0
+streamlit-autorefresh
 plotly
 pandas
 yfinance
 altair>=5.0.0
-
