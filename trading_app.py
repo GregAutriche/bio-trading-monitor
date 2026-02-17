@@ -171,10 +171,3 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
-                start = st.session_state.initial_values[label]
-                diff = curr - start
-                delta = (diff / start) * 100 if start != 0 else 0
-
-
-
-
