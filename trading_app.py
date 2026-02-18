@@ -58,7 +58,6 @@ def get_weather_info(delta):
     else: return "⛈️", "GEWITTER", "🔴", "SELL"
 
 def fetch_data():
-    # Erweiterte Liste um Währung und Indizes
     symbols = {
         "EURUSD=X": "EUR/USD", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ",
         "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", 
@@ -79,9 +78,14 @@ def fetch_data():
                 prev_high = df['High'].iloc[-2]
                 is_breakout = curr > prev_high
                 
+                # Alarm nur für Aktien, nicht für FX/Indizes
                 if is_breakout and label not in st.session_state.triggered_breakouts and "X" not in ticker and "^" not in ticker:
                     st.session_state.triggered_breakouts.add(label)
-                    st.session_state.breakout_history.append({"Zeit": st.session_state.last_update, "Aktie": label, "Preis": f"{curr:.2f}"})
+                    st.session_state.breakout_history.append({
+                        "Zeit": st.session_state.last_update, 
+                        "Aktie": label, 
+                        "Preis": f"{curr:.2f}"
+                    })
                     play_alarm()
                     st.toast(f"🚀 BREAKOUT: {label}!", icon="🔔")
 
@@ -132,6 +136,21 @@ with head_cols[1]:
 if data:
     b_count = sum(1 for k, v in data.items() if v['is_breakout'] and k not in ["EUR/USD", "EUROSTOXX 50", "NASDAQ"])
     st.markdown(f"<div class='stat-box'><span style='font-size: 20px;'>Signale: <b style='color:#00ff00;'>{b_count} von 14</b> Aktien im Breakout</span></div>", unsafe_allow_html=True)
+
+# 1. EXPANDER: HISTORIE
+with st.expander("🕒 SESSION BREAKOUT LOG (HISTORIE HEUTE)", expanded=False):
+    if st.session_state.breakout_history:
+        st.table(pd.DataFrame(st.session_state.breakout_history[::-1]))
+    else:
+        st.info("Noch keine Breakouts in dieser Sitzung erfasst.")
+
+# 2. EXPANDER: ERKLÄRUNGEN
+with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**Markt-Wetter:**\n- ☀️ SONNIG (>+0.5%)\n- ☁️ WOLKIG (Neutral)\n- ⛈️ GEWITTER (<-0.5%)")
+    with c2:
+        st.markdown("**Signale:**\n- 🚀 BREAKOUT: Über Vortages-Hoch\n- 🟢 BUY: Aktiver Trend\n- ⚪ WAIT: Unter Widerstand")
 
 # MACO FOCUS
 st.markdown("<p class='focus-header'>🌍 GLOBAL MACRO FOCUS</p>", unsafe_allow_html=True)
