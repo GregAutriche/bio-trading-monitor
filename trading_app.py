@@ -4,6 +4,14 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import pandas as pd
 
+def play_alarm():
+    audio_html = """
+        <audio autoplay style="display:none;">
+            <source src="https://assets.mixkit.co" type="audio/mpeg">
+        </audio>
+    """
+    st.markdown(audio_html, unsafe_allow_html=True)
+
 try:
     from streamlit_autorefresh import st_autorefresh
 except ImportError:
@@ -34,6 +42,9 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 2. SESSION STATE ---
+if 'triggered_breakouts' not in st.session_state:
+    st.session_state.triggered_breakouts = set()
+
 if 'initial_values' not in st.session_state:
     st.session_state.initial_values = {}
 
@@ -55,10 +66,12 @@ def get_weather_info(delta):
     else: return "⛈️", "GEWITTER", "🔴", "SELL"
 
 def fetch_data():
+    # Liste deiner 14 ausgewählten Aktien
     symbols = {
-        "EURUSD=X": "EUR/USD", "^GSPC": "S&P 500", "^STOXX50E": "EUROSTOXX 50",
-        "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
-        "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "SIE.DE": "SIEMENS", "TTE.PA": "TOTALENERGIES", "ALV.DE": "ALLIANZ", "OR.PA": "L'OREAL"
+        "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", 
+        "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
+        "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "NOVO-B.CO": "NOVO NORDISK", 
+        "OR.PA": "L'OREAL", "ROG.SW": "ROCHE", "NESN.SW": "NESTLE"
     }
     results = {}
     aktuell = datetime.now() + timedelta(hours=1)
@@ -66,41 +79,33 @@ def fetch_data():
     st.session_state.last_update = current_time
     
     for ticker, label in symbols.items():
-        try: # --- START DES GESCHÜTZTEN BEREICHS ---
+        try:
             t = yf.Ticker(ticker)
             df = t.history(period="5d") 
-            if not df.empty:
+            if len(df) >= 2:
                 curr = df['Close'].iloc[-1]
+                prev_high = df['High'].iloc[-2] # Das Hoch von gestern
+                is_breakout = curr > prev_high
                 
-                is_new = False
+                # --- ALARM AUSLÖSEN ---
+                if is_breakout and label not in st.session_state.triggered_breakouts:
+                    st.session_state.triggered_breakouts.add(label)
+                    play_alarm()
+                    st.toast(f"🚀 BREAKOUT: {label} über Vortageshoch!", icon="🔔")
+
                 if label not in st.session_state.initial_values:
                     st.session_state.initial_values[label] = curr
-                    is_new = True 
                 
                 start = st.session_state.initial_values[label]
-                diff = curr - start
-                delta = (diff / start) * 100 if start != 0 else 0
+                delta = ((curr - start) / start) * 100 if start != 0 else 0
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
-                results[label] = {"price": curr, "delta": delta, "diff": diff, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt}
                 
-                # --- LOGIK: Nur bei Preisänderung loggen ---
-                # Suche den letzten Eintrag für dieses Asset im Log
-                last_entry = next((log for log in reversed(st.session_state.history_log) if log['Asset'] == label), None)
-
-                # Nur loggen wenn neu oder Preisänderung > 0.0000001
-                if is_new or (last_entry is not None and abs(float(last_entry['Betrag']) - float(curr)) > 1e-7):
-                    st.session_state.history_log.append({
-                        "Status": a_icon,
-                        "Zeit": current_time, 
-                        "Asset": label, 
-                        "Betrag": f"{curr:.4f}",
-                        "Veränderung": f"{diff:+.4f}", 
-                        "Anteil %": f"{delta:+.3f}%"
-                    })
-        except Exception: # --- DIESER ABSCHLUSS IST ZWINGEND ERFORDERLICH ---
-            pass 
-            
-    return results
+                results[label] = {
+                    "price": curr, "prev_high": prev_high, "is_breakout": is_breakout,
+                    "delta": delta, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt
+                }
+        except: pass
+     return results
 
 data = fetch_data()
 now_display = datetime.now() - timedelta(hours=1)
@@ -108,26 +113,30 @@ datum_heute = datetime.now().strftime('%Y.%m.%d')
 
 def render_row(label, d, f_str="{:.2f}"):
     if not d: return
-    # Container für die gesamte Zeile mit festem Abstand nach oben
     with st.container():
-        cols = st.columns([0.5, 0.5, 1.5, 2.0])
+        cols = st.columns([0.5, 0.5, 1.5, 1.5, 1.0]) # Spalten leicht angepasst
         
-        # Farblogik
-        s_color = "#00ff00" if d['delta'] > 0 else "#ff4b4b" if d['delta'] < -0.5 else "#aaaaaa"
-        status_style = f"display: flex; flex-direction: column; align-items: center; justify-content: center; color: {s_color}; line-height: 1.2;"
-
+        # Wetter & Signal (wie gehabt)
         with cols[0]:
-            st.markdown(f"<div style='{status_style} padding-top: 5px;'><span style='font-size: 20px;'>{d['w']}</span><span style='font-size: 9px; font-weight: bold;'>{d['wt']}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='text-align:center;'><span style='font-size:20px;'>{d['w']}</span></div>", unsafe_allow_html=True)
         with cols[1]:
-            st.markdown(f"<div style='{status_style} padding-top: 5px;'><span style='font-size: 16px;'>{d['a']}</span><span style='font-size: 9px; font-weight: bold;'>{d['at']}</span></div>", unsafe_allow_html=True)
-        with cols[2]: 
-            # Metric ohne Label, um Platz zu sparen
+            st.markdown(f"<div style='text-align:center;'><span style='font-size:16px;'>{d['a']}</span></div>", unsafe_allow_html=True)
+            
+        # Preis & Delta
+        with cols[2]:
             st.metric(label="", value=f_str.format(d['price']), delta=f"{d['delta']:+.3f}%")
-            c_class = "pos-val" if d['diff'] >= 0 else "neg-val"
-            d_fmt = f"{d['diff']:+.6f}" if "USD" in label or "/" in label else f"{d['diff']:+.4f}"
-            st.markdown(f"<p class='effektiver-wert' style='margin-top: -15px;'>Abs: <span class='{c_class}'>{d_fmt}</span></p>", unsafe_allow_html=True)
-        with cols[3]: 
-            st.markdown(f"<p class='product-label' style='margin-top: 12px;'>{label}</p>", unsafe_allow_html=True)
+            
+        # NEU: BREAKOUT STATUS
+        with cols[3]:
+            if d['is_breakout']:
+                st.markdown(f"<div style='background-color:#003300; border:1px solid #00ff00; padding:5px; border-radius:5px; text-align:center;'><span style='color:#00ff00; font-size:12px; font-weight:bold;'>🚀 BREAKOUT</span><br><span style='font-size:10px;'>High: {d['prev_high']:.2f}</span></div>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<div style='padding:5px; text-align:center;'><span style='color:#444; font-size:12px;'>Under High</span><br><span style='font-size:10px; color:#666;'>{d['prev_high']:.2f}</span></div>", unsafe_allow_html=True)
+        
+        # Label
+        with cols[4]:
+            st.markdown(f"<p class='product-label' style='margin-top:12px;'>{label}</p>", unsafe_allow_html=True)
+
     
     # Erzeugt eine saubere Trennlinie nach jeder Reihe
     st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
@@ -215,6 +224,7 @@ with st.expander("📊 PROTOKOLL DER VERÄNDERUNGEN 📊"):
 
 with st.sidebar:
     if st.button("🔄 MANUAL REFRESH"): st.rerun()
+
 
 
 
