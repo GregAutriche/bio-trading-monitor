@@ -127,7 +127,7 @@ data = fetch_data()
 # HEADER
 head_cols = st.columns([2, 1])
 with head_cols[0]:
-    st.markdown("<h1>📡 BREAKOUT TERMINAL 📡</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>📡 BREAKOUT 📡</h1>", unsafe_allow_html=True)
     st.markdown(f"<p style='color:#888; margin-top:-15px;'>Sitzungsbeginn: {st.session_state.session_start}</p>", unsafe_allow_html=True)
 with head_cols[1]:
     st.markdown(f"<div style='text-align:right;'><span class='header-time'>{st.session_state.last_update}</span></div>", unsafe_allow_html=True)
@@ -166,3 +166,4 @@ for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
 st.markdown("<p class='focus-header'>🇺🇸 US TECH FOCUS (MAGNIFICENT 7)</p>", unsafe_allow_html=True)
 for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
     render_row(u, data.get(u))
+
