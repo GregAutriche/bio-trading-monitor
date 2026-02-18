@@ -35,8 +35,9 @@ st.markdown("""
     [data-testid="stMetricDelta"] { font-size: 14px !important; }
     .product-label { font-size: 18px !important; font-weight: bold; color: #00ff00 !important; margin: 0; }
     .focus-header { color: #888888 !important; font-weight: bold; margin-top: 20px; border-bottom: 1px solid #444; padding-bottom: 5px; }
-    .stat-box { background-color: #111; padding: 15px; border-radius: 10px; border: 1px solid #333; text-align: center; margin-bottom: 20px; }
+    .stat-box { background-color: #111; padding: 15px; border-radius: 10px; border: 1px solid #333; text-align: center; margin-bottom: 10px; }
     .header-time { color: #00ff00 !important; font-size: 32px !important; font-weight: bold; }
+    .info-text { font-size: 13px; color: #aaaaaa; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -116,7 +117,7 @@ def render_row(label, d):
 # --- 4. DISPLAY ---
 data = fetch_data()
 
-# HEADER (Wie im Bild gewünscht)
+# HEADER
 head_cols = st.columns([2, 1])
 with head_cols[0]:
     st.markdown("<h1>📡 BREAKOUT TERMINAL 📡</h1>", unsafe_allow_html=True)
@@ -124,15 +125,23 @@ with head_cols[0]:
 with head_cols[1]:
     st.markdown(f"<div style='text-align:right;'><span class='header-time'>{st.session_state.last_update}</span><br><span style='color:#888;'>Letztes Update</span></div>", unsafe_allow_html=True)
 
-# STATISTIK-ZEILE
+# STATISTIK & EXPANDER
 if data:
     b_count = sum(1 for d in data.values() if d['is_breakout'])
-    st.markdown(f"""
-        <div class='stat-box'>
-            <span style='font-size: 20px;'>Aktueller Markt-Status: 
-            <b style='color:#00ff00; font-size: 26px;'>{b_count} von {len(data)}</b> Aktien im sicheren Breakout</span>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"<div class='stat-box'><span style='font-size: 20px;'>Signale: <b style='color:#00ff00;'>{b_count} von {len(data)}</b> im Breakout</span></div>", unsafe_allow_html=True)
+
+with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Markt-Wetter (Seit Eröffnung):**")
+        st.markdown("- ☀️ **SONNIG:** Starker Aufwärtstrend (> +0.5%)")
+        st.markdown("- ☁️ **WOLKIG:** Neutrale Seitwärtsphase")
+        st.markdown("- ⛈️ **GEWITTER:** Starker Verkaufsdruck (< -0.5%)")
+    with col2:
+        st.markdown("**Handlungssignale:**")
+        st.markdown("- 🚀 **BREAKOUT (Grüne Linie):** Kurs über Vortageshoch. **Sicherer Einstieg möglich.**")
+        st.markdown("- ⚪ **WAIT (Graue Linie):** Kurs unter Vortageshoch. **Beobachten / Abwarten.**")
+        st.markdown("- 🔴 **SELL:** Technischer Indikator rät zum Ausstieg.")
 
 # SEKTIONEN
 st.markdown("<p class='focus-header'>🇪🇺 EUROPA FOCUS (GRANOLAS)</p>", unsafe_allow_html=True)
