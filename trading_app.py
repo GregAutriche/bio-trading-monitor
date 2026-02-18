@@ -14,7 +14,6 @@ except ImportError:
 st_autorefresh(interval=30000, key="datarefresh")
 
 def play_alarm():
-    # Korrigierter Sound-Link für den Breakout-Ping
     audio_html = """
         <audio autoplay style="display:none;">
             <source src="https://assets.mixkit.co" type="audio/mpeg">
@@ -36,7 +35,8 @@ st.markdown("""
     [data-testid="stMetricDelta"] { font-size: 14px !important; }
     .product-label { font-size: 18px !important; font-weight: bold; color: #00ff00 !important; margin: 0; }
     .focus-header { color: #888888 !important; font-weight: bold; margin-top: 20px; border-bottom: 1px solid #444; padding-bottom: 5px; }
-    .stat-box { background-color: #111; padding: 15px; border-radius: 10px; border: 1px solid #333; text-align: center; }
+    .stat-box { background-color: #111; padding: 15px; border-radius: 10px; border: 1px solid #333; text-align: center; margin-bottom: 20px; }
+    .header-time { color: #00ff00 !important; font-size: 32px !important; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -83,7 +83,8 @@ def fetch_data():
                 if label not in st.session_state.initial_values:
                     st.session_state.initial_values[label] = curr
                 
-                delta = ((curr - st.session_state.initial_values[label]) / st.session_state.initial_values[label]) * 100
+                diff = curr - st.session_state.initial_values[label]
+                delta = (diff / st.session_state.initial_values[label]) * 100 if st.session_state.initial_values[label] != 0 else 0
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
                 
                 results[label] = {
@@ -115,28 +116,29 @@ def render_row(label, d):
 # --- 4. DISPLAY ---
 data = fetch_data()
 
-# HEADER
-h1, h2 = st.columns([2, 1])
-with h1: st.title("📡 BREAKOUT TERMINAL 📡")
-with h2: st.markdown(f"<div style='text-align:right;'><h2 style='color:#00ff00;'>{st.session_state.last_update}</h2></div>", unsafe_allow_html=True)
+# HEADER (Wie im Bild gewünscht)
+head_cols = st.columns([2, 1])
+with head_cols[0]:
+    st.markdown("<h1>📡 BREAKOUT TERMINAL 📡</h1>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color:#888; margin-top:-15px;'>Sitzungsbeginn: {st.session_state.session_start}</p>", unsafe_allow_html=True)
+with head_cols[1]:
+    st.markdown(f"<div style='text-align:right;'><span class='header-time'>{st.session_state.last_update}</span><br><span style='color:#888;'>Letztes Update</span></div>", unsafe_allow_html=True)
 
-# NEU: STATISTIK-ZEILE
+# STATISTIK-ZEILE
 if data:
-    breakout_count = sum(1 for d in data.values() if d['is_breakout'])
-    total_count = len(data)
-    color = "#00ff00" if breakout_count > 0 else "#888"
+    b_count = sum(1 for d in data.values() if d['is_breakout'])
     st.markdown(f"""
         <div class='stat-box'>
-            <span style='font-size: 18px;'>Aktuelle Signale: 
-            <b style='color:{color}; font-size: 24px;'>{breakout_count} von {total_count}</b> Aktien im Breakout</span>
+            <span style='font-size: 20px;'>Aktueller Markt-Status: 
+            <b style='color:#00ff00; font-size: 26px;'>{b_count} von {len(data)}</b> Aktien im sicheren Breakout</span>
         </div>
     """, unsafe_allow_html=True)
 
 # SEKTIONEN
-st.markdown("<p class='focus-header'>🇪🇺 EUROPA FOCUS</p>", unsafe_allow_html=True)
+st.markdown("<p class='focus-header'>🇪🇺 EUROPA FOCUS (GRANOLAS)</p>", unsafe_allow_html=True)
 for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
     render_row(e, data.get(e))
 
-st.markdown("<p class='focus-header'>🇺🇸 US TECH FOCUS</p>", unsafe_allow_html=True)
+st.markdown("<p class='focus-header'>🇺🇸 US TECH FOCUS (MAGNIFICENT 7)</p>", unsafe_allow_html=True)
 for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
     render_row(u, data.get(u))
