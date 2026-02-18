@@ -11,9 +11,11 @@ except ImportError:
     os.system('pip install streamlit-autorefresh')
     from streamlit_autorefresh import st_autorefresh
 
+# Aktualisiert alle 30 Sekunden
 st_autorefresh(interval=30000, key="datarefresh")
 
 def play_alarm():
+    # Akustisches Signal bei Breakout
     audio_html = """
         <audio autoplay style="display:none;">
             <source src="https://assets.mixkit.co" type="audio/mpeg">
@@ -34,10 +36,9 @@ st.markdown("""
     [data-testid="stMetricValue"] { font-size: 22px !important; color: #ffffff !important; }
     [data-testid="stMetricDelta"] { font-size: 14px !important; }
     .product-label { font-size: 18px !important; font-weight: bold; color: #00ff00 !important; margin: 0; }
-    .focus-header { color: #888888 !important; font-weight: bold; margin-top: 20px; border-bottom: 1px solid #444; padding-bottom: 5px; }
-    .stat-box { background-color: #111; padding: 15px; border-radius: 10px; border: 1px solid #333; text-align: center; margin-bottom: 10px; }
+    .focus-header { color: #888888 !important; font-weight: bold; margin-top: 25px; border-bottom: 1px solid #444; padding-bottom: 5px; }
+    .stat-box { background-color: #111; padding: 15px; border-radius: 10px; border: 1px solid #333; text-align: center; margin-bottom: 15px; }
     .header-time { color: #00ff00 !important; font-size: 32px !important; font-weight: bold; }
-    .info-text { font-size: 13px; color: #aaaaaa; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -46,6 +47,8 @@ if 'initial_values' not in st.session_state:
     st.session_state.initial_values = {}
 if 'triggered_breakouts' not in st.session_state:
     st.session_state.triggered_breakouts = set()
+if 'breakout_history' not in st.session_state:
+    st.session_state.breakout_history = []
 if 'session_start' not in st.session_state:
     st.session_state.session_start = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
 
@@ -76,8 +79,15 @@ def fetch_data():
                 prev_high = df['High'].iloc[-2]
                 is_breakout = curr > prev_high
                 
+                # Wenn Breakout neu erkannt wird
                 if is_breakout and label not in st.session_state.triggered_breakouts:
                     st.session_state.triggered_breakouts.add(label)
+                    st.session_state.breakout_history.append({
+                        "Zeit": st.session_state.last_update,
+                        "Aktie": label,
+                        "Preis": f"{curr:.2f}",
+                        "Vortages-High": f"{prev_high:.2f}"
+                    })
                     play_alarm()
                     st.toast(f"🚀 BREAKOUT: {label}!", icon="🔔")
 
@@ -125,11 +135,12 @@ with head_cols[0]:
 with head_cols[1]:
     st.markdown(f"<div style='text-align:right;'><span class='header-time'>{st.session_state.last_update}</span><br><span style='color:#888;'>Letztes Update</span></div>", unsafe_allow_html=True)
 
-# STATISTIK & EXPANDER
+# STATISTIK & HISTORIE
 if data:
     b_count = sum(1 for d in data.values() if d['is_breakout'])
-    st.markdown(f"<div class='stat-box'><span style='font-size: 20px;'>Signale: <b style='color:#00ff00;'>{b_count} von {len(data)}</b> im Breakout</span></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='stat-box'><span style='font-size: 20px;'>Aktuelle Signale: <b style='color:#00ff00;'>{b_count} von {len(data)}</b> im Breakout</span></div>", unsafe_allow_html=True)
 
+# EXPANDER 1: Erklärungen
 with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
     col1, col2 = st.columns(2)
     with col1:
@@ -139,9 +150,16 @@ with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
         st.markdown("- ⛈️ **GEWITTER:** Starker Verkaufsdruck (< -0.5%)")
     with col2:
         st.markdown("**Handlungssignale:**")
-        st.markdown("- 🚀 **BREAKOUT (Grüne Linie):** Kurs über Vortageshoch. **Sicherer Einstieg möglich.**")
-        st.markdown("- ⚪ **WAIT (Graue Linie):** Kurs unter Vortageshoch. **Beobachten / Abwarten.**")
-        st.markdown("- 🔴 **SELL:** Technischer Indikator rät zum Ausstieg.")
+        st.markdown("- 🚀 **BREAKOUT (Grüne Linie):** Kurs über Vortageshoch. **Kaufchance.**")
+        st.markdown("- ⚪ **WAIT (Graue Linie):** Kurs unter Vortageshoch. **Abwarten.**")
+
+# EXPANDER 2: Sitzungs-Historie
+with st.expander("🕒 SESSION BREAKOUT LOG (HISTORIE HEUTE)", expanded=False):
+    if st.session_state.breakout_history:
+        df_hist = pd.DataFrame(st.session_state.breakout_history[::-1])
+        st.table(df_hist)
+    else:
+        st.info("Noch keine Breakouts in dieser Sitzung erfasst.")
 
 # SEKTIONEN
 st.markdown("<p class='focus-header'>🇪🇺 EUROPA FOCUS (GRANOLAS)</p>", unsafe_allow_html=True)
