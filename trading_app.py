@@ -11,11 +11,9 @@ except ImportError:
     os.system('pip install streamlit-autorefresh')
     from streamlit_autorefresh import st_autorefresh
 
-# Aktualisiert alle 30 Sekunden
 st_autorefresh(interval=30000, key="datarefresh")
 
 def play_alarm():
-    # Akustisches Signal bei Breakout
     audio_html = """
         <audio autoplay style="display:none;">
             <source src="https://assets.mixkit.co" type="audio/mpeg">
@@ -60,7 +58,9 @@ def get_weather_info(delta):
     else: return "⛈️", "GEWITTER", "🔴", "SELL"
 
 def fetch_data():
+    # Erweiterte Liste um Währung und Indizes
     symbols = {
+        "EURUSD=X": "EUR/USD", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ",
         "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", 
         "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
         "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "NOVO-B.CO": "NOVO NORDISK", 
@@ -79,23 +79,16 @@ def fetch_data():
                 prev_high = df['High'].iloc[-2]
                 is_breakout = curr > prev_high
                 
-                # Wenn Breakout neu erkannt wird
-                if is_breakout and label not in st.session_state.triggered_breakouts:
+                if is_breakout and label not in st.session_state.triggered_breakouts and "X" not in ticker and "^" not in ticker:
                     st.session_state.triggered_breakouts.add(label)
-                    st.session_state.breakout_history.append({
-                        "Zeit": st.session_state.last_update,
-                        "Aktie": label,
-                        "Preis": f"{curr:.2f}",
-                        "Vortages-High": f"{prev_high:.2f}"
-                    })
+                    st.session_state.breakout_history.append({"Zeit": st.session_state.last_update, "Aktie": label, "Preis": f"{curr:.2f}"})
                     play_alarm()
                     st.toast(f"🚀 BREAKOUT: {label}!", icon="🔔")
 
                 if label not in st.session_state.initial_values:
                     st.session_state.initial_values[label] = curr
                 
-                diff = curr - st.session_state.initial_values[label]
-                delta = (diff / st.session_state.initial_values[label]) * 100 if st.session_state.initial_values[label] != 0 else 0
+                delta = ((curr - st.session_state.initial_values[label]) / st.session_state.initial_values[label]) * 100
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
                 
                 results[label] = {
@@ -105,7 +98,7 @@ def fetch_data():
         except: pass
     return results
 
-def render_row(label, d):
+def render_row(label, d, f_str="{:.2f}"):
     if not d: return
     bg_color = "rgba(0, 255, 0, 0.08)" if d['is_breakout'] else "transparent"
     border_col = "#00ff00" if d['is_breakout'] else "#333"
@@ -115,12 +108,12 @@ def render_row(label, d):
         cols = st.columns([0.6, 0.6, 1.2, 1.4, 1.4])
         with cols[0]: st.markdown(f"<div style='text-align:center;'>{d['w']}<br><span style='font-size:9px;'>{d['wt']}</span></div>", unsafe_allow_html=True)
         with cols[1]: st.markdown(f"<div style='text-align:center;'>{d['a']}<br><span style='font-size:9px;'>{d['at']}</span></div>", unsafe_allow_html=True)
-        with cols[2]: st.metric("", f"{d['price']:.2f}", f"{d['delta']:+.3f}%")
+        with cols[2]: st.metric("", f_str.format(d['price']), f"{d['delta']:+.3f}%")
         with cols[3]:
             if d['is_breakout']:
-                st.markdown(f"<span style='color:#00ff00; font-weight:bold; font-size:15px;'>🚀 BREAKOUT</span><br><span style='font-size:10px;'>High: {d['prev_high']:.2f}</span>", unsafe_allow_html=True)
+                st.markdown(f"<span style='color:#00ff00; font-weight:bold;'>🚀 BREAKOUT</span><br><span style='font-size:10px;'>High: {d['prev_high']:.4f}</span>", unsafe_allow_html=True)
             else:
-                st.markdown(f"<span style='color:#666;'>Under High</span><br><span style='font-size:10px;'>Target: {d['prev_high']:.2f}</span>", unsafe_allow_html=True)
+                st.markdown(f"<span style='color:#666;'>Under High</span><br><span style='font-size:10px;'>Target: {d['prev_high']:.4f}</span>", unsafe_allow_html=True)
         with cols[4]: st.markdown(f"<p class='product-label'>{label}</p>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -133,35 +126,20 @@ with head_cols[0]:
     st.markdown("<h1>📡 BREAKOUT TERMINAL 📡</h1>", unsafe_allow_html=True)
     st.markdown(f"<p style='color:#888; margin-top:-15px;'>Sitzungsbeginn: {st.session_state.session_start}</p>", unsafe_allow_html=True)
 with head_cols[1]:
-    st.markdown(f"<div style='text-align:right;'><span class='header-time'>{st.session_state.last_update}</span><br><span style='color:#888;'>Letztes Update</span></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align:right;'><span class='header-time'>{st.session_state.last_update}</span></div>", unsafe_allow_html=True)
 
-# STATISTIK & HISTORIE
+# STATISTIK
 if data:
-    b_count = sum(1 for d in data.values() if d['is_breakout'])
-    st.markdown(f"<div class='stat-box'><span style='font-size: 20px;'>Aktuelle Signale: <b style='color:#00ff00;'>{b_count} von {len(data)}</b> im Breakout</span></div>", unsafe_allow_html=True)
+    b_count = sum(1 for k, v in data.items() if v['is_breakout'] and k not in ["EUR/USD", "EUROSTOXX 50", "NASDAQ"])
+    st.markdown(f"<div class='stat-box'><span style='font-size: 20px;'>Signale: <b style='color:#00ff00;'>{b_count} von 14</b> Aktien im Breakout</span></div>", unsafe_allow_html=True)
 
-# EXPANDER 1: Erklärungen
-with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("**Markt-Wetter (Seit Eröffnung):**")
-        st.markdown("- ☀️ **SONNIG:** Starker Aufwärtstrend (> +0.5%)")
-        st.markdown("- ☁️ **WOLKIG:** Neutrale Seitwärtsphase")
-        st.markdown("- ⛈️ **GEWITTER:** Starker Verkaufsdruck (< -0.5%)")
-    with col2:
-        st.markdown("**Handlungssignale:**")
-        st.markdown("- 🚀 **BREAKOUT (Grüne Linie):** Kurs über Vortageshoch. **Kaufchance.**")
-        st.markdown("- ⚪ **WAIT (Graue Linie):** Kurs unter Vortageshoch. **Abwarten.**")
+# MACO FOCUS
+st.markdown("<p class='focus-header'>🌍 GLOBAL MACRO FOCUS</p>", unsafe_allow_html=True)
+render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
+render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
+render_row("NASDAQ", data.get("NASDAQ"))
 
-# EXPANDER 2: Sitzungs-Historie
-with st.expander("🕒 SESSION BREAKOUT LOG (HISTORIE HEUTE)", expanded=False):
-    if st.session_state.breakout_history:
-        df_hist = pd.DataFrame(st.session_state.breakout_history[::-1])
-        st.table(df_hist)
-    else:
-        st.info("Noch keine Breakouts in dieser Sitzung erfasst.")
-
-# SEKTIONEN
+# AKTIEN SEKTIONEN
 st.markdown("<p class='focus-header'>🇪🇺 EUROPA FOCUS (GRANOLAS)</p>", unsafe_allow_html=True)
 for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
     render_row(e, data.get(e))
