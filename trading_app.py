@@ -105,36 +105,30 @@ def fetch_data():
 
 def render_row(label, d, f_str="{:.2f}"):
     if not d: return
-    status_color = "#00ff00" if d['is_breakout'] else "#555"
-    border_col = "#00ff00" if d['is_breakout'] else "#222"
-    bg_color = "rgba(0, 255, 0, 0.04)" if d['is_breakout'] else "transparent"
     
-with st.container():
-        # Äußere Box
-    st.markdown(f"""
-            <div style='background-color: {bg_color}; padding: 8px 12px; border-radius: 8px; border: 1px solid {border_col}; margin-bottom: 10px;'>
-                <div style='color: #00ff00; font-size: 16px; font-weight: bold; margin-bottom: 4px;'>{label}</div>
+    # 1. VARIABLE DEFINIEREN (Das hat gefehlt!)
+    bg_color = "rgba(0, 255, 0, 0.04)" if d['is_breakout'] else "transparent"
+    border_col = "#00ff00" if d['is_breakout'] else "#222"
+    status_color = "#00ff00" if d['is_breakout'] else "#555"
+    
+    with st.container():
+        # 2. ÜBERSCHRIFT BOX
+        st.markdown(f"""
+            <div style='background-color: {bg_color}; padding: 8px 12px; border-radius: 8px; border: 1px solid {border_col}; margin-bottom: 2px;'>
+                <div style='color: #00ff00; font-size: 14px; font-weight: bold;'>{label}</div>
             </div>
             """, unsafe_allow_html=True)
         
-# Die Werte-Zeile direkt unter dem Label (innerhalb des Containers)
-    cols = st.columns([0.3, 0.3, 1.2, 1.2]) 
+        # 3. WERTE ZEILE (Achte auf die Einrückung - bündig mit st.markdown)
+        cols = st.columns([0.4, 0.4, 1.2, 1.2]) 
         
-    with cols[0]: 
-            st.markdown(f"<div style='text-align:center;'>{d['w']}<br><span style='font-size:8px;'>{d['wt']}</span></div>", unsafe_allow_html=True)
-    with cols[1]: 
-            st.markdown(f"<div style='text-align:center;'>{d['a']}<br><span style='font-size:8px;'>{d['at']}</span></div>", unsafe_allow_html=True)
-    with cols[2]: 
-            st.metric("", f_str.format(d['price']), f"{d['delta']:+.3f}%")
-    with cols[3]:
-            status_text = "🚀 BREAKOUT" if d['is_breakout'] else "Under High"
-            st.markdown(f"""
-                <div style='line-height:1.1;'>
-                    <span style='color:{status_color}; font-size:11px; font-weight:bold;'>{status_text}</span><br>
-                    <span style='font-size:10px; color:#888;'>Target: {d['prev_high']:.4f}</span>
-                </div>
-                """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+        with cols[0]: st.markdown(f"<div style='text-align:center;'>{d['w']}<br><span style='font-size:8px;'>{d['wt']}</span></div>", unsafe_allow_html=True)
+        with cols[1]: st.markdown(f"<div style='text-align:center;'>{d['a']}<br><span style='font-size:8px;'>{d['at']}</span></div>", unsafe_allow_html=True)
+        with cols[2]: st.metric("", f_str.format(d['price']), f"{d['delta']:+.3f}%")
+        with cols[3]:
+            status_text = "🚀" if d['is_breakout'] else "Wait"
+            st.markdown(f"<div style='line-height:1.1;'><span style='color:{status_color}; font-size:10px; font-weight:bold;'>{status_text}</span><br><span style='font-size:9px; color:#888;'>Target: {d['prev_high']:.4f}</span></div>", unsafe_allow_html=True)
+
 
 # --- 4. DISPLAY ---
 data = fetch_data()
@@ -187,6 +181,7 @@ with st.expander("🇪🇺 EUROPA FOCUS (GRANOLAS / TOP 7)", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS (MAGNIFICENT 7)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
