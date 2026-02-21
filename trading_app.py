@@ -137,9 +137,6 @@ def render_row(label, d, f_str="{:.2f}"):
         with cols[1]: 
             # Signal-Icon auf 32px vergrößert
             st.markdown(f"<div style='text-align:center;'><span style='font-size:32px;'>{d['a']}</span><br><span style='font-size:9px; color:#888;'>{d['at']}</span></div>", unsafe_allow_html=True)
-        
-        # with cols[0]: st.markdown(f"<div style='text-align:center;'>{d['w']}<br><span style='font-size:8px;'>{d['wt']}</span></div>", unsafe_allow_html=True)
-        # with cols[1]: st.markdown(f"<div style='text-align:center;'>{d['a']}<br><span style='font-size:8px;'>{d['at']}</span></div>", unsafe_allow_html=True)
         with cols[2]: st.metric("", f_str.format(d['price']), f"{d['delta']:+.3f}%")
         with cols[3]:
             status_text = "🚀" if d['is_breakout'] else "Wait"
@@ -197,6 +194,7 @@ with st.expander("FOCUS/ 🇪🇺 EUROPA (GRANOLAS / TOP 7/50)", expanded=False)
 with st.expander("FOCUS/ 🇺🇸 US TECH (MAGNIFICENT 7/100)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
