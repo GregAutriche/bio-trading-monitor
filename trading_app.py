@@ -124,6 +124,18 @@ if data:
 # HISTORIE * HIST LOG
 with st.expander("🕒 SESSION LOG (breakouts) 🕒", expanded=False):
     if st.session_state.breakout_history:
+        # 1. Erstelle DataFrame
+        df = pd.DataFrame(st.session_state.breakout_history)
+        
+        # 2. Entferne Duplikate (behalte nur das erste Vorkommen der Aktie)
+        # 3. Sortiere neu (Neueste Zeit nach oben) mit [::-1]
+        df_unique = df.drop_duplicates(subset=['Aktie'], keep='first')[::-1]
+        
+        # Anzeige
+        st.table(df_unique)
+    else:
+        st.info("Noch keine Breakouts in dieser Sitzung erfasst.")
+    if st.session_state.breakout_history:
         # Das [::-1] dreht die Liste um: Neuester Zeitstempel kommt nach oben
         df_sorted = pd.DataFrame(st.session_state.breakout_history[::-1])
         st.table(df_sorted)
@@ -159,6 +171,7 @@ with st.expander("🇪🇺 EUROPA FOCUS", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
