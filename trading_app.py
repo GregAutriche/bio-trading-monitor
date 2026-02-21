@@ -158,6 +158,7 @@ st.markdown("<p class='focus-header'>🌍 FOKUS/ GLOBAL MACRO 🌍</p>", unsafe_
 render_row("NASDAQ", data.get("NASDAQ"))
 render_row("NIFTY 500 (IN)", data.get("NIFTY 500 (IN)"))
 render_row("BIST 100 (TR)", data.get("BIST 100 (TR)"))
+render_row("MOEX RUSSIA (RU)", data.get("MOEX RUSSIA (RU)"))
 
 # AKTIEN IN EXPANDERN
 st.markdown("<p class='focus-header'>📂 STOCK SECTIONS</p>", unsafe_allow_html=True)
@@ -168,6 +169,7 @@ with st.expander("🇪🇺 EUROPA FOCUS", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
