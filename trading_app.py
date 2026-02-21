@@ -145,7 +145,18 @@ with st.expander("🕒 SESSION BREAKOUT LOG (HISTORIE HEUTE)", expanded=False):
     else:
         st.info("Noch keine Breakouts in dieser Sitzung erfasst.")
 
-# 2. EXPANDER: ERKLÄRUNGEN
+# MACO FOCUS
+st.markdown("<p class='focus-header'>🌍 FOKUS/ GLOBAL MACRO 🌍</p>", unsafe_allow_html=True)
+render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
+render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
+render_row("NASDAQ", data.get("NASDAQ"))
+render_row("NIFTY 500 (IN)", data.get("NIFTY 500 (IN)"))
+if data.get("BIST 100 (TR)"):
+    render_row("BIST 100 (TR)", data.get("BIST 100 (TR)"))
+elif data.get("BIST ALL (TR)"):
+    render_row("BIST ALL (TR)", data.get("BIST ALL (TR)"))
+
+
 with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
     c1, c2 = st.columns(2)
     with c1:
@@ -165,6 +176,7 @@ with st.expander("🇺🇸 US TECH FOCUS (MAGNIFICENT 7)", expanded=False):
 with st.expander("🕒 SESSION LOG (BREAKOUTS)", expanded=False):
     if st.session_state.breakout_history:
         st.table(pd.DataFrame(st.session_state.breakout_history[::-1]))
+
 
 
 
