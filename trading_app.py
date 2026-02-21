@@ -64,7 +64,7 @@ if 'session_start' not in st.session_state:
 def get_weather_info(delta):
     if delta > 0.5: return "☀️", "SONNIG", "🟢", "BUY"
     elif delta >= 0: return "🌤️", "HEITER", "🟢", "BULL"
-    elif delta > -0.5: return "☁️", "WOLKIG", "⚪", "WAIT"
+    elif delta > -0.5: return "⚪", "WOLKIG", "⚪", "WAIT"
     else: return "⛈️", "GEWITTER", "🔴", "SELL"
 
 def fetch_data():
@@ -163,7 +163,7 @@ if data:
 with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE ℹ️"):
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.markdown("**Markt-Wetter:**\n- ☀️ SONNIG (>+0.5%)\n- ☁️ WOLKIG (Neutral)\n- ⛈️ GEWITTER (<-0.5%)")
+        st.markdown("**Markt-Wetter:**\n- ☀️ SONNIG (>+0.5%)\n- ⚪ WOLKIG (Neutral)\n- ⛈️ GEWITTER (<-0.5%)")
     with c2:
         st.markdown("**Signale:**\n- 🚀 BREAKOUT: Über Vortages-Hoch\n- 🟢 BUY: Aktiver Trend\n- ⚪ WAIT: Unter Widerstand")
     with c3:
@@ -196,5 +196,6 @@ with st.expander("FOCUS/ 🇪🇺 EUROPA (GRANOLAS / TOP 7/50)", expanded=False)
 with st.expander("FOCUS/ 🇺🇸 US TECH (MAGNIFICENT 7/100)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
