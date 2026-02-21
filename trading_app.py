@@ -140,7 +140,7 @@ def render_row(label, d, f_str="{:.2f}"):
         with cols[2]: st.metric("", f_str.format(d['price']), f"{d['delta']:+.3f}%")
         with cols[3]:
             status_text = "🚀" if d['is_breakout'] else "Wait"
-            st.markdown(f"<div style='line-height:1.1;'><span style='color:{status_color}; font-size:10px; font-weight:bold;'>{status_text}</span><br><span style='font-size:9px; color:#888;'>Target: {d['prev_high']:.4f}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='line-height:1.1;'><span style='color:{status_color}; font-size:10px; font-weight:bold;'>{status_text}</span><br><span style='font-size:12px; color:#888;'>Target: {d['prev_high']:.4f}</span></div>", unsafe_allow_html=True)
 
 
 # --- 4. DISPLAY ---
@@ -194,6 +194,7 @@ with st.expander("FOCUS/ 🇪🇺 EUROPA (GRANOLAS / TOP 7/50)", expanded=False)
 with st.expander("FOCUS/ 🇺🇸 US TECH (MAGNIFICENT 7/100)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
