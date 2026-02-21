@@ -111,7 +111,7 @@ def render_row(label, d, f_str="{:.2f}"):
     
 with st.container():
         # Äußere Box
-        st.markdown(f"""
+    st.markdown(f"""
             <div style='background-color: {bg_color}; padding: 8px 12px; border-radius: 8px; border: 1px solid {border_col}; margin-bottom: 10px;'>
                 <div style='color: #00ff00; font-size: 16px; font-weight: bold; margin-bottom: 4px;'>{label}</div>
             </div>
@@ -187,6 +187,7 @@ with st.expander("🇪🇺 EUROPA FOCUS (GRANOLAS / TOP 7)", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS (MAGNIFICENT 7)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
