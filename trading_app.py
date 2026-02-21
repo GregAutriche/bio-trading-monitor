@@ -131,6 +131,8 @@ with st.expander("🕒 SESSION LOG (breakouts) 🕒", expanded=False):
         st.info("Noch keine Breakouts in dieser Sitzung erfasst.")
 
 render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
+render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
+
 
 # EXPANDER: ERKLÄRUNGEN
 with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
@@ -143,7 +145,7 @@ with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
 # MACO FOCUS (Währungen & Indizes)
 st.markdown("<p class='focus-header'>🌍 FOKUS/ GLOBAL MACRO 🌍</p>", unsafe_allow_html=True)
 # render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
-render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
+# render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
 render_row("NASDAQ", data.get("NASDAQ"))
 render_row("NIFTY 500 (IN)", data.get("NIFTY 500 (IN)"))
 render_row("BIST 100 (TR)", data.get("BIST 100 (TR)"))
@@ -157,6 +159,7 @@ with st.expander("🇪🇺 EUROPA FOCUS", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
