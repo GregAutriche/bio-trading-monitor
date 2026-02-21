@@ -60,7 +60,7 @@ def get_weather_info(delta):
 def fetch_data():
     symbols = {
         "EURUSD=X": "EUR/USD", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ",
-        "^CRSLDX": "NIFTY 500 (IN)", "XU100.IS": "BIST 100 (TR)",
+        "^CRSLDX": "NIFTY 500 (IN)", "XU100.IS": "BIST 100 (TR)", "XUTUM.IS": "BIST ALL (TR)",
         "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", 
         "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
         "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "NOVO-B.CO": "NOVO NORDISK", 
@@ -159,7 +159,10 @@ render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
 render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
 render_row("NASDAQ", data.get("NASDAQ"))
 render_row("NIFTY 500 (IN)", data.get("NIFTY 500 (IN)"))
-render_row("BIST ALL (TR)", data.get("BIST ALL (TR)"))
+if data.get("BIST 100 (TR)"):
+    render_row("BIST 100 (TR)", data.get("BIST 100 (TR)"))
+elif data.get("BIST ALL (TR)"):
+    render_row("BIST ALL (TR)", data.get("BIST ALL (TR)"))
 
 # AKTIEN SEKTIONEN
 st.markdown("<p class='focus-header'>FOKUS/ 🇪🇺 EUROPA (Europa's 7)</p>", unsafe_allow_html=True)
@@ -169,6 +172,7 @@ for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
 st.markdown("<p class='focus-header'>FOKUS/ 🇺🇸 US TECH  (US 7)</p>", unsafe_allow_html=True)
 for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
     render_row(u, data.get(u))
+
 
 
 
