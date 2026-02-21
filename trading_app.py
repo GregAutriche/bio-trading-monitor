@@ -179,3 +179,4 @@ for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
 
 
 
+
