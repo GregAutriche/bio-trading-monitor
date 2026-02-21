@@ -98,7 +98,7 @@ def render_row(label, d, f_str="{:.2f}"):
     
     with st.container():
         st.markdown(f"<div style='background-color: {bg_color}; padding: 8px 12px; border-radius: 8px; border: 1px solid {border_col}; margin-bottom: 2px;'><div style='color: #00ff00; font-size: 14px; font-weight: bold;'>{label}</div></div>", unsafe_allow_html=True)
-        cols = st.columns([0.4, 0.4, 1.2, 1.2]) 
+        cols = st.columns([0.4, 0.4, 1.2, 2.2]) 
         with cols[0]: st.markdown(f"<div style='text-align:center;'><span style='font-size:32px;'>{d['w']}</span><br><span style='font-size:9px; color:#888;'>{d['wt']}</span></div>", unsafe_allow_html=True)
         with cols[1]: st.markdown(f"<div style='text-align:center;'><span style='font-size:32px;'>{d['a']}</span><br><span style='font-size:9px; color:#888;'>{d['at']}</span></div>", unsafe_allow_html=True)
         with cols[2]: st.metric("", f_str.format(d['price']), f"{d['delta']:+.3f}%")
@@ -147,4 +147,5 @@ with st.expander("🇺🇸 US TECH FOCUS", expanded=False):
 with st.expander("🕒 SESSION LOG", expanded=False):
     if st.session_state.breakout_history:
         st.table(pd.DataFrame(st.session_state.breakout_history[::-1]))
+
 
