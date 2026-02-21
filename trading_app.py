@@ -172,12 +172,6 @@ with st.expander("🇺🇸 US TECH FOCUS (MAGNIFICENT 7)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
 
-# HISTORIE GANZ UNTEN
-with st.expander("🕒 SESSION LOG (BREAKOUTS)", expanded=False):
-    if st.session_state.breakout_history:
-        st.table(pd.DataFrame(st.session_state.breakout_history[::-1]))
-
-
 
 
 
