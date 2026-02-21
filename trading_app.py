@@ -164,6 +164,22 @@ if data.get("BIST 100 (TR)"):
 elif data.get("BIST ALL (TR)"):
     render_row("BIST ALL (TR)", data.get("BIST ALL (TR)"))
 
+st.markdown("<p class='focus-header'>📂 STOCK SECTIONS</p>", unsafe_allow_html=True)
+
+with st.expander("🇪🇺 EUROPA FOCUS (GRANOLAS / TOP 7)", expanded=False):
+    for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
+        render_row(e, data.get(e))
+
+with st.expander("🇺🇸 US TECH FOCUS (MAGNIFICENT 7)", expanded=False):
+    for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
+        render_row(u, data.get(u))
+
+# HISTORIE GANZ UNTEN
+with st.expander("🕒 SESSION LOG (BREAKOUTS)", expanded=False):
+    if st.session_state.breakout_history:
+        st.table(pd.DataFrame(st.session_state.breakout_history[::-1]))
+
+
 # AKTIEN SEKTIONEN
 st.markdown("<p class='focus-header'>FOKUS/ 🇪🇺 EUROPA (Europa's 7/50)</p>", unsafe_allow_html=True)
 for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
@@ -172,6 +188,7 @@ for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
 st.markdown("<p class='focus-header'>FOKUS/ 🇺🇸 US TECH  (US 7/100)</p>", unsafe_allow_html=True)
 for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
     render_row(u, data.get(u))
+
 
 
 
