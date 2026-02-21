@@ -121,14 +121,6 @@ if data:
     b_count = sum(1 for k, v in data.items() if v['is_breakout'] and k not in ["EUR/USD", "EUROSTOXX 50", "NASDAQ"])
     st.markdown(f"<div class='stat-box'><span style='font-size: 20px;'>Signale: <b style='color:#00ff00;'>{b_count} von 14</b> Aktien im Breakout</span></div>", unsafe_allow_html=True)
 
-# MACO FOCUS (Währungen & Indizes)
-st.markdown("<p class='focus-header'>🌍 FOKUS/ GLOBAL MACRO 🌍</p>", unsafe_allow_html=True)
-render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
-render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
-render_row("NASDAQ", data.get("NASDAQ"))
-render_row("NIFTY 500 (IN)", data.get("NIFTY 500 (IN)"))
-render_row("BIST 100 (TR)", data.get("BIST 100 (TR)"))
-
 # EXPANDER: ERKLÄRUNGEN
 with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
     c1, c2 = st.columns(2)
@@ -137,6 +129,13 @@ with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
     with c2:
         st.markdown("**Signale:**\n- 🚀 BREAKOUT: Über Vortages-Hoch\n- 🟢 BUY: Aktiver Trend\n- ⚪ WAIT: Unter Widerstand")
 
+# MACO FOCUS (Währungen & Indizes)
+st.markdown("<p class='focus-header'>🌍 FOKUS/ GLOBAL MACRO 🌍</p>", unsafe_allow_html=True)
+render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
+render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
+render_row("NASDAQ", data.get("NASDAQ"))
+render_row("NIFTY 500 (IN)", data.get("NIFTY 500 (IN)"))
+render_row("BIST 100 (TR)", data.get("BIST 100 (TR)"))
 
 # AKTIEN IN EXPANDERN
 st.markdown("<p class='focus-header'>📂 STOCK SECTIONS</p>", unsafe_allow_html=True)
@@ -152,6 +151,7 @@ with st.expander("🇺🇸 US TECH FOCUS", expanded=False):
 with st.expander("🕒 SESSION LOG", expanded=False):
     if st.session_state.breakout_history:
         st.table(pd.DataFrame(st.session_state.breakout_history[::-1]))
+
 
 
 
