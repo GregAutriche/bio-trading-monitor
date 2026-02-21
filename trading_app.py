@@ -26,6 +26,16 @@ st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
 
 st.markdown("""
     <style>
+.streamlit-expanderHeader {
+    background-color: #111111 !important;
+    color: #00ff00 !important; /* Grüne Überschrift für bessere Lesbarkeit */
+    border-radius: 5px;
+}
+.streamlit-expanderContent {
+    background-color: #000000 !important;
+    color: #e0e0e0 !important;
+    border: 1px solid #333;
+    
     .stApp { background-color: #000000; }
     h1, h2, h3, p, span, label, div {
         color: #e0e0e0 !important;
@@ -181,6 +191,7 @@ with st.expander("FOCUS/ 🇪🇺 EUROPA (GRANOLAS / TOP 7/50)", expanded=False)
 with st.expander("FOCUS/ 🇺🇸 US TECH (MAGNIFICENT 7/100)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
