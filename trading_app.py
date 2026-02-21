@@ -58,8 +58,13 @@ def get_weather_info(delta):
     else: return "⛈️", "GEWITTER", "🔴", "SELL"
 
 def fetch_data():
+    # Erweiterte Symbole inklusive Nifty 500 und BIST All Shares
     symbols = {
-        "EURUSD=X": "EUR/USD", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ",
+        "EURUSD=X": "EUR/USD", 
+        "^STOXX50E": "EUROSTOXX 50", 
+        "^IXIC": "NASDAQ",
+        "^CRSLDX": "NIFTY 500 (IN)",   # Indien Breiter Markt
+        "XUTUM.IS": "BIST ALL (TR)",   # Türkei Gesamtmarkt
         "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", 
         "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
         "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "NOVO-B.CO": "NOVO NORDISK", 
@@ -78,8 +83,11 @@ def fetch_data():
                 prev_high = df['High'].iloc[-2]
                 is_breakout = curr > prev_high
                 
-                # Alarm nur für Aktien, nicht für FX/Indizes
-                if is_breakout and label not in st.session_state.triggered_breakouts and "X" not in ticker and "^" not in ticker:
+                # Alarm-Ausschlussliste (Indizes & FX)
+                exclude_alarm = ["X", "^", ".IS"] 
+                is_index_or_fx = any(x in ticker for x in exclude_alarm)
+
+                if is_breakout and label not in st.session_state.triggered_breakouts and not is_index_or_fx:
                     st.session_state.triggered_breakouts.add(label)
                     st.session_state.breakout_history.append({
                         "Zeit": st.session_state.last_update, 
@@ -132,10 +140,11 @@ with head_cols[0]:
 with head_cols[1]:
     st.markdown(f"<div style='text-align:right;'><span class='header-time'>{st.session_state.last_update}</span></div>", unsafe_allow_html=True)
 
-# STATISTIK
+# STATISTIK (Ausschluss der Indizes aus dem Zähler für Signale)
 if data:
-    b_count = sum(1 for k, v in data.items() if v['is_breakout'] and k not in ["EUR/USD", "EUROSTOXX 50", "NASDAQ"])
-    st.markdown(f"<div class='stat-box'><span style='font-size: 20px;'>Signale: <b style='color:#00ff00;'>{b_count} von 14</b> Aktien im Breakout</span></div>", unsafe_allow_html=True)
+    stock_labels = ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA", "ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]
+    b_count = sum(1 for k, v in data.items() if v['is_breakout'] and k in stock_labels)
+    st.markdown(f"<div class='stat-box'><span style='font-size: 20px;'>Signale: <b style='color:#00ff00;'>{b_count} von {len(stock_labels)}</b> Aktien im Breakout</span></div>", unsafe_allow_html=True)
 
 # 1. EXPANDER: HISTORIE
 with st.expander("🕒 SESSION BREAKOUT LOG (HISTORIE HEUTE)", expanded=False):
@@ -144,19 +153,16 @@ with st.expander("🕒 SESSION BREAKOUT LOG (HISTORIE HEUTE)", expanded=False):
     else:
         st.info("Noch keine Breakouts in dieser Sitzung erfasst.")
 
-# 2. EXPANDER: ERKLÄRUNGEN
-with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("**Markt-Wetter:**\n- ☀️ SONNIG (>+0.5%)\n- ☁️ WOLKIG (Neutral)\n- ⛈️ GEWITTER (<-0.5%)")
-    with c2:
-        st.markdown("**Signale:**\n- 🚀 BREAKOUT: Über Vortages-Hoch\n- 🟢 BUY: Aktiver Trend\n- ⚪ WAIT: Unter Widerstand")
-
 # MACO FOCUS
 st.markdown("<p class='focus-header'>🌍 GLOBAL MACRO FOCUS</p>", unsafe_allow_html=True)
 render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
 render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
 render_row("NASDAQ", data.get("NASDAQ"))
+
+# NEU: EMERGING MARKETS FOCUS
+st.markdown("<p class='focus-header'>📈 EMERGING MARKETS FOCUS (BROAD MARKET)</p>", unsafe_allow_html=True)
+render_row("NIFTY 500 (IN)", data.get("NIFTY 500 (IN)"))
+render_row("BIST ALL (TR)", data.get("BIST ALL (TR)"))
 
 # AKTIEN SEKTIONEN
 st.markdown("<p class='focus-header'>🇪🇺 EUROPA FOCUS (GRANOLAS)</p>", unsafe_allow_html=True)
@@ -166,4 +172,3 @@ for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
 st.markdown("<p class='focus-header'>🇺🇸 US TECH FOCUS (MAGNIFICENT 7)</p>", unsafe_allow_html=True)
 for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
     render_row(u, data.get(u))
-
