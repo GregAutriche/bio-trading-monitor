@@ -116,6 +116,11 @@ with h_cols[0]:
 with h_cols[1]:
     st.markdown(f"<div style='text-align:right;'><span class='header-time'>{st.session_state.last_update}</span></div>", unsafe_allow_html=True)
 
+# STATISTIK
+if data:
+    b_count = sum(1 for k, v in data.items() if v['is_breakout'] and k not in ["EUR/USD", "EUROSTOXX 50", "NASDAQ"])
+    st.markdown(f"<div class='stat-box'><span style='font-size: 20px;'>Signale: <b style='color:#00ff00;'>{b_count} von 14</b> Aktien im Breakout</span></div>", unsafe_allow_html=True)
+
 # MACO FOCUS (Währungen & Indizes)
 st.markdown("<p class='focus-header'>🌍 FOKUS/ GLOBAL MACRO 🌍</p>", unsafe_allow_html=True)
 render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
@@ -147,6 +152,7 @@ with st.expander("🇺🇸 US TECH FOCUS", expanded=False):
 with st.expander("🕒 SESSION LOG", expanded=False):
     if st.session_state.breakout_history:
         st.table(pd.DataFrame(st.session_state.breakout_history[::-1]))
+
 
 
 
