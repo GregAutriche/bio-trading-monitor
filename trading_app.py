@@ -124,6 +124,15 @@ render_row("NASDAQ", data.get("NASDAQ"))
 render_row("NIFTY 500 (IN)", data.get("NIFTY 500 (IN)"))
 render_row("BIST 100 (TR)", data.get("BIST 100 (TR)"))
 
+# EXPANDER: ERKLÄRUNGEN
+with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**Markt-Wetter:**\n- ☀️ SONNIG (>+0.5%)\n- ☁️ WOLKIG (Neutral)\n- ⛈️ GEWITTER (<-0.5%)")
+    with c2:
+        st.markdown("**Signale:**\n- 🚀 BREAKOUT: Über Vortages-Hoch\n- 🟢 BUY: Aktiver Trend\n- ⚪ WAIT: Unter Widerstand")
+
+
 # AKTIEN IN EXPANDERN
 st.markdown("<p class='focus-header'>📂 STOCK SECTIONS</p>", unsafe_allow_html=True)
 with st.expander("🇪🇺 EUROPA FOCUS", expanded=False):
@@ -138,3 +147,4 @@ with st.expander("🇺🇸 US TECH FOCUS", expanded=False):
 with st.expander("🕒 SESSION LOG", expanded=False):
     if st.session_state.breakout_history:
         st.table(pd.DataFrame(st.session_state.breakout_history[::-1]))
+
