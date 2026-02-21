@@ -154,7 +154,7 @@ with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
         st.markdown("**Signale:**\n- 🚀 BREAKOUT: Über Vortages-Hoch\n- 🟢 BUY: Aktiver Trend\n- ⚪ WAIT: Unter Widerstand")
 
 # MACO FOCUS
-st.markdown("<p class='focus-header'>🌍 FOKUS/ GLOBAL MACRO</p> 🌍", unsafe_allow_html=True)
+st.markdown("<p class='focus-header'>🌍 FOKUS/ GLOBAL MACRO 🌍</p>", unsafe_allow_html=True)
 render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
 render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
 render_row("NASDAQ", data.get("NASDAQ"))
@@ -162,11 +162,11 @@ render_row("NIFTY 500 (IN)", data.get("NIFTY 500 (IN)"))
 render_row("BIST ALL (TR)", data.get("BIST ALL (TR)"))
 
 # AKTIEN SEKTIONEN
-st.markdown("<p class='focus-header'>FOKUS/ 🇪🇺 EUROPA (Europa's 7)</p>", unsafe_allow_html=True)
+st.markdown("<p class='focus-header'>🇪🇺 EUROPA FOCUS (GRANOLAS)</p>", unsafe_allow_html=True)
 for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
     render_row(e, data.get(e))
 
-st.markdown("<p class='focus-header'>FOKUS/ 🇺🇸 US TECH (MAGNIFICENT 7)</p>", unsafe_allow_html=True)
+st.markdown("<p class='focus-header'>🇺🇸 US TECH FOCUS (MAGNIFICENT 7)</p>", unsafe_allow_html=True)
 for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
     render_row(u, data.get(u))
 
