@@ -73,22 +73,19 @@ def fetch_data():
     for ticker, label in symbols.items():
         try:
             t = yf.Ticker(ticker)
-            df = t.history(period="5d") 
-            if len(df) >= 2:
+            # Auf 7 Tage erhöht für Wochenend-Abdeckung (Feb 2026)
+            df = t.history(period="7d") 
+            if not df.empty and len(df) >= 1:
                 curr = df['Close'].iloc[-1]
-                prev_high = df['High'].iloc[-2]
+                prev_high = df['High'].iloc[-2] if len(df) >= 2 else curr
                 is_breakout = curr > prev_high
                 
-                # Alarm nur für Aktien, nicht für FX/Indizes
-                if is_breakout and label not in st.session_state.triggered_breakouts and "X" not in ticker and "^" not in ticker:
+                # Alarm Logik
+                is_index_or_fx = any(x in ticker for x in ["X", "^", ".IS"])
+                if is_breakout and label not in st.session_state.triggered_breakouts and not is_index_or_fx:
                     st.session_state.triggered_breakouts.add(label)
-                    st.session_state.breakout_history.append({
-                        "Zeit": st.session_state.last_update, 
-                        "Aktie": label, 
-                        "Preis": f"{curr:.2f}"
-                    })
+                    st.session_state.breakout_history.append({"Zeit": st.session_state.last_update, "Aktie": label, "Preis": f"{curr:.2f}"})
                     play_alarm()
-                    st.toast(f"🚀 BREAKOUT: {label}!", icon="🔔")
 
                 if label not in st.session_state.initial_values:
                     st.session_state.initial_values[label] = curr
@@ -115,10 +112,7 @@ def render_row(label, d, f_str="{:.2f}"):
         with cols[1]: st.markdown(f"<div style='text-align:center;'>{d['a']}<br><span style='font-size:9px;'>{d['at']}</span></div>", unsafe_allow_html=True)
         with cols[2]: st.metric("", f_str.format(d['price']), f"{d['delta']:+.3f}%")
         with cols[3]:
-            if d['is_breakout']:
-                st.markdown(f"<span style='color:#00ff00; font-weight:bold;'>🚀 BREAKOUT</span><br><span style='font-size:10px;'>High: {d['prev_high']:.4f}</span>", unsafe_allow_html=True)
-            else:
-                st.markdown(f"<span style='color:#666;'>Under High</span><br><span style='font-size:10px;'>Target: {d['prev_high']:.4f}</span>", unsafe_allow_html=True)
+            st.markdown(f"<span style='color:{'#00ff00' if d['is_breakout'] else '#666'};'>{'🚀 BREAKOUT' if d['is_breakout'] else 'Under High'}</span><br><span style='font-size:10px;'>Target: {d['prev_high']:.2f}</span>", unsafe_allow_html=True)
         with cols[4]: st.markdown(f"<p class='product-label'>{label}</p>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -128,61 +122,35 @@ data = fetch_data()
 # HEADER
 head_cols = st.columns([2, 1])
 with head_cols[0]:
-    st.markdown("<h1>📡 BREAKOUT 📡</h1>", unsafe_allow_html=True)
-    st.markdown(f"<p style='color:#888; margin-top:-15px;'>Sitzungsbeginn: {st.session_state.session_start}</p>", unsafe_allow_html=True)
+    st.markdown("<h1>📡 GLOBAL TERMINAL 📡</h1>", unsafe_allow_html=True)
 with head_cols[1]:
     st.markdown(f"<div style='text-align:right;'><span class='header-time'>{st.session_state.last_update}</span></div>", unsafe_allow_html=True)
 
-# STATISTIK
-if data:
-    b_count = sum(1 for k, v in data.items() if v['is_breakout'] and k not in ["EUR/USD", "EUROSTOXX 50", "NASDAQ"])
-    st.markdown(f"<div class='stat-box'><span style='font-size: 20px;'>Signale: <b style='color:#00ff00;'>{b_count} von 14</b> Aktien im Breakout</span></div>", unsafe_allow_html=True)
-
-# 1. EXPANDER: HISTORIE
-with st.expander("🕒 SESSION BREAKOUT LOG (HISTORIE HEUTE)", expanded=False):
-    if st.session_state.breakout_history:
-        st.table(pd.DataFrame(st.session_state.breakout_history[::-1]))
-    else:
-        st.info("Noch keine Breakouts in dieser Sitzung erfasst.")
-
-# 2. EXPANDER: ERKLÄRUNGEN
-with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("**Markt-Wetter:**\n- ☀️ SONNIG (>+0.5%)\n- ☁️ WOLKIG (Neutral)\n- ⛈️ GEWITTER (<-0.5%)")
-    with c2:
-        st.markdown("**Signale:**\n- 🚀 BREAKOUT: Über Vortages-Hoch\n- 🟢 BUY: Aktiver Trend\n- ⚪ WAIT: Unter Widerstand")
-
-# MACO FOCUS
-st.markdown("<p class='focus-header'>🌍 FOKUS/ GLOBAL MACRO 🌍</p>", unsafe_allow_html=True)
+# IMMER SICHTBAR: MACO & INDIZES
+st.markdown("<p class='focus-header'>🌍 PERMANENT FOCUS / GLOBAL MACRO</p>", unsafe_allow_html=True)
 render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
 render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
 render_row("NASDAQ", data.get("NASDAQ"))
 render_row("NIFTY 500 (IN)", data.get("NIFTY 500 (IN)"))
+
+# Türkei Logik: Zeige BIST 100 oder BIST ALL
 if data.get("BIST 100 (TR)"):
     render_row("BIST 100 (TR)", data.get("BIST 100 (TR)"))
 elif data.get("BIST ALL (TR)"):
     render_row("BIST ALL (TR)", data.get("BIST ALL (TR)"))
 
-# AKTIEN SEKTIONEN
-st.markdown("<p class='focus-header'>FOKUS/ 🇪🇺 EUROPA (Europa's 7/50)</p>", unsafe_allow_html=True)
-for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
-    render_row(e, data.get(e))
+# AKTIEN IN EXPANDERN
+st.markdown("<p class='focus-header'>📂 STOCK SECTIONS</p>", unsafe_allow_html=True)
 
-st.markdown("<p class='focus-header'>FOKUS/ 🇺🇸 US TECH  (US 7/100)</p>", unsafe_allow_html=True)
-for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
-    render_row(u, data.get(u))
+with st.expander("🇪🇺 EUROPA FOCUS (GRANOLAS / TOP 7)", expanded=False):
+    for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
+        render_row(e, data.get(e))
 
+with st.expander("🇺🇸 US TECH FOCUS (MAGNIFICENT 7)", expanded=False):
+    for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
+        render_row(u, data.get(u))
 
-
-
-
-
-
-
-
-
-
-
-
-
+# HISTORIE GANZ UNTEN
+with st.expander("🕒 SESSION LOG (BREAKOUTS)", expanded=False):
+    if st.session_state.breakout_history:
+        st.table(pd.DataFrame(st.session_state.breakout_history[::-1]))
