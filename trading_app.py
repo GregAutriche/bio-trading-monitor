@@ -134,7 +134,7 @@ with st.container():
                     <span style='font-size:10px; color:#888;'>Target: {d['prev_high']:.4f}</span>
                 </div>
                 """, unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 4. DISPLAY ---
 data = fetch_data()
@@ -187,6 +187,7 @@ with st.expander("🇪🇺 EUROPA FOCUS (GRANOLAS / TOP 7)", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS (MAGNIFICENT 7)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
