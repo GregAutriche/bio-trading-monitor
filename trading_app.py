@@ -18,20 +18,45 @@ def play_alarm():
     st.markdown(audio_html, unsafe_allow_html=True)
 
 # --- 1. CONFIG & STYLING ---
-st.set_page_config(layout="wide", page_title="Börsen-Wetter Terminal")
-
 st.markdown("""
     <style>
-    .streamlit-expanderHeader { background-color: #111111 !important; color: #00ff00 !important; border-radius: 5px; }
-    .streamlit-expanderContent { background-color: #000000 !important; color: #e0e0e0 !important; border: 1px solid #333; }
+    /* 1. Gesamthintergrund der App */
     .stApp { background-color: #000000; }
-    h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
-    [data-testid="stMetricValue"] { font-size: 22px !important; color: #ffffff !important; }
-    [data-testid="stMetricDelta"] { font-size: 14px !important; }
-    .product-label { font-size: 18px !important; font-weight: bold; color: #00ff00 !important; margin: 0; }
-    .focus-header { color: #888888 !important; font-weight: bold; margin-top: 25px; border-bottom: 1px solid #444; padding-bottom: 5px; }
-    .stat-box { background-color: #111; padding: 15px; border-radius: 10px; border: 1px solid #333; text-align: center; margin-bottom: 15px; }
-    .header-time { color: #00ff00 !important; font-size: 32px !important; font-weight: bold; }
+
+    /* 2. Expander Header (Die Zeile zum Klicken) */
+    .streamlit-expanderHeader {
+        background-color: #111111 !important;
+        color: #00ff00 !important;
+        border-radius: 5px;
+        border: 1px solid #333;
+    }
+
+    /* 3. Expander Inhalt (Die Tabelle innen) */
+    .streamlit-expanderContent {
+        background-color: #000000 !important;
+        border: 1px solid #333;
+        padding: 10px;
+    }
+
+    /* 4. Tabellen-Header (Zeit, Aktie, Preis) lesbar machen */
+    thead tr th {
+        background-color: #111111 !important;
+        color: #00ff00 !important; /* Neongrün für die Spaltentitel */
+        font-family: 'Courier New', monospace;
+    }
+
+    /* 5. Tabellen-Zellen (Die Daten selbst) */
+    tbody tr td {
+        background-color: #000000 !important;
+        color: #ffffff !important; /* Weiß für die Daten */
+        border-bottom: 1px solid #222 !important;
+    }
+
+    /* Allgemeine Texte */
+    h1, h2, h3, p, span, label {
+        color: #e0e0e0 !important;
+        font-family: 'Courier New', Courier, monospace;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -175,6 +200,7 @@ with st.expander("🇪🇺 EUROPA FOCUS", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
