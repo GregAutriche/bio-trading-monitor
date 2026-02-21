@@ -88,7 +88,7 @@ def fetch_data():
                     "price": curr, "prev_high": prev_high, "is_breakout": is_breakout,
                     "delta": delta, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt
                 }
-     except Exception as e:
+        except Exception as e:
             st.error(f"Fehler bei {label}: {e}")
         except: pass
     return results
@@ -173,6 +173,7 @@ with st.expander("🇪🇺 EUROPA FOCUS", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
