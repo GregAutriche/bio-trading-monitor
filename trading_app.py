@@ -117,8 +117,8 @@ with st.container():
             </div>
             """, unsafe_allow_html=True)
         
-        # Die Werte-Zeile direkt unter dem Label (innerhalb des Containers)
-        cols = st.columns([0.3, 0.3, 1.2, 1.2]) 
+# Die Werte-Zeile direkt unter dem Label (innerhalb des Containers)
+    cols = st.columns([0.3, 0.3, 1.2, 1.2]) 
         
         with cols[0]: 
             st.markdown(f"<div style='text-align:center;'>{d['w']}<br><span style='font-size:8px;'>{d['wt']}</span></div>", unsafe_allow_html=True)
@@ -187,6 +187,7 @@ with st.expander("🇪🇺 EUROPA FOCUS (GRANOLAS / TOP 7)", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS (MAGNIFICENT 7)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
