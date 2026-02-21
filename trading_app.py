@@ -173,14 +173,15 @@ elif data.get("BIST ALL (TR)"):
     render_row("BIST ALL (TR)", data.get("BIST ALL (TR)"))
 
 # Expander EUROPA
-with st.expander("🇪🇺 EUROPA FOCUS (GRANOLAS / TOP 7)", expanded=False):
+with st.expander("FOCUS/ 🇪🇺 EUROPA (GRANOLAS / TOP 7/50)", expanded=False):
     for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
         render_row(e, data.get(e))
 
 # Expander US
-with st.expander("🇺🇸 US TECH FOCUS (MAGNIFICENT 7)", expanded=False):
+with st.expander("FOCUS/ 🇺🇸 US TECH (MAGNIFICENT 7/100)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
