@@ -116,7 +116,6 @@ def fetch_data():
 def render_row(label, d, f_str="{:.2f}"):
     if not d: return
     
-    # 1. VARIABLE DEFINIEREN (Das hat gefehlt!)
     bg_color = "rgba(0, 255, 0, 0.04)" if d['is_breakout'] else "transparent"
     border_col = "#00ff00" if d['is_breakout'] else "#222"
     status_color = "#00ff00" if d['is_breakout'] else "#555"
@@ -131,9 +130,16 @@ def render_row(label, d, f_str="{:.2f}"):
         
         # 3. WERTE ZEILE (Achte auf die Einrückung - bündig mit st.markdown)
         cols = st.columns([0.2, 0.8, 0.8, 1.0]) 
+
+        with cols[0]: 
+            # Wetter-Symbol auf 32px vergrößert
+            st.markdown(f"<div style='text-align:center;'><span style='font-size:32px;'>{d['w']}</span><br><span style='font-size:9px; color:#888;'>{d['wt']}</span></div>", unsafe_allow_html=True)
+        with cols[1]: 
+            # Signal-Icon auf 32px vergrößert
+            st.markdown(f"<div style='text-align:center;'><span style='font-size:32px;'>{d['a']}</span><br><span style='font-size:9px; color:#888;'>{d['at']}</span></div>", unsafe_allow_html=True)
         
-        with cols[0]: st.markdown(f"<div style='text-align:center;'>{d['w']}<br><span style='font-size:8px;'>{d['wt']}</span></div>", unsafe_allow_html=True)
-        with cols[1]: st.markdown(f"<div style='text-align:center;'>{d['a']}<br><span style='font-size:8px;'>{d['at']}</span></div>", unsafe_allow_html=True)
+        # with cols[0]: st.markdown(f"<div style='text-align:center;'>{d['w']}<br><span style='font-size:8px;'>{d['wt']}</span></div>", unsafe_allow_html=True)
+        # with cols[1]: st.markdown(f"<div style='text-align:center;'>{d['a']}<br><span style='font-size:8px;'>{d['at']}</span></div>", unsafe_allow_html=True)
         with cols[2]: st.metric("", f_str.format(d['price']), f"{d['delta']:+.3f}%")
         with cols[3]:
             status_text = "🚀" if d['is_breakout'] else "Wait"
@@ -191,6 +197,7 @@ with st.expander("FOCUS/ 🇪🇺 EUROPA (GRANOLAS / TOP 7/50)", expanded=False)
 with st.expander("FOCUS/ 🇺🇸 US TECH (MAGNIFICENT 7/100)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
