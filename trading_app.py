@@ -110,7 +110,7 @@ def render_row(label, d, f_str="{:.2f}"):
     
     with st.container():
         st.markdown(f"<div style='background-color: {bg_color}; padding: 12px; border-radius: 10px; border: 1px solid {border_col}; border-left: 6px solid {border_col}; margin-bottom: 12px;'>", unsafe_allow_html=True)
-        cols = st.columns([0.6, 0.6, 1.2, 1.4, 1.4])
+        cols = st.columns([0.4, 0.4, 1.0, 1.2, 1.4])
         with cols[0]: st.markdown(f"<div style='text-align:center;'>{d['w']}<br><span style='font-size:9px;'>{d['wt']}</span></div>", unsafe_allow_html=True)
         with cols[1]: st.markdown(f"<div style='text-align:center;'>{d['a']}<br><span style='font-size:9px;'>{d['at']}</span></div>", unsafe_allow_html=True)
         with cols[2]: st.metric("", f_str.format(d['price']), f"{d['delta']:+.3f}%")
@@ -173,6 +173,7 @@ with st.expander("🇪🇺 EUROPA FOCUS (GRANOLAS / TOP 7)", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS (MAGNIFICENT 7)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
