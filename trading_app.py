@@ -167,14 +167,15 @@ else:
     render_row("USD/RUB (Währung)", data.get("USD/RUB (Währung)"), "{:.4f}")
 
 # AKTIEN IN EXPANDERN
-st.markdown("<p class='focus-header'>📂 STOCK SECTIONS</p>", unsafe_allow_html=True)
-with st.expander("🇪🇺 EUROPA FOCUS", expanded=False):
+st.markdown("<p class='focus-header'>📂 STOCK SECTIONS 📂</p>", unsafe_allow_html=True)
+with st.expander("€ 🇪🇺 EUROPA FOCUS €", expanded=False):
     for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
         render_row(e, data.get(e))
 
-with st.expander("🇺🇸 US TECH FOCUS", expanded=False):
+with st.expander("🌎 🇺🇸 US TECH FOCUS 🌎", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
