@@ -167,17 +167,6 @@ with st.expander("🕒 SESSION LOG (BREAKOUTS)", expanded=False):
         st.table(pd.DataFrame(st.session_state.breakout_history[::-1]))
 
 
-# AKTIEN SEKTIONEN
-st.markdown("<p class='focus-header'>FOKUS/ 🇪🇺 EUROPA (Europa's 7/50)</p>", unsafe_allow_html=True)
-for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
-    render_row(e, data.get(e))
-
-st.markdown("<p class='focus-header'>FOKUS/ 🇺🇸 US TECH  (US 7/100)</p>", unsafe_allow_html=True)
-for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
-    render_row(u, data.get(u))
-
-
-
 
 
 
