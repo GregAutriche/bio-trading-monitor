@@ -121,6 +121,9 @@ if data:
     b_count = sum(1 for k, v in data.items() if v['is_breakout'] and k not in ["EUR/USD", "EUROSTOXX 50", "NASDAQ"])
     st.markdown(f"<div class='stat-box'><span style='font-size: 20px;'>Signale: <b style='color:#00ff00;'>{b_count} von 14</b> Aktien im Breakout</span></div>", unsafe_allow_html=True)
 
+render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
+render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
+
 # HISTORIE * HIST LOG
 with st.expander("🕒 SESSION LOG (breakouts) 🕒", expanded=False):
     if st.session_state.breakout_history:
@@ -136,8 +139,8 @@ with st.expander("🕒 SESSION LOG (breakouts) 🕒", expanded=False):
     else:
         st.info("Noch keine Breakouts in dieser Sitzung erfasst.")
 
-render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
-render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
+# render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
+# render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
 
 
 # EXPANDER: ERKLÄRUNGEN
@@ -165,6 +168,7 @@ with st.expander("🇪🇺 EUROPA FOCUS", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
