@@ -53,7 +53,7 @@ def fetch_data():
     symbols = {
         "EURUSD=X": "EUR/USD", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ",
         "^CRSLDX": "NIFTY 500 (IN)", "XU100.IS": "BIST 100 (TR)", "XUTUM.IS": "BIST ALL (TR)",
-        "RTSI.ME": "RTS INDEX (RU/USD)", "IMOEX.ME": "MOEX RUSSIA (RU)",
+        "RTSI.ME": "RTS INDEX (RU/USD)", "IMOEX.ME": "MOEX RUSSIA (RU)", "RUB=X": "USD/RUB (Währung)",
         "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", 
         "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
         "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "NOVO-B.CO": "NOVO NORDISK", 
@@ -163,6 +163,9 @@ if data.get("RTS INDEX (RU/USD)"):
     render_row("RTS INDEX (RU/USD)", data.get("RTS INDEX (RU/USD)"))
 elif data.get("MOEX RUSSIA (RU)"):
     render_row("MOEX RUSSIA (RU)", data.get("MOEX RUSSIA (RU)"))
+else:
+    # Zeigt die Währung an, falls keine Index-Daten kommen
+    render_row("USD/RUB (Währung)", data.get("USD/RUB (Währung)"), "{:.4f}")
 
 # AKTIEN IN EXPANDERN
 st.markdown("<p class='focus-header'>📂 STOCK SECTIONS</p>", unsafe_allow_html=True)
@@ -173,6 +176,7 @@ with st.expander("🇪🇺 EUROPA FOCUS", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
