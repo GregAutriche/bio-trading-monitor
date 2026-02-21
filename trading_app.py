@@ -161,20 +161,22 @@ if data:
 
 # SYMBOL U ERKLÄRUNG
 with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE ℹ️"):
-    c1, c2 = st.columns(2)
+    c1, c2, c3 = st.columns(3)
     with c1:
         st.markdown("**Markt-Wetter:**\n- ☀️ SONNIG (>+0.5%)\n- ☁️ WOLKIG (Neutral)\n- ⛈️ GEWITTER (<-0.5%)")
     with c2:
         st.markdown("**Signale:**\n- 🚀 BREAKOUT: Über Vortages-Hoch\n- 🟢 BUY: Aktiver Trend\n- ⚪ WAIT: Unter Widerstand")
+    with c3:
+        st.markdown("**Signale:**\n- 🚀 BREAKOUT: Über Vortages-Hoch\n- 🟢 BUY: Aktiver Trend\n- ⚪ WAIT: Unter Widerstand")
 
-# 1. EXPANDER: HISTORIE
+# 1. FOKUS/ HISTORIE
 with st.expander("🕒 SESSION BREAKOUT LOG 🕒", expanded=False):
     if st.session_state.breakout_history:
         st.table(pd.DataFrame(st.session_state.breakout_history[::-1]))
     else:
         st.info("Noch keine Breakouts in dieser Sitzung erfasst.")
 
-# MACO FOCUS
+# FOKUS/ MACRO
 st.markdown("<p class='focus-header'>🌍 FOKUS/ GLOBAL MACRO 🌍</p>", unsafe_allow_html=True)
 render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
 render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
@@ -185,53 +187,12 @@ if data.get("BIST 100 (TR)"):
 elif data.get("BIST ALL (TR)"):
     render_row("BIST ALL (TR)", data.get("BIST ALL (TR)"))
 
-# Expander EUROPA
+# Expander FOKUS/ EUROPA
 with st.expander("FOCUS/ 🇪🇺 EUROPA (GRANOLAS / TOP 7/50)", expanded=False):
     for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
         render_row(e, data.get(e))
 
-# Expander US
+# Expander FOKUS/ US
 with st.expander("FOCUS/ 🇺🇸 US TECH (MAGNIFICENT 7/100)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
