@@ -151,21 +151,12 @@ head_cols = st.columns([1, 2]) # Erste Spalte leer lassen, um Inhalt nach rechts
 
 with head_cols[1]:
     # Titel und Sitzungsbeginn rechtsbündig
-    st.markdown("""
-        <div style='text-align: right;'>
-            <h1 style='margin-bottom: 0;'>📡 BREAKOUT 📡</h1>
-            <p style='color:#888; margin-top: -5px; font-size: 14px;'>
-                Sitzungsbeginn: """ + st.session_state.session_start + """
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # Aktuelle Uhrzeit direkt darunter (ebenfalls rechtsbündig)
-    st.markdown(f"""
-        <div style='text-align: right; margin-top: 10px;'>
-            <span class='header-time'>{st.session_state.last_update}</span>
-        </div>
-    """, unsafe_allow_html=True)
+head_cols = st.columns([2, 1])
+with head_cols[0]:
+    st.markdown("<h1>📡 BREAKOUT 📡</h1>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color:#888; margin-top:-15px;'>Sitzungsbeginn: {st.session_state.session_start}</p>", unsafe_allow_html=True)
+with head_cols[1]:
+    st.markdown(f"<div style='text-align:right;'><span class='header-time'>{st.session_state.last_update}</span></div>", unsafe_allow_html=True)
 
 # STATISTIK
 if data:
@@ -209,6 +200,7 @@ with st.expander("FOCUS/ 🇪🇺 EUROPA (GRANOLAS / TOP 7/50)", expanded=False)
 with st.expander("FOCUS/ 🇺🇸 US TECH (MAGNIFICENT 7/100)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
