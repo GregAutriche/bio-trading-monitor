@@ -138,6 +138,14 @@ if data:
     b_count = sum(1 for k, v in data.items() if v['is_breakout'] and k not in ["EUR/USD", "EUROSTOXX 50", "NASDAQ"])
     st.markdown(f"<div class='stat-box'><span style='font-size: 20px;'>Signale: <b style='color:#00ff00;'>{b_count} von 14</b> Aktien im Breakout</span></div>", unsafe_allow_html=True)
 
+# SYMBOL U ERKLÄRUNG
+with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE ℹ️"):
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**Markt-Wetter:**\n- ☀️ SONNIG (>+0.5%)\n- ☁️ WOLKIG (Neutral)\n- ⛈️ GEWITTER (<-0.5%)")
+    with c2:
+        st.markdown("**Signale:**\n- 🚀 BREAKOUT: Über Vortages-Hoch\n- 🟢 BUY: Aktiver Trend\n- ⚪ WAIT: Unter Widerstand")
+
 # 1. EXPANDER: HISTORIE
 with st.expander("🕒 SESSION BREAKOUT LOG (HISTORIE HEUTE)", expanded=False):
     if st.session_state.breakout_history:
@@ -157,14 +165,7 @@ elif data.get("BIST ALL (TR)"):
     render_row("BIST ALL (TR)", data.get("BIST ALL (TR)"))
 
 # hier war breakout log
-
-
-with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("**Markt-Wetter:**\n- ☀️ SONNIG (>+0.5%)\n- ☁️ WOLKIG (Neutral)\n- ⛈️ GEWITTER (<-0.5%)")
-    with c2:
-        st.markdown("**Signale:**\n- 🚀 BREAKOUT: Über Vortages-Hoch\n- 🟢 BUY: Aktiver Trend\n- ⚪ WAIT: Unter Widerstand")
+# hier war symbol u Erklärung
 
 with st.expander("🇪🇺 EUROPA FOCUS (GRANOLAS / TOP 7)", expanded=False):
     for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
@@ -173,6 +174,7 @@ with st.expander("🇪🇺 EUROPA FOCUS (GRANOLAS / TOP 7)", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS (MAGNIFICENT 7)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
