@@ -60,7 +60,7 @@ def get_weather_info(delta):
 def fetch_data():
     symbols = {
         "EURUSD=X": "EUR/USD", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ",
-        "^CRSLDX": "NIFTY 500 (IN)", "XUTUM.IS": "BIST ALL (TR)",
+        "^CRSLDX": "NIFTY 500 (IN)", "XU100.IS": "BIST 100 (TR)",
         "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", 
         "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
         "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "NOVO-B.CO": "NOVO NORDISK", 
@@ -169,6 +169,7 @@ for e in ["ASML", "LVMH", "SAP", "NOVO NORDISK", "L'OREAL", "ROCHE", "NESTLE"]:
 st.markdown("<p class='focus-header'>FOKUS/ 🇺🇸 US TECH  (US 7)</p>", unsafe_allow_html=True)
 for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
     render_row(u, data.get(u))
+
 
 
 
