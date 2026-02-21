@@ -120,7 +120,7 @@ def render_row(label, d, f_str="{:.2f}"):
             """, unsafe_allow_html=True)
         
         # 3. WERTE ZEILE (Achte auf die Einrückung - bündig mit st.markdown)
-        cols = st.columns([0.4, 0.4, 1.2, 1.2]) 
+        cols = st.columns([0.5, 0.5, 1.2,]) 
         
         with cols[0]: st.markdown(f"<div style='text-align:center;'>{d['w']}<br><span style='font-size:8px;'>{d['wt']}</span></div>", unsafe_allow_html=True)
         with cols[1]: st.markdown(f"<div style='text-align:center;'>{d['a']}<br><span style='font-size:8px;'>{d['at']}</span></div>", unsafe_allow_html=True)
@@ -181,6 +181,7 @@ with st.expander("🇪🇺 EUROPA FOCUS (GRANOLAS / TOP 7)", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS (MAGNIFICENT 7)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
