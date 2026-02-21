@@ -120,13 +120,13 @@ with st.container():
 # Die Werte-Zeile direkt unter dem Label (innerhalb des Containers)
     cols = st.columns([0.3, 0.3, 1.2, 1.2]) 
         
-        with cols[0]: 
+    with cols[0]: 
             st.markdown(f"<div style='text-align:center;'>{d['w']}<br><span style='font-size:8px;'>{d['wt']}</span></div>", unsafe_allow_html=True)
-        with cols[1]: 
+    with cols[1]: 
             st.markdown(f"<div style='text-align:center;'>{d['a']}<br><span style='font-size:8px;'>{d['at']}</span></div>", unsafe_allow_html=True)
-        with cols[2]: 
+    with cols[2]: 
             st.metric("", f_str.format(d['price']), f"{d['delta']:+.3f}%")
-        with cols[3]:
+    with cols[3]:
             status_text = "🚀 BREAKOUT" if d['is_breakout'] else "Under High"
             st.markdown(f"""
                 <div style='line-height:1.1;'>
@@ -187,6 +187,7 @@ with st.expander("🇪🇺 EUROPA FOCUS (GRANOLAS / TOP 7)", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS (MAGNIFICENT 7)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
