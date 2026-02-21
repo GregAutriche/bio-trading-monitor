@@ -138,6 +138,13 @@ if data:
     b_count = sum(1 for k, v in data.items() if v['is_breakout'] and k not in ["EUR/USD", "EUROSTOXX 50", "NASDAQ"])
     st.markdown(f"<div class='stat-box'><span style='font-size: 20px;'>Signale: <b style='color:#00ff00;'>{b_count} von 14</b> Aktien im Breakout</span></div>", unsafe_allow_html=True)
 
+# 1. EXPANDER: HISTORIE
+with st.expander("🕒 SESSION BREAKOUT LOG (HISTORIE HEUTE)", expanded=False):
+    if st.session_state.breakout_history:
+        st.table(pd.DataFrame(st.session_state.breakout_history[::-1]))
+    else:
+        st.info("Noch keine Breakouts in dieser Sitzung erfasst.")
+
 # MACO FOCUS
 st.markdown("<p class='focus-header'>🌍 FOKUS/ GLOBAL MACRO 🌍</p>", unsafe_allow_html=True)
 render_row("EUR/USD", data.get("EUR/USD"), "{:.6f}")
@@ -149,12 +156,7 @@ if data.get("BIST 100 (TR)"):
 elif data.get("BIST ALL (TR)"):
     render_row("BIST ALL (TR)", data.get("BIST ALL (TR)"))
 
-# 1. EXPANDER: HISTORIE
-with st.expander("🕒 SESSION BREAKOUT LOG (HISTORIE HEUTE)", expanded=False):
-    if st.session_state.breakout_history:
-        st.table(pd.DataFrame(st.session_state.breakout_history[::-1]))
-    else:
-        st.info("Noch keine Breakouts in dieser Sitzung erfasst.")
+# hier war breakout log
 
 
 with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE"):
@@ -171,6 +173,7 @@ with st.expander("🇪🇺 EUROPA FOCUS (GRANOLAS / TOP 7)", expanded=False):
 with st.expander("🇺🇸 US TECH FOCUS (MAGNIFICENT 7)", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
