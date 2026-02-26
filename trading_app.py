@@ -164,7 +164,7 @@ with st.expander("🕒 SESSION LOG (HISTORY) 🕒", expanded=False):
             df_unique = df.drop_duplicates(subset=['Aktie'], keep='first')[::-1]
         
         # Anzeige
-        st.table(df_unique)
+        st.table(df_unique[::-1])
     else:
         st.info("Noch keine Breakouts in dieser Sitzung erfasst.")
 
@@ -192,6 +192,7 @@ with st.expander(" 🍕 FOKUS/ 🇺🇸 US TECH 🍕", expanded=False):
 with st.expander("🍔🏈 FOKUS/ 🇪🇺 EUROPEAN 🏈🍔", expanded=False):
     for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
         render_row(ticker, data.get(ticker))
+
 
 
 
