@@ -145,6 +145,13 @@ if data:
 with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & GUIDE"):
     st.write("☀️ >0.5% | 🌤️ >0% | ☁️ Neutral | ⛈️ <-0.5% | 🚀 Breakout über Vortages-Hoch")
 
+# 4. LOGS
+with st.expander("🕒 SESSION LOG (HISTORY)"):
+    if st.session_state.breakout_history:
+        st.table(pd.DataFrame(st.session_state.breakout_history)[::-1])
+    else:
+        st.info("Noch keine Breakouts erfasst.")
+
 # 1. MACRO (Immer sichtbar)
 st.markdown("<p class='focus-header'>🌍 MACRO FOCUS</p>", unsafe_allow_html=True)
 render_row("EUR/USD", data.get("EUR/USD"), "{:.5f}")
@@ -160,10 +167,3 @@ with st.expander("🇺🇸 US TECH FOCUS (APPLE, NVDA, TSLA...)", expanded=True)
 with st.expander("🇪🇺 EUROPEAN GROWTH (ASML, SAP, LVMH...)", expanded=True):
     for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
         render_row(ticker, data.get(ticker))
-
-# 4. LOGS
-with st.expander("🕒 SESSION LOG (HISTORY)"):
-    if st.session_state.breakout_history:
-        st.table(pd.DataFrame(st.session_state.breakout_history)[::-1])
-    else:
-        st.info("Noch keine Breakouts erfasst.")
