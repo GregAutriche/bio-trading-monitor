@@ -50,7 +50,7 @@ def get_weather_info(delta):
     else: return "⛈️", "GEWITTER", "🔴", "SELL"
 
 def fetch_data():
-     symbols = {
+    symbols = {
         "EURUSD=X": "EUR/USD", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ",
         "^CRSLDX": "NIFTY 500 (IN)", "XU100.IS": "BIST 100 (TR)", "XUTUM.IS": "BIST ALL (TR)",
         "RTSI.ME": "RTS INDEX (RU/USD)", "IMOEX.ME": "MOEX RUSSIA (RU)", "RUB=X": "USD/RUB (Währung)",
@@ -59,24 +59,23 @@ def fetch_data():
         "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "NOVO-B.CO": "NOVO NORDISK", 
         "OR.PA": "L'OREAL", "ROG.SW": "ROCHE", "NESN.SW": "NESTLE"
     }
-results = {}
-aktuell = datetime.now() + timedelta(hours=1)
+    results = {}
+    aktuell = datetime.now() + timedelta(hours=1)
     st.session_state.last_update = aktuell.strftime('%H:%M:%S')
+    
     for ticker, label in symbols.items():
         try:
             t = yf.Ticker(ticker)
-            # 7 Tage abrufen, um sicher die letzten 5 Handelstage zu haben
-            df = t.history(period="7d") 
+            df = t.history(period="7d")
             if len(df) >= 2:
                 curr = df['Close'].iloc[-1]
+                prev_high = df['High'].iloc[-2]
                 
-                # Tages-Spanne (Heutige Kerze)
-                d_low = df['Low'].iloc[-1]
-                d_high = df['High'].iloc[-1]
+                # --- NEU: SPANNEN BERECHNEN ---
+                d_low, d_high = df['Low'].iloc[-1], df['High'].iloc[-1]
+                w_low, w_high = df['Low'].tail(5).min(), df['High'].tail(5).max()
                 
-                # Wochen-Spanne (Letzte 5 Handelstage)
-                w_low = df['Low'].tail(5).min()
-                w_high = df['High'].tail(5).max()
+                is_breakout = curr > prev_high
                 
                 if is_breakout and label not in st.session_state.triggered_s and "X" not in ticker and "^" not in ticker:
                     st.session_state.triggered_s.add(label)
@@ -91,17 +90,12 @@ aktuell = datetime.now() + timedelta(hours=1)
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
                 
                 results[label] = {
-                    "price": curr, 
-                    "prev_high": df['High'].iloc[-2], 
-                    "is_breakout": curr > df['High'].iloc[-2],
-                    "delta": ((curr - st.session_state.initial_values[label]) / st.session_state.initial_values[label]) * 100,
-                    "day_range": (d_low, d_high),
-                    "week_range": (w_low, w_high),
-                    "w": get_weather_info(delta)[0],
+                    "price": curr, "prev_high": prev_high, "is_breakout": is_breakout,
+                    "delta": delta, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt,
+                    "d_range": (d_low, d_high), "w_range": (w_low, w_high) # Werte für die Anzeige
                 }
         except Exception as e:
             st.error(f"Fehler bei {label}: {e}")
-        except: pass
     return results
 
 def render_row(label, d, f_str="{:.2f}"):
@@ -191,6 +185,7 @@ with st.expander("🍕 🇪🇺 EUROPA FOCUS 🍕", expanded=False):
 with st.expander("🍔🏈 🇺🇸 US TECH FOCUS 🏈🍔", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
