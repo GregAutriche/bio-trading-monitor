@@ -154,7 +154,7 @@ with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE ℹ️"):
 
 # 4. LOGS
 with st.expander("🕒 SESSION LOG (HISTORY) 🕒", expanded=False):
-    if st.session_state.breakout_history:
+        if st.session_state.breakout_history:
         # 1. Erstelle den DataFrame aus der Historie
         df = pd.DataFrame(st.session_state.breakout_history)
         
@@ -192,4 +192,5 @@ with st.expander(" 🍕 FOKUS/ 🇺🇸 US TECH 🍕", expanded=False):
 with st.expander("🍔🏈 FOKUS/ 🇪🇺 EUROPEAN 🏈🍔", expanded=False):
     for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
         render_row(ticker, data.get(ticker))
+
 
