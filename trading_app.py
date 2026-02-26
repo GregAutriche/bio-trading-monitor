@@ -160,7 +160,7 @@ with st.expander("🕒 SESSION LOG (HISTORY) 🕒", expanded=False):
 
     if 'Preis' in df.columns:
             df['Preis'] = pd.to_numeric(df['Preis'])
-            df['Differenz zu letztem Tageshoch'] = df['Preis'] - TAGESHOCH_GESTER    
+            df['Differenz zu letztem Tageshoch'] = df['Preis'] - TAGESHOCH_GESTERN    
             df_unique = df.drop_duplicates(subset=['Aktie'], keep='first')[::-1]
             st.table(df_unique[::-1])
     else:
@@ -190,6 +190,7 @@ with st.expander(" 🍕 FOKUS/ 🇺🇸 US TECH 🍕", expanded=False):
 with st.expander("🍔🏈 FOKUS/ 🇪🇺 EUROPEAN 🏈🍔", expanded=False):
     for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
         render_row(ticker, data.get(ticker))
+
 
 
 
