@@ -27,8 +27,8 @@ st.markdown("""
     [data-testid="stMetricValue"] { font-size: 22px !important; color: #ffffff !important; }
     .stat-box { background-color: #111; padding: 15px; border-radius: 10px; border: 1px solid #333; text-align: center; margin-bottom: 15px; }
     .header-time { color: #00ff00 !important; font-size: 32px !important; font-weight: bold; }
-    .focus-header { color: #888888 !important; font-weight: bold; margin-top: 25px; border-bottom: 1px solid #444; padding-bottom: 5px; text-transform: uppercase; }
-    .streamlit-expanderHeader { background-color: #111111 !important; color: #00ff00 !important; border-radius: 5px; }
+    .focus-header { color: #888888 !important; font-weight: bold; margin-top: 25px; border-bottom: 1px solid #444; padding-bottom: 5px; }
+    .streamlit-expanderHeader { background-color: #111111 !important; color: #00ff00 !important; border-radius: 5px; font-weight: bold; border: 1px solid #333; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -51,8 +51,7 @@ def fetch_data():
         "EURUSD=X": "EUR/USD", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ",
         "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", 
         "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
-        "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "NOVO-B.CO": "NOVO NORDISK",
-        "RTSI.ME": "RTS INDEX", "RUB=X": "USD/RUB"
+        "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "NOVO-B.CO": "NOVO NORDISK"
     }
     results = {}
     aktuell = datetime.now() + timedelta(hours=1)
@@ -133,7 +132,7 @@ data = fetch_data()
 h_col1, h_col2 = st.columns([2,1])
 with h_col1:
     st.markdown("<h1>📡 BREAKOUT MONITOR 📡</h1>", unsafe_allow_html=True)
-    st.markdown(f"<p style='color:#888; margin-top:-15px;'>Start: {st.session_state.session_start}</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color:#888; margin-top:-15px;'>Sitzung: {st.session_state.session_start}</p>", unsafe_allow_html=True)
 with h_col2:
     st.markdown(f"<div style='text-align:right;'><span class='header-time'>{st.session_state.last_update}</span></div>", unsafe_allow_html=True)
 
@@ -142,33 +141,29 @@ if data:
     b_count = sum(1 for k, v in data.items() if v['is_breakout'] and k not in ["EUR/USD", "EUROSTOXX 50", "NASDAQ"])
     st.markdown(f"<div class='stat-box'><span style='font-size: 18px;'>Signale: <b style='color:#00ff00;'>{b_count} Aktive Breakouts</b></span></div>", unsafe_allow_html=True)
 
-# INFO EXPANDER
+# GUIDE EXPANDER
 with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & GUIDE"):
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("**Wetter:** ☀️ >0.5% | 🌤️ >0% | ☁️ Neutral | ⛈️ <-0.5%")
-    with c2:
-        st.markdown("**Signale:** 🚀 Breakout (Vortages-Hoch) | 🟢 Buy-Trend")
+    st.write("☀️ >0.5% | 🌤️ >0% | ☁️ Neutral | ⛈️ <-0.5% | 🚀 Breakout über Vortages-Hoch")
 
-# 1. MACRO / FOREX SECTION
-st.markdown("<p class='focus-header'>🌍 Macro Focus (Währungen & Indizes)</p>", unsafe_allow_html=True)
+# 1. MACRO (Immer sichtbar)
+st.markdown("<p class='focus-header'>🌍 MACRO FOCUS</p>", unsafe_allow_html=True)
 render_row("EUR/USD", data.get("EUR/USD"), "{:.5f}")
 render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
 render_row("NASDAQ", data.get("NASDAQ"))
 
-# 2. USA / TECH SECTION
-st.markdown("<p class='focus-header'>🇺🇸 US Tech Focus</p>", unsafe_allow_html=True)
-for ticker in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]:
-    render_row(ticker, data.get(ticker))
+# 2. USA TECH (Expander)
+with st.expander("🇺🇸 US TECH FOCUS (APPLE, NVDA, TSLA...)", expanded=True):
+    for ticker in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]:
+        render_row(ticker, data.get(ticker))
 
-# 3. EUROPE / GROWTH SECTION
-st.markdown("<p class='focus-header'>🇪🇺 European Growth Focus</p>", unsafe_allow_html=True)
-for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
-    render_row(ticker, data.get(ticker))
+# 3. EUROPE GROWTH (Expander)
+with st.expander("🇪🇺 EUROPEAN GROWTH (ASML, SAP, LVMH...)", expanded=True):
+    for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
+        render_row(ticker, data.get(ticker))
 
 # 4. LOGS
 with st.expander("🕒 SESSION LOG (HISTORY)"):
     if st.session_state.breakout_history:
         st.table(pd.DataFrame(st.session_state.breakout_history)[::-1])
     else:
-        st.info("Noch keine Breakouts in dieser Sitzung.")
+        st.info("Noch keine Breakouts erfasst.")
