@@ -49,9 +49,12 @@ def get_weather_info(delta):
 def fetch_data():
     symbols = {
         "EURUSD=X": "EUR/USD", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ",
+        "^CRSLDX": "NIFTY 500 (IN)", "XU100.IS": "BIST 100 (TR)", "XUTUM.IS": "BIST ALL (TR)",
+        "RTSI.ME": "RTS INDEX (RU/USD)", "IMOEX.ME": "MOEX RUSSIA (RU)", "RUB=X": "USD/RUB (Währung)",
         "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", 
         "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
-        "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "NOVO-B.CO": "NOVO NORDISK"
+        "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "NOVO-B.CO": "NOVO NORDISK", 
+        "OR.PA": "L'OREAL", "ROG.SW": "ROCHE", "NESN.SW": "NESTLE"
     }
     results = {}
     aktuell = datetime.now() + timedelta(hours=1)
@@ -161,6 +164,15 @@ st.markdown("<p class='focus-header'>🌍 MACRO FOCUS</p>", unsafe_allow_html=Tr
 render_row("EUR/USD", data.get("EUR/USD"), "{:.5f}")
 render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
 render_row("NASDAQ", data.get("NASDAQ"))
+render_row("NIFTY 500 (IN)", data.get("NIFTY 500 (IN)"))
+render_row("BIST 100 (TR)", data.get("BIST 100 (TR)"))
+if data.get("RTS INDEX (RU/USD)"):
+    render_row("RTS INDEX (RU/USD)", data.get("RTS INDEX (RU/USD)"))
+elif data.get("MOEX RUSSIA (RU)"):
+    render_row("MOEX RUSSIA (RU)", data.get("MOEX RUSSIA (RU)"))
+else:
+    # Zeigt die Währung an, falls keine Index-Daten kommen
+    render_row("USD/RUB (Währung)", data.get("USD/RUB (Währung)"), "{:.4f}")
 
 # 2. USA TECH (Expander)
 with st.expander("🇺🇸 US TECH FOCUS (APPLE, NVDA, TSLA...)", expanded=True):
@@ -171,4 +183,5 @@ with st.expander("🇺🇸 US TECH FOCUS (APPLE, NVDA, TSLA...)", expanded=True)
 with st.expander("🇪🇺 EUROPEAN GROWTH (ASML, SAP, LVMH...)", expanded=True):
     for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
         render_row(ticker, data.get(ticker))
+
 
