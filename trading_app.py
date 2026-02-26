@@ -106,7 +106,6 @@ def fetch_data():
     return results
 
 def render_row(label, d, f_str="{:.2f}"):
-def render_row(label, d, f_str="{:.2f}"):
     if not d: return
     # Hier lag der Fehler: 'is_breakout' muss aus 'd' geholt werden
     bg_color = "rgba(0, 255, 0, 0.04)" if d['is_breakout'] else "transparent"
@@ -193,6 +192,7 @@ with st.expander("🍕 🇪🇺 EUROPA FOCUS 🍕", expanded=False):
 with st.expander("🍔🏈 🇺🇸 US TECH FOCUS 🏈🍔", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
