@@ -134,7 +134,7 @@ data = fetch_data()
 # HEADER
 h_col1, h_col2 = st.columns([2,1])
 with h_col1:
-    st.markdown("<h1>📡 BREAKOUT MONITOR 📡</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>📡 BREAKOUT 📡</h1>", unsafe_allow_html=True)
     st.markdown(f"<p style='color:#888; margin-top:-15px;'>Sitzung: {st.session_state.session_start}</p>", unsafe_allow_html=True)
 with h_col2:
     st.markdown(f"<div style='text-align:right;'><span class='header-time'>{st.session_state.last_update}</span></div>", unsafe_allow_html=True)
@@ -183,5 +183,6 @@ with st.expander("🇺🇸 US TECH FOCUS (APPLE, NVDA, TSLA...)", expanded=True)
 with st.expander("🇪🇺 EUROPEAN GROWTH (ASML, SAP, LVMH...)", expanded=True):
     for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
         render_row(ticker, data.get(ticker))
+
 
 
