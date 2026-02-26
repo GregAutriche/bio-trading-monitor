@@ -153,7 +153,7 @@ with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE ℹ️"):
         st.markdown("**Signale:**\n- 🚀 BREAKOUT: Über Vortages-Hoch\n- 🟢 BUY: Aktiver Trend\n- ⚪ WAIT: Unter Widerstand")
 
 # 4. LOGS
-with st.expander("🕒 SESSION LOG (HISTORY) 🕒"):
+with st.expander("🕒 SESSION LOG (HISTORY) 🕒", expanded=False):
     if st.session_state.breakout_history:
         st.table(pd.DataFrame(st.session_state.breakout_history)[::-1])
     else:
@@ -183,6 +183,7 @@ with st.expander(" 🍕 FOKUS/ 🇺🇸 US TECH 🍕", expanded=True):
 with st.expander("🍔🏈 FOKUS/ 🇪🇺 EUROPEAN 🏈🍔", expanded=True):
     for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
         render_row(ticker, data.get(ticker))
+
 
 
 
