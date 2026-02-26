@@ -61,8 +61,7 @@ def fetch_data():
     }
 results = {}
 aktuell = datetime.now() + timedelta(hours=1)
-st.session_state.last_update = aktuell.strftime('%H:%M:%S')
-    
+    st.session_state.last_update = aktuell.strftime('%H:%M:%S')
     for ticker, label in symbols.items():
         try:
             t = yf.Ticker(ticker)
@@ -192,6 +191,7 @@ with st.expander("🍕 🇪🇺 EUROPA FOCUS 🍕", expanded=False):
 with st.expander("🍔🏈 🇺🇸 US TECH FOCUS 🏈🍔", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
