@@ -154,19 +154,18 @@ with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE ℹ️"):
 
 # 4. LOGS
 with st.expander("🕒 SESSION LOG (HISTORY) 🕒", expanded=False):
-        if st.session_state.breakout_history:
-        # 1. Erstelle den DataFrame aus der Historie
-           df = pd.DataFrame(st.session_state.breakout_history)
+    if st.session_state.breakout_history:
+        # 1. Erstelle DataFrame
+        df = pd.DataFrame(st.session_state.breakout_history)
         
-        # 2. Berechne die Differenz (z.B. für eine Spalte namens 'Preis')
-        # .diff() zieht den Wert der vorherigen Zeile vom aktuellen ab
-        if 'Preis' in df.columns:
-            df['Differenz'] = df['Preis'].diff()
+        # 2. Entferne Duplikate (behalte nur das erste Vorkommen der Aktie)
+        # 3. Sortiere neu (Neueste Zeit nach oben) mit [::-1]
+        df_unique = df.drop_duplicates(subset=['Aktie'], keep='first')[::-1]
         
-        # 3. Anzeige der Tabelle (umgedreht, damit der neueste Eintrag oben steht)
-        st.table(df[::-1])
-  else:
-        st.info("Noch keine Breakouts erfasst.")
+        # Anzeige
+        st.table(df_unique)
+    else:
+        st.info("Noch keine Breakouts in dieser Sitzung erfasst.")
 
 # 1. MACRO (Immer sichtbar)
 st.markdown("<p class='focus-header'>🌍 FOKUS/ MACRO 🌍</p>", unsafe_allow_html=True)
@@ -192,6 +191,7 @@ with st.expander(" 🍕 FOKUS/ 🇺🇸 US TECH 🍕", expanded=False):
 with st.expander("🍔🏈 FOKUS/ 🇪🇺 EUROPEAN 🏈🍔", expanded=False):
     for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
         render_row(ticker, data.get(ticker))
+
 
 
 
