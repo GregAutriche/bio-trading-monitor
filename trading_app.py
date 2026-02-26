@@ -11,7 +11,6 @@ except ImportError:
     os.system('pip install streamlit-autorefresh')
     from streamlit_autorefresh import st_autorefresh
 
-# Aktualisiert alle 30 Sekunden
 st_autorefresh(interval=30000, key="datarefresh")
 
 def play_alarm():
@@ -29,6 +28,7 @@ st.markdown("""
     .stat-box { background-color: #111; padding: 15px; border-radius: 10px; border: 1px solid #333; text-align: center; margin-bottom: 15px; }
     .header-time { color: #00ff00 !important; font-size: 32px !important; font-weight: bold; }
     .focus-header { color: #888888 !important; font-weight: bold; margin-top: 25px; border-bottom: 1px solid #444; padding-bottom: 5px; }
+    .streamlit-expanderHeader { background-color: #111111 !important; color: #00ff00 !important; border-radius: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -65,7 +65,7 @@ def fetch_data():
                 curr = df['Close'].iloc[-1]
                 prev_high = df['High'].iloc[-2]
                 
-                # Spannen-Berechnung
+                # --- SPANNEN BERECHNEN ---
                 d_low, d_high = df['Low'].iloc[-1], df['High'].iloc[-1]
                 w_low, w_high = df['Low'].tail(5).min(), df['High'].tail(5).max()
                 
@@ -116,7 +116,7 @@ def render_row(label, d, f_str="{:.2f}"):
     
     with st.container():
         st.markdown(f"<div style='background-color: {bg_color}; padding: 8px 12px; border-radius: 8px; border: 1px solid {border_col}; margin-bottom: 2px;'><div style='color: #00ff00; font-size: 14px; font-weight: bold;'>{label}</div></div>", unsafe_allow_html=True)
-        cols = st.columns([0.5, 0.5, 1.2, 0.8, 0.8, 0.6]) 
+        cols = st.columns([0.4, 0.4, 1.2, 0.8, 0.8, 0.6]) 
         
         with cols[0]: st.markdown(f"<div style='text-align:center;'><span style='font-size:28px;'>{d['w']}</span><br><span style='font-size:9px; color:#888;'>{d['wt']}</span></div>", unsafe_allow_html=True)
         with cols[1]: st.markdown(f"<div style='text-align:center;'><span style='font-size:28px;'>{d['a']}</span><br><span style='font-size:9px; color:#888;'>{d['at']}</span></div>", unsafe_allow_html=True)
@@ -132,7 +132,7 @@ data = fetch_data()
 h_cols = st.columns([2, 1])
 with h_cols[0]:
     st.markdown("<h1>📡 TRADING TERMINAL 📡</h1>", unsafe_allow_html=True)
-    st.markdown(f"<p style='color:#888; margin-top:-15px;'>Start: {st.session_state.session_start}</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color:#888; margin-top:-15px;'>Sitzungsbeginn: {st.session_state.session_start}</p>", unsafe_allow_html=True)
 with h_cols[1]:
     st.markdown(f"<div style='text-align:right;'><span class='header-time'>{st.session_state.last_update}</span></div>", unsafe_allow_html=True)
 
@@ -140,13 +140,22 @@ if data:
     b_count = sum(1 for k, v in data.items() if v['is_breakout'])
     st.markdown(f"<div class='stat-box'><span style='font-size: 18px;'>Signale: <b style='color:#00ff00;'>{b_count} von {len(data)}</b> Assets im Breakout</span></div>", unsafe_allow_html=True)
 
-# Zeilen rendern
+# --- NEU: DER GEWÜNSCHTE EXPANDER ---
+with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE ℹ️"):
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**Markt-Wetter:**\n- ☀️ SONNIG (>+0.5%)\n- ☁️ WOLKIG (Neutral)\n- ⛈️ GEWITTER (<-0.5%)")
+    with c2:
+        st.markdown("**Signale:**\n- 🚀 BREAKOUT: Über Vortages-Hoch\n- 🟢 BUY: Aktiver Trend\n- ⚪ WAIT: Unter Widerstand")
+
+# Daten ausgeben
 for lbl, val in data.items():
     f = "{:.5f}" if "EUR/USD" in lbl or "RUB" in lbl else "{:.2f}"
     render_row(lbl, val, f)
 
 with st.expander("🕒 SESSION LOG (Breakouts)"):
     if st.session_state.breakout_history:
-        st.table(pd.DataFrame(st.session_state.breakout_history)[::-1])
+        df = pd.DataFrame(st.session_state.breakout_history)
+        st.table(df.drop_duplicates(subset=['Aktie'], keep='first')[::-1])
     else:
         st.info("Noch keine Breakouts erfasst.")
