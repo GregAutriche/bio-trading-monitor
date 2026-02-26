@@ -142,8 +142,12 @@ if data:
     st.markdown(f"<div class='stat-box'><span style='font-size: 18px;'>Signale: <b style='color:#00ff00;'>{b_count} Aktive Breakouts</b></span></div>", unsafe_allow_html=True)
 
 # GUIDE EXPANDER
-with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & GUIDE"):
-    st.write("☀️ >0.5% | 🌤️ >0% | ☁️ Neutral | ⛈️ <-0.5% | 🚀 Breakout über Vortages-Hoch")
+with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE ℹ️"):
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**Markt-Wetter:**\n- ☀️ SONNIG (>+0.5%)\n- ☁️ WOLKIG (Neutral)\n- ⛈️ GEWITTER (<-0.5%)")
+    with c2:
+        st.markdown("**Signale:**\n- 🚀 BREAKOUT: Über Vortages-Hoch\n- 🟢 BUY: Aktiver Trend\n- ⚪ WAIT: Unter Widerstand")
 
 # 4. LOGS
 with st.expander("🕒 SESSION LOG (HISTORY)"):
@@ -167,3 +171,4 @@ with st.expander("🇺🇸 US TECH FOCUS (APPLE, NVDA, TSLA...)", expanded=True)
 with st.expander("🇪🇺 EUROPEAN GROWTH (ASML, SAP, LVMH...)", expanded=True):
     for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
         render_row(ticker, data.get(ticker))
+
