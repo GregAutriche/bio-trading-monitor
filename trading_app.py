@@ -160,7 +160,7 @@ with st.expander("🕒 SESSION LOG (HISTORY) 🕒"):
         st.info("Noch keine Breakouts erfasst.")
 
 # 1. MACRO (Immer sichtbar)
-st.markdown("<p class='focus-header'>🌍 MACRO FOCUS</p>", unsafe_allow_html=True)
+st.markdown("<p class='focus-header'>🌍 FOKUS/ MACRO 🌍</p>", unsafe_allow_html=True)
 render_row("EUR/USD", data.get("EUR/USD"), "{:.5f}")
 render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
 render_row("NASDAQ", data.get("NASDAQ"))
@@ -175,14 +175,15 @@ else:
     render_row("USD/RUB (Währung)", data.get("USD/RUB (Währung)"), "{:.4f}")
 
 # 2. USA TECH (Expander)
-with st.expander("FOKUS/ 🇺🇸 US TECH", expanded=True):
+with st.expander(" 🍕 FOKUS/ 🇺🇸 US TECH 🍕", expanded=True):
     for ticker in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]:
         render_row(ticker, data.get(ticker))
 
 # 3. EUROPE GROWTH (Expander)
-with st.expander("FOKUS/ 🇪🇺 EUROPEAN", expanded=True):
+with st.expander("🍔🏈 FOKUS/ 🇪🇺 EUROPEAN 🏈🍔", expanded=True):
     for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
         render_row(ticker, data.get(ticker))
+
 
 
 
