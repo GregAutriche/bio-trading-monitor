@@ -165,7 +165,7 @@ with st.expander("🕒 SESSION LOG (HISTORY) 🕒", expanded=False):
         
         # 3. Anzeige der Tabelle (umgedreht, damit der neueste Eintrag oben steht)
         st.table(df[::-1])
-    else:
+  else:
         st.info("Noch keine Breakouts erfasst.")
 
 # 1. MACRO (Immer sichtbar)
@@ -192,6 +192,7 @@ with st.expander(" 🍕 FOKUS/ 🇺🇸 US TECH 🍕", expanded=False):
 with st.expander("🍔🏈 FOKUS/ 🇪🇺 EUROPEAN 🏈🍔", expanded=False):
     for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
         render_row(ticker, data.get(ticker))
+
 
 
 
