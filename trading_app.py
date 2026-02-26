@@ -161,10 +161,7 @@ with st.expander("🕒 SESSION LOG (HISTORY) 🕒", expanded=False):
     if 'Preis' in df.columns:
             df['Preis'] = pd.to_numeric(df['Preis'])
             df['Differenz zu letztem Tageshoch'] = df['Preis'] - TAGESHOCH_GESTER    
-        
-        # 2. Entferne Duplikate (behalte nur das erste Vorkommen der Aktie)
-        # 3. Sortiere neu (Neueste Zeit nach oben) mit [::-1]
-        df_unique = df.drop_duplicates(subset=['Aktie'], keep='first')[::-1]
+            df_unique = df.drop_duplicates(subset=['Aktie'], keep='first')[::-1]
         
         # Anzeige
         st.table(df_unique)
@@ -195,6 +192,7 @@ with st.expander(" 🍕 FOKUS/ 🇺🇸 US TECH 🍕", expanded=False):
 with st.expander("🍔🏈 FOKUS/ 🇪🇺 EUROPEAN 🏈🍔", expanded=False):
     for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
         render_row(ticker, data.get(ticker))
+
 
 
 
