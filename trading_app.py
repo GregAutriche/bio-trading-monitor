@@ -71,6 +71,20 @@ def fetch_data():
                 curr = df['Close'].iloc[-1]
                 prev_high = df['High'].iloc[-2]
                 is_breakout = curr > prev_high # Variable korrigiert
+
+                        t = yf.Ticker(ticker)
+            # 7 Tage abrufen, um sicher die letzten 5 Handelstage zu haben
+            df = t.history(period="7d") 
+            if len(df) >= 2:
+                curr = df['Close'].iloc[-1]
+                
+                # Tages-Spanne (Heutige Kerze)
+                d_low = df['Low'].iloc[-1]
+                d_high = df['High'].iloc[-1]
+                
+                # Wochen-Spanne (Letzte 5 Handelstage)
+                w_low = df['Low'].tail(5).min()
+                w_high = df['High'].tail(5).max()
                 
                 if is_breakout and label not in st.session_state.triggered_s and "X" not in ticker and "^" not in ticker:
                     st.session_state.triggered_s.add(label)
@@ -83,11 +97,17 @@ def fetch_data():
                 
                 delta = ((curr - st.session_state.initial_values[label]) / st.session_state.initial_values[label]) * 100
                 w_icon, w_txt, a_icon, a_txt = get_weather_info(delta)
-                
+
                 results[label] = {
-                    "price": curr, "prev_high": prev_high, "is_breakout": is_breakout,
-                    "delta": delta, "w": w_icon, "wt": w_txt, "a": a_icon, "at": a_txt
+                    "price": curr, 
+                    "prev_high": df['High'].iloc[-2], 
+                    "is_breakout": curr > df['High'].iloc[-2],
+                    "delta": ((curr - st.session_state.initial_values[label]) / st.session_state.initial_values[label]) * 100,
+                    "day_range": (d_low, d_high),
+                    "week_range": (w_low, w_high),
+                    "w": get_weather_info(delta)[0], # etc.
                 }
+                                
         except Exception as e:
             st.error(f"Fehler bei {label}: {e}")
         except: pass
@@ -175,6 +195,7 @@ with st.expander("🍕 🇪🇺 EUROPA FOCUS 🍕", expanded=False):
 with st.expander("🍔🏈 🇺🇸 US TECH FOCUS 🏈🍔", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
