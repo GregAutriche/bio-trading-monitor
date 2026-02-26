@@ -111,7 +111,7 @@ def render_row(label, d, f_str="{:.2f}"):
     # Hier lag der Fehler: 'is_breakout' muss aus 'd' geholt werden
     bg_color = "rgba(0, 255, 0, 0.04)" if d['is_breakout'] else "transparent"
     border_col = "#00ff00" if d['is_breakout'] else "#222"
-    status_color = "#00ff00" if d['is_breakout'] else "#555
+    status_color = "#00ff00" if d['is_breakout'] else "#555555"
     
     with st.container():
         st.markdown(f"<div style='background-color: {bg_color}; padding: 8px 12px; border-radius: 8px; border: 1px solid {border_col}; margin-bottom: 2px;'><div style='color: #00ff00; font-size: 14px; font-weight: bold;'>{label}</div></div>", unsafe_allow_html=True)
@@ -193,5 +193,6 @@ with st.expander("🍕 🇪🇺 EUROPA FOCUS 🍕", expanded=False):
 with st.expander("🍔🏈 🇺🇸 US TECH FOCUS 🏈🍔", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
