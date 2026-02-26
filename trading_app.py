@@ -157,6 +157,10 @@ with st.expander("🕒 SESSION LOG (HISTORY) 🕒", expanded=False):
     if st.session_state.breakout_history:
         # 1. Erstelle DataFrame
         df = pd.DataFrame(st.session_state.breakout_history)
+
+    if 'Preis' in df.columns:
+            df['Preis'] = pd.to_numeric(df['Preis'])
+            df['Differenz zu letztem Tageshoch'] = df['Preis'] - TAGESHOCH_GESTERN
         
         # 2. Entferne Duplikate (behalte nur das erste Vorkommen der Aktie)
         # 3. Sortiere neu (Neueste Zeit nach oben) mit [::-1]
@@ -191,6 +195,7 @@ with st.expander(" 🍕 FOKUS/ 🇺🇸 US TECH 🍕", expanded=False):
 with st.expander("🍔🏈 FOKUS/ 🇪🇺 EUROPEAN 🏈🍔", expanded=False):
     for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
         render_row(ticker, data.get(ticker))
+
 
 
 
