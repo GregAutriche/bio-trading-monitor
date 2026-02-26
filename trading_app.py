@@ -183,10 +183,3 @@ with st.expander(" 🍕 FOKUS/ 🇺🇸 US TECH 🍕", expanded=False):
 with st.expander("🍔🏈 FOKUS/ 🇪🇺 EUROPEAN 🏈🍔", expanded=False):
     for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
         render_row(ticker, data.get(ticker))
-
-
-
-
-
-
-
