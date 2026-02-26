@@ -159,9 +159,11 @@ with st.expander("🕒 SESSION LOG (HISTORY) 🕒", expanded=False):
         df = pd.DataFrame(st.session_state.breakout_history)
 
     if 'Preis' in df.columns:
-            df['Preis'] = pd.to_numeric(df['Preis'])
+            df['Preis'] = pd.to_numeric(df['Preis'], errors='coerce')
             df['Differenz zu letztem Tageshoch'] = df['Preis'] - TAGESHOCH_GESTERN    
             df_unique = df.drop_duplicates(subset=['Aktie'], keep='first')[::-1]
+            TAGESHOCH_REFERENZ = df['Preis'].iloc[0]
+            df_unique = df.drop_duplicates(subset=['Aktie'], keep='first')
             st.table(df_unique[::-1])
     else:
         st.info("Noch keine Breakouts in dieser Sitzung erfasst.")
@@ -190,6 +192,7 @@ with st.expander(" 🍕 FOKUS/ 🇺🇸 US TECH 🍕", expanded=False):
 with st.expander("🍔🏈 FOKUS/ 🇪🇺 EUROPEAN 🏈🍔", expanded=False):
     for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
         render_row(ticker, data.get(ticker))
+
 
 
 
