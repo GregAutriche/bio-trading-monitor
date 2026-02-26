@@ -50,7 +50,7 @@ def get_weather_info(delta):
     else: return "⛈️", "GEWITTER", "🔴", "SELL"
 
 def fetch_data():
-    symbols = {
+     symbols = {
         "EURUSD=X": "EUR/USD", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ",
         "^CRSLDX": "NIFTY 500 (IN)", "XU100.IS": "BIST 100 (TR)", "XUTUM.IS": "BIST ALL (TR)",
         "RTSI.ME": "RTS INDEX (RU/USD)", "IMOEX.ME": "MOEX RUSSIA (RU)", "RUB=X": "USD/RUB (Währung)",
@@ -192,6 +192,7 @@ with st.expander("🍕 🇪🇺 EUROPA FOCUS 🍕", expanded=False):
 with st.expander("🍔🏈 🇺🇸 US TECH FOCUS 🏈🍔", expanded=False):
     for u in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TSLA"]:
         render_row(u, data.get(u))
+
 
 
 
