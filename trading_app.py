@@ -27,7 +27,7 @@ st.markdown("""
     [data-testid="stMetricValue"] { font-size: 22px !important; color: #ffffff !important; }
     .stat-box { background-color: #111; padding: 15px; border-radius: 10px; border: 1px solid #333; text-align: center; margin-bottom: 15px; }
     .header-time { color: #00ff00 !important; font-size: 32px !important; font-weight: bold; }
-    .focus-header { color: #888888 !important; font-weight: bold; margin-top: 25px; border-bottom: 1px solid #444; padding-bottom: 5px; }
+    .focus-header { color: #888888 !important; font-weight: bold; margin-top: 25px; border-bottom: 1px solid #444; padding-bottom: 5px; text-transform: uppercase; }
     .streamlit-expanderHeader { background-color: #111111 !important; color: #00ff00 !important; border-radius: 5px; }
     </style>
     """, unsafe_allow_html=True)
@@ -51,7 +51,8 @@ def fetch_data():
         "EURUSD=X": "EUR/USD", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ",
         "AAPL": "APPLE", "MSFT": "MICROSOFT", "AMZN": "AMAZON", "NVDA": "NVIDIA", 
         "GOOGL": "ALPHABET", "META": "META", "TSLA": "TESLA",
-        "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP"
+        "ASML": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "NOVO-B.CO": "NOVO NORDISK",
+        "RTSI.ME": "RTS INDEX", "RUB=X": "USD/RUB"
     }
     results = {}
     aktuell = datetime.now() + timedelta(hours=1)
@@ -65,7 +66,6 @@ def fetch_data():
                 curr = df['Close'].iloc[-1]
                 prev_high = df['High'].iloc[-2]
                 
-                # --- SPANNEN BERECHNEN ---
                 d_low, d_high = df['Low'].iloc[-1], df['High'].iloc[-1]
                 w_low, w_high = df['Low'].tail(5).min(), df['High'].tail(5).max()
                 
@@ -129,33 +129,46 @@ def render_row(label, d, f_str="{:.2f}"):
 # --- 4. DISPLAY ---
 data = fetch_data()
 
-h_cols = st.columns([2, 1])
-with h_cols[0]:
-    st.markdown("<h1>📡 TRADING TERMINAL 📡</h1>", unsafe_allow_html=True)
-    st.markdown(f"<p style='color:#888; margin-top:-15px;'>Sitzungsbeginn: {st.session_state.session_start}</p>", unsafe_allow_html=True)
-with h_cols[1]:
+# HEADER
+h_col1, h_col2 = st.columns([2,1])
+with h_col1:
+    st.markdown("<h1>📡 BREAKOUT MONITOR 📡</h1>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color:#888; margin-top:-15px;'>Start: {st.session_state.session_start}</p>", unsafe_allow_html=True)
+with h_col2:
     st.markdown(f"<div style='text-align:right;'><span class='header-time'>{st.session_state.last_update}</span></div>", unsafe_allow_html=True)
 
+# STATS
 if data:
-    b_count = sum(1 for k, v in data.items() if v['is_breakout'])
-    st.markdown(f"<div class='stat-box'><span style='font-size: 18px;'>Signale: <b style='color:#00ff00;'>{b_count} von {len(data)}</b> Assets im Breakout</span></div>", unsafe_allow_html=True)
+    b_count = sum(1 for k, v in data.items() if v['is_breakout'] and k not in ["EUR/USD", "EUROSTOXX 50", "NASDAQ"])
+    st.markdown(f"<div class='stat-box'><span style='font-size: 18px;'>Signale: <b style='color:#00ff00;'>{b_count} Aktive Breakouts</b></span></div>", unsafe_allow_html=True)
 
-# --- NEU: DER GEWÜNSCHTE EXPANDER ---
-with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & HANDLUNGS-GUIDE ℹ️"):
+# INFO EXPANDER
+with st.expander("ℹ️ SYMBOL-ERKLÄRUNG & GUIDE"):
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown("**Markt-Wetter:**\n- ☀️ SONNIG (>+0.5%)\n- ☁️ WOLKIG (Neutral)\n- ⛈️ GEWITTER (<-0.5%)")
+        st.markdown("**Wetter:** ☀️ >0.5% | 🌤️ >0% | ☁️ Neutral | ⛈️ <-0.5%")
     with c2:
-        st.markdown("**Signale:**\n- 🚀 BREAKOUT: Über Vortages-Hoch\n- 🟢 BUY: Aktiver Trend\n- ⚪ WAIT: Unter Widerstand")
+        st.markdown("**Signale:** 🚀 Breakout (Vortages-Hoch) | 🟢 Buy-Trend")
 
-# Daten ausgeben
-for lbl, val in data.items():
-    f = "{:.5f}" if "EUR/USD" in lbl or "RUB" in lbl else "{:.2f}"
-    render_row(lbl, val, f)
+# 1. MACRO / FOREX SECTION
+st.markdown("<p class='focus-header'>🌍 Macro Focus (Währungen & Indizes)</p>", unsafe_allow_html=True)
+render_row("EUR/USD", data.get("EUR/USD"), "{:.5f}")
+render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
+render_row("NASDAQ", data.get("NASDAQ"))
 
-with st.expander("🕒 SESSION LOG (Breakouts)"):
+# 2. USA / TECH SECTION
+st.markdown("<p class='focus-header'>🇺🇸 US Tech Focus</p>", unsafe_allow_html=True)
+for ticker in ["APPLE", "MICROSOFT", "AMAZON", "NVIDIA", "ALPHABET", "META", "TESLA"]:
+    render_row(ticker, data.get(ticker))
+
+# 3. EUROPE / GROWTH SECTION
+st.markdown("<p class='focus-header'>🇪🇺 European Growth Focus</p>", unsafe_allow_html=True)
+for ticker in ["ASML", "LVMH", "SAP", "NOVO NORDISK"]:
+    render_row(ticker, data.get(ticker))
+
+# 4. LOGS
+with st.expander("🕒 SESSION LOG (HISTORY)"):
     if st.session_state.breakout_history:
-        df = pd.DataFrame(st.session_state.breakout_history)
-        st.table(df.drop_duplicates(subset=['Aktie'], keep='first')[::-1])
+        st.table(pd.DataFrame(st.session_state.breakout_history)[::-1])
     else:
-        st.info("Noch keine Breakouts erfasst.")
+        st.info("Noch keine Breakouts in dieser Sitzung.")
