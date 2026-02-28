@@ -28,7 +28,6 @@ st.markdown("""
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
     .ticker-name { color: #00ff00; font-size: 15px; font-weight: bold; margin-bottom: 0px; line-height: 1.2; }
     .open-price { color: #888888; font-size: 11px; margin-top: 2px; }
-    .method-box { background-color: #111; padding: 15px; border-radius: 5px; border-left: 3px solid #00ff00; font-size: 14px; line-height: 1.6; }
     .focus-header { color: #00ff00 !important; font-weight: bold; margin-top: 30px; border-bottom: 1px solid #333; padding-bottom: 5px; font-size: 20px; }
     .sig-c { color: #00ff00; font-weight: bold; font-size: 24px; border: 1px solid #00ff00; padding: 2px 10px; border-radius: 5px; }
     .sig-p { color: #ff4b4b; font-weight: bold; font-size: 24px; border: 1px solid #ff4b4b; padding: 2px 10px; border-radius: 5px; }
@@ -36,41 +35,32 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. LOGIK FUNKTIONEN ---
-
-# Manuelle Liste für Indizes und Forex (da API hier oft nur Codes liefert)
-MANUAL_NAMES = {
-    "EURUSD=X": "Euro / US-Dollar",
-    "EURRUB=X": "Euro / Russischer Rubel",
-    "^STOXX50E": "EURO STOXX 50 Index",
-    "^IXIC": "NASDAQ Composite",
-    "XU100.IS": "Borsa Istanbul 100",
-    "IMOEX.ME": "MOEX Russia Index",
-    "^GDAXI": "DAX 40 Index",
-    "^CRSLDX": "NIFTY 500 (Indien)"
+# --- 2. NAMENS-DATENBANK (KLARNAMEN) ---
+# Lokale Liste für sofortige Anzeige ohne API-Verzögerung
+NAME_DB = {
+    # Indizes & Macro
+    "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", "^STOXX50E": "EURO STOXX 50", 
+    "^IXIC": "NASDAQ 100", "^DJI": "Dow Jones 30", "XU100.IS": "BIST 100",
+    # DAX (Beispiele)
+    "ADS.DE": "Adidas AG", "ALV.DE": "Allianz SE", "SAP.DE": "SAP SE", "SIE.DE": "Siemens AG",
+    # DOW JONES (Beispiele)
+    "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp.", "DIS": "Walt Disney Co.", "V": "Visa Inc.",
+    # EUROSTOXX (Beispiele)
+    "ASML.AS": "ASML Holding", "MC.PA": "LVMH", "OR.PA": "L'Oréal"
 }
 
 @st.cache_data(ttl=86400)
-def get_clean_name(ticker_symbol):
-    """ Liefert Klarnamen für Makro-Symbole oder Aktien """
-    # 1. Priorität: Manuelle Liste (Indizes/Forex)
-    if ticker_symbol in MANUAL_NAMES:
-        return MANUAL_NAMES[ticker_symbol]
-    
-    # 2. Priorität: Yahoo API (Aktien)
+def get_clean_name(ticker):
+    if ticker in NAME_DB: return NAME_DB[ticker]
     try:
-        t = yf.Ticker(ticker_symbol)
-        # shortName ist oft sauberer als longName
-        info = t.info
-        name = info.get('shortName') or info.get('longName') or ticker_symbol
-        return name
-    except:
-        return ticker_symbol
+        # Fallback auf API falls nicht in lokaler DB
+        info = yf.Ticker(ticker).info
+        return info.get('shortName') or info.get('longName') or ticker
+    except: return ticker
 
+# --- 3. LOGIK FUNKTIONEN ---
 def analyze_bauer(df):
-    """ Kern-Logik: 2-Tage-Trend + SMA Bestätigung """
     if df is None or len(df) < 20: return None
-    
     curr = df['Close'].iloc[-1]
     prev = df['Close'].iloc[-2]
     prev2 = df['Close'].iloc[-3]
@@ -80,83 +70,57 @@ def analyze_bauer(df):
     df['TR'] = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
     atr = df['TR'].rolling(window=14).mean().iloc[-1]
     
-    is_up_trend = (curr > prev) and (prev > prev2)
-    is_down_trend = (curr < prev) and (prev < prev2)
+    # 2-Tage Trend
+    is_up = (curr > prev) and (prev > prev2)
+    is_down = (curr < prev) and (prev < prev2)
     
-    signal = "Wait"
-    stop_price = 0
-    
-    if is_up_trend and curr > sma20:
-        signal = "C"
-        stop_price = curr - (atr * 1.5)
-    elif is_down_trend and curr < sma20:
-        signal = "P"
-        stop_price = curr + (atr * 1.5)
-        
+    signal = "C" if (is_up and curr > sma20) else "P" if (is_down and curr < sma20) else "Wait"
+    stop = curr - (atr * 1.5) if signal == "C" else curr + (atr * 1.5) if signal == "P" else 0
     delta = ((curr - open_t) / open_t) * 100
     icon = "☀️" if (curr > sma20 and delta > 0.5) else "🌤️" if curr > sma20 else "⛈️" if delta < -0.5 else "☁️"
     
-    return {
-        "price": curr, "open": open_t, "delta": delta, "icon": icon,
-        "signal": signal, "stop": stop_price
-    }
+    return {"price": curr, "open": open_t, "delta": delta, "icon": icon, "signal": signal, "stop": stop}
 
 @st.cache_data(ttl=3600)
 def get_index_tickers():
-    dax = [f"{t}.DE" for t in ["ADS", "AIR", "ALV", "BAS", "BAYN", "BEI", "BMW", "CON", "1COV", "DTG", "DTE", "DBK", "DB1", "EON", "FRE", "FME", "HEI", "HEN3", "IFX", "LIN", "MBG", "MUV2", "PAH3", "PUM", "RWE", "SAP", "SIE", "SHL", "SY1", "VOW3", "VNA"]]
-    ndx = ["AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "META", "TSLA", "AVGO", "PEP", "COST"]
-    return {"DAX": dax, "NASDAQ 100": ndx}
+    return {
+        "DAX": [f"{t}.DE" for t in ["ADS", "AIR", "ALV", "BAS", "BAYN", "BEI", "BMW", "CON", "1COV", "DTG", "DTE", "DBK", "DB1", "EON", "FRE", "FME", "HEI", "HEN3", "IFX", "LIN", "MBG", "MUV2", "PAH3", "PUM", "RWE", "SAP", "SIE", "SHL", "SY1", "VOW3", "VNA"]],
+        "NASDAQ 100": ["AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "META", "TSLA", "AVGO", "PEP", "COST"],
+        "EURO STOXX 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SAN.MC", "SIEGn.DE", "ALV.DE", "IBE.MC", "BNP.PA"],
+        "DOW JONES 30": ["AAPL", "AMGN", "AXP", "BA", "CAT", "CRM", "CSCO", "CVX", "DIS", "GS", "HD", "HON", "IBM", "INTC", "JNJ", "JPM", "KO", "MCD", "MMM", "MRK", "MSFT", "NKE", "PG", "TRV", "UNH", "V", "VZ", "WBA", "WMT"]
+    }
 
 def render_bauer_row(ticker, f_str="{:.2f}"):
-    """ Rendert eine Zeile mit Klarnamen statt Ticker """
     try:
         display_name = get_clean_name(ticker)
         data = yf.Ticker(ticker).history(period="1mo")
         res = analyze_bauer(data)
-        
         if res:
             cols = st.columns([2.0, 0.6, 1.2, 0.8, 1])
-            with cols[0]:
-                st.markdown(f"<div class='ticker-name'>{display_name}</div><div class='open-price'>Start: {f_str.format(res['open'])}</div>", unsafe_allow_html=True)
-            with cols[1]:
-                st.markdown(f"<div style='font-size: 1.5rem; margin-top: 5px;'>{res['icon']}</div>", unsafe_allow_html=True)
+            with cols[0]: st.markdown(f"<div class='ticker-name'>{display_name}</div><div class='open-price'>Start: {f_str.format(res['open'])}</div>", unsafe_allow_html=True)
+            with cols[1]: st.markdown(f"<div style='font-size: 1.5rem; margin-top: 5px;'>{res['icon']}</div>", unsafe_allow_html=True)
             with cols[2]:
-                delta_color = "#ff4b4b" if res['delta'] < 0 else "#00ff00"
-                st.markdown(f"""
-                    <div style='line-height: 1.2;'>
-                        <small style='color: #888;'>Kurs</small><br>
-                        <span style='font-size: 1.4rem; font-weight: bold;'>{f_str.format(res['price'])}</span><br>
-                        <small style='color: {delta_color};'>{res['delta']:+.2f}%</small>
-                    </div>
-                """, unsafe_allow_html=True)
+                c = "#ff4b4b" if res['delta'] < 0 else "#00ff00"
+                st.markdown(f"<div style='line-height:1.2;'><small style='color:#888;'>Kurs</small><br><span style='font-size:1.4rem; font-weight:bold;'>{f_str.format(res['price'])}</span><br><small style='color:{c};'>{res['delta']:+.2f}%</small></div>", unsafe_allow_html=True)
             with cols[3]:
-                sig_class = "sig-c" if res['signal'] == "C" else "sig-p" if res['signal'] == "P" else "sig-wait"
-                st.markdown(f"<div style='margin-top: 15px;'><span class='{sig_class}'>{res['signal']}</span></div>", unsafe_allow_html=True)
+                cls = "sig-c" if res['signal'] == "C" else "sig-p" if res['signal'] == "P" else "sig-wait"
+                st.markdown(f"<div style='margin-top:15px;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
             with cols[4]:
                 val = f_str.format(res['stop']) if res['signal'] != "Wait" else "---"
-                st.markdown(f"<div style='line-height: 1.2;'><small style='color: #888;'>Stop:</small><br><b style='color:#ff4b4b; font-size: 1.2rem;'>{val}</b></div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='line-height:1.2;'><small style='color:#888;'>Stop:</small><br><b style='color:#ff4b4b; font-size:1.2rem;'>{val}</b></div>", unsafe_allow_html=True)
             st.divider()
-    except:
-        pass
+    except: pass
 
-# --- 3. UI RENDERING ---
+# --- 4. UI RENDERING ---
 st.title("📡 Dr. Bauer Strategie-Terminal")
-st.write(f"Refreshed: {datetime.now().strftime('%H:%M:%S')} | Klarnamen-Modus aktiv")
+st.write(f"Refreshed: {datetime.now().strftime('%H:%M:%S')} | Klarnamen-Check aktiv")
 
-# MÄRKTE SEKTION
+# MAKRO
 st.markdown("<p class='focus-header'>🌍 MÄRKTE & FOREX (MACRO) 🌍</p>", unsafe_allow_html=True)
-macro_list = [
-    ("EURUSD=X", "{:.5f}"),
-    ("^STOXX50E", "{:.2f}"),
-    ("^GDAXI", "{:.2f}"),
-    ("^IXIC", "{:.2f}"),
-    ("XU100.IS", "{:.2f}"),
-    ("IMOEX.ME", "{:.2f}")
-]
-for sym, fmt in macro_list:
+for sym, fmt in [("EURUSD=X", "{:.5f}"), ("^GDAXI", "{:.2f}"), ("^STOXX50E", "{:.2f}"), ("^DJI", "{:.2f}"), ("XU100.IS", "{:.2f}")]:
     render_bauer_row(sym, fmt)
 
-# SCREENER SEKTION
+# SCREENER
 st.markdown("<p class='focus-header'>🔭 LIVE SCREENER 🔭</p>", unsafe_allow_html=True)
 index_data = get_index_tickers()
 idx_choice = st.radio("Index wählen:", list(index_data.keys()), horizontal=True)
