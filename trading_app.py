@@ -94,29 +94,31 @@ with st.expander("📖 AUSFÜHRLICHE BESCHREIBUNG DER STRATEGIE-LOGIK"):
     """, unsafe_allow_html=True)
 
 # SCREENING START
-index_data = get_sp500_tickers()
-selected_index = st.radio("Wähle Index zum Scannen:", list(index_data.keys()), horizontal=True)
+index_data = get_index_tickers()
+idx_choice = st.radio("Index wählen:", list(index_data.keys()), horizontal=True)
 
-if st.button(f"Scan {selected_index} jetzt starten"):
-    with st.spinner(f"Analysiere {len(index_data[selected_index])} Werte nach Dr. Bauer..."):
+if st.button(f"Scan {idx_choice} starten"):
+    with st.spinner("Lade Marktdaten..."):
         results = []
-        for ticker in index_data[selected_index]:
+        any_signal = False
+        for t in index_data[idx_choice]:
             try:
-                data = yf.Ticker(ticker).history(period="1mo")
-                analysis = analyze_bauer(data)
-                if analysis:
-                    results.append({"Ticker": ticker, **analysis})
+                hist = yf.Ticker(t).history(period="1mo")
+                res = analyze_bauer(hist)
+                if res: 
+                    results.append({"Ticker": t, **res})
+                    if res['signal']: any_signal = True
             except: continue
         
-        # Sortierung: Signale zuerst, dann nach Performance
-        df_res = pd.DataFrame(results).sort_values(by=["signal", "delta"], ascending=False)
+        if any_signal: play_alarm() # Sound bei Signal
         
-        # Display
+        # Sortierte Anzeige
+        df_res = pd.DataFrame(results).sort_values(by=["signal", "delta"], ascending=False)
         for _, row in df_res.iterrows():
-            c = st.columns([1, 1, 1, 1, 1])
-            c[0].markdown(f"**{row['Ticker']}**<br><small>Start: {row['open']:.2f}</small>", unsafe_allow_html=True)
-            c[1].markdown(f"## {row['icon']}")
-            c[2].metric("Kurs", f"{row['price']:.2f}", f"{row['delta']:+.2f}%")
-            c[3].markdown(f"## {'🚀' if row['signal'] else 'Wait'}")
-            c[4].warning(f"Stop: {row['stop']:.2f}")
+            c1, c2, c3, c4, c5 = st.columns([1.5, 0.8, 1.2, 0.8, 1])
+            with c1: st.markdown(f"<div class='ticker-name'>{row['Ticker']}</div><div class='open-price'>Eröffnung: {row['open']:.2f}</div>", unsafe_allow_html=True)
+            with c2: st.markdown(f"## {row['icon']}")
+            with c3: st.metric("Kurs", f"{row['price']:.2f}", f"{row['delta']:+.2f}%")
+            with c4: st.markdown(f"## {'🚀' if row['signal'] else 'Wait'}")
+            with c5: st.markdown(f"<small>Bauer-Stop:</small><br><b style='color:#ff4b4b;'>{row['stop']:.2f}</b>", unsafe_allow_html=True)
             st.divider()
