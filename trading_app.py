@@ -84,7 +84,10 @@ def analyze_bauer(df):
 def get_index_tickers():
     dax = [f"{t}.DE" for t in ["ADS", "AIR", "ALV", "BAS", "BAYN", "BEI", "BMW", "CON", "1COV", "DTG", "DTE", "DBK", "DB1", "EON", "FRE", "FME", "HEI", "HEN3", "IFX", "LIN", "MBG", "MUV2", "PAH3", "PUM", "RWE", "SAP", "SIE", "SHL", "SY1", "VOW3", "VNA"]]
     ndx = ["AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "META", "TSLA", "AVGO", "PEP", "COST"]
-    return {"DAX": dax, "NASDAQ 100": ndx}
+    estx = ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SAN.MC", "SIEGn.DE", "ALV.DE", "IBE.MC", "BNP.PA"]
+    bist = ["THYAO.IS", "AKBNK.IS", "EREGL.IS", "TUPRS.IS", "KCHOL.IS", "ASELS.IS", "ISCTR.IS", "SISE.IS", "BIMAS.IS", "SAHOL.IS"]
+
+    return {"DAX": dax, "NASDAQ 100": ndx, "EURO STOXX 50": estx, "BIST 100": bist}
 
 def render_bauer_row(label, ticker, f_str="{:.2f}"):
     try:
@@ -145,6 +148,7 @@ macro_symbols = {
     "NASDAQ 100": ("^IXIC", "{:.2f}"),
     "BIST 100 (TR)": ("XU100.IS", "{:.2f}"),
     "MOEX RUSSIA": ("IMOEX.ME", "{:.2f}")
+    "DAX 40": ("^GDAXI", "{:.2f}")
 }
 for label, (sym, fmt) in macro_symbols.items():
     render_bauer_row(label, sym, fmt)
@@ -158,6 +162,7 @@ if st.button(f"Scan {idx_choice} starten"):
     with st.spinner("Analysiere Einzelwerte..."):
         for t in index_data[idx_choice]:
             render_bauer_row(t, t)
+
 
 
 
