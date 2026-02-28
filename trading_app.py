@@ -114,6 +114,13 @@ def render_bauer_row(ticker, f_str="{:.2f}"):
 # --- 4. UI RENDERING ---
 st.title("📡 Dr. Bauer Strategie-Terminal")
 st.write(f"Refreshed: {datetime.now().strftime('%H:%M:%S')} | Klarnamen-Check aktiv")
+if st.button(f"Scan {idx_choice} starten"):
+    with st.spinner("Analysiere Unternehmen..."):
+        # Wir sortieren die Liste der Ticker alphabetisch (A-Z)
+        sorted_tickers = sorted(index_data[idx_choice]) 
+        
+        for t in sorted_tickers:
+            render_bauer_row(t)
 
 with st.expander("ℹ️ Strategie-Logik & System-Erklärung"):
     st.markdown("""
@@ -152,5 +159,6 @@ if st.button(f"Scan {idx_choice} starten"):
     with st.spinner("Analysiere Unternehmen..."):
         for t in index_data[idx_choice]:
             render_bauer_row(t)
+
 
 
