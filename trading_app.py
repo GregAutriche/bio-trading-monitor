@@ -115,6 +115,29 @@ def render_bauer_row(ticker, f_str="{:.2f}"):
 st.title("📡 Dr. Bauer Strategie-Terminal")
 st.write(f"Refreshed: {datetime.now().strftime('%H:%M:%S')} | Klarnamen-Check aktiv")
 
+with st.expander("ℹ️ Strategie-Logik & System-Erklärung"):
+    st.markdown("""
+    ### Die Dr. Bauer Trend-Strategie
+    Dieses Terminal scannt Märkte basierend auf einer kombinierten Trend- und Volatilitätslogik:
+    
+    1.  **Trend-Check (2-Tage-Regel):** 
+        *   Ein **Call (C)** wird nur erwogen, wenn der Schlusskurs heute höher als gestern UND gestern höher als vorgestern ist.
+        *   Ein **Put (P)** wird nur erwogen, wenn der Schlusskurs heute tiefer als gestern UND gestern tiefer als vorgestern ist.
+    
+    2.  **Gleitender Durchschnitt (SMA 20):**
+        *   **C:** Kurs muss zusätzlich *über* dem Durchschnitt der letzten 20 Tage liegen.
+        *   **P:** Kurs muss zusätzlich *unter* dem Durchschnitt der letzten 20 Tage liegen.
+    
+    3.  **Wetter-Indikator (Sentiment):**
+        *   ☀️ (Sonne): Starker Aufwärtstrend (>0.5% Intraday & über SMA20).
+        *   🌤️ (Leicht bewölkt): Kurs hält sich über SMA20.
+        *   ⛈️ (Gewitter): Schwacher Tag (<-0.5% Intraday).
+        *   ☁️ (Bedeckt): Neutrales Marktumfeld.
+    
+    4.  **Dynamischer Stop-Loss (ATR):**
+        *   Der Stop wird automatisch berechnet (1.5x ATR - Average True Range). Er passt sich der aktuellen Volatilität der Aktie an.
+    """)
+
 # MAKRO
 st.markdown("<p class='focus-header'>🌍 MÄRKTE & FOREX (MACRO) 🌍</p>", unsafe_allow_html=True)
 for sym, fmt in [("EURUSD=X", "{:.5f}"), ("^GDAXI", "{:.2f}"), ("^STOXX50E", "{:.2f}"), ("^DJI", "{:.2f}"), ("XU100.IS", "{:.2f}")]:
@@ -129,3 +152,4 @@ if st.button(f"Scan {idx_choice} starten"):
     with st.spinner("Analysiere Unternehmen..."):
         for t in index_data[idx_choice]:
             render_bauer_row(t)
+
