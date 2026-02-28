@@ -16,19 +16,8 @@ except ImportError:
     os.system('pip install streamlit-autorefresh')
     from streamlit_autorefresh import st_autorefresh
 
-def fetch_data():
-    symbols = {
-        "EURUSD=X": "EUR/USD", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ",
-        "^CRSLDX": "NIFTY 500 (IN)", "XU100.IS": "BIST 100 (TR)", "XUTUM.IS": "BIST ALL (TR)",
-        "RTSI.ME": "RTS INDEX (RU/USD)", "IMOEX.ME": "MOEX RUSSIA (RU)", "RUB=X": "USD/RUB (Währung)",
-     }
 # 45 Sekunden Intervall
 st_autorefresh(interval=45000, key="datarefresh")
-
-def play_alarm():
-    # Kurzer dezenter Benachrichtigungston
-    audio_html = """<audio autoplay style="display:none;"><source src="https://assets.mixkit.co" type="audio/mpeg"></audio>"""
-    st.markdown(audio_html, unsafe_allow_html=True)
 
 # --- 1. CONFIG & STYLING ---
 st.set_page_config(layout="wide", page_title="Dr. Bauer Strategie-Terminal")
@@ -37,41 +26,25 @@ st.markdown("""
     <style>
     .stApp { background-color: #000000; }
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
-    .ticker-name { color: #00ff00; font-size: 18px; font-weight: bold; margin-bottom: 0px; }
-    .open-price { color: #888888; font-size: 12px; margin-top: -5px; }
+    .ticker-name { color: #00ff00; font-size: 16px; font-weight: bold; margin-bottom: 0px; }
+    .open-price { color: #888888; font-size: 11px; margin-top: -5px; }
     .method-box { background-color: #111; padding: 15px; border-radius: 5px; border-left: 3px solid #00ff00; font-size: 14px; line-height: 1.6; }
+    .focus-header { color: #00ff00 !important; font-weight: bold; margin-top: 30px; border-bottom: 1px solid #333; padding-bottom: 5px; font-size: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. KORRIGIERTE LOGIK FUNKTIONEN ---
-@st.cache_data(ttl=3600)
-def get_index_tickers(): # Name konsistent halten!
-    try:
-        # DAX & NASDAQ 100 via Wikipedia
-        dax = pd.read_html("https://en.wikipedia.org")
-        dax_tickers = dax[4]['Ticker'].tolist() # Index angepasst für Wiki-Tabelle
-        dax_list = [f"{t}.DE" if not t.endswith(".DE") else t for t in dax_tickers]
-        
-        ndx = pd.read_html("https://en.wikipedia.org", attrs={'id': "constituents"})
-        ndx_list = ndx[0]['Ticker'].tolist()
-        
-        return {"DAX": dax_list, "NASDAQ 100": ndx_list}
-    except Exception as e:
-        return {"FOKUS": ["AAPL", "MSFT", "NVDA", "SAP.DE", "ASML.AS"]}
-
+# --- 2. LOGIK FUNKTIONEN ---
 def analyze_bauer(df):
-    if len(df) < 20: return None
+    if df is None or len(df) < 20: return None
     curr = df['Close'].iloc[-1]
     open_t = df['Open'].iloc[-1]
     prev_high = df['High'].iloc[-2]
     sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
     delta = ((curr - open_t) / open_t) * 100
     
-    # Candlestick-Stärke
     upper_wick = df['High'].iloc[-1] - max(curr, open_t)
     is_strong = upper_wick < (abs(curr - open_t) * 0.35)
     
-    # Wetter & Stop
     df['TR'] = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
     atr = df['TR'].rolling(window=14).mean().iloc[-1]
     icon = "☀️" if (curr > sma20 and delta > 0.5) else "🌤️" if curr > sma20 else "⛈️" if delta < -0.5 else "☁️"
@@ -82,74 +55,58 @@ def analyze_bauer(df):
         "stop": curr - (atr * 1.5)
     }
 
+@st.cache_data(ttl=3600)
+def get_index_tickers():
+    try:
+        # Fallback Listen falls Wiki-Scraping hakt
+        dax = [f"{t}.DE" for t in ["ADS", "AIR", "ALV", "BAS", "BAYN", "BEI", "BMW", "CON", "1COV", "DTG", "DTE", "DBK", "DB1", "EON", "FRE", "FME", "HEI", "HEN3", "IFX", "LIN", "MBG", "MUV2", "PAH3", "PUM", "RWE", "SAP", "SIE", "SHL", "SY1", "VOW3", "VNA"]]
+        ndx = ["AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "META", "TSLA", "AVGO", "PEP", "COST"]
+        return {"DAX": dax, "NASDAQ 100": ndx}
+    except:
+        return {"FOKUS": ["AAPL", "NVDA", "SAP.DE"]}
+
+def render_bauer_row(label, ticker, f_str="{:.2f}"):
+    try:
+        data = yf.Ticker(ticker).history(period="1mo")
+        res = analyze_bauer(data)
+        if res:
+            cols = st.columns([1.5, 0.8, 1.2, 0.8, 1])
+            with cols[0]: st.markdown(f"<div class='ticker-name'>{label}</div><div class='open-price'>Start: {f_str.format(res['open'])}</div>", unsafe_allow_html=True)
+            with cols[1]: st.markdown(f"## {res['icon']}")
+            with cols[2]: st.metric("Kurs", f_str.format(res['price']), f"{res['delta']:+.2f}%")
+            with cols[3]: st.markdown(f"## {'🚀' if res['signal'] else 'Wait'}")
+            with cols[4]: st.markdown(f"<small>Stop:</small><br><b style='color:#ff4b4b;'>{f_str.format(res['stop'])}</b>", unsafe_allow_html=True)
+            st.divider()
+    except: pass
+
 # --- 3. UI RENDERING ---
-st.title("📡 Dr. Bauer Strategie-Screener")
+st.title("📡 Dr. Bauer Strategie-Terminal")
 st.write(f"Refreshed: {datetime.now().strftime('%H:%M:%S')} | 45s Update")
 
-# BESCHREIBUNG (METHODIK)
 with st.expander("📖 AUSFÜHRLICHE BESCHREIBUNG DER STRATEGIE-LOGIK"):
-    st.markdown("""
-    <div class='method-box'>
-     <b>1. Börsen-Wetter (Trend-Indikator):</b><br>
-    Das Wetter basiert auf der Lage zum <b>SMA 20</b>. Ein sonniges Icon (☀️) erscheint nur im bestätigten Aufwärtstrend (Kurs > SMA 20) bei gleichzeitiger Tagesdynamik.<br><br>
-     <b>2. Candlestick-Stärke (Bauer-Filter):</b><br>
-    Ein Signal wird nur generiert, wenn die aktuelle Tageskerze "Überzeugung" zeigt. Das Script prüft, ob der Kurs im <b>oberen Drittel</b> der Tagesspanne schließt. Lange Dochte oben (Erschöpfung) führen zur Entwertung des Signals.<br><br>
-     <b>3. Breakout-Logik:</b><br>
-    Ein 🚀 Signal erfordert das gleichzeitige Zusammentreffen von:<br>
-    - Kurs über gestrigem Tageshoch (Breakout).<br>
-    - Kurs über dem gleitenden Durchschnitt (SMA 20).<br>
-    - Positive Candlestick-Stärke.<br><br>
-     <b>4. Vola-Stop-Management:</b><br>
-    Der Stop-Loss wird dynamisch mittels der <b>ATR (Average True Range)</b> berechnet. Der Puffer von 1.5 * ATR schützt vor zufälligem Marktrauschen.
+    st.markdown("""<div class='method-box'><b>1. Börsen-Wetter:</b> Trend via SMA 20. ☀️ bei Kurs > SMA 20.<br><b>2. Candlestick:</b> Signal nur bei Schluss im oberen Drittel.<br><b>3. Breakout:</b> 🚀 bei Kurs > gestrigem Hoch + Trend.<br><b>4. Vola-Stop:</b> 1.5 * ATR Puffer.</div>""", unsafe_allow_html=True)
 
-    </div>
-    """, unsafe_allow_html=True)
+# --- MACRO SEKTION ---
+st.markdown("<p class='focus-header'>🌍 MÄRKTE & FOREX (MACRO) 🌍</p>", unsafe_allow_html=True)
+macro_symbols = {
+    "EUR/USD": ("EURUSD=X", "{:.5f}"),
+    "EUR/RUB": ("EURRUB=X", "{:.4f}"),
+    "EUROSTOXX 50": ("^STOXX50E", "{:.2f}"),
+    "NASDAQ 100": ("^IXIC", "{:.2f}"),
+    "BIST 100 (TR)": ("XU100.IS", "{:.2f}"),
+    "NIFTY 500 (IN)": ("^CRSLDX", "{:.2f}"),
+    "MOEX RUSSIA": ("IMOEX.ME", "{:.2f}")
+}
 
-# 1. MACRO (Immer sichtbar)
-st.markdown("<p class='focus-header'>🌍 FOKUS/ MACRO 🌍</p>", unsafe_allow_html=True)
-render_row("EUR/USD", data.get("EUR/USD"), "{:.5f}")
-render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
-render_row("NASDAQ", data.get("NASDAQ"))
-render_row("NIFTY 500 (IN)", data.get("NIFTY 500 (IN)"))
-render_row("BIST 100 (TR)", data.get("BIST 100 (TR)"))
-if data.get("RTS INDEX (RU/USD)"):
-    render_row("RTS INDEX (RU/USD)", data.get("RTS INDEX (RU/USD)"))
-elif data.get("MOEX RUSSIA (RU)"):
-    render_row("MOEX RUSSIA (RU)", data.get("MOEX RUSSIA (RU)"))
-else:
-    # Zeigt die Währung an, falls keine Index-Daten kommen
-    render_row("USD/RUB (Währung)", data.get("USD/RUB (Währung)"), "{:.4f}")
+for label, (sym, fmt) in macro_symbols.items():
+    render_bauer_row(label, sym, fmt)
 
-# SCREENER START
+# --- SCREENER SEKTION ---
+st.markdown("<p class='focus-header'>🔭 LIVE SCREENER 🔭</p>", unsafe_allow_html=True)
 index_data = get_index_tickers()
 idx_choice = st.radio("Index wählen:", list(index_data.keys()), horizontal=True)
 
 if st.button(f"Scan {idx_choice} starten"):
-    with st.spinner("Lade Marktdaten..."):
-        results = []
-        any_signal = False
+    with st.spinner("Analysiere Einzelwerte..."):
         for t in index_data[idx_choice]:
-            try:
-                hist = yf.Ticker(t).history(period="1mo")
-                res = analyze_bauer(hist)
-                if res: 
-                    results.append({"Ticker": t, **res})
-                    if res['signal']: any_signal = True
-            except: continue
-        
-        if any_signal: play_alarm() # Sound bei Signal
-        
-        # Sortierte Anzeige
-        df_res = pd.DataFrame(results).sort_values(by=["signal", "delta"], ascending=False)
-        for _, row in df_res.iterrows():
-            c1, c2, c3, c4, c5 = st.columns([1.5, 0.8, 1.2, 0.8, 1])
-            with c1: st.markdown(f"<div class='ticker-name'>{row['Ticker']}</div><div class='open-price'>Eröffnung: {row['open']:.2f}</div>", unsafe_allow_html=True)
-            with c2: st.markdown(f"## {row['icon']}")
-            with c3: st.metric("Kurs", f"{row['price']:.2f}", f"{row['delta']:+.2f}%")
-            with c4: st.markdown(f"## {'🚀' if row['signal'] else 'Wait'}")
-            with c5: st.markdown(f"<small>Bauer-Stop:</small><br><b style='color:#ff4b4b;'>{row['stop']:.2f}</b>", unsafe_allow_html=True)
-            st.divider()
-
-
-
-
+            render_bauer_row(t, t)
