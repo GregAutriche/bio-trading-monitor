@@ -93,12 +93,13 @@ def render_bauer_row(label, ticker, f_str="{:.2f}"):
     try:
         data = yf.Ticker(ticker).history(period="1mo")
         res = analyze_bauer(data)
+        full_name = t.info.get('longName', label) 
         if res:
             # Layout-Spalten
             cols = st.columns([1.5, 0.6, 1.2, 0.8, 1])
             
             with cols[0]: # NAME & START
-                st.markdown(f"<div class='ticker-name'>{label}</div><div class='open-price'>Start: {f_str.format(res['open'])}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='ticker-name'>{full_name}</div><div class='open-price'>Start: {f_str.format(res['open'])}</div>", unsafe_allow_html=True)
             
             with cols[1]: # WETTER
                 st.markdown(f"<div style='font-size: 1.5rem; margin-top: 5px;'>{res['icon']}</div>", unsafe_allow_html=True)
@@ -162,6 +163,7 @@ if st.button(f"Scan {idx_choice} starten"):
     with st.spinner("Analysiere Einzelwerte..."):
         for t in index_data[idx_choice]:
             render_bauer_row(t, t)
+
 
 
 
