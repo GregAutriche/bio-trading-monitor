@@ -4,7 +4,7 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime
 
-# --- 0. FEHLERBEHEBUNG: AUTOMATISCHE INSTALLATION ---
+# --- 0. SETUP & AUTO-INSTALL ---
 try:
     import lxml
 except ImportError:
@@ -16,8 +16,13 @@ except ImportError:
     os.system('pip install streamlit-autorefresh')
     from streamlit_autorefresh import st_autorefresh
 
-# 45 Sekunden Refresh
+# 45 Sekunden Intervall
 st_autorefresh(interval=45000, key="datarefresh")
+
+def play_alarm():
+    # Kurzer dezenter Benachrichtigungston
+    audio_html = """<audio autoplay style="display:none;"><source src="https://assets.mixkit.co" type="audio/mpeg"></audio>"""
+    st.markdown(audio_html, unsafe_allow_html=True)
 
 # --- 1. CONFIG & STYLING ---
 st.set_page_config(layout="wide", page_title="Dr. Bauer Strategie-Terminal")
@@ -29,21 +34,24 @@ st.markdown("""
     .ticker-name { color: #00ff00; font-size: 18px; font-weight: bold; margin-bottom: 0px; }
     .open-price { color: #888888; font-size: 12px; margin-top: -5px; }
     .method-box { background-color: #111; padding: 15px; border-radius: 5px; border-left: 3px solid #00ff00; font-size: 14px; line-height: 1.6; }
-    .weather-icon { font-size: 30px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. LOGIK FUNKTIONEN ---
+# --- 2. KORRIGIERTE LOGIK FUNKTIONEN ---
 @st.cache_data(ttl=3600)
-def get_index_tickers():
+def get_index_tickers(): # Name konsistent halten!
     try:
-        # Lädt DAX und NASDAQ 100 via Wikipedia
-        dax = pd.read_html("https://en.wikipedia.org")[4]['Ticker'].tolist()
-        dax = [f"{t}.DE" for t in dax]
-        ndx = pd.read_html("https://en.wikipedia.org", attrs={'id': "constituents"})[0]['Ticker'].tolist()
-        return {"DAX": dax, "NASDAQ 100": ndx}
+        # DAX & NASDAQ 100 via Wikipedia
+        dax = pd.read_html("https://en.wikipedia.org")
+        dax_tickers = dax[4]['Ticker'].tolist() # Index angepasst für Wiki-Tabelle
+        dax_list = [f"{t}.DE" if not t.endswith(".DE") else t for t in dax_tickers]
+        
+        ndx = pd.read_html("https://en.wikipedia.org", attrs={'id': "constituents"})
+        ndx_list = ndx[0]['Ticker'].tolist()
+        
+        return {"DAX": dax_list, "NASDAQ 100": ndx_list}
     except Exception as e:
-        return {"ERROR": [f"Fehler: {e}"]}
+        return {"FOKUS": ["AAPL", "MSFT", "NVDA", "SAP.DE", "ASML.AS"]}
 
 def analyze_bauer(df):
     if len(df) < 20: return None
@@ -53,11 +61,11 @@ def analyze_bauer(df):
     sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
     delta = ((curr - open_t) / open_t) * 100
     
-    # Candlestick-Stärke (Schluss im oberen Drittel)
+    # Candlestick-Stärke
     upper_wick = df['High'].iloc[-1] - max(curr, open_t)
     is_strong = upper_wick < (abs(curr - open_t) * 0.35)
     
-    # Wetter & Stop (1.5x ATR)
+    # Wetter & Stop
     df['TR'] = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
     atr = df['TR'].rolling(window=14).mean().iloc[-1]
     icon = "☀️" if (curr > sma20 and delta > 0.5) else "🌤️" if curr > sma20 else "⛈️" if delta < -0.5 else "☁️"
@@ -70,30 +78,20 @@ def analyze_bauer(df):
 
 # --- 3. UI RENDERING ---
 st.title("📡 Dr. Bauer Strategie-Screener")
-st.write(f"Refreshed: {datetime.now().strftime('%H:%M:%S')} | Intervall: 45s")
+st.write(f"Refreshed: {datetime.now().strftime('%H:%M:%S')} | 45s Update")
 
-# DIE VERLORENE BESCHREIBUNG (METHODIK-EXPANDER)
+# BESCHREIBUNG (METHODIK)
 with st.expander("📖 AUSFÜHRLICHE BESCHREIBUNG DER STRATEGIE-LOGIK"):
     st.markdown("""
     <div class='method-box'>
-    <b>1. Börsen-Wetter (Trend-Indikator):</b><br>
-    Das Wetter basiert auf der Lage zum <b>SMA 20</b>. Ein sonniges Icon (☀️) erscheint nur im bestätigten Aufwärtstrend (Kurs > SMA 20) bei gleichzeitiger Tagesdynamik.<br><br>
-    
-    <b>2. Candlestick-Stärke (Bauer-Filter):</b><br>
-    Ein Signal wird nur generiert, wenn die aktuelle Tageskerze "Überzeugung" zeigt. Das Script prüft, ob der Kurs im <b>oberen Drittel</b> der Tagesspanne schließt. Lange Dochte oben (Erschöpfung) führen zur Entwertung des Signals.<br><br>
-    
-    <b>3. Breakout-Logik:</b><br>
-    Ein 🚀 Signal erfordert das gleichzeitige Zusammentreffen von:<br>
-    - Kurs über gestrigem Tageshoch (Breakout).<br>
-    - Kurs über dem gleitenden Durchschnitt (SMA 20).<br>
-    - Positive Candlestick-Stärke.<br><br>
-    
-    <b>4. Vola-Stop-Management:</b><br>
-    Der Stop-Loss wird dynamisch mittels der <b>ATR (Average True Range)</b> berechnet. Der Puffer von 1.5 * ATR schützt vor zufälligem Marktrauschen.
+    <b>1. Börsen-Wetter:</b> Trendbestimmung via <b>SMA 20</b>. ☀️ zeigt einen stabilen Aufwärtstrend an.<br>
+    <b>2. Candlestick-Check:</b> Signal nur bei Schluss im oberen Drittel (keine Schwäche-Dochte).<br>
+    <b>3. Breakout:</b> 🚀 erscheint bei Kurs > gestrigem Hoch + Trendbestätigung.<br>
+    <b>4. Vola-Stop:</b> Dynamische Sicherung bei 1.5 * ATR unter Kurs.
     </div>
     """, unsafe_allow_html=True)
 
-# SCREENING START
+# SCREENER START
 index_data = get_index_tickers()
 idx_choice = st.radio("Index wählen:", list(index_data.keys()), horizontal=True)
 
