@@ -87,27 +87,36 @@ def render_bauer_row(label, ticker, f_str="{:.2f}"):
         data = yf.Ticker(ticker).history(period="1mo")
         res = analyze_bauer(data)
         if res:
-            cols = st.columns([1.5, 0.8, 1.2, 0.8, 1])
-            with cols[0]: 
+            # Layout-Spalten
+            cols = st.columns([1.5, 0.6, 1.2, 0.8, 1])
+            
+            with cols[0]: # NAME & START
                 st.markdown(f"<div class='ticker-name'>{label}</div><div class='open-price'>Start: {f_str.format(res['open'])}</div>", unsafe_allow_html=True)
-            with cols[1]: 
-                st.markdown(f"## {res['icon']}")
-            with cols[2]: 
-                st.metric("Kurs", f_str.format(res['price']), f"{res['delta']:+.2f}%")
-            with cols[3]: 
-                if res['signal'] == "C":
-                    st.markdown("<span class='sig-c'>C</span>", unsafe_allow_html=True)
-                elif res['signal'] == "P":
-                    st.markdown("<span class='sig-p'>P</span>", unsafe_allow_html=True)
-                else:
-                    st.markdown("<span class='sig-wait'>Wait</span>", unsafe_allow_html=True)
-            with cols[4]: 
-                if res['signal'] != "Wait":
-                    st.markdown(f"<small>Stop-Loss:</small><br><b style='color:#ff4b4b;'>{f_str.format(res['stop'])}</b>", unsafe_allow_html=True)
-                else:
-                    st.markdown("<small>Stop:</small><br>---", unsafe_allow_html=True)
+            
+            with cols[1]: # WETTER
+                st.markdown(f"<div style='font-size: 1.5rem; margin-top: 5px;'>{res['icon']}</div>", unsafe_allow_html=True)
+            
+            with cols[2]: # KURS (Manuelle HTML-Anzeige statt st.metric)
+                delta_color = "#ff4b4b" if res['delta'] < 0 else "#00ff00"
+                st.markdown(f"""
+                    <div style='line-height: 1.2;'>
+                        <small style='color: #888;'>Kurs</small><br>
+                        <span style='font-size: 1.4rem; font-weight: bold;'>{f_str.format(res['price'])}</span><br>
+                        <small style='color: {delta_color};'>{res['delta']:+.2f}%</small>
+                    </div>
+                """, unsafe_allow_html=True)
+            
+            with cols[3]: # SIGNAL (C / P / Wait)
+                sig_class = "sig-c" if res['signal'] == "C" else "sig-p" if res['signal'] == "P" else "sig-wait"
+                st.markdown(f"<div style='margin-top: 15px;'><span class='{sig_class}'>{res['signal']}</span></div>", unsafe_allow_html=True)
+            
+            with cols[4]: # STOP
+                val = f_str.format(res['stop']) if res['signal'] != "Wait" else "---"
+                st.markdown(f"<div style='line-height: 1.2;'><small style='color: #888;'>Stop:</small><br><b style='color:#ff4b4b; font-size: 1.2rem;'>{val}</b></div>", unsafe_allow_html=True)
+            
             st.divider()
-    except: pass
+    except Exception as e:
+        pass
 
 # --- 3. UI RENDERING ---
 st.title("📡 Dr. Bauer Strategie-Terminal")
@@ -145,3 +154,4 @@ if st.button(f"Scan {idx_choice} starten"):
     with st.spinner("Analysiere Einzelwerte..."):
         for t in index_data[idx_choice]:
             render_bauer_row(t, t)
+
