@@ -110,7 +110,7 @@ def render_bauer_row(ticker, f_str="{:.2f}"):
 
 # --- 4. UI RENDERING ---
 st.title("📡 Dr. Bauer Strategie-Terminal")
-st.write(f"Refreshed: {datetime.now().strftime('%H:%M:%S')} | Klarnamen-Check aktiv")
+st.write(f"letztes update: {datetime.now().strftime('%H:%M:%S')}")
 
 # NEU: Logik-Expander
 with st.expander("ℹ️ Strategie-Logik & System-Erklärung"):
@@ -141,3 +141,4 @@ if st.button(f"Scan {idx_choice} starten"):
         # Parallelisierung (10 Worker gleichzeitig)
         with ThreadPoolExecutor(max_workers=10) as executor:
             executor.map(render_bauer_row, sorted_tickers)
+
