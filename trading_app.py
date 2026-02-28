@@ -84,10 +84,18 @@ st.write(f"Refreshed: {datetime.now().strftime('%H:%M:%S')} | 45s Update")
 with st.expander("📖 AUSFÜHRLICHE BESCHREIBUNG DER STRATEGIE-LOGIK"):
     st.markdown("""
     <div class='method-box'>
-    <b>1. Börsen-Wetter:</b> Trendbestimmung via <b>SMA 20</b>. ☀️ zeigt einen stabilen Aufwärtstrend an.<br>
-    <b>2. Candlestick-Check:</b> Signal nur bei Schluss im oberen Drittel (keine Schwäche-Dochte).<br>
-    <b>3. Breakout:</b> 🚀 erscheint bei Kurs > gestrigem Hoch + Trendbestätigung.<br>
-    <b>4. Vola-Stop:</b> Dynamische Sicherung bei 1.5 * ATR unter Kurs.
+     <b>1. Börsen-Wetter (Trend-Indikator):</b><br>
+    Das Wetter basiert auf der Lage zum <b>SMA 20</b>. Ein sonniges Icon (☀️) erscheint nur im bestätigten Aufwärtstrend (Kurs > SMA 20) bei gleichzeitiger Tagesdynamik.<br><br>
+     <b>2. Candlestick-Stärke (Bauer-Filter):</b><br>
+    Ein Signal wird nur generiert, wenn die aktuelle Tageskerze "Überzeugung" zeigt. Das Script prüft, ob der Kurs im <b>oberen Drittel</b> der Tagesspanne schließt. Lange Dochte oben (Erschöpfung) führen zur Entwertung des Signals.<br><br>
+     <b>3. Breakout-Logik:</b><br>
+    Ein 🚀 Signal erfordert das gleichzeitige Zusammentreffen von:<br>
+    - Kurs über gestrigem Tageshoch (Breakout).<br>
+    - Kurs über dem gleitenden Durchschnitt (SMA 20).<br>
+    - Positive Candlestick-Stärke.<br><br>
+     <b>4. Vola-Stop-Management:</b><br>
+    Der Stop-Loss wird dynamisch mittels der <b>ATR (Average True Range)</b> berechnet. Der Puffer von 1.5 * ATR schützt vor zufälligem Marktrauschen.
+
     </div>
     """, unsafe_allow_html=True)
 
@@ -120,3 +128,4 @@ if st.button(f"Scan {idx_choice} starten"):
             with c4: st.markdown(f"## {'🚀' if row['signal'] else 'Wait'}")
             with c5: st.markdown(f"<small>Bauer-Stop:</small><br><b style='color:#ff4b4b;'>{row['stop']:.2f}</b>", unsafe_allow_html=True)
             st.divider()
+
