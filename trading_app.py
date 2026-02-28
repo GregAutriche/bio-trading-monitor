@@ -153,12 +153,19 @@ for sym, fmt in [("EURUSD=X", "{:.5f}"), ("^GDAXI", "{:.2f}"), ("^STOXX50E", "{:
 # SCREENER
 st.markdown("<p class='focus-header'>🔭 LIVE SCREENER 🔭</p>", unsafe_allow_html=True)
 index_data = get_index_tickers()
+
+# 1. Sicherstellen, dass idx_choice IMMER definiert wird (z.B. durch das Radio-Menü)
 idx_choice = st.radio("Index wählen:", list(index_data.keys()), horizontal=True)
 
+# 2. Jetzt kann idx_choice sicher im Button verwendet werden
 if st.button(f"Scan {idx_choice} starten"):
-    with st.spinner("Analysiere Unternehmen..."):
-        for t in index_data[idx_choice]:
+    with st.spinner(f"Analysiere {idx_choice} Unternehmen..."):
+        # Sortierte Liste nach Klarnamen (wie gewünscht)
+        sorted_tickers = sorted(index_data[idx_choice], key=get_clean_name)
+        
+        for t in sorted_tickers:
             render_bauer_row(t)
+
 
 
 
