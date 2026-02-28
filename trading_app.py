@@ -112,7 +112,7 @@ def render_bauer_row(ticker, f_str="{:.2f}"):
     except: pass
 
 # --- 4. UI RENDERING ---
-st.title("📡 Dr. Bauer Strategie-Terminal")
+st.title("📡 Dr. Gregor Bauer Terminal 📡")
 st.write(f"Refreshed: {datetime.now().strftime('%H:%M:%S')} | Klarnamen-Check aktiv")
 if st.button(f"Scan {idx_choice} starten"):
     with st.spinner("Analysiere Unternehmen..."):
@@ -159,12 +159,13 @@ idx_choice = st.radio("Index wählen:", list(index_data.keys()), horizontal=True
 
 # 2. Jetzt kann idx_choice sicher im Button verwendet werden
 if st.button(f"Scan {idx_choice} starten"):
-    with st.spinner(f"Analysiere {idx_choice} Unternehmen..."):
-        # Sortierte Liste nach Klarnamen (wie gewünscht)
+    with st.spinner(f"Analysiere {idx_choice} Unternehmen... (Sortiert A-Z)"):
+        # Sortierung nach Klarnamen für bessere Übersicht
         sorted_tickers = sorted(index_data[idx_choice], key=get_clean_name)
         
         for t in sorted_tickers:
             render_bauer_row(t)
+
 
 
 
