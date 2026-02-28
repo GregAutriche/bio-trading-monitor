@@ -21,7 +21,7 @@ def fetch_data():
         "EURUSD=X": "EUR/USD", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ",
         "^CRSLDX": "NIFTY 500 (IN)", "XU100.IS": "BIST 100 (TR)", "XUTUM.IS": "BIST ALL (TR)",
         "RTSI.ME": "RTS INDEX (RU/USD)", "IMOEX.ME": "MOEX RUSSIA (RU)", "RUB=X": "USD/RUB (Währung)",
-
+     }
 # 45 Sekunden Intervall
 st_autorefresh(interval=45000, key="datarefresh")
 
@@ -149,6 +149,7 @@ if st.button(f"Scan {idx_choice} starten"):
             with c4: st.markdown(f"## {'🚀' if row['signal'] else 'Wait'}")
             with c5: st.markdown(f"<small>Bauer-Stop:</small><br><b style='color:#ff4b4b;'>{row['stop']:.2f}</b>", unsafe_allow_html=True)
             st.divider()
+
 
 
 
