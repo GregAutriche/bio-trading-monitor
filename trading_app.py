@@ -21,7 +21,7 @@ except ImportError:
 st_autorefresh(interval=45000, key="datarefresh")
 
 # --- 1. CONFIG & STYLING ---
-st.set_page_config(layout="wide", page_title="Dr. Bauer Strategie-Terminal")
+st.set_page_config(layout="wide", page_title="nach Dr. Gregor Bauer Strategie")
 
 st.markdown("""
     <style>
@@ -114,7 +114,7 @@ def get_index_tickers():
 
 # --- 4. UI RENDERING ---
 st.title("📡 Dr. Bauer Strategie-Terminal")
-st.write(f"Refreshed: {datetime.now().strftime('%H:%M:%S')} | Klarnamen-Check aktiv")
+st.write(f"letzes update: {datetime.now().strftime('%H:%M:%S')} | Klarnamen-Check aktiv")
 
 with st.expander("ℹ️ Strategie-Logik & System-Erklärung"):
     st.markdown("""
@@ -149,3 +149,4 @@ if st.button(f"Scan {idx_choice} starten"):
         
         for res in valid_results:
             display_bauer_row(res)
+
