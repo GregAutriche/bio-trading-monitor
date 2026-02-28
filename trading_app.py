@@ -98,3 +98,4 @@ if st.button(f"Scan {selected_index} jetzt starten"):
             c[3].markdown(f"## {'🚀' if row['signal'] else 'Wait'}")
             c[4].warning(f"Stop: {row['stop']:.2f}")
             st.divider()
+
