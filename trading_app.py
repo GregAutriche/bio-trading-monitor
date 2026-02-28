@@ -77,7 +77,7 @@ def analyze_bauer(df):
     signal = "C" if (is_up and curr > sma20) else "P" if (is_down and curr < sma20) else "Wait"
     stop = curr - (atr * 1.5) if signal == "C" else curr + (atr * 1.5) if signal == "P" else 0
     delta = ((curr - open_t) / open_t) * 100
-    icon = "☀️" if (curr > sma20 and delta > 0.5) else "🌤️" if curr > sma20 else "⛈️" if delta < -0.5 else "☁️"
+    icon = "☀️" if (curr > sma20 and delta > 0.5) else "🌤️" if curr > sma20 else "⛈️" if delta < -0.5 else "⚖️"
     
     return {"price": curr, "open": open_t, "delta": delta, "icon": icon, "signal": signal, "stop": stop}
 
@@ -132,7 +132,7 @@ with st.expander("ℹ️ Strategie-Logik & System-Erklärung"):
         *   ☀️ (Sonne): Starker Aufwärtstrend (>0.5% Intraday & über SMA20).
         *   🌤️ (Leicht bewölkt): Kurs hält sich über SMA20.
         *   ⛈️ (Gewitter): Schwacher Tag (<-0.5% Intraday).
-        *   ☁️ (Bedeckt): Neutrales Marktumfeld.
+        *   ⚖️ (Bedeckt): Neutrales Marktumfeld.
     
     4.  **Dynamischer Stop-Loss (ATR):**
         *   Der Stop wird automatisch berechnet (1.5x ATR - Average True Range). Er passt sich der aktuellen Volatilität der Aktie an.
@@ -152,4 +152,5 @@ if st.button(f"Scan {idx_choice} starten"):
     with st.spinner("Analysiere Unternehmen..."):
         for t in index_data[idx_choice]:
             render_bauer_row(t)
+
 
