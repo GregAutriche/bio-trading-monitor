@@ -25,7 +25,7 @@ st.set_page_config(layout="wide", page_title="Dr. Bauer Strategie-Terminal")
 st.markdown("""
     <style>
     .stApp { background-color: #000000; }
-    h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
+    h1, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
     .ticker-name { color: #00ff00; font-size: 16px; font-weight: bold; margin-bottom: 0px; }
     .open-price { color: #888888; font-size: 11px; margin-top: -5px; }
     .method-box { background-color: #111; padding: 15px; border-radius: 5px; border-left: 3px solid #00ff00; font-size: 14px; line-height: 1.6; }
@@ -149,5 +149,6 @@ if st.button(f"Scan {idx_choice} starten"):
     with st.spinner("Analysiere Einzelwerte..."):
         for t in index_data[idx_choice]:
             render_bauer_row(t, t)
+
 
 
