@@ -98,13 +98,13 @@ def render_bauer_row(label, ticker, f_str="{:.2f}"):
                 st.markdown(f"## {res['icon']}")
             with cols[2]: 
                 st.metric("Kurs", f_str.format(res['price']), f"{res['delta']:+.2f}%")
-            with cols[3]: 
+            with cols[3]: # Signal Spalte
                 if res['signal'] == "C":
-                    st.markdown("<span class='sig-c'>C</span>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='margin-top:10px;'><span class='sig-c'>C</span></div>", unsafe_allow_html=True)
                 elif res['signal'] == "P":
-                    st.markdown("<span class='sig-p'>P</span>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='margin-top:10px;'><span class='sig-p'>P</span></div>", unsafe_allow_html=True)
                 else:
-                    st.markdown("<span class='sig-wait'>Wait</span>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='margin-top:10px;'><span class='sig-wait'>Wait</span></div>", unsafe_allow_html=True)
             with cols[4]: 
                 if res['signal'] != "Wait":
                     st.markdown(f"<small>Stop-Loss:</small><br><b style='color:#ff4b4b;'>{f_str.format(res['stop'])}</b>", unsafe_allow_html=True)
@@ -149,4 +149,5 @@ if st.button(f"Scan {idx_choice} starten"):
     with st.spinner("Analysiere Einzelwerte..."):
         for t in index_data[idx_choice]:
             render_bauer_row(t, t)
+
 
