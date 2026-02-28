@@ -99,6 +99,21 @@ with st.expander("📖 AUSFÜHRLICHE BESCHREIBUNG DER STRATEGIE-LOGIK"):
     </div>
     """, unsafe_allow_html=True)
 
+# 1. MACRO (Immer sichtbar)
+st.markdown("<p class='focus-header'>🌍 FOKUS/ MACRO 🌍</p>", unsafe_allow_html=True)
+render_row("EUR/USD", data.get("EUR/USD"), "{:.5f}")
+render_row("EUROSTOXX 50", data.get("EUROSTOXX 50"))
+render_row("NASDAQ", data.get("NASDAQ"))
+render_row("NIFTY 500 (IN)", data.get("NIFTY 500 (IN)"))
+render_row("BIST 100 (TR)", data.get("BIST 100 (TR)"))
+if data.get("RTS INDEX (RU/USD)"):
+    render_row("RTS INDEX (RU/USD)", data.get("RTS INDEX (RU/USD)"))
+elif data.get("MOEX RUSSIA (RU)"):
+    render_row("MOEX RUSSIA (RU)", data.get("MOEX RUSSIA (RU)"))
+else:
+    # Zeigt die Währung an, falls keine Index-Daten kommen
+    render_row("USD/RUB (Währung)", data.get("USD/RUB (Währung)"), "{:.4f}")
+
 # SCREENER START
 index_data = get_index_tickers()
 idx_choice = st.radio("Index wählen:", list(index_data.keys()), horizontal=True)
@@ -128,4 +143,5 @@ if st.button(f"Scan {idx_choice} starten"):
             with c4: st.markdown(f"## {'🚀' if row['signal'] else 'Wait'}")
             with c5: st.markdown(f"<small>Bauer-Stop:</small><br><b style='color:#ff4b4b;'>{row['stop']:.2f}</b>", unsafe_allow_html=True)
             st.divider()
+
 
