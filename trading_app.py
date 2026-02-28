@@ -4,63 +4,58 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import pandas as pd
 
-# --- AUTO-REFRESH ---
+# --- 0. AUTO-REFRESH (45 Sekunden) ---
 try:
     from streamlit_autorefresh import st_autorefresh
 except ImportError:
     os.system('pip install streamlit-autorefresh')
     from streamlit_autorefresh import st_autorefresh
 
-st_autorefresh(interval=30000, key="datarefresh")
+# Intervall auf 45000ms = 45 Sekunden gesetzt
+st_autorefresh(interval=45000, key="datarefresh")
 
-# --- CONFIG & STYLING (Dr. Bauer Edition) ---
+# --- 1. CONFIG & STYLING ---
 st.set_page_config(layout="wide", page_title="Dr. Bauer Strategie-Terminal")
 
 st.markdown("""
     <style>
-    .stApp { background-color: #0a0a0a; }
-    h1 { color: #00ff00 !important; font-family: 'Arial'; }
-    .status-box { background-color: #111; padding: 10px; border-radius: 5px; border-left: 5px solid #00ff00; }
+    .stApp { background-color: #000000; }
+    h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
+    .ticker-name { color: #00ff00; font-size: 16px; font-weight: bold; margin-bottom: 0px; }
+    .open-price { color: #888888; font-size: 11px; margin-top: -5px; margin-bottom: 10px; }
+    [data-testid="stMetricValue"] { font-size: 22px !important; color: #ffffff !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- LOGIK: DR. BAUER ANALYSE ---
+# --- 2. LOGIK: DR. BAUER ANALYSE ---
 def analyze_bauer_style(df):
-    """Implementiert Dr. Bauers Fokus: Candlesticks + Trend + Vola"""
+    """Bauer-Methodik: Candlestick-Stärke + Trend + Vola-Stop"""
     if len(df) < 20: return None
     
     curr = df['Close'].iloc[-1]
-    prev_close = df['Close'].iloc[-2]
     prev_high = df['High'].iloc[-2]
-    low_20 = df['Low'].tail(20).min()
-    high_20 = df['High'].tail(20).max()
     
-    # 1. Candlestick Check (Dr. Bauer Spezialität)
-    # Ein bullischer Hammer oder ein starker Body ohne langen Docht oben
+    # 1. Candlestick Check: Schließt die Kerze im oberen Drittel? (Stärke-Signal)
     body_size = abs(curr - df['Open'].iloc[-1])
     upper_wick = df['High'].iloc[-1] - max(curr, df['Open'].iloc[-1])
-    is_strong_body = upper_wick < (body_size * 0.3) # Wenig Verkaufsdruck oben
+    is_strong_body = upper_wick < (body_size * 0.3)
     
-    # 2. Trend-Check (GD 20 als kurzfristige Basis)
+    # 2. Trend-Check (Preis über SMA20)
     sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
     is_uptrend = curr > sma20
     
-    # 3. Breakout-Logik
-    pure_breakout = curr > prev_high
-    bauer_signal = pure_breakout and is_strong_body and is_uptrend
+    # 3. Breakout-Signal nach Bauer
+    bauer_signal = (curr > prev_high) and is_strong_body and is_uptrend
     
-    # 4. Volatilität (ATR-Basis für Stop-Loss nach Bauer)
-    # Dr. Bauer nutzt oft das 1.5- bis 2-fache der ATR für Stops
+    # 4. ATR für Stop-Loss (1.5x Volatilität)
     df['TR'] = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
     atr = df['TR'].rolling(window=14).mean().iloc[-1]
-    suggested_stop = curr - (atr * 1.5)
-
+    
     return {
         "signal": bauer_signal,
-        "is_strong_body": is_strong_body,
-        "stop_loss": suggested_stop,
-        "atr": atr,
-        "sma20": sma20
+        "stop": curr - (atr * 1.5),
+        "sma20": sma20,
+        "open_today": df['Open'].iloc[-1] # Heutiger Eröffnungspreis
     }
 
 def fetch_data():
@@ -70,59 +65,47 @@ def fetch_data():
         "SAP.DE": "SAP", "ASML": "ASML"
     }
     results = {}
+    aktuell = datetime.now()
     
     for ticker, label in symbols.items():
         try:
             t = yf.Ticker(ticker)
-            # Wir brauchen mehr Daten für SMA und ATR (mind. 20 Tage)
             df = t.history(period="1mo")
             if len(df) >= 20:
-                bauer_data = analyze_bauer_style(df)
+                analysis = analyze_bauer_style(df)
                 curr = df['Close'].iloc[-1]
-                
-                # Wetter-Logik (Dr. Bauer Fokus: Über dem SMA20 = Sonnig)
-                delta_sma = ((curr - bauer_data['sma20']) / bauer_data['sma20']) * 100
-                w_icon = "☀️" if delta_sma > 0 else "⛈️"
                 
                 results[label] = {
                     "price": curr,
-                    "is_breakout": bauer_data['signal'],
-                    "stop": bauer_data['stop_loss'],
-                    "w": w_icon,
-                    "delta": ((curr - df['Close'].iloc[-2]) / df['Close'].iloc[-2]) * 100,
-                    "d_range": (df['Low'].iloc[-1], df['High'].iloc[-1]),
-                    "w_range": (df['Low'].tail(5).min(), df['High'].tail(5).max())
+                    "open": analysis['open_today'],
+                    "is_breakout": analysis['signal'],
+                    "stop": analysis['stop'],
+                    "delta": ((curr - analysis['open_today']) / analysis['open_today']) * 100,
+                    "sma_dist": curr > analysis['sma20']
                 }
-        except Exception as e:
-            print(f"Error {ticker}: {e}")
+        except: pass
     return results
 
-# --- DISPLAY FUNKTIONEN (Vereinfacht für Übersicht) ---
-def render_bauer_row(label, d):
-    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
-    with col1:
-        st.markdown(f"**{label}**")
-        st.write(f"{d['w']} Trend-Check")
-    with col2:
-        st.metric("Preis", f"{d['price']:.2f}", f"{d['delta']:+.2f}%")
-    with col3:
-        color = "#00ff00" if d['is_breakout'] else "#555"
-        st.markdown(f"<span style='color:{color}; font-size:20px; font-weight:bold;'>{'🚀 SIGNAL' if d['is_breakout'] else 'Beobachtung'}</span>", unsafe_allow_html=True)
-    with col4:
-        st.markdown(f"<div style='font-size:12px; color:#ff4b4b;'>Stop-Loss (ATR):<br><b>{d['stop']:.2f}</b></div>", unsafe_allow_html=True)
-
-# --- MAIN ---
-st.title("📡 Dr. Gregor Bauer: Methodik-Terminal")
-st.write("Fokus: Candlestick-Stärke + Trendbestätigung (SMA20) + ATR-Stop")
+# --- 3. RENDER ---
+st.title("📡 Dr. Bauer Strategie-Terminal")
+st.write(f"Letztes Update: {datetime.now().strftime('%H:%M:%S')} (Intervall: 45s)")
 
 data = fetch_data()
-for label, d in data.items():
-    render_bauer_row(label, d)
-    st.divider()
 
-with st.expander("Methodik nach Dr. Bauer"):
-    st.write("""
-    1. **Trendfilter:** Nur Long, wenn Preis über SMA 20 (Sonne).
-    2. **Candlestick-Bestätigung:** Das Signal '🚀' erscheint nur, wenn die Kerze im oberen Drittel schließt (keine Dochte).
-    3. **Risikomanagement:** Der Stop-Loss wird automatisch auf 1.5 * ATR (Volatilität) unter den Kurs gesetzt.
-    """)
+for label, d in data.items():
+    with st.container():
+        # Name und Eröffnungspreis direkt darunter
+        st.markdown(f"""
+            <div class='ticker-name'>{label}</div>
+            <div class='open-price'>Eröffnung heute: {d['open']:.2f}</div>
+        """, unsafe_allow_html=True)
+        
+        cols = st.columns([1, 1, 1])
+        with cols[0]:
+            st.metric("Kurs", f"{d['price']:.2f}", f"{d['delta']:+.2f}%")
+        with cols[1]:
+            color = "#00ff00" if d['is_breakout'] else "#444"
+            st.markdown(f"<h3 style='color:{color};'>{'🚀 SIGNAL' if d['is_breakout'] else 'WAIT'}</h3>", unsafe_allow_html=True)
+        with cols[2]:
+            st.markdown(f"<div style='color:#ff4b4b; font-size:12px;'>Bauer-Stop (ATR):<br><b>{d['stop']:.2f}</b></div>", unsafe_allow_html=True)
+        st.divider()
