@@ -38,13 +38,13 @@ st.markdown("""
 
 # --- 2. LOGIK FUNKTIONEN ---
 
-# Manuelle Liste für Makro-Namen (Indices & Forex), da API hier oft nur kryptische Kürzel liefert
-MACRO_NAMES = {
+# Manuelle Liste für Indizes und Forex (da API hier oft nur Codes liefert)
+MANUAL_NAMES = {
     "EURUSD=X": "Euro / US-Dollar",
-    "EURRUB=X": "Euro / Russ. Rubel",
+    "EURRUB=X": "Euro / Russischer Rubel",
     "^STOXX50E": "EURO STOXX 50 Index",
     "^IXIC": "NASDAQ Composite",
-    "XU100.IS": "BIST 100 (Türkei)",
+    "XU100.IS": "Borsa Istanbul 100",
     "IMOEX.ME": "MOEX Russia Index",
     "^GDAXI": "DAX 40 Index",
     "^CRSLDX": "NIFTY 500 (Indien)"
@@ -53,15 +53,17 @@ MACRO_NAMES = {
 @st.cache_data(ttl=86400)
 def get_clean_name(ticker_symbol):
     """ Liefert Klarnamen für Makro-Symbole oder Aktien """
-    # 1. Check in unserer manuellen Makro-Liste
-    if ticker_symbol in MACRO_NAMES:
-        return MACRO_NAMES[ticker_symbol]
+    # 1. Priorität: Manuelle Liste (Indizes/Forex)
+    if ticker_symbol in MANUAL_NAMES:
+        return MANUAL_NAMES[ticker_symbol]
     
-    # 2. Check via Yahoo API für Aktien
+    # 2. Priorität: Yahoo API (Aktien)
     try:
         t = yf.Ticker(ticker_symbol)
-        name = t.info.get('shortName') or t.info.get('longName')
-        return name if name else ticker_symbol
+        # shortName ist oft sauberer als longName
+        info = t.info
+        name = info.get('shortName') or info.get('longName') or ticker_symbol
+        return name
     except:
         return ticker_symbol
 
@@ -108,23 +110,17 @@ def get_index_tickers():
 def render_bauer_row(ticker, f_str="{:.2f}"):
     """ Rendert eine Zeile mit Klarnamen statt Ticker """
     try:
-        # Namen ermitteln
         display_name = get_clean_name(ticker)
-        
-        # Daten laden
         data = yf.Ticker(ticker).history(period="1mo")
         res = analyze_bauer(data)
         
         if res:
             cols = st.columns([2.0, 0.6, 1.2, 0.8, 1])
-            
-            with cols[0]: # NAME & START
+            with cols[0]:
                 st.markdown(f"<div class='ticker-name'>{display_name}</div><div class='open-price'>Start: {f_str.format(res['open'])}</div>", unsafe_allow_html=True)
-            
-            with cols[1]: # WETTER
+            with cols[1]:
                 st.markdown(f"<div style='font-size: 1.5rem; margin-top: 5px;'>{res['icon']}</div>", unsafe_allow_html=True)
-            
-            with cols[2]: # KURS
+            with cols[2]:
                 delta_color = "#ff4b4b" if res['delta'] < 0 else "#00ff00"
                 st.markdown(f"""
                     <div style='line-height: 1.2;'>
@@ -133,22 +129,19 @@ def render_bauer_row(ticker, f_str="{:.2f}"):
                         <small style='color: {delta_color};'>{res['delta']:+.2f}%</small>
                     </div>
                 """, unsafe_allow_html=True)
-            
-            with cols[3]: # SIGNAL
+            with cols[3]:
                 sig_class = "sig-c" if res['signal'] == "C" else "sig-p" if res['signal'] == "P" else "sig-wait"
                 st.markdown(f"<div style='margin-top: 15px;'><span class='{sig_class}'>{res['signal']}</span></div>", unsafe_allow_html=True)
-            
-            with cols[4]: # STOP
+            with cols[4]:
                 val = f_str.format(res['stop']) if res['signal'] != "Wait" else "---"
                 st.markdown(f"<div style='line-height: 1.2;'><small style='color: #888;'>Stop:</small><br><b style='color:#ff4b4b; font-size: 1.2rem;'>{val}</b></div>", unsafe_allow_html=True)
-            
             st.divider()
     except:
         pass
 
 # --- 3. UI RENDERING ---
 st.title("📡 Dr. Bauer Strategie-Terminal")
-st.write(f"Refreshed: {datetime.now().strftime('%H:%M:%S')} | Fokus: Klarnamen")
+st.write(f"Refreshed: {datetime.now().strftime('%H:%M:%S')} | Klarnamen-Modus aktiv")
 
 # MÄRKTE SEKTION
 st.markdown("<p class='focus-header'>🌍 MÄRKTE & FOREX (MACRO) 🌍</p>", unsafe_allow_html=True)
