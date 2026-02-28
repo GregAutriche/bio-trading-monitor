@@ -33,6 +33,10 @@ st.markdown("""
     .sig-c { color: #00ff00; font-weight: bold; font-size: 26px; border: 1px solid #00ff00; padding: 2px 10px; border-radius: 5px; }
     .sig-p { color: #ff4b4b; font-weight: bold; font-size: 26px; border: 1px solid #ff4b4b; padding: 2px 10px; border-radius: 5px; }
     .sig-wait { color: #444; font-size: 18px; }
+    .sig-c { color: #00ff00; font-weight: bold; font-size: 1.4rem; }
+    .sig-p { color: #ff4b4b; font-weight: bold; font-size: 1.4rem; }
+    .sig-wait { color: #444; font-size: 1.2rem; }
+    /* Entferne das 'h2' Styling aus der render-Funktion, falls vorhanden */
     </style>
     """, unsafe_allow_html=True)
 
@@ -145,3 +149,4 @@ if st.button(f"Scan {idx_choice} starten"):
     with st.spinner("Analysiere Einzelwerte..."):
         for t in index_data[idx_choice]:
             render_bauer_row(t, t)
+
