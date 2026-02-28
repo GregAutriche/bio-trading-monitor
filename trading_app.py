@@ -83,8 +83,35 @@ def render_bauer_row(label, ticker, f_str="{:.2f}"):
 st.title("📡 Dr. Bauer Strategie-Terminal")
 st.write(f"Refreshed: {datetime.now().strftime('%H:%M:%S')} | 45s Update")
 
-with st.expander("📖 AUSFÜHRLICHE BESCHREIBUNG DER STRATEGIE-LOGIK"):
-    st.markdown("""<div class='method-box'><b>1. Börsen-Wetter:</b> Trend via SMA 20. ☀️ bei Kurs > SMA 20.<br><b>2. Candlestick:</b> Signal nur bei Schluss im oberen Drittel.<br><b>3. Breakout:</b> 🚀 bei Kurs > gestrigem Hoch + Trend.<br><b>4. Vola-Stop:</b> 1.5 * ATR Puffer.</div>""", unsafe_allow_html=True)
+# --- AUSFÜHRLICHE METHODIK BESCHREIBUNG (EXPANDER) ---
+with st.expander("📖 AUSFÜHRLICHE BESCHREIBUNG DER STRATEGIE-LOGIK (Dr. Gregor Bauer)"):
+    st.markdown("""
+    <div style='background-color: #111; padding: 20px; border-radius: 10px; border-left: 5px solid #00ff00; line-height: 1.6;'>
+        <h3 style='color: #00ff00; margin-top: 0;'>1. Börsen-Wetter (Trend-Indikator)</h3>
+        <p>Das Wetter basiert auf der Lage zum <b>SMA 20</b> (Gleitender Durchschnitt der letzten 20 Handelstage):
+        <ul>
+            <li><b>☀️ Sonnig:</b> Kurs liegt über dem SMA 20 und weist eine positive Tagesdynamik (> 0.5%) auf.</li>
+            <li><b>🌤️ Heiter:</b> Kurs liegt über dem SMA 20 (Aufwärtstrend intakt), aber die Dynamik ist gering.</li>
+            <li><b>☁️ Wolkig:</b> Kurs pendelt um den SMA 20 – neutrale Seitwärtsphase.</li>
+            <li><b>⛈️ Gewitter:</b> Kurs liegt unter dem SMA 20 oder fällt stark am Tag – Trendwende nach unten.</li>
+        </ul></p>
+
+        <h3 style='color: #00ff00;'>2. Candlestick-Stärke (Der Bauer-Filter)</h3>
+        <p>Ein Signal wird nur generiert, wenn die aktuelle Tageskerze echte "Überzeugung" zeigt. Das Script prüft mathematisch, ob der Kurs im <b>oberen Drittel</b> der gesamten Tagesspanne schließt. Lange Dochte an der Oberseite (Erschöpfungssignale) führen dazu, dass kein Kauf-Signal erscheint, auch wenn ein neues Hoch erreicht wurde.</p>
+
+        <h3 style='color: #00ff00;'>3. Breakout-Logik (Das 🚀 Signal)</h3>
+        <p>Ein Signal erscheint erst, wenn drei Bedingungen gleichzeitig (konfluent) erfüllt sind:
+        <ol>
+            <li><b>Preis-Breakout:</b> Aktueller Kurs ist höher als das gestrige Tageshoch.</li>
+            <li><b>Trend-Bestätigung:</b> Der Kurs befindet sich oberhalb des SMA 20.</li>
+            <li><b>Form-Bestätigung:</b> Die Candlestick-Stärke (Punkt 2) ist positiv (Schlusskurs oben).</li>
+        </ol></p>
+
+        <h3 style='color: #00ff00;'>4. Vola-Stop-Management (Risikokontrolle)</h3>
+        <p>Der Stop-Loss wird dynamisch über die <b>ATR (Average True Range)</b> berechnet. Dr. Bauer nutzt oft einen Puffer, um "Marktrauschen" abzufedern. Das System setzt den Stop automatisch auf <b>1.5 * ATR</b> unter den aktuellen Kurs. So bleibst du in volatilen Phasen länger investiert, wirst aber bei echten Trendwenden geschützt.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
 
 # --- MACRO SEKTION ---
 st.markdown("<p class='focus-header'>🌍 MÄRKTE & FOREX (MACRO) 🌍</p>", unsafe_allow_html=True)
@@ -110,3 +137,4 @@ if st.button(f"Scan {idx_choice} starten"):
     with st.spinner("Analysiere Einzelwerte..."):
         for t in index_data[idx_choice]:
             render_bauer_row(t, t)
+
