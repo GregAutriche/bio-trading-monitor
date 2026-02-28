@@ -54,7 +54,7 @@ def get_clean_name(ticker):
         return info.get('shortName') or info.get('longName') or ticker
     except: return ticker
 
-# --- 3. LOGIK FUNKTIONEN ---
+# --- 3. LOGIK & DATEN-FUNKTIONEN ---
 def analyze_bauer(df):
     if df is None or len(df) < 20: return None
     curr = df['Close'].iloc[-1]
@@ -72,11 +72,36 @@ def analyze_bauer(df):
     signal = "C" if (is_up and curr > sma20) else "P" if (is_down and curr < sma20) else "Wait"
     stop = curr - (atr * 1.5) if signal == "C" else curr + (atr * 1.5) if signal == "P" else 0
     delta = ((curr - open_t) / open_t) * 100
-    
-    # NEU: Waage-Symbol für Neutral
     icon = "☀️" if (curr > sma20 and delta > 0.5) else "🌤️" if curr > sma20 else "⛈️" if delta < -0.5 else "⚖️"
     
     return {"price": curr, "open": open_t, "delta": delta, "icon": icon, "signal": signal, "stop": stop}
+
+def get_bauer_data(ticker):
+    """Berechnet Daten ohne UI (für Parallelisierung)"""
+    try:
+        data = yf.Ticker(ticker).history(period="1mo")
+        res = analyze_bauer(data)
+        if res:
+            res['ticker'] = ticker
+            res['display_name'] = get_clean_name(ticker)
+            return res
+    except: return None
+
+def display_bauer_row(res, f_str="{:.2f}"):
+    """Rendert die UI-Zeile im Haupt-Thread"""
+    cols = st.columns([2.0, 0.6, 1.2, 0.8, 1])
+    with cols[0]: st.markdown(f"<div class='ticker-name'>{res['display_name']}</div><div class='open-price'>Start: {f_str.format(res['open'])}</div>", unsafe_allow_html=True)
+    with cols[1]: st.markdown(f"<div style='font-size: 1.5rem; margin-top: 5px;'>{res['icon']}</div>", unsafe_allow_html=True)
+    with cols[2]:
+        c = "#ff4b4b" if res['delta'] < 0 else "#00ff00"
+        st.markdown(f"<div style='line-height:1.2;'><small style='color:#888;'>Kurs</small><br><span style='font-size:1.4rem; font-weight:bold;'>{f_str.format(res['price'])}</span><br><small style='color:{c};'>{res['delta']:+.2f}%</small></div>", unsafe_allow_html=True)
+    with cols[3]:
+        cls = "sig-c" if res['signal'] == "C" else "sig-p" if res['signal'] == "P" else "sig-wait"
+        st.markdown(f"<div style='margin-top:15px;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
+    with cols[4]:
+        val = f_str.format(res['stop']) if res['signal'] != "Wait" else "---"
+        st.markdown(f"<div style='line-height:1.2;'><small style='color:#888;'>Stop:</small><br><b style='color:#ff4b4b; font-size:1.2rem;'>{val}</b></div>", unsafe_allow_html=True)
+    st.divider()
 
 @st.cache_data(ttl=3600)
 def get_index_tickers():
@@ -87,32 +112,10 @@ def get_index_tickers():
         "DOW JONES 30": ["AAPL", "AMGN", "AXP", "BA", "CAT", "CRM", "CSCO", "CVX", "DIS", "GS", "HD", "HON", "IBM", "INTC", "JNJ", "JPM", "KO", "MCD", "MMM", "MRK", "MSFT", "NKE", "PG", "TRV", "UNH", "V", "VZ", "WBA", "WMT"]
     }
 
-def render_bauer_row(ticker, f_str="{:.2f}"):
-    try:
-        display_name = get_clean_name(ticker)
-        data = yf.Ticker(ticker).history(period="1mo")
-        res = analyze_bauer(data)
-        if res:
-            cols = st.columns([2.0, 0.6, 1.2, 0.8, 1])
-            with cols[0]: st.markdown(f"<div class='ticker-name'>{display_name}</div><div class='open-price'>Start: {f_str.format(res['open'])}</div>", unsafe_allow_html=True)
-            with cols[1]: st.markdown(f"<div style='font-size: 1.5rem; margin-top: 5px;'>{res['icon']}</div>", unsafe_allow_html=True)
-            with cols[2]:
-                c = "#ff4b4b" if res['delta'] < 0 else "#00ff00"
-                st.markdown(f"<div style='line-height:1.2;'><small style='color:#888;'>Kurs</small><br><span style='font-size:1.4rem; font-weight:bold;'>{f_str.format(res['price'])}</span><br><small style='color:{c};'>{res['delta']:+.2f}%</small></div>", unsafe_allow_html=True)
-            with cols[3]:
-                cls = "sig-c" if res['signal'] == "C" else "sig-p" if res['signal'] == "P" else "sig-wait"
-                st.markdown(f"<div style='margin-top:15px;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
-            with cols[4]:
-                val = f_str.format(res['stop']) if res['signal'] != "Wait" else "---"
-                st.markdown(f"<div style='line-height:1.2;'><small style='color:#888;'>Stop:</small><br><b style='color:#ff4b4b; font-size:1.2rem;'>{val}</b></div>", unsafe_allow_html=True)
-            st.divider()
-    except: pass
-
 # --- 4. UI RENDERING ---
 st.title("📡 Dr. Bauer Strategie-Terminal")
-st.write(f"letztes update: {datetime.now().strftime('%H:%M:%S')}")
+st.write(f"Refreshed: {datetime.now().strftime('%H:%M:%S')} | Klarnamen-Check aktiv")
 
-# NEU: Logik-Expander
 with st.expander("ℹ️ Strategie-Logik & System-Erklärung"):
     st.markdown("""
     **Trend-Check (2-Tage-Regel):** Call (C) bei 2 steigenden Tagen, Put (P) bei 2 fallenden Tagen.  
@@ -124,21 +127,25 @@ with st.expander("ℹ️ Strategie-Logik & System-Erklärung"):
 # MAKRO
 st.markdown("<p class='focus-header'>🌍 MÄRKTE & FOREX (MACRO) 🌍</p>", unsafe_allow_html=True)
 for sym, fmt in [("EURUSD=X", "{:.5f}"), ("^GDAXI", "{:.2f}"), ("^STOXX50E", "{:.2f}"), ("^DJI", "{:.2f}"), ("XU100.IS", "{:.2f}")]:
-    render_bauer_row(sym, fmt)
+    res = get_bauer_data(sym)
+    if res: display_bauer_row(res, fmt)
 
 # SCREENER
 st.markdown("<p class='focus-header'>🔭 LIVE SCREENER 🔭</p>", unsafe_allow_html=True)
 index_data = get_index_tickers()
-
-# FIX: idx_choice wird hier definiert, bevor der Button erscheint
 idx_choice = st.radio("Index wählen:", list(index_data.keys()), horizontal=True)
 
 if st.button(f"Scan {idx_choice} starten"):
     with st.spinner(f"🚀 Turbo-Scan: Analysiere {idx_choice}..."):
-        # Alphabetische Sortierung nach Klarnamen
         sorted_tickers = sorted(index_data[idx_choice], key=get_clean_name)
         
-        # Parallelisierung (10 Worker gleichzeitig)
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            executor.map(render_bauer_row, sorted_tickers)
-
+        # Parallelisierung nur für Datenabruf
+        with ThreadPoolExecutor(max_workers=15) as executor:
+            results = list(executor.map(get_bauer_data, sorted_tickers))
+        
+        # Anzeige im Haupt-Thread (sicher für Streamlit)
+        valid_results = [r for r in results if r is not None]
+        valid_results.sort(key=lambda x: x['display_name'])
+        
+        for res in valid_results:
+            display_bauer_row(res)
