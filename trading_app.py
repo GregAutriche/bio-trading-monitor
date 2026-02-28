@@ -147,7 +147,7 @@ macro_symbols = {
     "EUROSTOXX 50": ("^STOXX50E", "{:.2f}"),
     "NASDAQ 100": ("^IXIC", "{:.2f}"),
     "BIST 100 (TR)": ("XU100.IS", "{:.2f}"),
-    "MOEX RUSSIA": ("IMOEX.ME", "{:.2f}")
+    "MOEX RUSSIA": ("IMOEX.ME", "{:.2f}"),
     "DAX 40": ("^GDAXI", "{:.2f}")
 }
 for label, (sym, fmt) in macro_symbols.items():
@@ -162,6 +162,7 @@ if st.button(f"Scan {idx_choice} starten"):
     with st.spinner("Analysiere Einzelwerte..."):
         for t in index_data[idx_choice]:
             render_bauer_row(t, t)
+
 
 
 
