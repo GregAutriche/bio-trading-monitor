@@ -126,7 +126,7 @@ with st.expander("ℹ️ Strategie-Logik & System-Erklärung"):
 
 # MAKRO
 st.markdown("<p class='focus-header'>🌍 MÄRKTE & FOREX (MACRO) 🌍</p>", unsafe_allow_html=True)
-for sym, fmt in [("EURUSD=X", "{:.5f}"), ("^GDAXI", "{:.2f}"), ("^STOXX50E", "{:.2f}"), ("^IXIC", "{:.2f}"), ("XU100.IS", "{:.2f}")]:
+for sym, fmt in [("EURUSD=X", "{:.5f}"), ("^GDAXI", "{:.2f}"), ("^STOXX50E", "{:.2f}"), ("^IXIC", "{:.2f}"), ("XU100.IS", "{:.2f}"), ("^NSEI"),{:.2f}]:
     res = get_bauer_data(sym)
     if res: display_bauer_row(res, fmt)
 
@@ -149,6 +149,7 @@ if st.button(f"Scan {idx_choice} starten"):
         
         for res in valid_results:
             display_bauer_row(res)
+
 
 
 
