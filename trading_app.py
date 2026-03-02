@@ -36,7 +36,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. NAMENS-DATENBANK (KLARNAMEN) ---
+# --- 2. NAMENS-DATENBANK & SESSION STATE ---
 NAME_DB = {
     "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", "^STOXX50E": "EURO STOXX 50", 
     "^IXIC": "NASDAQ 100", "^DJI": "Dow Jones 30", "XU100.IS": "BIST 100",
@@ -45,6 +45,12 @@ NAME_DB = {
     "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp.", "AMZN": "Amazon.com", "NVDA": "NVIDIA Corp.",
     "TSLA": "Tesla Inc.", "DIS": "Walt Disney Co.", "V": "Visa Inc.", "MC.PA": "LVMH", "OR.PA": "L'Oréal"
 }
+
+# Speicher für Screener-Ergebnisse initialisieren
+if 'scanner_results' not in st.session_state:
+    st.session_state.scanner_results = None
+if 'last_idx_choice' not in st.session_state:
+    st.session_state.last_idx_choice = None
 
 @st.cache_data(ttl=86400)
 def get_clean_name(ticker):
@@ -77,7 +83,6 @@ def analyze_bauer(df):
     return {"price": curr, "open": open_t, "delta": delta, "icon": icon, "signal": signal, "stop": stop}
 
 def get_bauer_data(ticker):
-    """Berechnet Daten ohne UI (für Parallelisierung)"""
     try:
         data = yf.Ticker(ticker).history(period="1mo")
         res = analyze_bauer(data)
@@ -88,7 +93,6 @@ def get_bauer_data(ticker):
     except: return None
 
 def display_bauer_row(res, f_str="{:.2f}"):
-    """Rendert die UI-Zeile im Haupt-Thread"""
     cols = st.columns([2.0, 0.6, 1.2, 0.8, 1])
     with cols[0]: st.markdown(f"<div class='ticker-name'>{res['display_name']}</div><div class='open-price'>Start: {f_str.format(res['open'])}</div>", unsafe_allow_html=True)
     with cols[1]: st.markdown(f"<div style='font-size: 1.5rem; margin-top: 5px;'>{res['icon']}</div>", unsafe_allow_html=True)
@@ -114,7 +118,7 @@ def get_index_tickers():
 
 # --- 4. UI RENDERING ---
 st.title("📡 Dr. Gregor Bauer Strategie 📡")
-st.write(f"letzes update: {datetime.now().strftime('%H:%M:%S')} | Klarnamen-Check aktiv")
+st.write(f"letztes update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
 with st.expander("ℹ️ Strategie-Logik & System-Erklärung"):
     st.markdown("""
@@ -124,9 +128,10 @@ with st.expander("ℹ️ Strategie-Logik & System-Erklärung"):
     **Stop-Loss:** Dynamisch berechnet mit dem 1.5-fachen der ATR (Volatilität).
     """)
 
-# MAKRO
+# MAKRO (Immer sichtbar und immer aktuell)
 st.markdown("<p class='focus-header'>🌍 MÄRKTE & FOREX (MACRO) 🌍</p>", unsafe_allow_html=True)
-for sym, fmt in [("EURUSD=X", "{:.5f}"), ("^GDAXI", "{:.2f}"), ("^STOXX50E", "{:.2f}"), ("^IXIC", "{:.2f}"), ("XU100.IS", "{:.2f}"), ("^NSEI","{:.2f}")]:
+macro_symbols = [("EURUSD=X", "{:.5f}"), ("^GDAXI", "{:.2f}"), ("^STOXX50E", "{:.2f}"), ("^IXIC", "{:.2f}"), ("XU100.IS", "{:.2f}"), ("^NSEI","{:.2f}")]
+for sym, fmt in macro_symbols:
     res = get_bauer_data(sym)
     if res: display_bauer_row(res, fmt)
 
@@ -135,24 +140,26 @@ st.markdown("<p class='focus-header'>🔭 LIVE SCREENER 🔭</p>", unsafe_allow_
 index_data = get_index_tickers()
 idx_choice = st.radio("Index wählen:", list(index_data.keys()), horizontal=True)
 
+# Button startet den Scan und speichert die Auswahl
 if st.button(f"Scan {idx_choice} starten"):
+    st.session_state.last_idx_choice = idx_choice
     with st.spinner(f"🚀 Turbo-Scan: Analysiere {idx_choice}..."):
         sorted_tickers = sorted(index_data[idx_choice], key=get_clean_name)
-        
-        # Parallelisierung nur für Datenabruf
         with ThreadPoolExecutor(max_workers=15) as executor:
             results = list(executor.map(get_bauer_data, sorted_tickers))
         
-        # Anzeige im Haupt-Thread (sicher für Streamlit)
         valid_results = [r for r in results if r is not None]
         valid_results.sort(key=lambda x: x['display_name'])
-        
-        for res in valid_results:
-            display_bauer_row(res)
+        st.session_state.scanner_results = valid_results
 
-
-
-
-
-
-
+# Ergebnisse anzeigen, wenn vorhanden (bleiben bei Refresh stehen)
+if st.session_state.scanner_results:
+    # Optionale Live-Aktualisierung der Liste bei jedem Refresh:
+    if st.session_state.last_idx_choice:
+        st.write(f"Analyse-Fokus: **{st.session_state.last_idx_choice}** (Daten werden im Hintergrund aktuell gehalten)")
+    
+    for res in st.session_state.scanner_results:
+        # Hier rufen wir die Daten für jede Zeile neu ab, damit sie beim Refresh aktuell sind
+        current_res = get_bauer_data(res['ticker'])
+        if current_res:
+            display_bauer_row(current_res)
