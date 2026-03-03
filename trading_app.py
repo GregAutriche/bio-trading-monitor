@@ -3,7 +3,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import time
+from concurrent.futures import ThreadPoolExecutor
 
 # --- 0. AUTO-REFRESH & SETUP ---
 try:
@@ -13,10 +13,11 @@ except ImportError:
     os.system('pip install streamlit-autorefresh')
     from streamlit_autorefresh import st_autorefresh
 
+# Automatischer Refresh alle 45 Sekunden
 st_autorefresh(interval=45000, key="datarefresh")
 
 # --- 1. CONFIG & STYLING ---
-st.set_page_config(layout="wide", page_title="Bauer Strategy Pro 2026")
+st.set_page_config(layout="wide", page_title="Bauer Strategy Pro 2026", page_icon="📡")
 
 st.markdown("""
     <style>
@@ -32,26 +33,46 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. NAMENS-DATENBANK & SESSION STATE ---
+# --- 2. NAMENS-DATENBANK & CACHE ---
 NAME_DB = {
     "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", "^STOXX50E": "EURO STOXX 50",
-    "^IXIC": "NASDAQ Composite", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50"
+    "^IXIC": "NASDAQ Composite", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50",
+    "ASML.AS": "ASML Holding", "MC.PA": "LVMH", "OR.PA": "L'Oréal", "SAP.DE": "SAP SE",
+    "RELIANCE.NS": "Reliance Ind.", "TCS.NS": "Tata Consultancy", "THYAO.IS": "Turkish Airlines"
 }
 
-if 'cache_results' not in st.session_state:
-    st.session_state.cache_results = {}
+if 'macro_cache' not in st.session_state:
+    st.session_state.macro_cache = {}
 
-# --- 3. DATEN-ENGINE (SERIALISIERTER DOWNLOAD FÜR STABILITÄT) ---
+# --- 3. DATEN-ENGINE ---
+def clean_df(df):
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    return df
+
+def calculate_probability(df, signal_type):
+    if df is None or len(df) < 50: return 50.0
+    bt_df = df.copy()
+    bt_df['SMA20'] = bt_df['Close'].rolling(window=20).mean()
+    hits, signals = 0, 0
+    for i in range(25, len(bt_df) - 5):
+        c, p, p2 = bt_df['Close'].iloc[i], bt_df['Close'].iloc[i-1], bt_df['Close'].iloc[i-2]
+        sma = bt_df['SMA20'].iloc[i]
+        h_sig = "C" if (c > p > p2 and c > sma) else "P" if (c < p < p2 and c < sma) else None
+        if h_sig == signal_type:
+            signals += 1
+            if (signal_type == "C" and bt_df['Close'].iloc[i+3] > c) or \
+               (signal_type == "P" and bt_df['Close'].iloc[i+3] < c):
+                hits += 1
+    return (hits / signals * 100) if signals > 0 else 50.0
+
 def analyze_ticker(ticker):
     try:
-        # Kein Multithreading für Macro-Abfragen zur Vermeidung von Geisterwerten
         df = yf.download(ticker, period="1y", interval="1d", progress=False, auto_adjust=True)
-        if df.empty or len(df) < 25: return None
+        if df.empty or len(df) < 25: return st.session_state.macro_cache.get(ticker)
+        df = clean_df(df)
         
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-        
-        # EUR/USD Deep Clean
+        # EUR/USD Deep Clean Fix
         if "EURUSD=X" in ticker:
             mask = (df['Close'] > 2.0) | (df['Close'] < 0.5)
             if mask.any():
@@ -68,25 +89,21 @@ def analyze_ticker(ticker):
         stop = curr - (atr * 1.5) if signal == "C" else curr + (atr * 1.5) if signal == "P" else 0
         icon = "☀️" if (curr > sma20 and delta > 0.3) else "⚖️" if abs(delta) < 0.3 else "⛈️"
         
-        # Win-Rate Simulation
-        bt_df = df.tail(100).copy()
-        bt_df['sma'] = bt_df['Close'].rolling(20).mean()
-        hits = ((bt_df['Close'] > bt_df['sma']).sum() / 100) * 100
-
         res = {
             "display_name": NAME_DB.get(ticker, ticker), "ticker": ticker, "price": curr, 
-            "delta": delta, "signal": signal, "stop": stop, "icon": icon, "prob": hits
+            "delta": delta, "signal": signal, "stop": stop, "icon": icon, 
+            "prob": calculate_probability(df, signal)
         }
-        # Im Session State speichern
-        st.session_state.cache_results[ticker] = res
+        st.session_state.macro_cache[ticker] = res
         return res
     except:
-        return st.session_state.cache_results.get(ticker) # Letzten Wert zurückgeben, falls API fehlschlägt
+        return st.session_state.macro_cache.get(ticker)
 
 # --- 4. UI RENDERER ---
 def render_row(res):
     if not res: return
-    fmt = "{:.6f}" if "=" in res['ticker'] else "{:.2f}"
+    is_forex = ("=" in res['ticker'])
+    fmt = "{:.6f}" if is_forex else "{:.2f}"
     st.markdown("<div class='row-container'>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns([1.2, 0.6, 0.5, 1.2])
     
@@ -111,16 +128,40 @@ def render_row(res):
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
 st.write(f"letztes update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
-with st.expander("ℹ️ Strategie-Logik & System-Erklärung"):
-    st.markdown("### **1. Trend-Check (2-Tage-Regel)**...")
+# Vollständige Beschreibung wiederhergestellt
+with st.expander("ℹ️ Strategie-Logik & System-Erklärung (Vollständige Ausführung)"):
+    st.markdown("""
+    ### **1. Trend-Check (2-Tage-Regel)**
+    *   **Call (C):** Heute > Gestern UND Gestern > Vorgestern.
+    *   **Put (P):** Heute < Gestern UND Gestern < Vorgestern.
+    ### **2. SMA 20 Trend-Filter**
+    Signale werden nur in Richtung des übergeordneten Trends (Gleitender Durchschnitt 20 Tage) zugelassen.
+    ### **3. Dynamischer Stop-Loss (ATR)**
+    Absicherung mittels **1.5x ATR (14 Tage)**. Dies fängt marktübliche Volatilität ab.
+    ### **4. Wahrscheinlichkeit**
+    Historische Trefferquote basierend auf einem 1-Jahres-Backtest. Werte unter 60% werden in Klammern gesetzt.
+    """)
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
-
-# Macro-Abfragen nacheinander (stabilisiert die Daten)
-for ticker in macro_tickers:
-    res = analyze_ticker(ticker)
+# Serieller Download für Macro (verhindert Geisterwerte/Verschwinden)
+for t in macro_tickers:
+    res = analyze_ticker(t)
     if res: render_row(res)
 
 st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
-# [Screener Sektion bleibt gleich...]
+with st.expander("Screener-Einstellungen & Index-Auswahl", expanded=True):
+    index_data = {
+        "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC"],
+        "DAX 40": ["ADS.DE", "ALV.DE", "BAS.DE", "BMW.DE", "SAP.DE", "SIE.DE", "DTE.DE", "MBG.DE"],
+        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AVGO"],
+        "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS", "GUBRF.IS"],
+        "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "BAJAJ-AUTO.NS", "BHARTIARTL.NS"]
+    }
+    choice = st.radio("Wähle Index für Scan:", list(index_data.keys()), horizontal=True)
+    scan_btn = st.button(f"Scan {choice} starten")
+
+if scan_btn:
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        results = list(executor.map(analyze_ticker, index_data[choice]))
+        for r in filter(None, results): render_row(r)
