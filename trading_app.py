@@ -22,7 +22,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. NAMENS-DATENBANK ---
+# --- 2. NAMENS-DATENBANK (KLARNAMEN) ---
 NAME_DB = {
     "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", "^STOXX50E": "EURO STOXX 50",
     "^IXIC": "NASDAQ Composite", "^DJI": "Dow Jones 30", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50",
@@ -32,7 +32,7 @@ NAME_DB = {
     "THYAO.IS": "Turkish Airlines", "TUPRS.IS": "Tupras Petrol", "RELIANCE.NS": "Reliance Industries"
 }
 
-# --- 3. LOGIK ---
+# --- 3. DATEN-ENGINE & PLAUSIBILITÄTS-CHECK ---
 def clean_df(df):
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
@@ -59,19 +59,30 @@ def analyze_ticker(ticker):
         df = yf.download(ticker, period="1y", interval="1d", progress=False, auto_adjust=True)
         if df.empty or len(df) < 25: return None
         df = clean_df(df)
-        curr, prev, prev2 = df['Close'].iloc[-1], df['Close'].iloc[-2], df['Close'].iloc[-3]
+        
+        curr = float(df['Close'].iloc[-1])
+        
+        # --- FIX: PLAUSIBILITÄTS-CHECK GEGEN GEISTERWERTE ---
+        # Verhindert, dass EUR/USD (normal ~1.10) Werte wie 24865.0 anzeigt
+        if "EURUSD=X" in ticker and curr > 10.0:
+            return None 
+            
+        prev, prev2 = df['Close'].iloc[-2], df['Close'].iloc[-3]
         open_t = df['Open'].iloc[-1]
         sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
         atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1]
+        
         signal = "C" if (curr > prev > prev2 and curr > sma20) else "P" if (curr < prev < prev2 and curr < sma20) else "Wait"
         prob = calculate_probability(df, signal) if signal != "Wait" else 0
         delta = ((curr - open_t) / open_t) * 100
         stop = curr - (atr * 1.5) if signal == "C" else curr + (atr * 1.5) if signal == "P" else 0
         icon = "☀️" if (curr > sma20 and delta > 0.3) else "🌤️" if curr > sma20 else "⛈️" if delta < -0.3 else "⚖️"
-        return {"display_name": NAME_DB.get(ticker, ticker), "ticker": ticker, "price": float(curr), 
+        
+        return {"display_name": NAME_DB.get(ticker, ticker), "ticker": ticker, "price": curr, 
                 "delta": float(delta), "signal": signal, "stop": float(stop), "prob": float(prob), "icon": icon}
     except: return None
 
+# --- 4. UI RENDERER ---
 def render_row(res):
     is_forex = ("=" in res['ticker'])
     fmt = "{:.5f}" if is_forex else "{:.2f}"
@@ -95,7 +106,7 @@ def render_row(res):
         else: st.markdown("<br><small style='color:#484f58'>---</small>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 4. MAIN APP ---
+# --- 5. MAIN APP ---
 st.title("📡 Dr. Gregor Bauer Strategy Pro")
 st.write(f"Sync: {datetime.now().strftime('%H:%M:%S')}")
 
@@ -105,7 +116,7 @@ with st.expander("ℹ️ Strategie-Logik & System-Erklärung"):
     **Filter:** Nur Signale in Trendrichtung des SMA 20 (Gleitender Durchschnitt).  
     **Sentiment:** ☀️ (Bullisch), 🌤️ (Leicht Bullisch), ⚖️ (Neutral), ⛈️ (Bärisch).  
     **Stop-Loss:** Dynamisch berechnet mit dem 1.5-fachen der ATR (Volatilität).
-    **Wahrscheinlichkeit:** Historische Trefferquote basierend auf einem 1-Jahres-Backtest.
+    **Sicherheit:** Ein Plausibilitäts-Filter unterdrückt fehlerhafte API-Werte (Geisterwerte).
     """)
 
 st.markdown("<h3 class='focus-header'>🌍 Macro & Indices</h3>", unsafe_allow_html=True)
