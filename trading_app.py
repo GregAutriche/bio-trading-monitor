@@ -103,11 +103,11 @@ def render_row(res):
         st.divider()
 
 # --- 5. MAIN APP ---
-st.title("📡 Dr. Gregor Bauer Strategy Screener")
+st.title("📡 Dr. Gregor Bauer Screener 📡")
 st.write(f"Stand: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
 
 # MACRO REIHENFOLGE: EUR/USD -> DAX -> EURO STOXX
-st.markdown("<h3 class='focus-header'>🌍 Global Macro & Indices</h3>", unsafe_allow_html=True)
+st.markdown("<h3 class='focus-header'>📡 Global Macro & Indices 📡</h3>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 
 with ThreadPoolExecutor(max_workers=6) as executor:
@@ -132,3 +132,4 @@ if st.button(f"Scan {choice} starten"):
             sorted_res = sorted([r for r in results if r], key=lambda x: (x['signal'] == "Wait", -x['prob']))
             for r in sorted_res:
                 render_row(r)
+
