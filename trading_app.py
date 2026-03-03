@@ -6,7 +6,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
 # --- 1. CONFIG & STYLING ---
-st.set_page_config(layout="wide", page_title="Bauer Strategy Pro 2026", page_icon="📡")
+st.set_page_config(layout="wide", page_title="Bauer Strategy Pro 2026")
 
 st.markdown("""
     <style>
@@ -17,21 +17,16 @@ st.markdown("""
     .sig-wait { color: #484f58; font-size: 0.85rem; }
     .focus-header { color: #58a6ff !important; font-weight: bold; border-bottom: 1px solid #30363d; margin: 15px 0 10px 0; }
     code { background-color: #161b22 !important; color: #f85149 !important; padding: 2px 4px; border-radius: 3px; }
-    hr { margin: 0.3rem 0 !important; }
-    /* Reduziert Abstände in Streamlit-Containern */
+    /* Eigener kompakter Trenner */
+    .custom-line { border-bottom: 1px solid #30363d; margin-top: 5px; margin-bottom: 5px; width: 100%; }
     .stVerticalBlock { gap: 0rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. NAMENS-DATENBANK (KLARNAMEN) ---
+# --- 2. NAMENS-DATENBANK ---
 NAME_DB = {
-    "EURUSD=X": "Euro / US-Dollar",
-    "^GDAXI": "DAX 40", 
-    "^STOXX50E": "EURO STOXX 50",
-    "^IXIC": "NASDAQ Composite", 
-    "^DJI": "Dow Jones 30", 
-    "XU100.IS": "BIST 100", 
-    "^NSEI": "NIFTY 50",
+    "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", "^STOXX50E": "EURO STOXX 50",
+    "^IXIC": "NASDAQ Composite", "^DJI": "Dow Jones 30", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50",
     "ADS.DE": "Adidas AG", "ALV.DE": "Allianz SE", "BAS.DE": "BASF SE", "BMW.DE": "BMW AG",
     "SAP.DE": "SAP SE", "SIE.DE": "Siemens AG", "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp.",
     "NVDA": "NVIDIA Corp.", "AMZN": "Amazon.com", "TSLA": "Tesla Inc.", "GOOGL": "Alphabet Inc.",
@@ -69,13 +64,11 @@ def analyze_ticker(ticker):
         open_t = df['Open'].iloc[-1]
         sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
         atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1]
-        
         signal = "C" if (curr > prev > prev2 and curr > sma20) else "P" if (curr < prev < prev2 and curr < sma20) else "Wait"
         prob = calculate_probability(df, signal) if signal != "Wait" else 0
         delta = ((curr - open_t) / open_t) * 100
         stop = curr - (atr * 1.5) if signal == "C" else curr + (atr * 1.5) if signal == "P" else 0
         icon = "☀️" if (curr > sma20 and delta > 0.3) else "🌤️" if curr > sma20 else "⛈️" if delta < -0.3 else "⚖️"
-        
         return {"display_name": NAME_DB.get(ticker, ticker), "ticker": ticker, "price": float(curr), 
                 "delta": float(delta), "signal": signal, "stop": float(stop), "prob": float(prob), "icon": icon}
     except: return None
@@ -84,43 +77,41 @@ def analyze_ticker(ticker):
 def render_row(res):
     is_forex = ("=" in res['ticker'])
     fmt = "{:.5f}" if is_forex else "{:.2f}"
-    with st.container():
-        # Maximale Straffung der Spalten [Name, Wetter/%, Signal, SL, Prob]
-        c1, c2, c3, c4, c5 = st.columns([1.0, 0.5, 0.3, 0.7, 0.6], gap="small")
-        
-        c1.markdown(f"**{res['display_name']}**<br><small>Kurs: {fmt.format(res['price'])}</small>", unsafe_allow_html=True)
-        
+    
+    # 1. Zeile mit Daten
+    c1, c2, c3, c4, c5 = st.columns([1.0, 0.5, 0.3, 0.7, 0.6], gap="small")
+    with c1: st.markdown(f"**{res['display_name']}**<br><small>Kurs: {fmt.format(res['price'])}</small>", unsafe_allow_html=True)
+    with c2: 
         color = "#3fb950" if res['delta'] >= 0 else "#f85149"
-        c2.markdown(f"### {res['icon']}<br><span style='font-size:0.8rem; color:{color}'>{res['delta']:+.2f}%</span>", unsafe_allow_html=True)
-        
+        st.markdown(f"### {res['icon']}<br><span style='font-size:0.8rem; color:{color}'>{res['delta']:+.2f}%</span>", unsafe_allow_html=True)
+    with c3:
         s_cls = "sig-c" if res['signal'] == "C" else "sig-p" if res['signal'] == "P" else "sig-wait"
-        c3.markdown(f"<br><span class='{s_cls}'>{res['signal']}</span>", unsafe_allow_html=True)
-        
+        st.markdown(f"<br><span class='{s_cls}'>{res['signal']}</span>", unsafe_allow_html=True)
+    with c4:
         sl = fmt.format(res['stop']) if res['signal'] != "Wait" else "---"
-        c4.markdown(f"<small>Stop-Loss</small><br><code>{sl}</code>", unsafe_allow_html=True)
-        
+        st.markdown(f"<small>Stop-Loss</small><br><code>{sl}</code>", unsafe_allow_html=True)
+    with c5:
         if res['signal'] != "Wait":
             p_val = res['prob']
             p_col = "#3fb950" if p_val >= 60 else "#f0883e"
             prob_text = f"{p_val:.1f}%" if p_val >= 60 else f"({p_val:.1f}%)"
-            c5.markdown(f"<br><span style='color:{p_col}; font-weight:bold; font-size:1.1rem;'>{prob_text}</span>", unsafe_allow_html=True)
+            st.markdown(f"<br><span style='color:{p_col}; font-weight:bold; font-size:1.1rem;'>{prob_text}</span>", unsafe_allow_html=True)
         else:
-            c5.markdown("<br><small style='color:#484f58'>---</small>", unsafe_allow_html=True)
-        st.divider()
+            st.markdown("<br><small style='color:#484f58'>---</small>", unsafe_allow_html=True)
+    
+    # 2. Zeile: Bündiger Trenner über alle Spalten hinweg
+    st.markdown("<div class='custom-line'></div>", unsafe_allow_html=True)
 
 # --- 5. MAIN APP ---
 st.title("📡 Bauer Strategy Pro")
 st.write(f"Sync: {datetime.now().strftime('%H:%M:%S')}")
 
-# MACRO REIHENFOLGE: EUR/USD -> DAX -> EURO STOXX
 st.markdown("<h3 class='focus-header'>🌍 Macro & Indices</h3>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
-
 with ThreadPoolExecutor(max_workers=6) as executor:
     results_dict = {r['ticker']: r for r in filter(None, executor.map(analyze_ticker, macro_tickers))}
     for t in macro_tickers:
-        if t in results_dict:
-            render_row(results_dict[t])
+        if t in results_dict: render_row(results_dict[t])
 
 st.markdown("<h3 class='focus-header'>🔭 Market Scanner</h3>", unsafe_allow_html=True)
 index_data = {
@@ -136,5 +127,4 @@ if st.button(f"Scan {choice} starten"):
         with ThreadPoolExecutor(max_workers=10) as executor:
             results = list(executor.map(analyze_ticker, index_data[choice]))
             sorted_res = sorted([r for r in results if r], key=lambda x: (x['signal'] == "Wait", -x['prob']))
-            for r in sorted_res:
-                render_row(r)
+            for r in sorted_res: render_row(r)
