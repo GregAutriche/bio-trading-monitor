@@ -17,19 +17,12 @@ st.markdown("""
     .sig-wait { color: #484f58; font-size: 0.85rem; }
     .focus-header { color: #58a6ff !important; font-weight: bold; border-bottom: 1px solid #30363d; margin: 15px 0 10px 0; }
     code { background-color: #161b22 !important; color: #f85149 !important; padding: 2px 4px; border-radius: 3px; font-size: 0.9rem; }
-    
-    /* Perfekte Bündigkeit durch CSS-Border am Container-Ende */
-    .row-wrapper {
-        border-bottom: 1px solid #30363d;
-        padding-bottom: 6px;
-        margin-bottom: 6px;
-        width: 100%;
-    }
+    .row-wrapper { border-bottom: 1px solid #30363d; padding-bottom: 6px; margin-bottom: 6px; width: 100%; }
     .stVerticalBlock { gap: 0rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. NAMENS-DATENBANK (KLARNAMEN) ---
+# --- 2. NAMENS-DATENBANK ---
 NAME_DB = {
     "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", "^STOXX50E": "EURO STOXX 50",
     "^IXIC": "NASDAQ Composite", "^DJI": "Dow Jones 30", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50",
@@ -79,14 +72,11 @@ def analyze_ticker(ticker):
                 "delta": float(delta), "signal": signal, "stop": float(stop), "prob": float(prob), "icon": icon}
     except: return None
 
-# --- 4. UI RENDERER ---
 def render_row(res):
     is_forex = ("=" in res['ticker'])
     fmt = "{:.5f}" if is_forex else "{:.2f}"
-    
     st.markdown("<div class='row-wrapper'>", unsafe_allow_html=True)
     c1, c2, c3, c4, c5 = st.columns([1.1, 0.5, 0.3, 0.7, 0.6], gap="small")
-    
     with c1: st.markdown(f"**{res['display_name']}**<br><small>Kurs: {fmt.format(res['price'])}</small>", unsafe_allow_html=True)
     with c2: 
         color = "#3fb950" if res['delta'] >= 0 else "#f85149"
@@ -99,19 +89,26 @@ def render_row(res):
         st.markdown(f"<small>Stop-Loss</small><br><code>{sl}</code>", unsafe_allow_html=True)
     with c5:
         if res['signal'] != "Wait":
-            p_val = res['prob']
-            p_col = "#3fb950" if p_val >= 60 else "#f0883e"
+            p_val, p_col = res['prob'], ("#3fb950" if res['prob'] >= 60 else "#f0883e")
             p_txt = f"{p_val:.1f}%" if p_val >= 60 else f"({p_val:.1f}%)"
             st.markdown(f"<br><span style='color:{p_col}; font-weight:bold; font-size:1.1rem;'>{p_txt}</span>", unsafe_allow_html=True)
-        else:
-            st.markdown("<br><small style='color:#484f58'>---</small>", unsafe_allow_html=True)
+        else: st.markdown("<br><small style='color:#484f58'>---</small>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 5. MAIN APP ---
-st.title("📡 Dr. Gregor Bauer 📡")
+# --- 4. MAIN APP ---
+st.title("📡 Dr. Gregor Bauer Strategy Pro")
 st.write(f"Sync: {datetime.now().strftime('%H:%M:%S')}")
 
-st.markdown("<h3 class='focus-header'>🌍 Macro & Indices 🌍</h3>", unsafe_allow_html=True)
+with st.expander("ℹ️ Strategie-Logik & System-Erklärung"):
+    st.markdown("""
+    **Trend-Check (2-Tage-Regel):** Call (C) bei 2 steigenden Tagen, Put (P) bei 2 fallenden Tagen.  
+    **Filter:** Nur Signale in Trendrichtung des SMA 20 (Gleitender Durchschnitt).  
+    **Sentiment:** ☀️ (Bullisch), 🌤️ (Leicht Bullisch), ⚖️ (Neutral), ⛈️ (Bärisch).  
+    **Stop-Loss:** Dynamisch berechnet mit dem 1.5-fachen der ATR (Volatilität).
+    **Wahrscheinlichkeit:** Historische Trefferquote basierend auf einem 1-Jahres-Backtest.
+    """)
+
+st.markdown("<h3 class='focus-header'>🌍 Macro & Indices</h3>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 with ThreadPoolExecutor(max_workers=6) as executor:
     results_dict = {r['ticker']: r for r in filter(None, executor.map(analyze_ticker, macro_tickers))}
@@ -133,4 +130,3 @@ if st.button(f"Scan {choice} starten"):
         results = list(executor.map(analyze_ticker, index_data[choice]))
         for r in sorted([r for r in results if r], key=lambda x: (x['signal'] == "Wait", -x['prob'])):
             render_row(r)
-
