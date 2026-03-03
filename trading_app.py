@@ -20,17 +20,25 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. NAMENS-DATENBANK ---
+# --- 2. NAMENS-DATENBANK (KLARNAMEN) ---
 NAME_DB = {
-    "^GDAXI": "DAX 40", "^IXIC": "NASDAQ Composite", "^STOXX50E": "EURO STOXX 50",
-    "^DJI": "Dow Jones 30", "EURUSD=X": "Euro / US-Dollar", "BTC-USD": "Bitcoin",
-    "XU100.IS": "BIST 100 (TR)", "^NSEI": "NIFTY 50 (IN)",
-    # BIST Components
+    "^GDAXI": "DAX 40", 
+    "^IXIC": "NASDAQ Composite", 
+    "^STOXX50E": "EURO STOXX 50",
+    "^DJI": "Dow Jones 30", 
+    "EURUSD=X": "Euro / US-Dollar",
+    "XU100.IS": "BIST 100", 
+    "^NSEI": "NIFTY 50",
+    # BIST
     "THYAO.IS": "Turkish Airlines", "TUPRS.IS": "Tupras Petrol", "AKBNK.IS": "Akbank",
     "ISCTR.IS": "Isbank", "EREGL.IS": "Erdemir Steel", "GUBRF.IS": "Gubre Fabrikalari",
-    # NIFTY Components
+    # NIFTY
     "RELIANCE.NS": "Reliance Industries", "TCS.NS": "Tata Consultancy", "HDFCBANK.NS": "HDFC Bank",
-    "INFY.NS": "Infosys", "BAJAJ-AUTO.NS": "Bajaj Auto", "BHARTIARTL.NS": "Bharti Airtel"
+    "INFY.NS": "Infosys", "BAJAJ-AUTO.NS": "Bajaj Auto", "BHARTIARTL.NS": "Bharti Airtel",
+    # DAX / NASDAQ
+    "ADS.DE": "Adidas AG", "ALV.DE": "Allianz SE", "BAS.DE": "BASF SE", "BMW.DE": "BMW AG",
+    "SAP.DE": "SAP SE", "SIE.DE": "Siemens AG", "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp.",
+    "NVDA": "NVIDIA Corp.", "AMZN": "Amazon.com", "TSLA": "Tesla Inc.", "GOOGL": "Alphabet Inc."
 }
 
 # --- 3. DATEN-ENGINE ---
@@ -81,7 +89,8 @@ def render_row(res, is_forex=False):
     fmt = "{:.5f}" if is_forex else "{:.2f}"
     with st.container():
         c1, c2, c3, c4, c5 = st.columns([1.5, 0.8, 1, 1, 1.2])
-        c1.markdown(f"**{res['display_name']}**<br><small>{res['ticker']}</small>", unsafe_allow_html=True)
+        # Nur Klarnamen anzeigen
+        c1.markdown(f"**{res['display_name']}**<br><small>Kurs: {fmt.format(res['price'])}</small>", unsafe_allow_html=True)
         color = "#3fb950" if res['delta'] >= 0 else "#f85149"
         c2.markdown(f"### {res['icon']}<br><span style='font-size:0.8rem; color:{color}'>{res['delta']:+.2f}%</span>", unsafe_allow_html=True)
         s_cls = "sig-c" if res['signal'] == "C" else "sig-p" if res['signal'] == "P" else "sig-wait"
@@ -97,11 +106,12 @@ def render_row(res, is_forex=False):
 
 # --- 5. MAIN APP ---
 st.title("📡 Dr. Gregor Bauer Strategy Screener")
-st.write(f"Stand: {datetime.now().strftime('%d.%m.%Y %H:%M')} | Auto-Sync Active")
+st.write(f"Stand: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
 
 st.markdown("<h3 class='focus-header'>🌍 Global Macro & Indices</h3>", unsafe_allow_html=True)
-macro_tickers = ["^GDAXI", "^IXIC", "^STOXX50E", "XU100.IS", "^NSEI", "EURUSD=X", "BTC-USD"]
-with ThreadPoolExecutor(max_workers=7) as executor:
+# Bitcoin entfernt
+macro_tickers = ["^GDAXI", "^IXIC", "^STOXX50E", "XU100.IS", "^NSEI", "EURUSD=X"]
+with ThreadPoolExecutor(max_workers=6) as executor:
     macros = list(executor.map(analyze_ticker, macro_tickers))
     for r in filter(None, macros):
         render_row(r, is_forex=("=" in r['ticker']))
