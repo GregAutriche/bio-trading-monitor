@@ -39,7 +39,7 @@ NAME_DB = {
     "ASML.AS": "ASML Holding", "MC.PA": "LVMH", "OR.PA": "L'Oréal", "SAP.DE": "SAP SE"
 }
 
-# WICHTIG: Cache-Initialisierung um AttributeError zu verhindern
+# Fix: Sicherstellen, dass macro_cache existiert
 if 'macro_cache' not in st.session_state:
     st.session_state.macro_cache = {}
 
@@ -67,14 +67,16 @@ def calculate_probability(df, signal_type):
 
 def analyze_ticker(ticker):
     try:
+        # Tickerspezifischer Download
         df = yf.download(ticker, period="1y", interval="1d", progress=False, auto_adjust=True)
+        
+        # Falls Download fehlschlägt, versuche sicher aus Cache zu lesen
         if df.empty or len(df) < 25:
-            # Falls Download scheitert, versuche Cache zu nutzen
-            return st.session_state.macro_cache.get(ticker)
+            return st.session_state.macro_cache.get(ticker, None)
         
         df = clean_df(df)
         
-        # EUR/USD Deep Clean
+        # EUR/USD Deep Clean Fix
         if "EURUSD=X" in ticker:
             mask = (df['Close'] > 2.0) | (df['Close'] < 0.5)
             if mask.any():
@@ -96,11 +98,12 @@ def analyze_ticker(ticker):
             "delta": delta, "signal": signal, "stop": stop, "icon": icon, 
             "prob": calculate_probability(df, signal)
         }
-        # Ergebnis im Cache sichern
+        # Ergebnis im Cache speichern
         st.session_state.macro_cache[ticker] = res
         return res
     except:
-        return st.session_state.macro_cache.get(ticker)
+        # Sicherer Zugriff bei Fehlern
+        return st.session_state.macro_cache.get(ticker, None)
 
 # --- 4. UI RENDERER ---
 def render_row(res):
@@ -134,14 +137,13 @@ st.write(f"letztes update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh:
 with st.expander("ℹ️ Strategie-Logik & System-Erklärung (Vollständige Ausführung)"):
     st.markdown("""
     ### **1. Trend-Check (2-Tage-Regel)**
-    *   **Call (C):** Heute > Gestern UND Gestern > Vorgestern.
-    *   **Put (P):** Heute < Gestern UND Gestern < Vorgestern.
+    Signale werden generiert bei Bestätigung des Momentums (Heute > Gestern > Vorgestern).
     ### **2. SMA 20 Trend-Filter**
-    Signale werden nur in Richtung des übergeordneten Trends (Gleitender Durchschnitt 20 Tage) zugelassen.
+    Signale werden nur in Richtung des Gleitenden Durchschnitts (20 Tage) zugelassen.
     ### **3. Dynamischer Stop-Loss (ATR)**
-    Absicherung mittels **1.5x ATR (14 Tage)**. Dies fängt marktübliche Volatilität ab.
+    Absicherung mittels **1.5x ATR (14 Tage)**.
     ### **4. Wahrscheinlichkeit**
-    Historische Trefferquote basierend auf einem 1-Jahres-Backtest. Werte unter 60% werden in Klammern gesetzt.
+    Historische Trefferquote (1-Jahres-Backtest). Werte unter 60% stehen in Klammern.
     """)
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
@@ -164,7 +166,7 @@ with st.expander("Screener-Einstellungen & Index-Auswahl", expanded=True):
 
 if scan_btn:
     with ThreadPoolExecutor(max_workers=10) as executor:
-        # Ergebnisse direkt rendern
+        # Fix: Direkte Verarbeitung ohne fehleranfällige Zwischenlisten
         results = list(executor.map(analyze_ticker, index_data[choice]))
         for r in filter(None, results):
             render_row(r)
