@@ -24,31 +24,33 @@ st.markdown("""
     .stApp { background-color: #050a0f; }
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
     .header-text { font-size: 24px; font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
+    
+    /* Signal Design: Rote/Grüne Boxen wie im Bild */
     .sig-box-p { color: #ff4b4b; border: 1px solid #ff4b4b; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
     .sig-box-c { color: #3fb950; border: 1px solid #3fb950; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    
+    /* Stop Loss & Label Styling */
     .sl-label { color: #888; font-size: 0.85rem; }
-    .sl-value { color: #e0e0e0; font-weight: bold; font-size: 1rem; }
+    .sl-value { color: #e0e0e0; font-weight: bold; font-size: 1.1rem; }
     .prob-val { color: #888; font-size: 0.85rem; margin-left: 5px; }
-    .row-container { border-bottom: 1px solid #1a202c; padding: 10px 0; width: 100%; }
+    .kurs-label { color: #888; font-size: 0.85rem; }
+    
+    .row-container { border-bottom: 1px solid #1a202c; padding: 12px 0; width: 100%; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. NAMENS-DATENBANK & INITIALISIERUNG ---
+# --- 2. NAMENS-DATENBANK (KLARNAMEN) ---
 NAME_DB = {
     "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", "^STOXX50E": "EURO STOXX 50",
-    "^IXIC": "NASDAQ Composite", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50"
+    "^IXIC": "NASDAQ Composite", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50",
+    "ASML.AS": "ASML Holding", "MC.PA": "LVMH", "OR.PA": "L'Oréal", "SAP.DE": "SAP SE",
+    "RELIANCE.NS": "Reliance Ind.", "TCS.NS": "Tata Consultancy", "THYAO.IS": "Turkish Airlines"
 }
 
-# Cache-Initialisierung (Thread-safe Vorbereitung)
 if 'data_cache' not in st.session_state:
     st.session_state.data_cache = {}
 
 # --- 3. DATEN-ENGINE ---
-def clean_df(df):
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-    return df
-
 def calculate_probability(df, signal_type):
     if df is None or len(df) < 50: return 50.0
     bt_df = df.copy()
@@ -66,22 +68,28 @@ def calculate_probability(df, signal_type):
     return (hits / signals * 100) if signals > 0 else 50.0
 
 def fetch_data(ticker):
-    """Reine Datenabfrage ohne Session-State-Zugriff (für Threads geeignet)"""
     try:
-        df = yf.download(ticker, period="1y", interval="1d", progress=False, auto_adjust=True)
+        # Daten abrufen
+        t_obj = yf.Ticker(ticker)
+        df = t_obj.history(period="1y", interval="1d", auto_adjust=True)
         if df.empty or len(df) < 25: return None
-        df = clean_df(df)
         
-        if "EURUSD=X" in ticker:
-            mask = (df['Close'] > 2.0) | (df['Close'] < 0.5)
-            if mask.any():
-                df.loc[mask, ['Open', 'High', 'Low', 'Close']] = df.loc[~mask, 'Close'].median() or 1.1625
+        # Namen auflösen (DB -> Yahoo Info -> Code)
+        display_name = NAME_DB.get(ticker)
+        if not display_name:
+            try:
+                display_name = t_obj.info.get('shortName') or ticker
+            except:
+                display_name = ticker
 
         curr = float(df['Close'].iloc[-1])
         prev, prev2 = df['Close'].iloc[-2], df['Close'].iloc[-3]
         open_t = df['Open'].iloc[-1]
         sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
-        atr = (df['High']-df['Low']).rolling(window=14).mean().iloc[-1]
+        
+        # ATR für Stop-Loss
+        tr = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
+        atr = tr.rolling(window=14).mean().iloc[-1]
         
         signal = "C" if (curr > prev > prev2 and curr > sma20) else "P" if (curr < prev < prev2 and curr < sma20) else "Wait"
         delta = ((curr - open_t) / open_t) * 100
@@ -89,7 +97,7 @@ def fetch_data(ticker):
         icon = "☀️" if (curr > sma20 and delta > 0.3) else "⚖️" if abs(delta) < 0.3 else "⛈️"
         
         return {
-            "display_name": NAME_DB.get(ticker, ticker), "ticker": ticker, "price": curr, 
+            "display_name": display_name, "ticker": ticker, "price": curr, 
             "delta": delta, "signal": signal, "stop": stop, "icon": icon, 
             "prob": calculate_probability(df, signal)
         }
@@ -102,7 +110,9 @@ def render_row(res):
     fmt = "{:.6f}" if is_forex else "{:.2f}"
     st.markdown("<div class='row-container'>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns([1.2, 0.6, 0.5, 1.2])
-    with c1: st.markdown(f"**{res['display_name']}**<br><small style='color:#888;'>Kurs: {fmt.format(res['price'])}</small>", unsafe_allow_html=True)
+    
+    with c1:
+        st.markdown(f"**{res['display_name']}**<br><span class='kurs-label'>Kurs: {fmt.format(res['price'])}</span>", unsafe_allow_html=True)
     with c2:
         color = "#3fb950" if res['delta'] >= 0 else "#ff4b4b"
         st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{color}; font-size:0.85rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
@@ -138,26 +148,22 @@ st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 for t in macro_tickers:
     res = fetch_data(t)
-    if res:
-        st.session_state.data_cache[t] = res # Sicherung im Haupt-Thread
-        render_row(res)
+    if res: render_row(res)
 
 st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
-with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
+with st.expander("Screener-Einstellungen & Index-Auswahl", expanded=True):
     index_data = {
-        "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE"],
-        "DAX 40": ["ADS.DE", "ALV.DE", "BAS.DE", "BMW.DE", "SAP.DE", "SIE.DE"],
-        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL"],
-        "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS"],
-        "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS"]
+        "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC"],
+        "DAX 40": ["ADS.DE", "ALV.DE", "BAS.DE", "BMW.DE", "SAP.DE", "SIE.DE", "DTE.DE", "MBG.DE"],
+        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AVGO"],
+        "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS", "GUBRF.IS"],
+        "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "BAJAJ-AUTO.NS", "BHARTIARTL.NS"]
     }
-    choice = st.radio("Wähle Index:", list(index_data.keys()), horizontal=True)
+    choice = st.radio("Wähle Index für Scan:", list(index_data.keys()), horizontal=True)
     scan_btn = st.button(f"Scan {choice} starten")
 
 if scan_btn:
     with ThreadPoolExecutor(max_workers=10) as executor:
-        # Ergebnisse werden aus dem Thread geliefert und im Haupt-Thread verarbeitet
         results = list(executor.map(fetch_data, index_data[choice]))
         for r in filter(None, results):
-            st.session_state.data_cache[r['ticker']] = r
             render_row(r)
