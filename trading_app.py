@@ -25,7 +25,7 @@ st.markdown("""
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
     .header-text { font-size: 24px; font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
     
-    /* Signal Design: Rote/Grüne Boxen wie im Bild */
+    /* Signal Design: Rote/Grüne Boxen */
     .sig-box-p { color: #ff4b4b; border: 1px solid #ff4b4b; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
     .sig-box-c { color: #3fb950; border: 1px solid #3fb950; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
     
@@ -39,16 +39,13 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. NAMENS-DATENBANK (KLARNAMEN) ---
+# --- 2. NAMENS-DATENBANK ---
 NAME_DB = {
     "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", "^STOXX50E": "EURO STOXX 50",
     "^IXIC": "NASDAQ Composite", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50",
     "ASML.AS": "ASML Holding", "MC.PA": "LVMH", "OR.PA": "L'Oréal", "SAP.DE": "SAP SE",
     "RELIANCE.NS": "Reliance Ind.", "TCS.NS": "Tata Consultancy", "THYAO.IS": "Turkish Airlines"
 }
-
-if 'data_cache' not in st.session_state:
-    st.session_state.data_cache = {}
 
 # --- 3. DATEN-ENGINE ---
 def calculate_probability(df, signal_type):
@@ -69,12 +66,11 @@ def calculate_probability(df, signal_type):
 
 def fetch_data(ticker):
     try:
-        # Daten abrufen
         t_obj = yf.Ticker(ticker)
         df = t_obj.history(period="1y", interval="1d", auto_adjust=True)
         if df.empty or len(df) < 25: return None
         
-        # Namen auflösen (DB -> Yahoo Info -> Code)
+        # Klarnamen-Priorität
         display_name = NAME_DB.get(ticker)
         if not display_name:
             try:
@@ -87,7 +83,6 @@ def fetch_data(ticker):
         open_t = df['Open'].iloc[-1]
         sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
         
-        # ATR für Stop-Loss
         tr = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
         atr = tr.rolling(window=14).mean().iloc[-1]
         
@@ -141,7 +136,7 @@ with st.expander("ℹ️ Strategie-Logik & System-Erklärung (Vollständige Ausf
     ### **3. Dynamischer Stop-Loss (ATR)**
     Absicherung mittels **1.5x ATR (14 Tage)**.
     ### **4. Wahrscheinlichkeit**
-    Historische Trefferquote (1-Jahres-Backtest). Werte unter 60% stehen in Klammern.
+    Historische Trefferquote (1-Jahres-Backtest).
     """)
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
@@ -151,11 +146,13 @@ for t in macro_tickers:
     if res: render_row(res)
 
 st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
-with st.expander("Screener-Einstellungen & Index-Auswahl", expanded=True):
+
+# Scanner-Expander auf expanded=True gesetzt
+with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
     index_data = {
         "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC"],
         "DAX 40": ["ADS.DE", "ALV.DE", "BAS.DE", "BMW.DE", "SAP.DE", "SIE.DE", "DTE.DE", "MBG.DE"],
-        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AVGO"],
+        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL", "META", "AVGO"],
         "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS", "GUBRF.IS"],
         "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "BAJAJ-AUTO.NS", "BHARTIARTL.NS"]
     }
