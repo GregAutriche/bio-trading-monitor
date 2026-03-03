@@ -30,16 +30,17 @@ st.markdown("""
     /* Signal Design */
     .sig-box-p { color: #ff4b4b; border: 1px solid #ff4b4b; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
     .sig-box-c { color: #3fb950; border: 1px solid #3fb950; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
-    .sig-wait { color: #888; font-weight: normal; }
+    .sig-wait { color: #888; font-weight: normal; margin-top: 10px; display: inline-block; }
     
     /* Stop Loss & Wahrscheinlichkeit Design */
     .sl-label { color: #888; font-size: 0.85rem; }
-    .sl-value { color: #ff4b4b; font-weight: bold; font-size: 1rem; }
-    .prob-val { color: #58a6ff; font-size: 0.85rem; margin-left: 8px; font-weight: bold; }
-    .kurs-label { color: #e0e0e0; font-size: 0.95rem; }
+    .sl-value { color: #e0e0e0; font-weight: bold; font-size: 1rem; }
+    .prob-val { color: #888; font-size: 0.85rem; margin-left: 5px; }
+    .kurs-label { color: #888; font-size: 0.85rem; }
+    .price-display { font-size: 1rem; font-weight: bold; }
     
     /* Layout Straffung */
-    .row-container { border-bottom: 1px solid #1a202c; padding: 8px 0; width: 100%; }
+    .row-container { border-bottom: 1px solid #1a202c; padding: 10px 0; width: 100%; }
     .fix-badge { background-color: #3fb950; color: white !important; padding: 1px 5px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 8px; vertical-align: middle; }
     </style>
     """, unsafe_allow_html=True)
@@ -74,6 +75,7 @@ def calculate_probability(df, signal_type):
 
 def analyze_ticker(ticker):
     try:
+        # Tickerspezifischer Download ohne geteilten Cache
         df = yf.download(ticker, period="1y", interval="1d", progress=False, auto_adjust=True)
         if df.empty or len(df) < 25: return None
         df = clean_df(df)
@@ -83,7 +85,8 @@ def analyze_ticker(ticker):
             mask = (df['Close'] > 2.0) | (df['Close'] < 0.5)
             if mask.any():
                 is_recovered = True
-                valid_median = df.loc[~mask, 'Close'].median() or 1.1625
+                valid_median = df.loc[~mask, 'Close'].median()
+                if pd.isna(valid_median): valid_median = 1.1622 # Manueller Fallback
                 df.loc[mask, ['Open', 'High', 'Low', 'Close']] = valid_median
 
         curr = float(df['Close'].iloc[-1])
@@ -97,10 +100,20 @@ def analyze_ticker(ticker):
         stop = curr - (atr * 1.5) if signal == "C" else curr + (atr * 1.5) if signal == "P" else 0
         icon = "☀️" if (curr > sma20 and delta > 0.3) else "⚖️" if abs(delta) < 0.3 else "⛈️"
         
-        return {"display_name": NAME_DB.get(ticker, ticker), "ticker": ticker, "price": curr, 
-                "delta": delta, "signal": signal, "stop": stop, "icon": icon, 
-                "is_recovered": is_recovered, "prob": calculate_probability(df, signal)}
-    except: return None
+        # Jedes Ergebnis als neues, isoliertes Dictionary zurückgeben
+        return {
+            "display_name": NAME_DB.get(ticker, ticker), 
+            "ticker": ticker, 
+            "price": curr, 
+            "delta": delta, 
+            "signal": signal, 
+            "stop": stop, 
+            "icon": icon, 
+            "is_recovered": is_recovered, 
+            "prob": calculate_probability(df, signal)
+        }
+    except Exception as e:
+        return None
 
 # --- 4. UI RENDERER ---
 def render_row(res):
@@ -113,7 +126,7 @@ def render_row(res):
     
     with c1:
         fix = "<span class='fix-badge'>FIX</span>" if res.get('is_recovered') else ""
-        st.markdown(f"**{res['display_name']}** {fix}<br><span class='kurs-label'>Kurs: {fmt.format(res['price'])}</span>", unsafe_allow_html=True)
+        st.markdown(f"**{res['display_name']}** {fix}<br><span class='kurs-label'>Kurs: </span><span class='price-display'>{fmt.format(res['price'])}</span>", unsafe_allow_html=True)
     
     with c2:
         color = "#3fb950" if res['delta'] >= 0 else "#ff4b4b"
@@ -121,53 +134,49 @@ def render_row(res):
     
     with c3:
         if res['signal'] == "Wait":
-            st.markdown(f"<br><span class='sig-wait'>{res['signal']}</span>", unsafe_allow_html=True)
+            st.markdown(f"<span class='sig-wait'>{res['signal']}</span>", unsafe_allow_html=True)
         else:
             cls = "sig-box-c" if res['signal'] == "C" else "sig-box-p"
             st.markdown(f"<br><span class='{cls}'>{res['signal']}</span>", unsafe_allow_html=True)
             
     with c4:
         if res['stop'] != 0:
-            # Wahrscheinlichkeit hinter dem Stop-Loss (in Klammern wenn < 60%)
+            # Wahrscheinlichkeit direkt hinter dem Stop-Loss Label
             prob_txt = f"{res['prob']:.1f}%" if res['prob'] >= 60 else f"({res['prob']:.1f}%)"
-            st.markdown(f"<span class='sl-label'>Stop-Loss</span> <span class='prob-val'>{prob_txt}</span><br><span class='sl-value'>{fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
+            st.markdown(f"<span class='sl-label'>Stop-Loss</span> <span class='prob-val'>({prob_txt})</span><br><span class='sl-value'>{fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
         else:
             st.markdown("<span class='sl-label'>Stop-Loss</span><br><span style='color:#444;'>---</span>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 5. MAIN APP ---
-st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie 📡</div>", unsafe_allow_html=True)
+st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
 st.write(f"Letztes Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
 with st.expander("ℹ️ Strategie-Logik & System-Erklärung (Vollständige Ausführung)"):
     st.markdown("""
     ### **1. Trend-Check (2-Tage-Regel)**
-    Signale werden nur generiert, wenn ein kurzfristiger Preistrend bestätigt ist:
     *   **Call (C):** Heute > Gestern UND Gestern > Vorgestern.
     *   **Put (P):** Heute < Gestern UND Gestern < Vorgestern.
 
     ### **2. SMA 20 Filter**
-    Um gegen den Haupttrend gerichtete Trades zu vermeiden, dient der gleitende Durchschnitt (20 Tage) als Filter:
     *   **Call:** Nur wenn Kurs > SMA 20.
     *   **Put:** Nur wenn Kurs < SMA 20.
 
     ### **3. Dynamischer Stop-Loss**
-    Die Risikoabsicherung basiert auf der **Average True Range (ATR 14)**. Der Stop-Loss wird mit einem Faktor von **1.5x ATR** vom Einstiegspreis platziert, um marktübliche Volatilität abzufangen.
+    Absicherung mittels **ATR 14** (Faktor 1.5).
 
-    ### **4. Sentiment (Wetter-Symbole)**
-    *   ☀️ (Bullisch): Starkes Momentum über SMA 20.
-    *   ⚖️ (Neutral): Seitwärtsphase oder Konsolidierung.
-    *   ⛈️ (Bärisch): Abwärtsdruck unter SMA 20.
-
-    ### **5. Wahrscheinlichkeit**
-    Die Prozentzahl hinter dem Stop-Loss gibt die historische Trefferquote (Backtest 1 Jahr) an. Werte unter 60% werden zur Vorsicht in Klammern dargestellt.
+    ### **4. Wahrscheinlichkeit**
+    Historische Trefferquote (Backtest 1 Jahr). Werte unter 60% werden in Klammern angezeigt.
     """)
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
+
 with ThreadPoolExecutor(max_workers=6) as executor:
+    # Sequentielles Mapping für korrekte Reihenfolge und Daten-Integrität
     results = list(executor.map(analyze_ticker, macro_tickers))
-    for res in filter(None, results): render_row(res)
+    for res in filter(None, results):
+        render_row(res)
 
 st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
 with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
@@ -186,4 +195,3 @@ if scan_button:
         results = list(executor.map(analyze_ticker, index_data[choice]))
         for r in sorted([r for r in results if r], key=lambda x: (x['signal'] == "Wait", -x['prob'])):
             render_row(r)
-
