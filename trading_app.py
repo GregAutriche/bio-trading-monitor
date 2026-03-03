@@ -13,7 +13,6 @@ except ImportError:
     os.system('pip install streamlit-autorefresh')
     from streamlit_autorefresh import st_autorefresh
 
-# Automatischer Refresh alle 45 Sekunden
 st_autorefresh(interval=45000, key="datarefresh")
 
 # --- 1. CONFIG & STYLING ---
@@ -33,14 +32,14 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. NAMENS-DATENBANK & CACHE ---
+# --- 2. NAMENS-DATENBANK & INITIALISIERUNG ---
 NAME_DB = {
     "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", "^STOXX50E": "EURO STOXX 50",
     "^IXIC": "NASDAQ Composite", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50",
-    "ASML.AS": "ASML Holding", "MC.PA": "LVMH", "OR.PA": "L'Oréal", "SAP.DE": "SAP SE",
-    "RELIANCE.NS": "Reliance Ind.", "TCS.NS": "Tata Consultancy", "THYAO.IS": "Turkish Airlines"
+    "ASML.AS": "ASML Holding", "MC.PA": "LVMH", "OR.PA": "L'Oréal", "SAP.DE": "SAP SE"
 }
 
+# WICHTIG: Cache-Initialisierung um AttributeError zu verhindern
 if 'macro_cache' not in st.session_state:
     st.session_state.macro_cache = {}
 
@@ -69,10 +68,13 @@ def calculate_probability(df, signal_type):
 def analyze_ticker(ticker):
     try:
         df = yf.download(ticker, period="1y", interval="1d", progress=False, auto_adjust=True)
-        if df.empty or len(df) < 25: return st.session_state.macro_cache.get(ticker)
+        if df.empty or len(df) < 25:
+            # Falls Download scheitert, versuche Cache zu nutzen
+            return st.session_state.macro_cache.get(ticker)
+        
         df = clean_df(df)
         
-        # EUR/USD Deep Clean Fix
+        # EUR/USD Deep Clean
         if "EURUSD=X" in ticker:
             mask = (df['Close'] > 2.0) | (df['Close'] < 0.5)
             if mask.any():
@@ -94,6 +96,7 @@ def analyze_ticker(ticker):
             "delta": delta, "signal": signal, "stop": stop, "icon": icon, 
             "prob": calculate_probability(df, signal)
         }
+        # Ergebnis im Cache sichern
         st.session_state.macro_cache[ticker] = res
         return res
     except:
@@ -128,7 +131,6 @@ def render_row(res):
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
 st.write(f"letztes update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
-# Vollständige Beschreibung wiederhergestellt
 with st.expander("ℹ️ Strategie-Logik & System-Erklärung (Vollständige Ausführung)"):
     st.markdown("""
     ### **1. Trend-Check (2-Tage-Regel)**
@@ -144,7 +146,6 @@ with st.expander("ℹ️ Strategie-Logik & System-Erklärung (Vollständige Ausf
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
-# Serieller Download für Macro (verhindert Geisterwerte/Verschwinden)
 for t in macro_tickers:
     res = analyze_ticker(t)
     if res: render_row(res)
@@ -154,7 +155,7 @@ with st.expander("Screener-Einstellungen & Index-Auswahl", expanded=True):
     index_data = {
         "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC"],
         "DAX 40": ["ADS.DE", "ALV.DE", "BAS.DE", "BMW.DE", "SAP.DE", "SIE.DE", "DTE.DE", "MBG.DE"],
-        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AVGO"],
+        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL", "META", "AVGO"],
         "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS", "GUBRF.IS"],
         "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "BAJAJ-AUTO.NS", "BHARTIARTL.NS"]
     }
@@ -163,5 +164,7 @@ with st.expander("Screener-Einstellungen & Index-Auswahl", expanded=True):
 
 if scan_btn:
     with ThreadPoolExecutor(max_workers=10) as executor:
+        # Ergebnisse direkt rendern
         results = list(executor.map(analyze_ticker, index_data[choice]))
-        for r in filter(None, results): render_row(r)
+        for r in filter(None, results):
+            render_row(r)
