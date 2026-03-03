@@ -12,13 +12,19 @@ st.markdown("""
     <style>
     .stApp { background-color: #0d1117; }
     h1, h2, h3, p, span, label, div { color: #c9d1d9 !important; font-family: 'Courier New', monospace; }
-    .sig-c { color: #3fb950; font-weight: bold; border: 1px solid #3fb950; padding: 2px 6px; border-radius: 4px; }
-    .sig-p { color: #f85149; font-weight: bold; border: 1px solid #f85149; padding: 2px 6px; border-radius: 4px; }
+    .sig-c { color: #3fb950; font-weight: bold; border: 1px solid #3fb950; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+    .sig-p { color: #f85149; font-weight: bold; border: 1px solid #f85149; padding: 2px 6px; border-radius: 4px; display: inline-block; }
     .sig-wait { color: #484f58; font-size: 0.85rem; }
     .focus-header { color: #58a6ff !important; font-weight: bold; border-bottom: 1px solid #30363d; margin: 15px 0 10px 0; }
-    code { background-color: #161b22 !important; color: #f85149 !important; padding: 2px 4px; border-radius: 3px; }
-    /* Eigener kompakter Trenner */
-    .custom-line { border-bottom: 1px solid #30363d; margin-top: 5px; margin-bottom: 5px; width: 100%; }
+    code { background-color: #161b22 !important; color: #f85149 !important; padding: 2px 4px; border-radius: 3px; font-size: 0.9rem; }
+    
+    /* Container für perfekte Bündigkeit */
+    .row-container {
+        border-bottom: 1px solid #30363d;
+        padding-bottom: 4px;
+        margin-bottom: 4px;
+        width: 100%;
+    }
     .stVerticalBlock { gap: 0rem !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -26,14 +32,10 @@ st.markdown("""
 # --- 2. NAMENS-DATENBANK ---
 NAME_DB = {
     "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", "^STOXX50E": "EURO STOXX 50",
-    "^IXIC": "NASDAQ Composite", "^DJI": "Dow Jones 30", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50",
-    "ADS.DE": "Adidas AG", "ALV.DE": "Allianz SE", "BAS.DE": "BASF SE", "BMW.DE": "BMW AG",
-    "SAP.DE": "SAP SE", "SIE.DE": "Siemens AG", "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp.",
-    "NVDA": "NVIDIA Corp.", "AMZN": "Amazon.com", "TSLA": "Tesla Inc.", "GOOGL": "Alphabet Inc.",
-    "THYAO.IS": "Turkish Airlines", "TUPRS.IS": "Tupras Petrol", "RELIANCE.NS": "Reliance Industries"
+    "^IXIC": "NASDAQ Composite", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50"
 }
 
-# --- 3. DATEN-ENGINE ---
+# --- 3. LOGIK ---
 def clean_df(df):
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
@@ -73,20 +75,24 @@ def analyze_ticker(ticker):
                 "delta": float(delta), "signal": signal, "stop": float(stop), "prob": float(prob), "icon": icon}
     except: return None
 
-# --- 4. UI KOMPONENTE ---
+# --- 4. UI RENDERER ---
 def render_row(res):
     is_forex = ("=" in res['ticker'])
     fmt = "{:.5f}" if is_forex else "{:.2f}"
     
-    # 1. Zeile mit Daten
-    c1, c2, c3, c4, c5 = st.columns([1.0, 0.5, 0.3, 0.7, 0.6], gap="small")
+    # Wir nutzen ein umschließendes div für die Bündigkeit
+    st.markdown("<div class='row-container'>", unsafe_allow_html=True)
+    
+    # Die Spalten liegen nun innerhalb des bündigen Containers
+    c1, c2, c3, c4, c5 = st.columns([1.1, 0.5, 0.3, 0.7, 0.6], gap="small")
+    
     with c1: st.markdown(f"**{res['display_name']}**<br><small>Kurs: {fmt.format(res['price'])}</small>", unsafe_allow_html=True)
     with c2: 
         color = "#3fb950" if res['delta'] >= 0 else "#f85149"
         st.markdown(f"### {res['icon']}<br><span style='font-size:0.8rem; color:{color}'>{res['delta']:+.2f}%</span>", unsafe_allow_html=True)
     with c3:
-        s_cls = "sig-c" if res['signal'] == "C" else "sig-p" if res['signal'] == "P" else "sig-wait"
-        st.markdown(f"<br><span class='{s_cls}'>{res['signal']}</span>", unsafe_allow_html=True)
+        cls = "sig-c" if res['signal'] == "C" else "sig-p" if res['signal'] == "P" else "sig-wait"
+        st.markdown(f"<br><span class='{cls}'>{res['signal']}</span>", unsafe_allow_html=True)
     with c4:
         sl = fmt.format(res['stop']) if res['signal'] != "Wait" else "---"
         st.markdown(f"<small>Stop-Loss</small><br><code>{sl}</code>", unsafe_allow_html=True)
@@ -94,13 +100,12 @@ def render_row(res):
         if res['signal'] != "Wait":
             p_val = res['prob']
             p_col = "#3fb950" if p_val >= 60 else "#f0883e"
-            prob_text = f"{p_val:.1f}%" if p_val >= 60 else f"({p_val:.1f}%)"
-            st.markdown(f"<br><span style='color:{p_col}; font-weight:bold; font-size:1.1rem;'>{prob_text}</span>", unsafe_allow_html=True)
+            p_txt = f"{p_val:.1f}%" if p_val >= 60 else f"({p_val:.1f}%)"
+            st.markdown(f"<br><span style='color:{p_col}; font-weight:bold; font-size:1.1rem;'>{p_txt}</span>", unsafe_allow_html=True)
         else:
             st.markdown("<br><small style='color:#484f58'>---</small>", unsafe_allow_html=True)
-    
-    # 2. Zeile: Bündiger Trenner über alle Spalten hinweg
-    st.markdown("<div class='custom-line'></div>", unsafe_allow_html=True)
+            
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 5. MAIN APP ---
 st.title("📡 Bauer Strategy Pro")
@@ -114,17 +119,12 @@ with ThreadPoolExecutor(max_workers=6) as executor:
         if t in results_dict: render_row(results_dict[t])
 
 st.markdown("<h3 class='focus-header'>🔭 Market Scanner</h3>", unsafe_allow_html=True)
-index_data = {
-    "DAX 40": ["ADS.DE", "ALV.DE", "BAS.DE", "BMW.DE", "SAP.DE", "SIE.DE"],
-    "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL"],
-    "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS"],
-    "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "BHARTIARTL.NS"]
-}
-choice = st.radio("Markt wählen:", list(index_data.keys()), horizontal=True)
+indices = {"DAX 40": ["ADS.DE", "ALV.DE", "BAS.DE", "BMW.DE", "SAP.DE", "SIE.DE"], 
+           "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL"]}
+choice = st.radio("Markt wählen:", list(indices.keys()), horizontal=True)
 
 if st.button(f"Scan {choice} starten"):
-    with st.spinner("Scanne..."):
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            results = list(executor.map(analyze_ticker, index_data[choice]))
-            sorted_res = sorted([r for r in results if r], key=lambda x: (x['signal'] == "Wait", -x['prob']))
-            for r in sorted_res: render_row(r)
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        results = list(executor.map(analyze_ticker, indices[choice]))
+        for r in sorted([r for r in results if r], key=lambda x: (x['signal'] == "Wait", -x['prob'])):
+            render_row(r)
