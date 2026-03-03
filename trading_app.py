@@ -59,7 +59,7 @@ def analyze_ticker(ticker):
         if df.empty or len(df) < 25: return None
         df = clean_df(df)
         
-        # DEEP CLEAN: Geisterwerte in der gesamten Historie entfernen
+        # DEEP CLEAN: Geisterwerte in der gesamten Historie entfernen (EUR/USD Fix)
         is_recovered = False
         if "EURUSD=X" in ticker:
             mask = (df['Close'] > 2.0) | (df['Close'] < 0.5)
@@ -74,7 +74,7 @@ def analyze_ticker(ticker):
         open_t = df['Open'].iloc[-1]
         sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
         
-        # ATR auf bereinigten Daten
+        # ATR Berechnung
         tr = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
         atr = tr.rolling(window=14).mean().iloc[-1]
         
@@ -117,12 +117,35 @@ def render_row(res):
 
 # --- 5. MAIN APP ---
 st.title("📡 Dr. Gregor Bauer Strategy Pro")
+st.write(f"Sync: {datetime.now().strftime('%H:%M:%S')}")
 
 with st.expander("ℹ️ Strategie-Logik & System-Erklärung"):
     st.markdown("""
-    **Trend-Check:** 2 Tage Bestätigung + SMA 20 Filter.  
-    **Stop-Loss:** 1.5x ATR (Dynamisch).
-    **Wahrscheinlichkeit:** Hist. Backtest (1 Jahr).
+    ### **1. Trend-Check (2-Tage-Regel)**
+    Die Basis der Strategie nach Dr. Gregor Bauer ist die Bestätigung eines kurzfristigen Momentums:
+    *   **Call (C):** Der Schlusskurs von heute liegt über dem von gestern, und der von gestern lag über dem von vorgestern.
+    *   **Put (P):** Der Schlusskurs von heute liegt unter dem von gestern, und der von gestern lag unter dem von vorgestern.
+
+    ### **2. SMA 20 Trend-Filter**
+    Um Fehlsignale in Seitwärtsphasen zu vermeiden, wird der gleitende Durchschnitt der letzten 20 Tage (SMA 20) genutzt:
+    *   Ein **Call** wird nur angezeigt, wenn der Kurs **über** dem SMA 20 notiert (Aufwärtstrend).
+    *   Ein **Put** wird nur angezeigt, wenn der Kurs **unter** dem SMA 20 notiert (Abwärtstrend).
+
+    ### **3. Dynamischer Stop-Loss (ATR)**
+    Das Risikomanagement basiert auf der Volatilität der letzten 14 Tage (Average True Range - ATR):
+    *   Der Stop-Loss wird mit dem Faktor **1,5x ATR** berechnet.
+    *   Dies gibt dem Trade genug "Luft zum Atmen" und schützt gleichzeitig vor übermäßigen Verlusten.
+
+    ### **4. Sentiment-Indikatoren (Wetter)**
+    *   ☀️ **Bullisch:** Kurs über SMA 20 und starke Tagesperformance (> +0,3%).
+    *   🌤️ **Leicht Bullisch:** Kurs über SMA 20, aber geringe Dynamik.
+    *   ⚖️ **Neutral:** Kurs pendelt um den SMA 20 oder Tagestrend ist unklar.
+    *   ⛈️ **Bärisch:** Kurs unter SMA 20 oder schwache Tagesperformance (< -0,3%).
+
+    ### **5. Historische Wahrscheinlichkeit**
+    Das System führt im Hintergrund einen **1-Jahres-Backtest** für jeden Ticker durch. Es berechnet, wie oft das exakt gleiche Setup in der Vergangenheit innerhalb von 3-5 Tagen zu einem Profit geführt hat. 
+    *   Werte ab **60%** gelten als statistisch signifikant.
+    *   Werte unter **60%** werden zur Vorsicht in Klammern gesetzt.
     """)
 
 st.markdown("<h3 class='focus-header'>🌍 Macro & Indices</h3>", unsafe_allow_html=True)
@@ -143,7 +166,8 @@ index_data = {
 choice = st.radio("Markt wählen:", list(index_data.keys()), horizontal=True)
 
 if st.button(f"Scan {choice} starten"):
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        results = list(executor.map(analyze_ticker, index_data[choice]))
-        for r in sorted([r for r in results if r], key=lambda x: (x['signal'] == "Wait", -x['prob'])):
-            render_row(r)
+    with st.spinner(f"Analysiere {choice}..."):
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            results = list(executor.map(analyze_ticker, index_data[choice]))
+            for r in sorted([r for r in results if r], key=lambda x: (x['signal'] == "Wait", -x['prob'])):
+                render_row(r)
