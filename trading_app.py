@@ -17,6 +17,8 @@ st.markdown("""
     .sig-wait { color: #484f58; font-size: 0.9rem; }
     .focus-header { color: #58a6ff !important; font-weight: bold; border-bottom: 1px solid #30363d; margin: 20px 0; }
     code { background-color: #161b22 !important; color: #f85149 !important; }
+    /* Verringert den vertikalen Abstand der Divider */
+    hr { margin: 0.5rem 0 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -82,20 +84,23 @@ def render_row(res):
     is_forex = ("=" in res['ticker'])
     fmt = "{:.5f}" if is_forex else "{:.2f}"
     with st.container():
-        c1, c2, c3, c4, c5 = st.columns([1.5, 0.8, 1, 1, 1.2])
-        # Anzeige NUR Klarnamen
+        # Verringerte Spaltenabstände durch neue Gewichtung [1.2, 0.6, 0.4, 0.8, 0.8]
+        c1, c2, c3, c4, c5 = st.columns([1.2, 0.6, 0.4, 0.8, 0.8])
+        
         c1.markdown(f"**{res['display_name']}**<br><small>Kurs: {fmt.format(res['price'])}</small>", unsafe_allow_html=True)
+        
         color = "#3fb950" if res['delta'] >= 0 else "#f85149"
         c2.markdown(f"### {res['icon']}<br><span style='font-size:0.8rem; color:{color}'>{res['delta']:+.2f}%</span>", unsafe_allow_html=True)
+        
         s_cls = "sig-c" if res['signal'] == "C" else "sig-p" if res['signal'] == "P" else "sig-wait"
         c3.markdown(f"<br><span class='{s_cls}'>{res['signal']}</span>", unsafe_allow_html=True)
+        
         sl = fmt.format(res['stop']) if res['signal'] != "Wait" else "---"
         c4.markdown(f"<small>Stop-Loss</small><br><code>{sl}</code>", unsafe_allow_html=True)
         
         if res['signal'] != "Wait":
             p_val = res['prob']
             p_col = "#3fb950" if p_val >= 60 else "#f0883e"
-            # Logik für Klammern bei unter 60%
             prob_text = f"{p_val:.1f}%" if p_val >= 60 else f"({p_val:.1f}%)"
             c5.markdown(f"<br><span style='color:{p_col}; font-weight:bold; font-size:1.2rem;'>{prob_text}</span>", unsafe_allow_html=True)
         else:
@@ -103,11 +108,10 @@ def render_row(res):
         st.divider()
 
 # --- 5. MAIN APP ---
-st.title("📡 Dr. Gregor Bauer Screener 📡")
+st.title("📡 Dr. Gregor Bauer Strategy Screener")
 st.write(f"Stand: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
 
-# MACRO REIHENFOLGE: EUR/USD -> DAX -> EURO STOXX
-st.markdown("<h3 class='focus-header'>📡 Global Macro & Indices 📡</h3>", unsafe_allow_html=True)
+st.markdown("<h3 class='focus-header'>🌍 Global Macro & Indices</h3>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 
 with ThreadPoolExecutor(max_workers=6) as executor:
@@ -132,4 +136,3 @@ if st.button(f"Scan {choice} starten"):
             sorted_res = sorted([r for r in results if r], key=lambda x: (x['signal'] == "Wait", -x['prob']))
             for r in sorted_res:
                 render_row(r)
-
