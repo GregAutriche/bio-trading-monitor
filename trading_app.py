@@ -13,11 +13,10 @@ except ImportError:
     os.system('pip install streamlit-autorefresh')
     from streamlit_autorefresh import st_autorefresh
 
-# Automatischer Refresh alle 45 Sekunden
 st_autorefresh(interval=45000, key="datarefresh")
 
 # --- 1. CONFIG & STYLING ---
-st.set_page_config(layout="wide", page_title="Bauer Strategy Pro 2026", page_icon="📡")
+st.set_page_config(layout="wide", page_title="Bauer Strategy Pro 2026")
 
 st.markdown("""
     <style>
@@ -30,36 +29,20 @@ st.markdown("""
     .sl-value { color: #e0e0e0; font-weight: bold; font-size: 1rem; }
     .prob-val { color: #888; font-size: 0.85rem; margin-left: 5px; }
     .row-container { border-bottom: 1px solid #1a202c; padding: 10px 0; width: 100%; }
-    .info-box { background-color: #0a0f14; border: 1px solid #1a202c; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. ERWEITERTE NAMENS-DATENBANK ---
+# --- 2. NAMENS-DATENBANK ---
 NAME_DB = {
     "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", "^STOXX50E": "EURO STOXX 50",
-    "^IXIC": "NASDAQ Composite", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50",
-    # EuroStoxx 50 Komponenten
-    "ASML.AS": "ASML Holding", "MC.PA": "LVMH", "OR.PA": "L'Oréal", "SAP.DE": "SAP SE",
-    "TTE.PA": "TotalEnergies", "SIE.DE": "Siemens AG", "AIR.PA": "Airbus", "AI.PA": "Air Liquide",
-    "SU.PA": "Schneider Electric", "SAN.MC": "Banco Santander", "ITX.MC": "Inditex",
-    "BAS.DE": "BASF SE", "ALV.DE": "Allianz SE", "BMW.DE": "BMW AG", "ADS.DE": "Adidas AG",
-    # Indien & Türkei
-    "RELIANCE.NS": "Reliance Ind.", "TCS.NS": "Tata Consultancy", "THYAO.IS": "Turkish Airlines"
+    "^IXIC": "NASDAQ Composite", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50"
 }
 
-# --- 3. DATEN-LOGIK ---
+# --- 3. DATEN-ENGINE ---
 def clean_df(df):
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
     return df
-
-@st.cache_data(ttl=3600)
-def get_ticker_name(ticker):
-    if ticker in NAME_DB: return NAME_DB[ticker]
-    try:
-        info = yf.Ticker(ticker).info
-        return info.get('shortName') or info.get('longName') or ticker
-    except: return ticker
 
 def calculate_probability(df, signal_type):
     if df is None or len(df) < 50: return 50.0
@@ -83,7 +66,7 @@ def analyze_ticker(ticker):
         if df.empty or len(df) < 25: return None
         df = clean_df(df)
         
-        # EUR/USD Fix
+        # EUR/USD Deep Clean
         if "EURUSD=X" in ticker:
             mask = (df['Close'] > 2.0) | (df['Close'] < 0.5)
             if mask.any():
@@ -101,7 +84,7 @@ def analyze_ticker(ticker):
         icon = "☀️" if (curr > sma20 and delta > 0.3) else "⚖️" if abs(delta) < 0.3 else "⛈️"
         
         return {
-            "display_name": get_ticker_name(ticker), "ticker": ticker, "price": curr, 
+            "display_name": NAME_DB.get(ticker, ticker), "ticker": ticker, "price": curr, 
             "delta": delta, "signal": signal, "stop": stop, "icon": icon, 
             "prob": calculate_probability(df, signal)
         }
@@ -126,27 +109,26 @@ def render_row(res):
         else: st.markdown(f"<br><span style='color:#444;'>{res['signal']}</span>", unsafe_allow_html=True)
     with c4:
         if res['stop'] != 0:
-            prob_txt = f"{res['prob']:.1f}%" if res['prob'] >= 60 else f"({res['prob']:.1f}%)"
-            st.markdown(f"<span class='sl-label'>Stop-Loss</span> <span class='prob-val'>({prob_txt})</span><br><span class='sl-value'>{fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
+            # FIX: Nur eine einfache Klammer um die Prozentzahl
+            prob_txt = f"({res['prob']:.1f}%)"
+            st.markdown(f"<span class='sl-label'>Stop-Loss</span> <span class='prob-val'>{prob_txt}</span><br><span class='sl-value'>{fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
         else: st.markdown("<span class='sl-label'>Stop-Loss</span><br><span style='color:#444;'>---</span>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 5. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
-# Fix: Zeitstempel und Intervall Info
 st.write(f"letztes update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
 with st.expander("ℹ️ Strategie-Logik & System-Erklärung (Vollständige Ausführung)"):
     st.markdown("""
     ### **1. Trend-Check (2-Tage-Regel)**
-    *   **Call (C):** Heute > Gestern UND Gestern > Vorgestern.
-    *   **Put (P):** Heute < Gestern UND Gestern < Vorgestern.
+    Signale werden nur bei Bestätigung des kurzfristigen Momentums generiert (Heute > Gestern > Vorgestern).
     ### **2. SMA 20 Trend-Filter**
     Signale werden nur in Richtung des übergeordneten Trends (Gleitender Durchschnitt 20 Tage) zugelassen.
     ### **3. Dynamischer Stop-Loss (ATR)**
-    Absicherung mittels **1.5x ATR (14 Tage)**. Dies fängt marktübliche Volatilität ab.
+    Absicherung mittels **1.5x ATR (14 Tage)** zur Abdeckung marktüblicher Schwankungen.
     ### **4. Wahrscheinlichkeit**
-    Historische Trefferquote basierend auf einem 1-Jahres-Backtest. Werte unter 60% werden in Klammern gesetzt.
+    Historische Trefferquote basierend auf einem 1-Jahres-Backtest.
     """)
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
@@ -158,16 +140,12 @@ with ThreadPoolExecutor(max_workers=6) as executor:
 st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
 with st.expander("Screener-Einstellungen & Index-Auswahl", expanded=True):
     index_data = {
-        "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC"],
-        "DAX 40": ["ADS.DE", "ALV.DE", "BAS.DE", "BMW.DE", "SAP.DE", "SIE.DE", "DTE.DE", "MBG.DE"],
-        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AVGO"],
-        "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS"],
-        "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS"]
+        "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA"],
+        "DAX 40": ["ADS.DE", "ALV.DE", "BAS.DE", "BMW.DE", "DTE.DE", "MBG.DE"],
+        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA"]
     }
     choice = st.radio("Wähle Index:", list(index_data.keys()), horizontal=True)
-    scan_btn = st.button(f"Scan {choice} starten")
-
-if scan_btn:
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        results = list(executor.map(analyze_ticker, index_data[choice]))
-        for r in filter(None, results): render_row(r)
+    if st.button(f"Scan {choice} starten"):
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            results = list(executor.map(analyze_ticker, index_data[choice]))
+            for r in filter(None, results): render_row(r)
