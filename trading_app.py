@@ -6,7 +6,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
 # --- 1. CONFIG & STYLING ---
-st.set_page_config(layout="wide", page_title="Bauer Strategy Pro 2026")
+st.set_page_config(layout="wide", page_title="Bauer Strategy Pro 2026", page_icon="📡")
 
 st.markdown("""
     <style>
@@ -18,21 +18,25 @@ st.markdown("""
     .focus-header { color: #58a6ff !important; font-weight: bold; border-bottom: 1px solid #30363d; margin: 15px 0 10px 0; }
     code { background-color: #161b22 !important; color: #f85149 !important; padding: 2px 4px; border-radius: 3px; font-size: 0.9rem; }
     
-    /* Container für perfekte Bündigkeit */
-    .row-container {
+    /* Perfekte Bündigkeit durch CSS-Border am Container-Ende */
+    .row-wrapper {
         border-bottom: 1px solid #30363d;
-        padding-bottom: 4px;
-        margin-bottom: 4px;
+        padding-bottom: 6px;
+        margin-bottom: 6px;
         width: 100%;
     }
     .stVerticalBlock { gap: 0rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. NAMENS-DATENBANK ---
+# --- 2. NAMENS-DATENBANK (KLARNAMEN) ---
 NAME_DB = {
     "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", "^STOXX50E": "EURO STOXX 50",
-    "^IXIC": "NASDAQ Composite", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50"
+    "^IXIC": "NASDAQ Composite", "^DJI": "Dow Jones 30", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50",
+    "ADS.DE": "Adidas AG", "ALV.DE": "Allianz SE", "BAS.DE": "BASF SE", "BMW.DE": "BMW AG",
+    "SAP.DE": "SAP SE", "SIE.DE": "Siemens AG", "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp.",
+    "NVDA": "NVIDIA Corp.", "AMZN": "Amazon.com", "TSLA": "Tesla Inc.", "GOOGL": "Alphabet Inc.",
+    "THYAO.IS": "Turkish Airlines", "TUPRS.IS": "Tupras Petrol", "RELIANCE.NS": "Reliance Industries"
 }
 
 # --- 3. LOGIK ---
@@ -80,10 +84,7 @@ def render_row(res):
     is_forex = ("=" in res['ticker'])
     fmt = "{:.5f}" if is_forex else "{:.2f}"
     
-    # Wir nutzen ein umschließendes div für die Bündigkeit
-    st.markdown("<div class='row-container'>", unsafe_allow_html=True)
-    
-    # Die Spalten liegen nun innerhalb des bündigen Containers
+    st.markdown("<div class='row-wrapper'>", unsafe_allow_html=True)
     c1, c2, c3, c4, c5 = st.columns([1.1, 0.5, 0.3, 0.7, 0.6], gap="small")
     
     with c1: st.markdown(f"**{res['display_name']}**<br><small>Kurs: {fmt.format(res['price'])}</small>", unsafe_allow_html=True)
@@ -104,7 +105,6 @@ def render_row(res):
             st.markdown(f"<br><span style='color:{p_col}; font-weight:bold; font-size:1.1rem;'>{p_txt}</span>", unsafe_allow_html=True)
         else:
             st.markdown("<br><small style='color:#484f58'>---</small>", unsafe_allow_html=True)
-            
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 5. MAIN APP ---
@@ -119,12 +119,17 @@ with ThreadPoolExecutor(max_workers=6) as executor:
         if t in results_dict: render_row(results_dict[t])
 
 st.markdown("<h3 class='focus-header'>🔭 Market Scanner</h3>", unsafe_allow_html=True)
-indices = {"DAX 40": ["ADS.DE", "ALV.DE", "BAS.DE", "BMW.DE", "SAP.DE", "SIE.DE"], 
-           "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL"]}
-choice = st.radio("Markt wählen:", list(indices.keys()), horizontal=True)
+index_data = {
+    "DAX 40": ["ADS.DE", "ALV.DE", "BAS.DE", "BMW.DE", "SAP.DE", "SIE.DE"],
+    "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL"],
+    "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA"],
+    "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS"],
+    "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "BHARTIARTL.NS"]
+}
+choice = st.radio("Markt wählen:", list(index_data.keys()), horizontal=True)
 
 if st.button(f"Scan {choice} starten"):
     with ThreadPoolExecutor(max_workers=10) as executor:
-        results = list(executor.map(analyze_ticker, indices[choice]))
+        results = list(executor.map(analyze_ticker, index_data[choice]))
         for r in sorted([r for r in results if r], key=lambda x: (x['signal'] == "Wait", -x['prob'])):
             render_row(r)
