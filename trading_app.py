@@ -136,7 +136,7 @@ def render_row(res):
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 5. MAIN APP ---
-st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
+st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie 📡</div>", unsafe_allow_html=True)
 st.write(f"Letztes Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
 with st.expander("ℹ️ Strategie-Logik & System-Erklärung (Vollständige Ausführung)"):
@@ -186,3 +186,4 @@ if scan_button:
         results = list(executor.map(analyze_ticker, index_data[choice]))
         for r in sorted([r for r in results if r], key=lambda x: (x['signal'] == "Wait", -x['prob'])):
             render_row(r)
+
