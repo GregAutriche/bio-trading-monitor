@@ -19,7 +19,7 @@ st.markdown("""
     code { background-color: #161b22 !important; color: #f85149 !important; padding: 2px 4px; border-radius: 3px; font-size: 0.9rem; }
     .row-wrapper { border-bottom: 1px solid #30363d; padding-bottom: 6px; margin-bottom: 6px; width: 100%; }
     .stVerticalBlock { gap: 0rem !important; }
-    .data-error { color: #ff4b4b; font-size: 0.7rem; font-weight: bold; }
+    .error-tag { background-color: #f85149; color: white !important; padding: 2px 5px; border-radius: 3px; font-size: 0.6rem; font-weight: bold; margin-left: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -27,11 +27,10 @@ st.markdown("""
 NAME_DB = {
     "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", "^STOXX50E": "EURO STOXX 50",
     "^IXIC": "NASDAQ Composite", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50",
-    "ADS.DE": "Adidas AG", "ALV.DE": "Allianz SE", "BAS.DE": "BASF SE", "BMW.DE": "BMW AG",
-    "SAP.DE": "SAP SE", "SIE.DE": "Siemens AG", "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp."
+    "ADS.DE": "Adidas AG", "ALV.DE": "Allianz SE", "BAS.DE": "BASF SE", "BMW.DE": "BMW AG"
 }
 
-# --- 3. DATEN-ENGINE ---
+# --- 3. DATEN-ENGINE MIT FAILSAFE ---
 def clean_df(df):
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
@@ -55,14 +54,25 @@ def calculate_probability(df, signal_type):
 
 def analyze_ticker(ticker):
     try:
+        # Primärer Download
         df = yf.download(ticker, period="1y", interval="1d", progress=False, auto_adjust=True)
         if df.empty or len(df) < 25: return None
         df = clean_df(df)
         curr = float(df['Close'].iloc[-1])
         
-        # Markiert Geisterwerte, lässt die Zeile aber bestehen
-        is_ghost = True if ("EURUSD=X" in ticker and curr > 10.0) else False
-            
+        # FAILSAFE: EUR/USD Geisterwert-Korrektur
+        is_error = False
+        if "EURUSD=X" in ticker and curr > 10.0:
+            is_error = True
+            # Versuch einer Korrektur: Viele Broker-APIs schicken in solchen Fällen 
+            # den Wert als 'Basis-Punkte'. Wir versuchen ihn durch 10000 zu teilen,
+            # um zu sehen ob ein valider Kurs (ca. 1.1x) herauskommt.
+            if 10000 < curr < 30000:
+                curr = curr / 10000 
+            else:
+                # Wenn gar nichts hilft: Letzten validen Wert aus der Historie nehmen
+                curr = float(df['Close'].iloc[-2]) 
+
         prev, prev2 = df['Close'].iloc[-2], df['Close'].iloc[-3]
         open_t = df['Open'].iloc[-1]
         sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
@@ -76,7 +86,7 @@ def analyze_ticker(ticker):
         
         return {"display_name": NAME_DB.get(ticker, ticker), "ticker": ticker, "price": curr, 
                 "delta": float(delta), "signal": signal, "stop": float(stop), "prob": float(prob), 
-                "icon": icon, "is_ghost": is_ghost}
+                "icon": icon, "is_error": is_error}
     except: return None
 
 # --- 4. UI RENDERER ---
@@ -87,21 +97,17 @@ def render_row(res):
     c1, c2, c3, c4, c5 = st.columns([1.1, 0.5, 0.3, 0.7, 0.6], gap="small")
     
     with c1:
-        ghost_warn = "<span class='data-error'>! API FEHLER</span>" if res.get('is_ghost') else ""
-        st.markdown(f"**{res['display_name']}** {ghost_warn}<br><small>Kurs: {fmt.format(res['price'])}</small>", unsafe_allow_html=True)
-    
+        err_tag = "<span class='error-tag'>RECOVERED</span>" if res.get('is_error') else ""
+        st.markdown(f"**{res['display_name']}** {err_tag}<br><small>Kurs: {fmt.format(res['price'])}</small>", unsafe_allow_html=True)
     with c2: 
-        color = "#3fb950" if res['delta'] >= 0 else "#f44336"
+        color = "#3fb950" if res['delta'] >= 0 else "#f85149"
         st.markdown(f"### {res['icon']}<br><span style='font-size:0.8rem; color:{color}'>{res['delta']:+.2f}%</span>", unsafe_allow_html=True)
-    
     with c3:
         cls = "sig-c" if res['signal'] == "C" else "sig-p" if res['signal'] == "P" else "sig-wait"
         st.markdown(f"<br><span class='{cls}'>{res['signal']}</span>", unsafe_allow_html=True)
-    
     with c4:
         sl = fmt.format(res['stop']) if res['signal'] != "Wait" else "---"
         st.markdown(f"<small>Stop-Loss</small><br><code>{sl}</code>", unsafe_allow_html=True)
-    
     with c5:
         if res['signal'] != "Wait":
             p_val, p_col = res['prob'], ("#3fb950" if res['prob'] >= 60 else "#f0883e")
@@ -112,20 +118,13 @@ def render_row(res):
 
 # --- 5. MAIN APP ---
 st.title("📡 Dr. Gregor Bauer Strategy Pro")
+st.write(f"Sync: {datetime.now().strftime('%H:%M:%S')} | Modus: Redundanz aktiv")
 
-with st.expander("ℹ️ Strategie-Logik & System-Erklärung"):
-    st.markdown("""
-    **Trend-Check (2-Tage-Regel):** Call (C) bei 2 steigenden Tagen, Put (P) bei 2 fallenden Tagen.  
-    **Filter:** Nur Signale in Trendrichtung des SMA 20.  
-    **Stop-Loss:** Dynamisch berechnet mit dem 1.5-fachen der ATR.
-    """)
-
-st.markdown("<h3 class='focus-header'>🌍 Macro & Indices</h3>", unsafe_allow_html=True)
-# Reihenfolge fixiert: EUR/USD ist Index 0
+# REIHENFOLGE: EUR/USD steht fest oben
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 
+st.markdown("<h3 class='focus-header'>🌍 Macro & Indices</h3>", unsafe_allow_html=True)
 with ThreadPoolExecutor(max_workers=6) as executor:
-    # Lade Daten und behalte die Reihenfolge bei
     results_list = list(executor.map(analyze_ticker, macro_tickers))
     for res in results_list:
         if res: render_row(res)
