@@ -32,26 +32,22 @@ st.markdown("""
     .sig-box-c { color: #3fb950; border: 1px solid #3fb950; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
     .sig-wait { color: #888; font-weight: normal; }
     
-    /* Stop Loss & Kurs Design */
+    /* Stop Loss & Wahrscheinlichkeit Design */
     .sl-label { color: #888; font-size: 0.85rem; }
     .sl-value { color: #ff4b4b; font-weight: bold; font-size: 1rem; }
+    .prob-val { color: #58a6ff; font-size: 0.85rem; margin-left: 8px; font-weight: bold; }
     .kurs-label { color: #e0e0e0; font-size: 0.95rem; }
     
     /* Layout Straffung */
     .row-container { border-bottom: 1px solid #1a202c; padding: 8px 0; width: 100%; }
     .fix-badge { background-color: #3fb950; color: white !important; padding: 1px 5px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 8px; vertical-align: middle; }
-    
-    /* Expander Styling */
-    .stExpander { border: 1px solid #1a202c !important; background-color: #0a0f14 !important; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 2. NAMENS-DATENBANK (KLARNAMEN) ---
 NAME_DB = {
     "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", "^STOXX50E": "EURO STOXX 50",
-    "^IXIC": "NASDAQ Composite", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50",
-    "ADS.DE": "Adidas AG", "ALV.DE": "Allianz SE", "BAS.DE": "BASF SE", "BMW.DE": "BMW AG",
-    "SAP.DE": "SAP SE", "SIE.DE": "Siemens AG", "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp."
+    "^IXIC": "NASDAQ Composite", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50"
 }
 
 # --- 3. DATEN-ENGINE ---
@@ -82,7 +78,6 @@ def analyze_ticker(ticker):
         if df.empty or len(df) < 25: return None
         df = clean_df(df)
         
-        # Deep Clean für EUR/USD (Geisterwerte entfernen)
         is_recovered = False
         if "EURUSD=X" in ticker:
             mask = (df['Close'] > 2.0) | (df['Close'] < 0.5)
@@ -110,32 +105,40 @@ def analyze_ticker(ticker):
 # --- 4. UI RENDERER ---
 def render_row(res):
     is_forex = ("=" in res['ticker'])
-    fmt = "{:.5f}" if is_forex else "{:.2f}"
+    # Währung auf 6 Nachkommastellen, Indizes auf 2
+    fmt = "{:.6f}" if is_forex else "{:.2f}"
+    
     st.markdown("<div class='row-container'>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns([1.2, 0.6, 0.5, 1.2])
+    
     with c1:
         fix = "<span class='fix-badge'>FIX</span>" if res.get('is_recovered') else ""
         st.markdown(f"**{res['display_name']}** {fix}<br><span class='kurs-label'>Kurs: {fmt.format(res['price'])}</span>", unsafe_allow_html=True)
+    
     with c2:
         color = "#3fb950" if res['delta'] >= 0 else "#ff4b4b"
         st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{color}; font-size:0.85rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
+    
     with c3:
-        if res['signal'] == "Wait": st.markdown(f"<br><span class='sig-wait'>{res['signal']}</span>", unsafe_allow_html=True)
+        if res['signal'] == "Wait":
+            st.markdown(f"<br><span class='sig-wait'>{res['signal']}</span>", unsafe_allow_html=True)
         else:
             cls = "sig-box-c" if res['signal'] == "C" else "sig-box-p"
-            prob_txt = f"{res['prob']:.1f}%" if res['prob'] >= 60 else f"({res['prob']:.1f}%)"
-            st.markdown(f"<br><span class='{cls}'>{res['signal']}</span> <small style='color:#666;'>{prob_txt}</small>", unsafe_allow_html=True)
+            st.markdown(f"<br><span class='{cls}'>{res['signal']}</span>", unsafe_allow_html=True)
+            
     with c4:
         if res['stop'] != 0:
-            st.markdown(f"<span class='sl-label'>Stop-Loss</span><br><span class='sl-value'>{fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
-        else: st.markdown("<span class='sl-label'>Stop-Loss</span><br><span style='color:#444;'>---</span>", unsafe_allow_html=True)
+            # Wahrscheinlichkeit hinter dem Stop-Loss (in Klammern wenn < 60%)
+            prob_txt = f"{res['prob']:.1f}%" if res['prob'] >= 60 else f"({res['prob']:.1f}%)"
+            st.markdown(f"<span class='sl-label'>Stop-Loss</span> <span class='prob-val'>{prob_txt}</span><br><span class='sl-value'>{fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
+        else:
+            st.markdown("<span class='sl-label'>Stop-Loss</span><br><span style='color:#444;'>---</span>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 5. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
-st.write(f"Letztes Update: {datetime.now().strftime('%H:%M:%S')} | Intervall: 45s")
+st.write(f"Letztes Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
-# Vollständige Beschreibung
 with st.expander("ℹ️ Strategie-Logik & System-Erklärung (Vollständige Ausführung)"):
     st.markdown("""
     ### **1. Trend-Check (2-Tage-Regel)**
@@ -155,6 +158,9 @@ with st.expander("ℹ️ Strategie-Logik & System-Erklärung (Vollständige Ausf
     *   ☀️ (Bullisch): Starkes Momentum über SMA 20.
     *   ⚖️ (Neutral): Seitwärtsphase oder Konsolidierung.
     *   ⛈️ (Bärisch): Abwärtsdruck unter SMA 20.
+
+    ### **5. Wahrscheinlichkeit**
+    Die Prozentzahl hinter dem Stop-Loss gibt die historische Trefferquote (Backtest 1 Jahr) an. Werte unter 60% werden zur Vorsicht in Klammern dargestellt.
     """)
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
@@ -164,7 +170,6 @@ with ThreadPoolExecutor(max_workers=6) as executor:
     for res in filter(None, results): render_row(res)
 
 st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
-# Scanner in einem Expander
 with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
     index_data = {
         "DAX 40": ["ADS.DE", "ALV.DE", "BAS.DE", "BMW.DE", "SAP.DE", "SIE.DE"],
