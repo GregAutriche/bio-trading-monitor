@@ -12,13 +12,14 @@ st.markdown("""
     <style>
     .stApp { background-color: #0d1117; }
     h1, h2, h3, p, span, label, div { color: #c9d1d9 !important; font-family: 'Courier New', monospace; }
-    .sig-c { color: #3fb950; font-weight: bold; border: 1px solid #3fb950; padding: 2px 8px; border-radius: 4px; }
-    .sig-p { color: #f85149; font-weight: bold; border: 1px solid #f85149; padding: 2px 8px; border-radius: 4px; }
-    .sig-wait { color: #484f58; font-size: 0.9rem; }
-    .focus-header { color: #58a6ff !important; font-weight: bold; border-bottom: 1px solid #30363d; margin: 20px 0; }
-    code { background-color: #161b22 !important; color: #f85149 !important; }
-    /* Verringert den vertikalen Abstand der Divider */
-    hr { margin: 0.5rem 0 !important; }
+    .sig-c { color: #3fb950; font-weight: bold; border: 1px solid #3fb950; padding: 2px 6px; border-radius: 4px; }
+    .sig-p { color: #f85149; font-weight: bold; border: 1px solid #f85149; padding: 2px 6px; border-radius: 4px; }
+    .sig-wait { color: #484f58; font-size: 0.85rem; }
+    .focus-header { color: #58a6ff !important; font-weight: bold; border-bottom: 1px solid #30363d; margin: 15px 0 10px 0; }
+    code { background-color: #161b22 !important; color: #f85149 !important; padding: 2px 4px; border-radius: 3px; }
+    hr { margin: 0.3rem 0 !important; }
+    /* Reduziert Abstände in Streamlit-Containern */
+    .stVerticalBlock { gap: 0rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -84,8 +85,8 @@ def render_row(res):
     is_forex = ("=" in res['ticker'])
     fmt = "{:.5f}" if is_forex else "{:.2f}"
     with st.container():
-        # Verringerte Spaltenabstände durch neue Gewichtung [1.2, 0.6, 0.4, 0.8, 0.8]
-        c1, c2, c3, c4, c5 = st.columns([1.2, 0.6, 0.4, 0.8, 0.8])
+        # Maximale Straffung der Spalten [Name, Wetter/%, Signal, SL, Prob]
+        c1, c2, c3, c4, c5 = st.columns([1.0, 0.5, 0.3, 0.7, 0.6], gap="small")
         
         c1.markdown(f"**{res['display_name']}**<br><small>Kurs: {fmt.format(res['price'])}</small>", unsafe_allow_html=True)
         
@@ -102,16 +103,17 @@ def render_row(res):
             p_val = res['prob']
             p_col = "#3fb950" if p_val >= 60 else "#f0883e"
             prob_text = f"{p_val:.1f}%" if p_val >= 60 else f"({p_val:.1f}%)"
-            c5.markdown(f"<br><span style='color:{p_col}; font-weight:bold; font-size:1.2rem;'>{prob_text}</span>", unsafe_allow_html=True)
+            c5.markdown(f"<br><span style='color:{p_col}; font-weight:bold; font-size:1.1rem;'>{prob_text}</span>", unsafe_allow_html=True)
         else:
             c5.markdown("<br><small style='color:#484f58'>---</small>", unsafe_allow_html=True)
         st.divider()
 
 # --- 5. MAIN APP ---
-st.title("📡 Dr. Gregor Bauer Strategy Screener")
-st.write(f"Stand: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+st.title("📡 Bauer Strategy Pro")
+st.write(f"Sync: {datetime.now().strftime('%H:%M:%S')}")
 
-st.markdown("<h3 class='focus-header'>🌍 Global Macro & Indices</h3>", unsafe_allow_html=True)
+# MACRO REIHENFOLGE: EUR/USD -> DAX -> EURO STOXX
+st.markdown("<h3 class='focus-header'>🌍 Macro & Indices</h3>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 
 with ThreadPoolExecutor(max_workers=6) as executor:
@@ -130,7 +132,7 @@ index_data = {
 choice = st.radio("Markt wählen:", list(index_data.keys()), horizontal=True)
 
 if st.button(f"Scan {choice} starten"):
-    with st.spinner("Analysiere..."):
+    with st.spinner("Scanne..."):
         with ThreadPoolExecutor(max_workers=10) as executor:
             results = list(executor.map(analyze_ticker, index_data[choice]))
             sorted_res = sorted([r for r in results if r], key=lambda x: (x['signal'] == "Wait", -x['prob']))
