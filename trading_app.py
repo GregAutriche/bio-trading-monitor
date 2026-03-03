@@ -6,7 +6,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
 # --- 1. CONFIG & STYLING ---
-st.set_page_config(layout="wide", page_title="Bauer Strategy Pro", page_icon="📊")
+st.set_page_config(layout="wide", page_title="Bauer Strategy Pro", page_icon="🌤️")
 
 st.markdown("""
     <style>
@@ -22,13 +22,11 @@ st.markdown("""
 
 # --- 2. DATEN-ENGINE ---
 def clean_df(df):
-    """ Fix für Yahoo Finance 2026 Multi-Index Problem """
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
     return df
 
 def calculate_probability(df, signal_type):
-    """ Backtest über 250 Tage für reale Trefferquote """
     if df is None or len(df) < 50: return 50.0
     bt_df = df.copy()
     bt_df['SMA20'] = bt_df['Close'].rolling(window=20).mean()
@@ -48,6 +46,7 @@ def calculate_probability(df, signal_type):
 
 def analyze_ticker(ticker):
     try:
+        # Download via Yahoo Finance API [yfinance]
         df = yf.download(ticker, period="1y", interval="1d", progress=False, auto_adjust=True)
         if df.empty or len(df) < 25: return None
         df = clean_df(df)
@@ -62,18 +61,21 @@ def analyze_ticker(ticker):
         delta = ((curr - open_t) / open_t) * 100
         stop = curr - (atr * 1.5) if signal == "C" else curr + (atr * 1.5) if signal == "P" else 0
         
-        return {"ticker": ticker, "price": float(curr), "delta": float(delta), "signal": signal, "stop": float(stop), "prob": float(prob)}
+        # Wetter-Logik
+        icon = "☀️" if (curr > sma20 and delta > 0.3) else "🌤️" if curr > sma20 else "⛈️" if delta < -0.3 else "⚖️"
+        
+        return {"ticker": ticker, "price": float(curr), "delta": float(delta), "signal": signal, "stop": float(stop), "prob": float(prob), "icon": icon}
     except: return None
 
 # --- 3. UI KOMPONENTE ---
 def render_row(res, is_forex=False):
     fmt = "{:.5f}" if is_forex else "{:.2f}"
     with st.container():
-        c1, c2, c3, c4, c5 = st.columns([1.5, 1, 1, 1, 1])
+        c1, c2, c3, c4, c5 = st.columns([1.5, 0.8, 1, 1, 1.2])
         c1.markdown(f"**{res['ticker']}**<br><small>Kurs: {fmt.format(res['price'])}</small>", unsafe_allow_html=True)
         
         color = "#3fb950" if res['delta'] >= 0 else "#f85149"
-        c2.markdown(f"<br><span style='color:{color}'>{res['delta']:+.2f}%</span>", unsafe_allow_html=True)
+        c2.markdown(f"### {res['icon']}<br><span style='font-size:0.8rem; color:{color}'>{res['delta']:+.2f}%</span>", unsafe_allow_html=True)
         
         s_cls = "sig-c" if res['signal'] == "C" else "sig-p" if res['signal'] == "P" else "sig-wait"
         c3.markdown(f"<br><span class='{s_cls}'>{res['signal']}</span>", unsafe_allow_html=True)
@@ -83,14 +85,14 @@ def render_row(res, is_forex=False):
         
         if res['signal'] != "Wait":
             p_col = "#3fb950" if res['prob'] > 55 else "#f0883e"
-            c5.markdown(f"<br><span style='color:{p_col}; font-weight:bold;'>{res['prob']:.1f}% Win</span>", unsafe_allow_html=True)
+            c5.markdown(f"<br><span style='color:{p_col}; font-weight:bold; font-size:1.2rem;'>{res['prob']:.1f}%</span>", unsafe_allow_html=True)
         else:
             c5.markdown("<br><small style='color:#484f58'>---</small>", unsafe_allow_html=True)
         st.divider()
 
 # --- 4. MAIN APP ---
 st.title("📡 Dr. Gregor Bauer Strategy Screener")
-st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Data: Yahoo Finance v2026")
+st.write(f"Sync: {datetime.now().strftime('%H:%M:%S')} | [Yahoo Finance](https://finance.yahoo.com)")
 
 # MACRO & WÄHRUNGEN
 st.markdown("<h3 class='focus-header'>🌍 Global Macro & Indices</h3>", unsafe_allow_html=True)
@@ -103,13 +105,13 @@ with ThreadPoolExecutor(max_workers=6) as executor:
 # SCREENER
 st.markdown("<h3 class='focus-header'>🔭 Market Scanner</h3>", unsafe_allow_html=True)
 index_data = {
-    "DAX 40": ["ADS.DE", "ALV.DE", "BAS.DE", "BMW.DE", "DBK.DE", "DTE.DE", "SAP.DE", "SIE.DE", "VOW3.DE", "AIR.DE"],
+    "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "DBK.DE", "DTE.DE", "SAP.DE", "SIE.DE", "VOW3.DE"],
     "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "COST", "NFLX", "AMD", "ADBE"],
     "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SAN.MC", "SIEGn.DE", "ALV.DE", "IBE.MC", "BNP.PA"]
 }
-choice = st.radio("Asset-Klasse wählen:", list(index_data.keys()), horizontal=True)
+choice = st.radio("Markt wählen:", list(index_data.keys()), horizontal=True)
 
-if st.button(f"Start Scan {choice}"):
+if st.button(f"Scan {choice} starten"):
     with st.spinner(f"Analysiere {choice}..."):
         with ThreadPoolExecutor(max_workers=10) as executor:
             results = list(executor.map(analyze_ticker, index_data[choice]))
@@ -117,10 +119,5 @@ if st.button(f"Start Scan {choice}"):
             for r in sorted_res:
                 render_row(r)
 
-st.sidebar.markdown("""
-**Parameter:**
-- **SMA:** 20 Tage (Trendfilter)
-- **Trend:** 2 Tage Bestätigung
-- **Stop:** 1.5x ATR
-- **Win-Rate:** Hist. Quote 1 Jahr
-""")
+st.sidebar.markdown("---")
+st.sidebar.write("Strategie: 2-Tage Trend + SMA 20 Filter. Wahrscheinlichkeit basiert auf hist. Backtest (1 Jahr).")
