@@ -29,7 +29,6 @@ NAME_DB = {
     "^DJI": "Dow Jones 30", 
     "XU100.IS": "BIST 100", 
     "^NSEI": "NIFTY 50",
-    # Aktien Klarnamen
     "ADS.DE": "Adidas AG", "ALV.DE": "Allianz SE", "BAS.DE": "BASF SE", "BMW.DE": "BMW AG",
     "SAP.DE": "SAP SE", "SIE.DE": "Siemens AG", "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp.",
     "NVDA": "NVIDIA Corp.", "AMZN": "Amazon.com", "TSLA": "Tesla Inc.", "GOOGL": "Alphabet Inc.",
@@ -92,9 +91,13 @@ def render_row(res):
         c3.markdown(f"<br><span class='{s_cls}'>{res['signal']}</span>", unsafe_allow_html=True)
         sl = fmt.format(res['stop']) if res['signal'] != "Wait" else "---"
         c4.markdown(f"<small>Stop-Loss</small><br><code>{sl}</code>", unsafe_allow_html=True)
+        
         if res['signal'] != "Wait":
-            p_col = "#3fb950" if res['prob'] > 55 else "#f0883e"
-            c5.markdown(f"<br><span style='color:{p_col}; font-weight:bold; font-size:1.2rem;'>{res['prob']:.1f}%</span>", unsafe_allow_html=True)
+            p_val = res['prob']
+            p_col = "#3fb950" if p_val >= 60 else "#f0883e"
+            # Logik für Klammern bei unter 60%
+            prob_text = f"{p_val:.1f}%" if p_val >= 60 else f"({p_val:.1f}%)"
+            c5.markdown(f"<br><span style='color:{p_col}; font-weight:bold; font-size:1.2rem;'>{prob_text}</span>", unsafe_allow_html=True)
         else:
             c5.markdown("<br><small style='color:#484f58'>---</small>", unsafe_allow_html=True)
         st.divider()
@@ -103,12 +106,11 @@ def render_row(res):
 st.title("📡 Dr. Gregor Bauer Strategy Screener")
 st.write(f"Stand: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
 
-# MACRO REIHENFOLGE: EUR/USD -> DAX -> EURO STOXX -> NASDAQ -> BIST -> NIFTY
+# MACRO REIHENFOLGE: EUR/USD -> DAX -> EURO STOXX
 st.markdown("<h3 class='focus-header'>🌍 Global Macro & Indices</h3>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 
 with ThreadPoolExecutor(max_workers=6) as executor:
-    # Die Ergebnisse in der Reihenfolge von macro_tickers halten
     results_dict = {r['ticker']: r for r in filter(None, executor.map(analyze_ticker, macro_tickers))}
     for t in macro_tickers:
         if t in results_dict:
