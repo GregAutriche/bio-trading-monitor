@@ -108,10 +108,10 @@ def render_row(res):
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 5. MAIN APP ---
-st.title("📡 Bauer Strategy Pro")
+st.title("📡 Dr. Gregor Bauer 📡")
 st.write(f"Sync: {datetime.now().strftime('%H:%M:%S')}")
 
-st.markdown("<h3 class='focus-header'>🌍 Macro & Indices</h3>", unsafe_allow_html=True)
+st.markdown("<h3 class='focus-header'>🌍 Macro & Indices 🌍</h3>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 with ThreadPoolExecutor(max_workers=6) as executor:
     results_dict = {r['ticker']: r for r in filter(None, executor.map(analyze_ticker, macro_tickers))}
@@ -133,3 +133,4 @@ if st.button(f"Scan {choice} starten"):
         results = list(executor.map(analyze_ticker, index_data[choice]))
         for r in sorted([r for r in results if r], key=lambda x: (x['signal'] == "Wait", -x['prob'])):
             render_row(r)
+
