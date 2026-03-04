@@ -70,7 +70,6 @@ def fetch_data(ticker):
         df = t_obj.history(period="1y", interval="1d", auto_adjust=True)
         if df.empty or len(df) < 25: return None
         
-        # Klarnamen-Priorität
         display_name = NAME_DB.get(ticker)
         if not display_name:
             try:
@@ -125,9 +124,13 @@ def render_row(res):
 
 # --- 5. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
-st.write(f"letztes update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
+st.write(f"Letztes Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
-with st.expander("ℹ️ Strategie-Logik & System-Erklärung (Vollständige Ausführung)", expanded=False):
+# Session State Initialisierung
+if 'scan_active' not in st.session_state:
+    st.session_state.scan_active = False
+
+with st.expander("ℹ️ Strategie-Logik & System-Erklärung", expanded=False):
     st.markdown("""
     ### **1. Trend-Check (2-Tage-Regel)**
     Signale werden generiert bei Bestätigung des Momentums (Heute > Gestern > Vorgestern).
@@ -135,8 +138,6 @@ with st.expander("ℹ️ Strategie-Logik & System-Erklärung (Vollständige Ausf
     Signale werden nur in Richtung des Gleitenden Durchschnitts (20 Tage) zugelassen.
     ### **3. Dynamischer Stop-Loss (ATR)**
     Absicherung mittels **1.5x ATR (14 Tage)**.
-    ### **4. Wahrscheinlichkeit**
-    Historische Trefferquote (1-Jahres-Backtest).
     """)
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
@@ -147,7 +148,7 @@ for t in macro_tickers:
 
 st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
 
-# Scanner-Expander auf expanded=True gesetzt
+# Scanner-Expander bleibt durch 'expanded=True' offen
 with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
     index_data = {
         "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC"],
@@ -156,13 +157,21 @@ with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
         "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS", "GUBRF.IS"],
         "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "BAJAJ-AUTO.NS", "BHARTIARTL.NS"]
     }
-    choice = st.radio("Wähle Index für Scan:", list(index_data.keys()), horizontal=True)
-    scan_btn = st.button(f"Scan {choice} starten")
+    
+    col_sel, col_btn = st.columns([3, 1])
+    with col_sel:
+        choice = st.radio("Wähle Index für Scan:", list(index_data.keys()), horizontal=True)
+    with col_btn:
+        st.write("<br>", unsafe_allow_html=True)
+        if st.button("🚀 Scan Start/Stop", use_container_width=True):
+            st.session_state.scan_active = not st.session_state.scan_active
 
-if scan_btn:
+# Anzeige der Scanner-Ergebnisse basierend auf Session State
+if st.session_state.scan_active:
+    st.info(f"Live-Scan aktiv: {choice}")
     with ThreadPoolExecutor(max_workers=10) as executor:
         results = list(executor.map(fetch_data, index_data[choice]))
         for r in filter(None, results):
             render_row(r)
-
-
+else:
+    st.warning("Scanner ist im Standby. Klicke auf 'Scan Start', um die Analyse zu beginnen.")
