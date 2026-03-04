@@ -44,7 +44,8 @@ NAME_DB = {
     "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", "^STOXX50E": "EURO STOXX 50",
     "^IXIC": "NASDAQ Composite", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50",
     "ASML.AS": "ASML Holding", "MC.PA": "LVMH", "OR.PA": "L'Oréal", "SAP.DE": "SAP SE",
-    "RELIANCE.NS": "Reliance Ind.", "TCS.NS": "Tata Consultancy", "THYAO.IS": "Turkish Airlines"
+    "RELIANCE.NS": "Reliance Ind.", "TCS.NS": "Tata Consultancy", "THYAO.IS": "Turkish Airlines",
+    "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp.", "NVDA": "NVIDIA", "AMZN": "Amazon"
 }
 
 # --- 3. DATEN-ENGINE ---
@@ -70,13 +71,7 @@ def fetch_data(ticker):
         df = t_obj.history(period="1y", interval="1d", auto_adjust=True)
         if df.empty or len(df) < 25: return None
         
-        display_name = NAME_DB.get(ticker)
-        if not display_name:
-            try:
-                display_name = t_obj.info.get('shortName') or ticker
-            except:
-                display_name = ticker
-
+        display_name = NAME_DB.get(ticker) or t_obj.info.get('shortName') or ticker
         curr = float(df['Close'].iloc[-1])
         prev, prev2 = df['Close'].iloc[-2], df['Close'].iloc[-3]
         open_t = df['Open'].iloc[-1]
@@ -117,28 +112,22 @@ def render_row(res):
         else: st.markdown(f"<br><span style='color:#444;'>{res['signal']}</span>", unsafe_allow_html=True)
     with c4:
         if res['stop'] != 0:
-            prob_txt = f"({res['prob']:.1f}%)"
+            # LOGIK: Ab 60% gelb und ohne Klammern
+            if res['prob'] >= 60.0:
+                prob_txt = f"<span style='color:#ffd700; font-weight:bold;'>{res['prob']:.1f}%</span>"
+            else:
+                prob_txt = f"({res['prob']:.1f}%)"
+            
             st.markdown(f"<span class='sl-label'>Stop-Loss</span> <span class='prob-val'>{prob_txt}</span><br><span class='sl-value'>{fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
         else: st.markdown("<span class='sl-label'>Stop-Loss</span><br><span style='color:#444;'>---</span>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 5. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
-st.write(f"Letztes Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
+st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
-# Session State Initialisierung
 if 'scan_active' not in st.session_state:
     st.session_state.scan_active = False
-
-with st.expander("ℹ️ Strategie-Logik & System-Erklärung", expanded=False):
-    st.markdown("""
-    ### **1. Trend-Check (2-Tage-Regel)**
-    Signale werden generiert bei Bestätigung des Momentums (Heute > Gestern > Vorgestern).
-    ### **2. SMA 20 Trend-Filter**
-    Signale werden nur in Richtung des Gleitenden Durchschnitts (20 Tage) zugelassen.
-    ### **3. Dynamischer Stop-Loss (ATR)**
-    Absicherung mittels **1.5x ATR (14 Tage)**.
-    """)
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
@@ -148,7 +137,6 @@ for t in macro_tickers:
 
 st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
 
-# Scanner-Expander bleibt durch 'expanded=True' offen
 with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
     index_data = {
         "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC"],
@@ -160,18 +148,21 @@ with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
     
     col_sel, col_btn = st.columns([3, 1])
     with col_sel:
-        choice = st.radio("Wähle Index für Scan:", list(index_data.keys()), horizontal=True)
+        choice = st.radio("Wähle Index:", list(index_data.keys()), horizontal=True)
     with col_btn:
         st.write("<br>", unsafe_allow_html=True)
         if st.button("🚀 Scan Start/Stop", use_container_width=True):
             st.session_state.scan_active = not st.session_state.scan_active
 
-# Anzeige der Scanner-Ergebnisse basierend auf Session State
 if st.session_state.scan_active:
-    st.info(f"Live-Scan aktiv: {choice}")
+    st.info(f"Live-Scan: {choice} (Sortiert nach Wahrscheinlichkeit)")
     with ThreadPoolExecutor(max_workers=10) as executor:
         results = list(executor.map(fetch_data, index_data[choice]))
-        for r in filter(None, results):
+        # Filtern und nach Wahrscheinlichkeit absteigend sortieren
+        valid_results = [r for r in results if r is not None]
+        sorted_results = sorted(valid_results, key=lambda x: x['prob'], reverse=True)
+        
+        for r in sorted_results:
             render_row(r)
 else:
-    st.warning("Scanner ist im Standby. Klicke auf 'Scan Start', um die Analyse zu beginnen.")
+    st.warning("Scanner im Standby.")
