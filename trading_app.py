@@ -156,7 +156,7 @@ with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
         "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS", "GUBRF.IS"],
         "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "BAJAJ-AUTO.NS", "BHARTIARTL.NS"]
     }
-    choice = st.radio("Wähle Index für Scan:", list(index_data.keys()), horizontal=True)
+    choice = st.selectbox("Wähle Index für Scan:", list(index_data.keys()), horizontal=True)
     scan_btn = st.button(f"Scan {choice} starten")
 
 if scan_btn:
@@ -164,3 +164,4 @@ if scan_btn:
         results = list(executor.map(fetch_data, index_data[choice]))
         for r in filter(None, results):
             render_row(r)
+
