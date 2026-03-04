@@ -25,9 +25,12 @@ st.markdown("""
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
     .header-text { font-size: 24px; font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
     
-    /* Signal Design: Rote/Grüne Boxen */
+    /* Signal Design: Standard-Boxen */
     .sig-box-p { color: #ff4b4b; border: 1px solid #ff4b4b; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
     .sig-box-c { color: #3fb950; border: 1px solid #3fb950; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    
+    /* NEU: High Probability Signal (Gelb) */
+    .sig-box-high { color: #ffd700; border: 1px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
     
     /* Stop Loss & Label Styling */
     .sl-label { color: #888; font-size: 0.85rem; }
@@ -105,26 +108,34 @@ def render_row(res):
     with c2:
         color = "#3fb950" if res['delta'] >= 0 else "#ff4b4b"
         st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{color}; font-size:0.85rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
+    
     with c3:
         if res['signal'] != "Wait":
-            cls = "sig-box-c" if res['signal'] == "C" else "sig-box-p"
+            # LOGIK: Signal-Box wird gelb ab 60%
+            if res['prob'] >= 60.0:
+                cls = "sig-box-high"
+            else:
+                cls = "sig-box-c" if res['signal'] == "C" else "sig-box-p"
             st.markdown(f"<br><span class='{cls}'>{res['signal']}</span>", unsafe_allow_html=True)
-        else: st.markdown(f"<br><span style='color:#444;'>{res['signal']}</span>", unsafe_allow_html=True)
+        else: 
+            st.markdown(f"<br><span style='color:#444;'>{res['signal']}</span>", unsafe_allow_html=True)
+            
     with c4:
         if res['stop'] != 0:
-            # LOGIK: Ab 60% gelb und ohne Klammern
+            # LOGIK: Wahrscheinlichkeit gelb und ohne Klammern ab 60%
             if res['prob'] >= 60.0:
                 prob_txt = f"<span style='color:#ffd700; font-weight:bold;'>{res['prob']:.1f}%</span>"
             else:
                 prob_txt = f"({res['prob']:.1f}%)"
             
             st.markdown(f"<span class='sl-label'>Stop-Loss</span> <span class='prob-val'>{prob_txt}</span><br><span class='sl-value'>{fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
-        else: st.markdown("<span class='sl-label'>Stop-Loss</span><br><span style='color:#444;'>---</span>", unsafe_allow_html=True)
+        else: 
+            st.markdown("<span class='sl-label'>Stop-Loss</span><br><span style='color:#444;'>---</span>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 5. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
-st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
+st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Refresh: 45s")
 
 if 'scan_active' not in st.session_state:
     st.session_state.scan_active = False
@@ -155,14 +166,14 @@ with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
             st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
-    st.info(f"Live-Scan: {choice} (Sortiert nach Wahrscheinlichkeit)")
+    st.info(f"Live-Scan: {choice} (Top-Treffer zuerst)")
     with ThreadPoolExecutor(max_workers=10) as executor:
         results = list(executor.map(fetch_data, index_data[choice]))
-        # Filtern und nach Wahrscheinlichkeit absteigend sortieren
         valid_results = [r for r in results if r is not None]
+        # Sortierung: Höchste Wahrscheinlichkeit nach oben
         sorted_results = sorted(valid_results, key=lambda x: x['prob'], reverse=True)
         
         for r in sorted_results:
             render_row(r)
 else:
-    st.warning("Scanner im Standby.")
+    st.warning("Scanner Standby.")
