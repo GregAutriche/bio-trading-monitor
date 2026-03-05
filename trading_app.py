@@ -83,7 +83,7 @@ def fetch_data(ticker):
     except: return None
 
 # --- 3. UI RENDERER ---
-def render_row(res, threshold):
+def render_row(res):
     if not res: return
     is_forex = ("=" in res['ticker'])
     fmt = "{:.6f}" if is_forex else "{:.2f}"
@@ -97,11 +97,11 @@ def render_row(res, threshold):
         st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.85rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
     
     with c3:
-        cls = "sig-box-high" if res['prob'] >= threshold else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
+        cls = "sig-box-high" if res['prob'] >= 60.0 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
         st.markdown(f"<br><span class='{cls}'>{res['signal']}</span>", unsafe_allow_html=True)
             
     with c4:
-        if res['prob'] >= threshold:
+        if res['prob'] >= 60.0:
             prob_txt = f"<span style='color:#ffd700 !important; font-weight:bold; font-size:1.0rem;'>{res['prob']:.1f}%</span>"
         else:
             prob_txt = f"<span style='color:#888 !important;'>({res['prob']:.1f}%)</span>"
@@ -112,24 +112,35 @@ def render_row(res, threshold):
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
 st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
-# SCANNER SETTINGS
-with st.expander("⚙️ Scanner-Konfiguration & Schwellenwerte", expanded=True):
-    col_t1, col_t2 = st.columns([2, 1])
-    with col_t1:
-        # HIER: Einstellbarer Schwellenwert für Gold-Signale
-        gold_threshold = st.slider("Gold-Signal Wahrscheinlichkeit (%)", min_value=50.0, max_value=85.0, value=60.0, step=0.5)
-    with col_t2:
-        st.write("<br>", unsafe_allow_html=True)
-        if 'scan_active' not in st.session_state: st.session_state.scan_active = False
-        if st.button("🚀 Scan Start/Stop", use_container_width=True):
-            st.session_state.scan_active = not st.session_state.scan_active
+# --- STRATEGIE BESCHREIBUNG (EXPANDER) ---
+with st.expander("ℹ️ Strategie-Leitfaden & Markt-Symbole", expanded=False):
+    st.markdown("""
+    ### 📡 Die Bauer-Strategie Pro 2026
+    Analyse von Momentum-Mustern und Trendbestätigungen.
+    
+    **1. Markt-Zustand (Symbole):**
+    *   ☀️ **Bullish:** Kurs > SMA20 und Tagesplus > 0,3%.
+    *   ⚖️ **Neutral:** Geringe Volatilität oder Seitwärtsphase.
+    *   ⛈️ **Bearish:** Kurs < SMA20 oder deutlicher Abverkauf.
+    
+    **2. Die Signal-Logik:**
+    *   <span style='color:#3fb950; border:1px solid #3fb950; padding:2px 5px; border-radius:3px; font-weight:bold;'>C</span> **(Call/Long):** Kurs liegt über SMA20 und 3 Tage steigend.
+    *   <span style='color:#007bff; border:1px solid #007bff; padding:2px 5px; border-radius:3px; font-weight:bold;'>P</span> **(Put/Short):** Kurs liegt unter SMA20 und 3 Tage fallend.
+    *   **Wait:** Aktuell kein valider Momentum-Einstieg vorhanden.
+    
+    **3. Wahrscheinlichkeit (Backtest):**
+    Historische Trefferquote der letzten 12 Monate. Signale mit <span style='color:#ffd700; font-weight:bold;'>≥ 60,0%</span> werden gold markiert.
+    
+    **4. Risikomanagement:**
+    Der **Stop-Loss** basiert auf der Average True Range (ATR x 1.5).
+    """, unsafe_allow_html=True)
 
 # MACRO
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 for t in macro_tickers:
     res = fetch_data(t)
-    if res and res['signal'] != "Wait": render_row(res, gold_threshold)
+    if res and res['signal'] != "Wait": render_row(res)
 
 # SCANNER
 st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
@@ -160,22 +171,30 @@ index_data = {
     ]
 }
 
-choice = st.radio("Wähle Index für Scan:", list(index_data.keys()), horizontal=True)
+with st.expander("Index-Auswahl & Scan", expanded=True):
+    col_sel, col_btn = st.columns([3, 1])
+    if 'scan_active' not in st.session_state: st.session_state.scan_active = False
+    with col_sel:
+        choice = st.radio("Wähle Index für Scan:", list(index_data.keys()), horizontal=True)
+    with col_btn:
+        st.write("<br>", unsafe_allow_html=True)
+        if st.button("🚀 Scan Start/Stop", use_container_width=True):
+            st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
-    st.markdown(f"<div class='scan-info'>Scanne alle {len(index_data[choice])} Aktien... Zeige nur Signale mit Stop-Loss.</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='scan-info'>Scanne alle {len(index_data[choice])} Aktien im {choice}... Zeige nur Treffer mit Signal.</div>", unsafe_allow_html=True)
     
     with ThreadPoolExecutor(max_workers=30) as executor:
         results = list(executor.map(fetch_data, index_data[choice]))
-        # Filter: Nur aktive Signale (C/P)
+        # Filter auf Signale (C/P)
         signal_hits = [r for r in results if r is not None and r['signal'] != "Wait"]
         
         if signal_hits:
-            # Sortierung: Gold-Signale basierend auf dem Slider-Wert zuerst
-            sorted_hits = sorted(signal_hits, key=lambda x: (x['prob'] < gold_threshold, -x['prob']))
+            # Sortierung: Gold-Signale (>= 60%) zuerst
+            sorted_hits = sorted(signal_hits, key=lambda x: (x['prob'] < 60.0, -x['prob']))
             for r in sorted_hits:
-                render_row(r, gold_threshold)
+                render_row(r)
         else:
-            st.info(f"Keine aktiven Bauer-Signale (C/P) im {choice} bei {gold_threshold}% Schwelle gefunden.")
+            st.info(f"Keine aktiven Bauer-Signale (C/P) im {choice} gefunden.")
 else:
     st.warning("Scanner im Standby.")
