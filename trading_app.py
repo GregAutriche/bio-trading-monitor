@@ -24,20 +24,21 @@ st.markdown("""
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
     .header-text { font-size: 20px; font-weight: bold; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; }
     
-    .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 1px 5px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; }
-    .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 1px 5px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; }
-    .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 1px 5px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; }
+    /* Signal Design: Kompakter & Schärfer */
+    .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
+    .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
+    .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
     
-    .sl-label { color: #888; font-size: 0.75rem; }
-    .sl-value { color: #e0e0e0; font-weight: bold; font-size: 1.0rem; }
-    .indicator-label { color: #888; font-size: 0.7rem; line-height: 1.0; }
-    .kurs-label { color: #888; font-size: 0.8rem; }
+    .sl-label { color: #888; font-size: 0.7rem; }
+    .sl-value { color: #e0e0e0; font-weight: bold; font-size: 0.95rem; }
+    .indicator-label { color: #666; font-size: 0.65rem; line-height: 1.0; }
+    .kurs-label { color: #888; font-size: 0.75rem; }
     
-    /* MAXIMAL KOMPAKT: Padding auf 1px reduziert, Zeilenhöhe minimiert */
-    .row-container { border-bottom: 1px solid #1a202c; padding: 1px 0; width: 100%; line-height: 1.1; }
-    .scan-info { color: #ffd700; font-style: italic; font-size: 0.8rem; margin-bottom: 2px; font-weight: bold; }
+    /* ULTIMATIV KOMPAKT: Padding auf 0px reduziert */
+    .row-container { border-bottom: 1px solid #1a202c; padding: 0px 0; width: 100%; line-height: 1.0; }
+    .scan-info { color: #ffd700; font-style: italic; font-size: 0.75rem; margin-bottom: 1px; font-weight: bold; }
     
-    .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+    .block-container { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -90,13 +91,10 @@ def fetch_data(ticker):
     df, name = get_historical_data(ticker)
     if df is None: return None
     df, last_atr = calculate_indicators(df)
-    curr = float(df['Close'].iloc[-1])
-    prev, prev2 = df['Close'].iloc[-2], df['Close'].iloc[-3]
-    open_t = df['Open'].iloc[-1]
-    sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
+    curr = float(df['Close'].iloc[-1]); prev = df['Close'].iloc[-2]; prev2 = df['Close'].iloc[-3]
+    open_t = df['Open'].iloc[-1]; sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
     
-    rsi_val = df['RSI'].iloc[-1]
-    adx_val = df['ADX'].iloc[-1]
+    rsi_val = df['RSI'].iloc[-1]; adx_val = df['ADX'].iloc[-1]
     signal = "C" if (curr > prev > prev2 and curr > sma20) else "P" if (curr < prev < prev2 and curr < sma20) else "Wait"
     delta = ((curr - open_t) / open_t) * 100
     stop = curr - (last_atr * 1.5) if signal == "C" else curr + (last_atr * 1.5) if signal == "P" else 0
@@ -111,56 +109,64 @@ def fetch_data(ticker):
 # --- 3. UI RENDERER ---
 def render_row(res):
     if not res: return
-    is_forex = ("=" in res['ticker'])
-    fmt = "{:.6f}" if is_forex else "{:.2f}"
+    fmt = "{:.6f}" if ("=" in res['ticker']) else "{:.2f}"
     st.markdown("<div class='row-container'>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns([1.6, 0.6, 0.6, 1.6])
     
     with c1:
-        rsi_c = "#3fb950" if res['rsi'] < 30 else "#ff4b4b" if res['rsi'] > 70 else "#888"
-        adx_c = "#ffd700" if (not np.isnan(res['adx']) and res['adx'] > 25) else "#888"
+        rsi_c = "#3fb950" if res['rsi'] < 30 else "#ff4b4b" if res['rsi'] > 70 else "#666"
+        adx_c = "#ffd700" if (not np.isnan(res['adx']) and res['adx'] > 25) else "#666"
         adx_txt = f"{res['adx']:.1f}" if not np.isnan(res['adx']) else "---"
         st.markdown(f"""
             **{res['display_name']}**<br>
             <span class='kurs-label'>K: {fmt.format(res['price'])}</span><br>
             <span class='indicator-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b> | ADX: <b style='color:{adx_c};'>{adx_txt}</b></span>
         """, unsafe_allow_html=True)
-    
     with c2:
         color = "#3fb950" if res['delta'] >= 0 else "#007bff"
-        st.markdown(f"<div style='text-align:center; margin-top:2px;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.8rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
-    
+        st.markdown(f"<div style='text-align:center; margin-top:2px;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.75rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
     with c3:
         if res['signal'] != "Wait":
             cls = "sig-box-high" if res['prob'] >= 60.0 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
-            st.markdown(f"<div style='margin-top:8px; text-align:center;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<div style='margin-top:8px; text-align:center; color:#444;'>---</div>", unsafe_allow_html=True)
-            
+            st.markdown(f"<div style='margin-top:6px; text-align:center;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
+        else: st.markdown(f"<div style='margin-top:6px; text-align:center; color:#333;'>---</div>", unsafe_allow_html=True)
     with c4:
         if res['stop'] != 0:
-            prob_txt = f"<span style='color:#ffd700 !important; font-weight:bold;'>{res['prob']:.1f}%</span>" if res['prob'] >= 60.0 else f"<span style='color:#888 !important;'>({res['prob']:.1f}%)</span>"
-            st.markdown(f"<div style='text-align:right;'><span class='sl-label'>SL</span> {prob_txt}<br><span class='sl-value'>{fmt.format(res['stop'])}</span></div>", unsafe_allow_html=True)
-        else:
-            st.markdown("<div style='text-align:right; margin-top:4px;'><span style='color:#444;'>---</span></div>", unsafe_allow_html=True)
+            p_c = "#ffd700" if res['prob'] >= 60.0 else "#666"
+            st.markdown(f"<div style='text-align:right;'><span class='sl-label'>SL</span> <b style='color:{p_c};'>{res['prob']:.1f}%</b><br><span class='sl-value'>{fmt.format(res['stop'])}</span></div>", unsafe_allow_html=True)
+        else: st.markdown("<div style='text-align:right; margin-top:4px; color:#333;'>---</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 4. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
-st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Refresh: 45s")
 
-with st.expander("ℹ️ Strategie-Leitfaden & Symbole", expanded=False):
+with st.expander("ℹ️ AUSFÜHRLICHE STRATEGIE-BESCHREIBUNG", expanded=False):
     st.markdown("""
-    **Markt-Zustand:** ☀️ Bullish | ⚖️ Neutral | ⛈️ Bearish  
-    **Signale:** <span style='color:#3fb950;'>C</span> (Long) | <span style='color:#007bff;'>P</span> (Short/Blau) | <span style='color:#ffd700;'>Gold</span> (Wahrscheinlichkeit ≥ 60%)  
-    **Indikatoren:** RSI < 30 (Grün) / > 70 (Rot) | ADX > 25 (Gold/Trendstärke)
+    ### 📡 System-Logik & Trading-Parameter
+    Diese Applikation scannt Märkte nach der Momentum-Strategie von **Dr. Gregor Bauer**.
+    
+    **1. Markt-Sentiment (Icons):**
+    - ☀️ **Bullish:** Kurs über SMA20 & positives Momentum (>0.3%).
+    - ⚖️ **Neutral:** Seitwärtsbewegung oder geringe Volatilität.
+    - ⛈️ **Bearish:** Kurs unter SMA20 oder deutlicher Abverkauf.
+    
+    **2. Die Bauer-Signale:**
+    - <span style='color:#3fb950;'>**C (Call/Long):**</span> Kurs > SMA20 + 3 aufeinanderfolgende grüne Kerzen.
+    - <span style='color:#007bff;'>**P (Put/Short):**</span> Kurs < SMA20 + 3 aufeinanderfolgende rote Kerzen.
+    - <span style='color:#ffd700;'>**Gold-Status:**</span> Signale mit einer historischen Trefferquote von **≥ 60,0%** (Backtest 12 Monate).
+    
+    **3. Technische Filter (Indikatoren):**
+    - **RSI (14):** <span style='color:#3fb950;'>Grün (<30)</span> zeigt Überverkauf (Long-Chance). <span style='color:#ff4b4b;'>Rot (>70)</span> zeigt Überkauf (Korrekturgefahr).
+    - **ADX:** Ein Wert **> 25 (Gold)** bestätigt einen starken Trend. Signale in trendstarken Märkten sind statistisch verlässlicher.
+    
+    **4. Risikomanagement:**
+    Der **Stop-Loss (SL)** wird dynamisch über die **1.5-fache ATR** (Average True Range) berechnet, um Marktrauschen zu filtern.
     """, unsafe_allow_html=True)
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 for t in macro_tickers:
-    res = fetch_data(t)
-    if res: render_row(res)
+    res = fetch_data(t); render_row(res) if res else None
 
 st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
 index_data = {
@@ -171,21 +177,19 @@ index_data = {
     "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "SBIN.NS"]
 }
 
-with st.expander("Auswahl & Scan", expanded=True):
-    col_sel, col_btn = st.columns(2)
-    if 'scan_active' not in st.session_state: st.session_state.scan_active = False
-    with col_sel:
-        choice = st.radio("Markt:", list(index_data.keys()), horizontal=True)
-    with col_btn:
-        st.write("<br>", unsafe_allow_html=True)
-        if st.button("🚀 Scan Start/Stop", use_container_width=True):
-            st.session_state.scan_active = not st.session_state.scan_active
+col_sel, col_btn = st.columns(2)
+if 'scan_active' not in st.session_state: st.session_state.scan_active = False
+with col_sel: choice = st.radio("Markt:", list(index_data.keys()), horizontal=True)
+with col_btn:
+    st.write("<br>", unsafe_allow_html=True)
+    if st.button("🚀 Scan Start/Stop", use_container_width=True):
+        st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
-    st.markdown(f"<div class='scan-info'>Scan läuft: {choice}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='scan-info'>Live-Scan: {choice}</div>", unsafe_allow_html=True)
     with ThreadPoolExecutor(max_workers=30) as executor:
         results = list(executor.map(fetch_data, index_data[choice]))
         hits = sorted([r for r in results if r and r['signal'] != "Wait"], key=lambda x: (x['prob'] < 60.0, -x['prob']))
         for r in hits: render_row(r)
-else:
-    st.warning("Scanner im Standby.")
+        if not hits: st.info("Keine aktiven Signale gefunden.")
+else: st.warning("Scanner im Standby.")
