@@ -31,20 +31,43 @@ st.markdown("""
     
     .sl-label { color: #888; font-size: 0.85rem; }
     .sl-value { color: #e0e0e0; font-weight: bold; font-size: 1.1rem; }
-    .rsi-label { color: #888; font-size: 0.75rem; margin-top: 2px; }
+    .indicator-label { color: #888; font-size: 0.75rem; margin-top: 2px; }
     .kurs-label { color: #888; font-size: 0.85rem; }
     .row-container { border-bottom: 1px solid #1a202c; padding: 12px 0; width: 100%; }
-    .scan-info { color: #ffd700; font-style: italic; font-size: 0.9rem; margin-bottom: 10px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 2. DATEN-ENGINE ---
-def calculate_rsi(series, period=14):
-    delta = series.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+
+# Caching für 5 Minuten, um die App extrem schnell zu machen
+@st.cache_data(ttl=300)
+def get_historical_data(ticker):
+    try:
+        t_obj = yf.Ticker(ticker)
+        df = t_obj.history(period="1y", interval="1d", auto_adjust=True)
+        if df.empty or len(df) < 30: return None, None
+        return df, t_obj.info.get('shortName') or ticker
+    except: return None, None
+
+def calculate_indicators(df):
+    # RSI (14)
+    delta = df['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
     rs = gain / loss
-    return 100 - (100 / (1 + rs))
+    df['RSI'] = 100 - (100 / (1 + rs))
+    
+    # ADX (Trendstärke)
+    plus_dm = df['High'].diff()
+    minus_dm = df['Low'].diff()
+    plus_dm[plus_dm < 0] = 0
+    minus_dm[minus_dm > 0] = 0
+    
+    tr = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
+    atr = tr.rolling(window=14).mean()
+    
+    df['ADX'] = (abs(plus_dm - abs(minus_dm)) / (plus_dm + abs(minus_dm))).rolling(window=14).mean() * 100
+    return df, atr.iloc[-1]
 
 def calculate_probability(df, signal_type):
     if df is None or len(df) < 50: return 50.0
@@ -63,35 +86,28 @@ def calculate_probability(df, signal_type):
     return (hits / signals * 100) if signals > 0 else 50.0
 
 def fetch_data(ticker):
-    try:
-        t_obj = yf.Ticker(ticker)
-        df = t_obj.history(period="1y", interval="1d", auto_adjust=True)
-        if df.empty or len(df) < 25: return None
-        
-        display_name = t_obj.info.get('shortName') or ticker
-        curr = float(df['Close'].iloc[-1])
-        prev, prev2 = df['Close'].iloc[-2], df['Close'].iloc[-3]
-        open_t = df['Open'].iloc[-1]
-        sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
-        
-        # RSI Berechnung
-        df['RSI'] = calculate_rsi(df['Close'])
-        rsi_val = df['RSI'].iloc[-1]
-        
-        tr = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
-        atr = tr.rolling(window=14).mean().iloc[-1]
-        
-        signal = "C" if (curr > prev > prev2 and curr > sma20) else "P" if (curr < prev < prev2 and curr < sma20) else "Wait"
-        delta = ((curr - open_t) / open_t) * 100
-        stop = curr - (atr * 1.5) if signal == "C" else curr + (atr * 1.5) if signal == "P" else 0
-        icon = "☀️" if (curr > sma20 and delta > 0.3) else "⚖️" if abs(delta) < 0.3 else "⛈️"
-        
-        return {
-            "display_name": display_name, "ticker": ticker, "price": curr, 
-            "delta": delta, "signal": signal, "stop": stop, "icon": icon, 
-            "prob": calculate_probability(df, signal), "rsi": rsi_val
-        }
-    except: return None
+    df, name = get_historical_data(ticker)
+    if df is None: return None
+    
+    df, last_atr = calculate_indicators(df)
+    curr = float(df['Close'].iloc[-1])
+    prev, prev2 = df['Close'].iloc[-2], df['Close'].iloc[-3]
+    open_t = df['Open'].iloc[-1]
+    sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
+    
+    rsi_val = df['RSI'].iloc[-1]
+    adx_val = df['ADX'].iloc[-1]
+    
+    signal = "C" if (curr > prev > prev2 and curr > sma20) else "P" if (curr < prev < prev2 and curr < sma20) else "Wait"
+    delta = ((curr - open_t) / open_t) * 100
+    stop = curr - (last_atr * 1.5) if signal == "C" else curr + (last_atr * 1.5) if signal == "P" else 0
+    icon = "☀️" if (curr > sma20 and delta > 0.3) else "⚖️" if abs(delta) < 0.3 else "⛈️"
+    
+    return {
+        "display_name": name, "ticker": ticker, "price": curr, 
+        "delta": delta, "signal": signal, "stop": stop, "icon": icon, 
+        "prob": calculate_probability(df, signal), "rsi": rsi_val, "adx": adx_val
+    }
 
 # --- 3. UI RENDERER ---
 def render_row(res):
@@ -102,7 +118,16 @@ def render_row(res):
     c1, c2, c3, c4 = st.columns([1.2, 0.6, 0.5, 1.2])
     
     with c1:
-        st.markdown(f"**{res['display_name']}**<br><span class='kurs-label'>Kurs: {fmt.format(res['price'])}</span><br><span class='rsi-label'>RSI (14): {res['rsi']:.1f}</span>", unsafe_allow_html=True)
+        # RSI & ADX Farblogik
+        rsi_c = "#ff4b4b" if res['rsi'] > 70 else "#3fb950" if res['rsi'] < 30 else "#888"
+        adx_c = "#ffd700" if res['adx'] > 25 else "#888"
+        st.markdown(f"""
+            **{res['display_name']}**<br>
+            <span class='kurs-label'>Kurs: {fmt.format(res['price'])}</span><br>
+            <span class='indicator-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b> | 
+            ADX: <b style='color:{adx_c};'>{res['adx']:.1f}</b></span>
+        """, unsafe_allow_html=True)
+    
     with c2:
         color = "#3fb950" if res['delta'] >= 0 else "#007bff"
         st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.85rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
@@ -126,24 +151,7 @@ def render_row(res):
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
 st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
-with st.expander("ℹ️ Vollständige Strategie-Beschreibung", expanded=False):
-    st.markdown("""
-    ### 📡 Die Bauer-Strategie Pro 2026
-    **1. Markt-Zustand (Symbole):**
-    ☀️ Bullish (Kurs > SMA20 & Plus) | ⚖️ Neutral | ⛈️ Bearish
-    
-    **2. Signale & RSI-Filter:**
-    *   **C (Call/Long):** Kurs über SMA20 + 3 steigende Kerzen. (Idealer RSI < 70)
-    *   **P (Put/Short):** Kurs unter SMA20 + 3 fallende Kerzen. (Idealer RSI > 30)
-    
-    **3. Gold-Logik:**
-    Signale mit einer statistischen Trefferquote von **≥ 60,0%** (Backtest 12 Monate) werden gold markiert.
-    
-    **4. Indices:**
-    Im Macro-Bereich werden alle Indizes permanent angezeigt, um die Marktstimmung (Sentiment) sofort zu erfassen.
-    """)
-
-# MACRO & INDICES (Filter entfernt, damit immer sichtbar)
+# MACRO
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 for t in macro_tickers:
@@ -162,7 +170,7 @@ index_data = {
 }
 
 with st.expander("Index-Auswahl & Scan", expanded=True):
-    col_sel, col_btn = st.columns([3, 1])
+    col_sel, col_btn = st.columns()
     if 'scan_active' not in st.session_state: st.session_state.scan_active = False
     with col_sel:
         choice = st.radio("Wähle Markt:", list(index_data.keys()), horizontal=True)
@@ -172,16 +180,12 @@ with st.expander("Index-Auswahl & Scan", expanded=True):
             st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
-    st.markdown(f"<div class='scan-info'>Scanne {choice}... Zeige nur Treffer mit Signal.</div>", unsafe_allow_html=True)
+    st.info(f"Live-Scan {choice}... Zeige nur Treffer mit Signal.")
     with ThreadPoolExecutor(max_workers=30) as executor:
         results = list(executor.map(fetch_data, index_data[choice]))
         signal_hits = [r for r in results if r is not None and r['signal'] != "Wait"]
-        
         if signal_hits:
             sorted_hits = sorted(signal_hits, key=lambda x: (x['prob'] < 60.0, -x['prob']))
-            for r in sorted_hits:
-                render_row(r)
-        else:
-            st.info("Aktuell keine aktiven Signale in diesem Markt.")
-else:
-    st.warning("Scanner im Standby.")
+            for r in sorted_hits: render_row(r)
+        else: st.info("Keine aktiven Signale.")
+else: st.warning("Scanner im Standby.")
