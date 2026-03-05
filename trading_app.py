@@ -39,7 +39,6 @@ st.markdown("""
 
 # --- 2. DATEN-ENGINE ---
 
-# Caching für 5 Minuten, um die App extrem schnell zu machen
 @st.cache_data(ttl=300)
 def get_historical_data(ticker):
     try:
@@ -57,15 +56,13 @@ def calculate_indicators(df):
     rs = gain / loss
     df['RSI'] = 100 - (100 / (1 + rs))
     
-    # ADX (Trendstärke)
+    # ADX (Trendstärke) vereinfacht
     plus_dm = df['High'].diff()
     minus_dm = df['Low'].diff()
     plus_dm[plus_dm < 0] = 0
     minus_dm[minus_dm > 0] = 0
-    
     tr = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
     atr = tr.rolling(window=14).mean()
-    
     df['ADX'] = (abs(plus_dm - abs(minus_dm)) / (plus_dm + abs(minus_dm))).rolling(window=14).mean() * 100
     return df, atr.iloc[-1]
 
@@ -118,7 +115,6 @@ def render_row(res):
     c1, c2, c3, c4 = st.columns([1.2, 0.6, 0.5, 1.2])
     
     with c1:
-        # RSI & ADX Farblogik
         rsi_c = "#ff4b4b" if res['rsi'] > 70 else "#3fb950" if res['rsi'] < 30 else "#888"
         adx_c = "#ffd700" if res['adx'] > 25 else "#888"
         st.markdown(f"""
@@ -149,7 +145,7 @@ def render_row(res):
 
 # --- 4. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
-st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
+st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Refresh: 45s")
 
 # MACRO
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
@@ -170,7 +166,7 @@ index_data = {
 }
 
 with st.expander("Index-Auswahl & Scan", expanded=True):
-    col_sel, col_btn = st.columns()
+    col_sel, col_btn = st.columns(2) # FIX: Hier war die Fehlermeldung
     if 'scan_active' not in st.session_state: st.session_state.scan_active = False
     with col_sel:
         choice = st.radio("Wähle Markt:", list(index_data.keys()), horizontal=True)
@@ -180,12 +176,13 @@ with st.expander("Index-Auswahl & Scan", expanded=True):
             st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
-    st.info(f"Live-Scan {choice}... Zeige nur Treffer mit Signal.")
+    st.info(f"Live-Scan {choice} läuft...")
     with ThreadPoolExecutor(max_workers=30) as executor:
         results = list(executor.map(fetch_data, index_data[choice]))
         signal_hits = [r for r in results if r is not None and r['signal'] != "Wait"]
         if signal_hits:
             sorted_hits = sorted(signal_hits, key=lambda x: (x['prob'] < 60.0, -x['prob']))
             for r in sorted_hits: render_row(r)
-        else: st.info("Keine aktiven Signale.")
-else: st.warning("Scanner im Standby.")
+        else: st.info("Keine aktiven Signale gefunden.")
+else:
+    st.warning("Scanner im Standby.")
