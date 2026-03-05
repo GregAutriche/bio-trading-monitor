@@ -24,20 +24,13 @@ st.markdown("""
     .stApp { background-color: #050a0f; }
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
     .header-text { font-size: 24px; font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
-    
-    /* Signal Design: Standard-Boxen */
     .sig-box-p { color: #ff4b4b; border: 1px solid #ff4b4b; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
     .sig-box-c { color: #3fb950; border: 1px solid #3fb950; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
-    
-    /* NEU: High Probability Signal (Gelb) */
     .sig-box-high { color: #ffd700; border: 1px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
-    
-    /* Stop Loss & Label Styling */
     .sl-label { color: #888; font-size: 0.85rem; }
     .sl-value { color: #e0e0e0; font-weight: bold; font-size: 1.1rem; }
     .prob-val { color: #888; font-size: 0.85rem; margin-left: 5px; }
     .kurs-label { color: #888; font-size: 0.85rem; }
-    
     .row-container { border-bottom: 1px solid #1a202c; padding: 12px 0; width: 100%; }
     </style>
     """, unsafe_allow_html=True)
@@ -111,23 +104,14 @@ def render_row(res):
     
     with c3:
         if res['signal'] != "Wait":
-            # LOGIK: Signal-Box wird gelb ab 60%
-            if res['prob'] >= 60.0:
-                cls = "sig-box-high"
-            else:
-                cls = "sig-box-c" if res['signal'] == "C" else "sig-box-p"
+            cls = "sig-box-high" if res['prob'] >= 60.0 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
             st.markdown(f"<br><span class='{cls}'>{res['signal']}</span>", unsafe_allow_html=True)
         else: 
             st.markdown(f"<br><span style='color:#444;'>{res['signal']}</span>", unsafe_allow_html=True)
             
     with c4:
         if res['stop'] != 0:
-            # LOGIK: Wahrscheinlichkeit gelb und ohne Klammern ab 60%
-            if res['prob'] >= 60.0:
-                prob_txt = f"<span style='color:#ffd700; font-weight:bold;'>{res['prob']:.1f}%</span>"
-            else:
-                prob_txt = f"({res['prob']:.1f}%)"
-            
+            prob_txt = f"<span style='color:#ffd700; font-weight:bold;'>{res['prob']:.1f}%</span>" if res['prob'] >= 60.0 else f"({res['prob']:.1f}%)"
             st.markdown(f"<span class='sl-label'>Stop-Loss</span> <span class='prob-val'>{prob_txt}</span><br><span class='sl-value'>{fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
         else: 
             st.markdown("<span class='sl-label'>Stop-Loss</span><br><span style='color:#444;'>---</span>", unsafe_allow_html=True)
@@ -135,10 +119,26 @@ def render_row(res):
 
 # --- 5. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
-st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Refresh: 45s")
+st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
-if 'scan_active' not in st.session_state:
-    st.session_state.scan_active = False
+# --- STRATEGIE BESCHREIBUNG (EXPANDER) ---
+with st.expander("ℹ️ Strategie-Leitfaden & Logik", expanded=False):
+    st.markdown("""
+    ### 📡 Die Bauer-Strategie Pro 2026
+    Dieser Scanner analysiert Märkte basierend auf Momentum und Trendbestätigung.
+    
+    **1. Die Signal-Logik:**
+    *   **C (Call/Long):** Kurs > SMA20 **und** 3 aufeinanderfolgende steigende Schlusskurse.
+    *   **P (Put/Short):** Kurs < SMA20 **und** 3 aufeinanderfolgende fallende Schlusskurse.
+    *   **Wait:** Kein eindeutiger Trend im Momentum-Fenster.
+    
+    **2. Wahrscheinlichkeit (Backtest):**
+    Die Prozentzahl zeigt, wie oft dieses Signal in den letzten 12 Monaten nach 3 Tagen im Profit landete. 
+    Werte **≥ 60%** werden **gold (High Probability)** markiert.
+    
+    **3. Risikomanagement:**
+    Der **Stop-Loss** basiert auf der Average True Range (ATR x 1.5). Er dient als technischer Schutz vor Volatilitätsspitzen.
+    """)
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
@@ -158,6 +158,8 @@ with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
     }
     
     col_sel, col_btn = st.columns([3, 1])
+    if 'scan_active' not in st.session_state: st.session_state.scan_active = False
+    
     with col_sel:
         choice = st.radio("Wähle Index:", list(index_data.keys()), horizontal=True)
     with col_btn:
@@ -166,14 +168,10 @@ with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
             st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
-    st.info(f"Live-Scan: {choice} (Top-Treffer zuerst)")
+    st.info(f"Live-Scan läuft: {choice}")
     with ThreadPoolExecutor(max_workers=10) as executor:
         results = list(executor.map(fetch_data, index_data[choice]))
-        valid_results = [r for r in results if r is not None]
-        # Sortierung: Höchste Wahrscheinlichkeit nach oben
-        sorted_results = sorted(valid_results, key=lambda x: x['prob'], reverse=True)
-        
-        for r in sorted_results:
-            render_row(r)
+        valid_results = sorted([r for r in results if r is not None], key=lambda x: x['prob'], reverse=True)
+        for r in valid_results: render_row(r)
 else:
-    st.warning("Scanner Standby.")
+    st.warning("Scanner im Standby.")
