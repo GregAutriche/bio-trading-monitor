@@ -23,15 +23,15 @@ st.markdown("""
     .stApp { background-color: #050a0f; }
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
     
-    /* RADIKALE ABSTANDS-REDUKTION */
+    /* MAXIMALE KOMPRIMIERUNG DER ZEILEN */
     .row-container { 
         border-bottom: 1px solid #1a202c; 
         padding: 0px 0px !important; 
         margin: 0px !important; 
-        line-height: 1.0 !important; 
+        line-height: 1.1 !important; 
     }
     
-    /* Streamlit-eigene Abstände zwischen Widgets entfernen */
+    /* Entfernt Streamlit Standard-Abstände zwischen Elementen */
     [data-testid="stVerticalBlock"] > div {
         padding-top: 0rem !important;
         padding-bottom: 0rem !important;
@@ -46,7 +46,7 @@ st.markdown("""
     .sl-value { color: #e0e0e0; font-weight: bold; font-size: 0.95rem; }
     .indicator-label { color: #666; font-size: 0.65rem; }
     .kurs-label { color: #888; font-size: 0.75rem; }
-    .header-text { font-size: 20px; font-weight: bold; margin-top: 10px; margin-bottom: 5px; }
+    .header-text { font-size: 18px; font-weight: bold; margin-top: 5px; margin-bottom: 2px; color: #ffd700 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -131,49 +131,35 @@ def render_row(res):
     with c3:
         if res['signal'] != "Wait":
             cls = "sig-box-high" if res['prob'] >= 60.0 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
-            st.markdown(f"<div style='margin-top:5px; text-align:center;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
-        else: st.markdown(f"<div style='margin-top:5px; text-align:center; color:#333;'>---</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-top:2px; text-align:center;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
+        else: st.markdown(f"<div style='margin-top:2px; text-align:center; color:#333;'>---</div>", unsafe_allow_html=True)
     with c4:
         if res['stop'] != 0:
             p_c = "#ffd700" if res['prob'] >= 60.0 else "#666"
             st.markdown(f"<div style='text-align:right;'><span class='sl-label'>SL</span> <b style='color:{p_c};'>{res['prob']:.1f}%</b><br><span class='sl-value'>{fmt.format(res['stop'])}</span></div>", unsafe_allow_html=True)
-        else: st.markdown("<div style='text-align:right; margin-top:5px; color:#333;'>---</div>", unsafe_allow_html=True)
+        else: st.markdown("<div style='text-align:right; margin-top:2px; color:#333;'>---</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 4. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
 
-# --- AUSFÜHRLICHE STRATEGIE-BESCHREIBUNG (CODE-BLOCK) ---
-with st.expander("ℹ️ DETAILLIERTE STRATEGIE-LOGIK & HANDELSPARAMETER", expanded=False):
+# KORRIGIERTE BESCHREIBUNG OHNE CODE-ANZEIGE
+with st.expander("ℹ️ DETAILLIERTE STRATEGIE-LOGIK", expanded=False):
     st.markdown("""
-    <div style='background-color: #0d1117; padding: 15px; border-radius: 8px; border: 1px solid #30363d; color: #e0e0e0 !important;'>
-        <h3 style='color: #ffd700 !important; margin-top: 0;'>📡 Dr. Gregor Bauer Strategie Pro 2026</h3>
-        
-        <p style='color: #e0e0e0 !important;'><strong>1. Das Bauer-Signal (Kern-Momentum):</strong><br>
-        Das System scannt nach einer Bestätigung des Preistrends über/unter dem <b>SMA 20</b> mit einer <b>3-Tage-Bestätigung</b>:</p>
-        <ul style='color: #e0e0e0 !important;'>
-            <li><span style='color:#3fb950 !important; font-weight:bold;'>C (Call/Long):</span> Kurs > SMA20 UND Schlusskurs(Heute) > Gestern > Vorgestern.</li>
-            <li><span style='color:#007bff !important; font-weight:bold;'>P (Put/Short):</span> Kurs < SMA20 UND Schlusskurs(Heute) < Gestern < Vorgestern.</li>
+    <div style='background-color: #0d1117; padding: 10px; border-radius: 5px; border: 1px solid #30363d;'>
+        <p style='color: #e0e0e0 !important; font-size: 0.9rem; margin-bottom: 5px;'><strong>1. Das Bauer-Signal (Momentum):</strong><br>
+        Scannt nach Preistrends über/unter dem <b>SMA 20</b> mit <b>3-Tage-Bestätigung</b>:</p>
+        <ul style='color: #e0e0e0 !important; font-size: 0.85rem;'>
+            <li><span style='color:#3fb950 !important; font-weight:bold;'>C (Long):</span> Kurs > SMA20 UND 3 Tage steigend.</li>
+            <li><span style='color:#007bff !important; font-weight:bold;'>P (Short):</span> Kurs < SMA20 UND 3 Tage fallend.</li>
         </ul>
-
-        <p style='color: #e0e0e0 !important;'><strong>2. Statistische Wahrscheinlichkeit (Gold-Logik):</strong><br>
-        Echtzeit-Backtest der letzten 12 Monate. Trefferquote nach 3 Handelstagen:</p>
-        <ul style='color: #e0e0e0 !important;'>
-            <li><span style='color:#ffd700 !important; font-weight:bold;'>Gold-Status (≥ 60%):</span> Historisch überdurchschnittliche Trefferquote.</li>
+        <p style='color: #e0e0e0 !important; font-size: 0.9rem; margin-bottom: 5px;'><strong>2. Indikatoren & Gold-Logik:</strong></p>
+        <ul style='color: #e0e0e0 !important; font-size: 0.85rem;'>
+            <li><span style='color:#ffd700 !important; font-weight:bold;'>Gold-Status:</span> Statistische Trefferrate (Backtest 12M) <b>≥ 60%</b>.</li>
+            <li><b>ADX > 25:</b> Bestätigt starken Trend. <b>RSI:</b> Grün (<30) = Überverkauft, Rot (>70) = Überkauft.</li>
         </ul>
-
-        <p style='color: #e0e0e0 !important;'><strong>3. Trendstärke & Filter (ADX & RSI):</strong></p>
-        <ul style='color: #e0e0e0 !important;'>
-            <li><b>ADX (Trendstärke):</b> Ein Wert <b style='color:#ffd700 !important;'>über 25</b> signalisiert einen starken Trend.</li>
-            <li><b>RSI (14):</b> <span style='color:#3fb950 !important;'>RSI < 30</span> (Überverkauft/Chance), <span style='color:#ff4b4b !important;'>RSI > 70</span> (Überkauft/Gefahr).</li>
-        </ul>
-
-        <p style='color: #e0e0e0 !important;'><strong>4. Dynamisches Risikomanagement:</strong><br>
-        Stop-Loss (SL) basierend auf <b>1.5x ATR</b> zur Filterung von Marktrauschen.</p>
-        
-        <p style='font-size: 0.8rem; color: #888 !important; font-style: italic;'>Keine Anlageberatung. Datenquelle: Yahoo Finance.</p>
     </div>
-    """, unsafe_allow_html=True) # WICHTIG: Dieses Flag muss am Ende stehen!
+    """, unsafe_allow_html=True)
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
@@ -204,6 +190,3 @@ if st.session_state.scan_active:
         hits = sorted([r for r in results if r and r['signal'] != "Wait"], key=lambda x: (x['prob'] < 60.0, -x['prob']))
         for r in hits: render_row(r)
 else: st.warning("Scanner im Standby.")
-
-
-
