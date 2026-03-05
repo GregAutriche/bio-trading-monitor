@@ -13,6 +13,7 @@ except ImportError:
     os.system('pip install streamlit-autorefresh')
     from streamlit_autorefresh import st_autorefresh
 
+# Automatischer Refresh alle 45 Sekunden
 st_autorefresh(interval=45000, key="datarefresh")
 
 # --- 1. CONFIG & STYLING ---
@@ -23,25 +24,27 @@ st.markdown("""
     .stApp { background-color: #050a0f; }
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
     
-    /* AUSGEGLICHENES ZEILEN-STYLING */
+    /* OPTIMIERTER ZEILENABSTAND (2px) */
     .row-container { 
         border-bottom: 1px solid #1a202c; 
-        padding: 4px 0px !important; 
+        padding: 2px 0px !important; 
         margin: 0px !important; 
-        line-height: 1.3 !important; 
+        line-height: 1.2 !important; 
     }
     
-    /* Streamlit Widget-Abstände (Normalisiert) */
-    [data-testid="stVerticalBlock"] > div {
-        padding-top: 0.1rem !important;
-        padding-bottom: 0.1rem !important;
-        margin-top: 0px !important;
+    /* Status-Bar Styling */
+    .status-bar { 
+        font-size: 0.85rem; 
+        color: #888 !important; 
+        border-bottom: 1px solid #30363d; 
+        padding-bottom: 5px; 
+        margin-bottom: 10px;
     }
 
     .stock-title { font-weight: bold; font-size: 1.05rem; display: block; }
     .kurs-label { color: #e0e0e0 !important; font-weight: normal; font-size: 1.05rem; }
     
-    .indicator-label { color: #666; font-size: 0.75rem; margin-top: 2px; }
+    .indicator-label { color: #666; font-size: 0.75rem; margin-top: 1px; }
     .sl-label { color: #888; font-size: 0.75rem; }
     .sl-value { color: #e0e0e0; font-weight: bold; font-size: 1.0rem; }
 
@@ -49,7 +52,7 @@ st.markdown("""
     .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 1px 5px; border-radius: 3px; font-weight: bold; font-size: 0.85rem; }
     .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 1px 5px; border-radius: 3px; font-weight: bold; font-size: 0.85rem; }
     
-    .header-text { font-size: 18px; font-weight: bold; margin-top: 10px; margin-bottom: 5px; color: #ffd700 !important; }
+    .header-text { font-size: 18px; font-weight: bold; margin-top: 5px; color: #ffd700 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -137,8 +140,8 @@ def render_row(res):
     with c3:
         if res['signal'] != "Wait":
             cls = "sig-box-high" if res['prob'] >= 60.0 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
-            st.markdown(f"<div style='margin-top:12px; text-align:center;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
-        else: st.markdown(f"<div style='margin-top:12px; text-align:center; color:#333;'>---</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-top:10px; text-align:center;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
+        else: st.markdown(f"<div style='margin-top:10px; text-align:center; color:#333;'>---</div>", unsafe_allow_html=True)
     with c4:
         if res['stop'] != 0:
             p_c = "#ffd700" if res['prob'] >= 60.0 else "#666"
@@ -149,22 +152,20 @@ def render_row(res):
 # --- 4. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
 
-# AUSFÜHRLICHE BESCHREIBUNG
-with st.expander("ℹ️ DETAILLIERTE STRATEGIE-LOGIK & PARAMETER", expanded=False):
+# STATUS ANZEIGE (LETZTES UPDATE & INTERVALL)
+last_update = datetime.now().strftime("%H:%M:%S")
+st.markdown(f"""
+    <div class='status-bar'>
+        🕒 Letztes Update: <b>{last_update}</b> | 🔄 Intervall: <b>45s Auto-Refresh</b>
+    </div>
+""", unsafe_allow_html=True)
+
+with st.expander("ℹ️ AUSFÜHRLICHE STRATEGIE-BESCHREIBUNG", expanded=False):
     st.markdown("""
-    <div style='background-color: #0d1117; padding: 15px; border-radius: 8px; border: 1px solid #30363d; color: #e0e0e0 !important;'>
-        <p style='margin-bottom: 8px;'><strong>1. Bauer-Signal (Kern-Momentum):</strong><br>
-        Scannt nach Trends über/unter dem <b>SMA 20</b> mit <b>3-Tage-Bestätigung</b>:</p>
-        <ul style='margin-bottom: 10px;'>
-            <li><span style='color:#3fb950; font-weight:bold;'>C (Call):</span> Kurs > SMA20 UND 3 Tage steigend.</li>
-            <li><span style='color:#007bff; font-weight:bold;'>P (Put):</span> Kurs < SMA20 UND 3 Tage fallend.</li>
-        </ul>
-        <p style='margin-bottom: 8px;'><strong>2. Filter & Gold-Status:</strong><br>
-        Signale mit Trefferquote <b>≥ 60%</b> (Backtest 12M) werden <span style='color:#ffd700; font-weight:bold;'>Gold</span> markiert.</p>
-        <ul>
-            <li><b>RSI:</b> Grün (<30) = Überverkauft, Rot (>70) = Überkauft.</li>
-            <li><b>ADX:</b> Ein Wert <b style='color:#ffd700;'>über 25</b> bestätigt einen starken Trend.</li>
-        </ul>
+    <div style='background-color: #0d1117; padding: 12px; border-radius: 5px; border: 1px solid #30363d;'>
+        <p style='margin-bottom: 5px;'><strong>1. Bauer-Signal:</strong> Momentum-Muster via SMA20 & 3-Tage-Bestätigung.</p>
+        <p style='margin-bottom: 5px;'><strong>2. Filter:</strong> RSI < 30 (Kaufzone) / > 70 (Verkaufszone). ADX > 25 (Trendstärke).</p>
+        <p><strong>3. Wahrscheinlichkeit:</strong> Gold-Status bei historischer Trefferquote ≥ 60%.</p>
     </div>
     """, unsafe_allow_html=True)
 
