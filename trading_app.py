@@ -173,10 +173,23 @@ with st.expander("ℹ️ Strategie-Leitfaden + Markt-Symbole ℹ️", expanded=F
 
 # MACRO
 st.markdown("<div class='header-text'>🌍 Macro + Indices 🌍</div>", unsafe_allow_html=True)
-macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
+
+macro_tickers = [
+    "EURUSD=X",     # EUR/USD
+    "EURRUB=X",     # EUR/RUB  ➜ neu
+    "^GDAXI",       # DAX
+    "^STOXX50E",    # Euro Stoxx 50
+    "^IXIC",        # Nasdaq Composite
+    "XU100.IS",     # BIST 100
+    "^NSEI",        # Nifty 50
+    "IMOEX.ME"      # MOEX Russia Index ➜ neu
+]
+
 for t in macro_tickers:
     res = fetch_data(t)
-    if res: render_row(res)
+    if res:
+        render_row(res)
+
 
 # SCANNER
 st.markdown("<br><div class='header-text'>🔭 Fokus / Markt Screener 🔭</div>", unsafe_allow_html=True)
@@ -210,6 +223,7 @@ if st.session_state.scan_active:
         else: st.info("Keine aktiven Signale.")
 else:
     st.warning("Scanner im Standby.")
+
 
 
 
