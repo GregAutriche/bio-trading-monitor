@@ -26,13 +26,13 @@ st.markdown("""
     .header-text { font-size: 24px; font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
     
     /* Signal Design: P = BLAU, C = GRÜN, HIGH = GOLD */
-    .sig-box-p { color: #007bff; border: 1px solid #007bff; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
-    .sig-box-c { color: #3fb950; border: 1px solid #3fb950; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
-    .sig-box-high { color: #ffd700; border: 1px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
     
     .sl-label { color: #888; font-size: 0.85rem; }
     .sl-value { color: #e0e0e0; font-weight: bold; font-size: 1.1rem; }
-    .prob-val { color: #888; font-size: 0.85rem; margin-left: 5px; }
+    .prob-val { font-size: 0.85rem; margin-left: 5px; }
     .kurs-label { color: #888; font-size: 0.85rem; }
     .row-container { border-bottom: 1px solid #1a202c; padding: 12px 0; width: 100%; }
     </style>
@@ -102,25 +102,25 @@ def render_row(res):
     with c1:
         st.markdown(f"**{res['display_name']}**<br><span class='kurs-label'>Kurs: {fmt.format(res['price'])}</span>", unsafe_allow_html=True)
     with c2:
+        # BLAU für negatives Delta, GRÜN für positives
         color = "#3fb950" if res['delta'] >= 0 else "#007bff"
-        st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{color}; font-size:0.85rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.85rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
     
     with c3:
         if res['signal'] != "Wait":
-            if res['prob'] >= 60.0:
-                cls = "sig-box-high"
-            else:
-                cls = "sig-box-c" if res['signal'] == "C" else "sig-box-p"
+            # GOLD-BOX bei hoher Wahrscheinlichkeit
+            cls = "sig-box-high" if res['prob'] >= 60.0 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
             st.markdown(f"<br><span class='{cls}'>{res['signal']}</span>", unsafe_allow_html=True)
         else: 
             st.markdown(f"<br><span style='color:#444;'>{res['signal']}</span>", unsafe_allow_html=True)
             
     with c4:
         if res['stop'] != 0:
+            # GOLD-TEXT bei Wahrscheinlichkeit >= 60% mit !important-Erzwingung
             if res['prob'] >= 60.0:
-                prob_txt = f"<span style='color:#ffd700; font-weight:bold; font-size:1.0rem;'>{res['prob']:.1f}%</span>"
+                prob_txt = f"<span style='color:#ffd700 !important; font-weight:bold; font-size:1.0rem;'>{res['prob']:.1f}%</span>"
             else:
-                prob_txt = f"<span style='color:#888;'>({res['prob']:.1f}%)</span>"
+                prob_txt = f"<span style='color:#888 !important;'>({res['prob']:.1f}%)</span>"
             
             st.markdown(f"<span class='sl-label'>Stop-Loss</span> {prob_txt}<br><span class='sl-value'>{fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
         else: 
@@ -135,7 +135,6 @@ st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Refresh: 45s")
 with st.expander("ℹ️ Strategie-Leitfaden & Markt-Symbole", expanded=False):
     st.markdown("""
     ### 📡 Die Bauer-Strategie Pro 2026
-    Analyse von Momentum-Mustern und Trendbestätigungen.
     
     **1. Markt-Zustand (Symbole):**
     *   ☀️ **Bullish:** Kurs > SMA20 und Tagesplus > 0,3%.
@@ -143,15 +142,15 @@ with st.expander("ℹ️ Strategie-Leitfaden & Markt-Symbole", expanded=False):
     *   ⛈️ **Bearish:** Kurs < SMA20 oder deutlicher Abverkauf.
     
     **2. Die Signal-Logik:**
-    *   <span style='color:#3fb950; border:1px solid #3fb950; padding:2px 5px; border-radius:3px; font-weight:bold;'>C</span> **(Call/Long):** Kurs liegt über SMA20 und die letzten 3 Tage waren steigend.
-    *   <span style='color:#007bff; border:1px solid #007bff; padding:2px 5px; border-radius:3px; font-weight:bold;'>P</span> **(Put/Short):** Kurs liegt unter SMA20 und die letzten 3 Tage waren fallend.
-    *   **Wait:** Aktuell kein valider Momentum-Einstieg vorhanden.
+    *   <span style='color:#3fb950; border:1px solid #3fb950; padding:2px 5px; border-radius:3px; font-weight:bold;'>C</span> **(Call/Long):** Kurs liegt über SMA20 und 3 Tage steigend.
+    *   <span style='color:#007bff; border:1px solid #007bff; padding:2px 5px; border-radius:3px; font-weight:bold;'>P</span> **(Put/Short):** Kurs liegt unter SMA20 und 3 Tage fallend.
+    *   **Wait:** Kein valider Momentum-Einstieg.
     
     **3. Wahrscheinlichkeit (Backtest):**
-    Historische Trefferquote der letzten 12 Monate. Signale mit <span style='color:#ffd700; font-weight:bold;'>≥ 60,0%</span> werden gold markiert.
+    Signale mit <span style='color:#ffd700; font-weight:bold;'>≥ 60,0%</span> werden gold markiert.
     
     **4. Risikomanagement:**
-    Der **Stop-Loss** wird technisch via ATR (1.5x) berechnet, um Marktrauschen abzufedern.
+    Der **Stop-Loss** basiert auf ATR (1.5x).
     """, unsafe_allow_html=True)
 
 # --- MACRO SEKTION ---
@@ -173,7 +172,7 @@ with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
         "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "BAJAJ-AUTO.NS", "BHARTIARTL.NS"]
     }
     
-    col_sel, col_btn = st.columns([3,1])
+    col_sel, col_btn = st.columns([3, 1])
     if 'scan_active' not in st.session_state: st.session_state.scan_active = False
     
     with col_sel:
