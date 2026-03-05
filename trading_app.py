@@ -154,7 +154,8 @@ def render_row(res):
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
 st.markdown(f"<div class='status-bar'>🕒 Update: {datetime.now().strftime('%H:%M:%S')} | 🔄 45s Refresh</div>", unsafe_allow_html=True)
 
-with st.expander("ℹ️ STRATEGIE-LOGIK", expanded=False):
+# --- VOLLSTÄNDIGE STRATEGIE-LOGIK (DETAILLIERT) ---
+with st.expander("ℹ️ AUSFÜHRLICHE STRATEGIE-BESCHREIBUNG & HANDELSLOGIK", expanded=False):
     st.markdown("""
     <div style='background-color: #0d1117; padding: 15px; border-radius: 8px; border: 1px solid #30363d; color: #e0e0e0 !important;'>
         <h3 style='color: #ffd700 !important; margin-top: 0;'>📡 Dr. Gregor Bauer Strategie Pro 2026</h3>
@@ -193,6 +194,7 @@ with st.expander("ℹ️ STRATEGIE-LOGIK", expanded=False):
     </div>
     """, unsafe_allow_html=True)
 
+
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 for t in macro_tickers:
@@ -222,4 +224,5 @@ if st.session_state.scan_active:
         hits = sorted([r for r in results if r and r['signal'] != "Wait"], key=lambda x: (x['prob'] < 60.0, -x['prob']))
         for r in hits: render_row(r)
 else: st.warning("Scanner im Standby.")
+
 
