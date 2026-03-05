@@ -34,7 +34,7 @@ st.markdown("""
     .sl-value { color: #e0e0e0; font-weight: bold; font-size: 1.1rem; }
     .kurs-label { color: #888; font-size: 0.85rem; }
     .row-container { border-bottom: 1px solid #1a202c; padding: 12px 0; width: 100%; }
-    .scan-info { color: #888; font-style: italic; font-size: 0.9rem; margin-bottom: 10px; }
+    .scan-info { color: #ffd700; font-style: italic; font-size: 0.9rem; margin-bottom: 10px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -97,12 +97,10 @@ def render_row(res):
         st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.85rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
     
     with c3:
-        # Nur Signale C oder P erhalten hier eine Box
         cls = "sig-box-high" if res['prob'] >= 60.0 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
         st.markdown(f"<br><span class='{cls}'>{res['signal']}</span>", unsafe_allow_html=True)
             
     with c4:
-        # Stop-Loss Anzeige (immer vorhanden, da nur Signal-Werte hier landen)
         if res['prob'] >= 60.0:
             prob_txt = f"<span style='color:#ffd700 !important; font-weight:bold; font-size:1.0rem;'>{res['prob']:.1f}%</span>"
         else:
@@ -114,17 +112,12 @@ def render_row(res):
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
 st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
-with st.expander("ℹ️ Strategie-Leitfaden", expanded=False):
-    st.markdown("""
-    **Filter-Info:** Es werden nur Werte mit aktivem Signal und Stop-Loss angezeigt. Alle anderen Aktien des Index werden im Hintergrund geprüft.
-    """, unsafe_allow_html=True)
-
-# MACRO (Hier zeigen wir alles an, da es Referenzwerte sind)
+# MACRO
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 for t in macro_tickers:
     res = fetch_data(t)
-    if res: render_row(res)
+    if res and res['signal'] != "Wait": render_row(res)
 
 # SCANNER
 st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
@@ -144,11 +137,19 @@ index_data = {
     "Nasdaq 100 Top": [
         "AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL", "META", "AVGO", "PEP", "COST", "ADBE", "CSCO", 
         "NFLX", "AMD", "CMCSA", "TMUS", "INTC", "INTU", "AMAT", "QCOM", "TXN", "AMGN", "HON", "ISRG"
+    ],
+    "BIST 100": [
+        "THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS", "ASELS.IS", "KCHOL.IS", "SAHOL.IS",
+        "GUBRF.IS", "EKGYO.IS", "BIMAS.IS", "SISE.IS", "PETKM.IS", "ARCLK.IS", "PGSUS.IS", "YKBNK.IS"
+    ],
+    "NIFTY 50": [
+        "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "HINDUNILVR.NS", "SBIN.NS",
+        "BHARTIARTL.NS", "LICI.NS", "ITC.NS", "KOTAKBANK.NS", "LT.NS", "AXISBANK.NS", "ASIANPAINT.NS"
     ]
 }
 
 with st.expander("Index-Auswahl & Scan", expanded=True):
-    col_sel, col_btn = st.columns([3, 1])
+    col_sel, col_btn = st.columns()
     if 'scan_active' not in st.session_state: st.session_state.scan_active = False
     with col_sel:
         choice = st.radio("Index:", list(index_data.keys()), horizontal=True)
@@ -158,21 +159,19 @@ with st.expander("Index-Auswahl & Scan", expanded=True):
             st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
-    total_count = len(index_data[choice])
-    st.markdown(f"<div class='scan-info'>Scanne alle {total_count} Aktien im {choice}... Zeige nur Treffer mit Signal.</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='scan-info'>Live-Abfrage: Alle {len(index_data[choice])} Aktien im {choice} werden gescannt...</div>", unsafe_allow_html=True)
     
     with ThreadPoolExecutor(max_workers=30) as executor:
         results = list(executor.map(fetch_data, index_data[choice]))
+        # Filter auf Signale (C/P)
+        signal_hits = [r for r in results if r is not None and r['signal'] != "Wait"]
         
-        # FILTER: Nur Werte anzeigen, deren Signal NICHT "Wait" ist
-        signal_results = [r for r in results if r is not None and r['signal'] != "Wait"]
-        
-        if signal_results:
-            # Sortierung nach Wahrscheinlichkeit
-            sorted_results = sorted(signal_results, key=lambda x: x['prob'], reverse=True)
-            for r in sorted_results:
+        if signal_hits:
+            # Sortierung: Gold-Signale zuerst, dann nach Wahrscheinlichkeit
+            sorted_hits = sorted(signal_hits, key=lambda x: (x['prob'] < 60.0, -x['prob']))
+            for r in sorted_hits:
                 render_row(r)
         else:
-            st.info("Aktuell keine aktiven Signale (C/P) im gewählten Index gefunden.")
+            st.info(f"Derzeit keine aktiven Bauer-Signale (C/P) im {choice} gefunden.")
 else:
     st.warning("Scanner im Standby.")
