@@ -22,23 +22,31 @@ st.markdown("""
     <style>
     .stApp { background-color: #050a0f; }
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
-    .header-text { font-size: 20px; font-weight: bold; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; }
     
-    /* Signal Design: Kompakter & Schärfer */
+    /* RADIKALE ABSTANDS-REDUKTION */
+    .row-container { 
+        border-bottom: 1px solid #1a202c; 
+        padding: 0px 0px !important; 
+        margin: 0px !important; 
+        line-height: 1.0 !important; 
+    }
+    
+    /* Streamlit-eigene Abstände zwischen Widgets entfernen */
+    [data-testid="stVerticalBlock"] > div {
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+        margin-top: 0px !important;
+    }
+
     .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
     .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
     .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
     
     .sl-label { color: #888; font-size: 0.7rem; }
     .sl-value { color: #e0e0e0; font-weight: bold; font-size: 0.95rem; }
-    .indicator-label { color: #666; font-size: 0.65rem; line-height: 1.0; }
+    .indicator-label { color: #666; font-size: 0.65rem; }
     .kurs-label { color: #888; font-size: 0.75rem; }
-    
-    /* ULTIMATIV KOMPAKT: Padding auf 0px reduziert */
-    .row-container { border-bottom: 1px solid #1a202c; padding: 0px 0; width: 100%; line-height: 1.0; }
-    .scan-info { color: #ffd700; font-style: italic; font-size: 0.75rem; margin-bottom: 1px; font-weight: bold; }
-    
-    .block-container { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+    .header-text { font-size: 20px; font-weight: bold; margin-top: 10px; margin-bottom: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -61,8 +69,7 @@ def calculate_indicators(df):
     
     plus_dm = df['High'].diff()
     minus_dm = df['Low'].diff()
-    plus_dm[plus_dm < 0] = 0
-    minus_dm[minus_dm > 0] = 0
+    plus_dm[plus_dm < 0] = 0; minus_dm[minus_dm > 0] = 0
     tr = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
     atr = tr.rolling(window=14).mean()
     
@@ -93,17 +100,17 @@ def fetch_data(ticker):
     df, last_atr = calculate_indicators(df)
     curr = float(df['Close'].iloc[-1]); prev = df['Close'].iloc[-2]; prev2 = df['Close'].iloc[-3]
     open_t = df['Open'].iloc[-1]; sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
-    
     rsi_val = df['RSI'].iloc[-1]; adx_val = df['ADX'].iloc[-1]
+    
     signal = "C" if (curr > prev > prev2 and curr > sma20) else "P" if (curr < prev < prev2 and curr < sma20) else "Wait"
     delta = ((curr - open_t) / open_t) * 100
     stop = curr - (last_atr * 1.5) if signal == "C" else curr + (last_atr * 1.5) if signal == "P" else 0
     icon = "☀️" if (curr > sma20 and delta > 0.3) else "⚖️" if abs(delta) < 0.3 else "⛈️"
     
     return {
-        "display_name": name, "ticker": ticker, "price": curr, 
-        "delta": delta, "signal": signal, "stop": stop, "icon": icon, 
-        "prob": calculate_probability(df, signal), "rsi": rsi_val, "adx": adx_val
+        "display_name": name, "ticker": ticker, "price": curr, "delta": delta, 
+        "signal": signal, "stop": stop, "icon": icon, "prob": calculate_probability(df, signal), 
+        "rsi": rsi_val, "adx": adx_val
     }
 
 # --- 3. UI RENDERER ---
@@ -117,56 +124,33 @@ def render_row(res):
         rsi_c = "#3fb950" if res['rsi'] < 30 else "#ff4b4b" if res['rsi'] > 70 else "#666"
         adx_c = "#ffd700" if (not np.isnan(res['adx']) and res['adx'] > 25) else "#666"
         adx_txt = f"{res['adx']:.1f}" if not np.isnan(res['adx']) else "---"
-        st.markdown(f"""
-            **{res['display_name']}**<br>
-            <span class='kurs-label'>K: {fmt.format(res['price'])}</span><br>
-            <span class='indicator-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b> | ADX: <b style='color:{adx_c};'>{adx_txt}</b></span>
-        """, unsafe_allow_html=True)
+        st.markdown(f"**{res['display_name']}**<br><span class='kurs-label'>K: {fmt.format(res['price'])}</span><br><span class='indicator-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b> | ADX: <b style='color:{adx_c};'>{adx_txt}</b></span>", unsafe_allow_html=True)
     with c2:
         color = "#3fb950" if res['delta'] >= 0 else "#007bff"
-        st.markdown(f"<div style='text-align:center; margin-top:2px;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.75rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.75rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
     with c3:
         if res['signal'] != "Wait":
             cls = "sig-box-high" if res['prob'] >= 60.0 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
-            st.markdown(f"<div style='margin-top:6px; text-align:center;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
-        else: st.markdown(f"<div style='margin-top:6px; text-align:center; color:#333;'>---</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-top:5px; text-align:center;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
+        else: st.markdown(f"<div style='margin-top:5px; text-align:center; color:#333;'>---</div>", unsafe_allow_html=True)
     with c4:
         if res['stop'] != 0:
             p_c = "#ffd700" if res['prob'] >= 60.0 else "#666"
             st.markdown(f"<div style='text-align:right;'><span class='sl-label'>SL</span> <b style='color:{p_c};'>{res['prob']:.1f}%</b><br><span class='sl-value'>{fmt.format(res['stop'])}</span></div>", unsafe_allow_html=True)
-        else: st.markdown("<div style='text-align:right; margin-top:4px; color:#333;'>---</div>", unsafe_allow_html=True)
+        else: st.markdown("<div style='text-align:right; margin-top:5px; color:#333;'>---</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 4. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
 
-with st.expander("ℹ️ AUSFÜHRLICHE STRATEGIE-BESCHREIBUNG", expanded=False):
-    st.markdown("""
-    ### 📡 System-Logik & Trading-Parameter
-    Diese Applikation scannt Märkte nach der Momentum-Strategie von **Dr. Gregor Bauer**.
-    
-    **1. Markt-Sentiment (Icons):**
-    - ☀️ **Bullish:** Kurs über SMA20 & positives Momentum (>0.3%).
-    - ⚖️ **Neutral:** Seitwärtsbewegung oder geringe Volatilität.
-    - ⛈️ **Bearish:** Kurs unter SMA20 oder deutlicher Abverkauf.
-    
-    **2. Die Bauer-Signale:**
-    - <span style='color:#3fb950;'>**C (Call/Long):**</span> Kurs > SMA20 + 3 aufeinanderfolgende grüne Kerzen.
-    - <span style='color:#007bff;'>**P (Put/Short):**</span> Kurs < SMA20 + 3 aufeinanderfolgende rote Kerzen.
-    - <span style='color:#ffd700;'>**Gold-Status:**</span> Signale mit einer historischen Trefferquote von **≥ 60,0%** (Backtest 12 Monate).
-    
-    **3. Technische Filter (Indikatoren):**
-    - **RSI (14):** <span style='color:#3fb950;'>Grün (<30)</span> zeigt Überverkauf (Long-Chance). <span style='color:#ff4b4b;'>Rot (>70)</span> zeigt Überkauf (Korrekturgefahr).
-    - **ADX:** Ein Wert **> 25 (Gold)** bestätigt einen starken Trend. Signale in trendstarken Märkten sind statistisch verlässlicher.
-    
-    **4. Risikomanagement:**
-    Der **Stop-Loss (SL)** wird dynamisch über die **1.5-fache ATR** (Average True Range) berechnet, um Marktrauschen zu filtern.
-    """, unsafe_allow_html=True)
+with st.expander("ℹ️ STRATEGIE-BESCHREIBUNG", expanded=False):
+    st.markdown("""☀️ Bullish | ⚖️ Neutral | ⛈️ Bearish | <span style='color:#3fb950;'>C</span> Call | <span style='color:#007bff;'>P</span> Put | <span style='color:#ffd700;'>Gold</span> ≥ 60% Prob. | ADX > 25 (Trend)""", unsafe_allow_html=True)
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 for t in macro_tickers:
-    res = fetch_data(t); render_row(res) if res else None
+    res = fetch_data(t)
+    if res: render_row(res)
 
 st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
 index_data = {
@@ -186,10 +170,8 @@ with col_btn:
         st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
-    st.markdown(f"<div class='scan-info'>Live-Scan: {choice}</div>", unsafe_allow_html=True)
     with ThreadPoolExecutor(max_workers=30) as executor:
         results = list(executor.map(fetch_data, index_data[choice]))
         hits = sorted([r for r in results if r and r['signal'] != "Wait"], key=lambda x: (x['prob'] < 60.0, -x['prob']))
         for r in hits: render_row(r)
-        if not hits: st.info("Keine aktiven Signale gefunden.")
 else: st.warning("Scanner im Standby.")
