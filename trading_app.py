@@ -182,7 +182,7 @@ macro_tickers = [
     "^IXIC",        # Nasdaq Composite
     "XU100.IS",     # BIST 100
     "^NSEI",        # Nifty 50
-    "IMOEX.ME"      # MOEX Russia Index ➜ neu
+    "RTSI.ME"       # Russian RTS Index (funktioniert!)
 ]
 
 for t in macro_tickers:
@@ -223,6 +223,7 @@ if st.session_state.scan_active:
         else: st.info("Keine aktiven Signale.")
 else:
     st.warning("Scanner im Standby.")
+
 
 
 
