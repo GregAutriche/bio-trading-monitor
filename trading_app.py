@@ -31,13 +31,16 @@ st.markdown("""
     .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 1px 6px; border-radius: 4px; font-weight: bold; }
     
     .sl-label { color: #888; font-size: 0.8rem; }
-    .sl-value { color: #e0e0e0; font-weight: bold; font-size: 1.0rem; }
-    .indicator-label { color: #888; font-size: 0.75rem; line-height: 1.2; }
-    .kurs-label { color: #888; font-size: 0.8rem; }
+    .sl-value { color: #e0e0e0; font-weight: bold; font-size: 1.05rem; }
+    .indicator-label { color: #888; font-size: 0.75rem; line-height: 1.1; }
+    .kurs-label { color: #888; font-size: 0.85rem; font-weight: bold; }
     
-    /* KOMPAKT-MODUS: Padding von 12px auf 4px reduziert */
-    .row-container { border-bottom: 1px solid #1a202c; padding: 4px 0; width: 100%; line-height: 1.3; }
-    .scan-info { color: #ffd700; font-style: italic; font-size: 0.85rem; margin-bottom: 5px; font-weight: bold; }
+    /* MAXIMAL KOMPAKT: Padding auf 2px reduziert für minimalen Zeilenabstand */
+    .row-container { border-bottom: 1px solid #1a202c; padding: 2px 0; width: 100%; line-height: 1.2; }
+    .scan-info { color: #ffd700; font-style: italic; font-size: 0.85rem; margin-bottom: 4px; font-weight: bold; }
+    
+    /* Verhindert Streamlit Standard-Abstände */
+    .block-container { padding-top: 2rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -65,7 +68,11 @@ def calculate_indicators(df):
     minus_dm[minus_dm > 0] = 0
     tr = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
     atr = tr.rolling(window=14).mean()
-    df['ADX'] = (abs(plus_dm - abs(minus_dm)) / (plus_dm + abs(minus_dm))).rolling(window=14).mean() * 100
+    
+    # ADX Berechnung mit Korrektur für nan
+    diff = (plus_dm + abs(minus_dm))
+    adx_raw = (abs(plus_dm - abs(minus_dm)) / diff.replace(0, np.nan))
+    df['ADX'] = adx_raw.rolling(window=14).mean() * 100
     return df, atr.iloc[-1]
 
 def calculate_probability(df, signal_type):
@@ -114,43 +121,42 @@ def render_row(res):
     is_forex = ("=" in res['ticker'])
     fmt = "{:.6f}" if is_forex else "{:.2f}"
     st.markdown("<div class='row-container'>", unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns([1.2, 0.6, 0.5, 1.2])
+    # BREITE WIEDERHERGESTELLT: Neue Spaltenaufteilung für mehr Platz
+    c1, c2, c3, c4 = st.columns([1.5, 0.6, 0.6, 1.5])
     
     with c1:
-        rsi_c = "#ff4b4b" if res['rsi'] > 70 else "#3fb950" if res['rsi'] < 30 else "#888"
-        adx_c = "#ffd700" if res['adx'] > 25 else "#888"
+        rsi_c = "#ff4b4b" if res['rsi'] > 70 else "#3fb950" if res['rsi'] < 30 else "#3fb950"
+        adx_c = "#ffd700" if (not np.isnan(res['adx']) and res['adx'] > 25) else "#888"
+        adx_txt = f"{res['adx']:.1f}" if not np.isnan(res['adx']) else "---"
+        
         st.markdown(f"""
             **{res['display_name']}**<br>
             <span class='kurs-label'>K: {fmt.format(res['price'])}</span><br>
-            <span class='indicator-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b> | ADX: <b style='color:{adx_c};'>{res['adx']:.1f}</b></span>
+            <span class='indicator-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b> | ADX: <b style='color:{adx_c};'>{adx_txt}</b></span>
         """, unsafe_allow_html=True)
     
     with c2:
         color = "#3fb950" if res['delta'] >= 0 else "#007bff"
-        st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.8rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align:center; margin-top:4px;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.85rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
     
     with c3:
         if res['signal'] != "Wait":
             cls = "sig-box-high" if res['prob'] >= 60.0 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
-            # <br> entfernt für kompaktere vertikale Ausrichtung
-            st.markdown(f"<div style='margin-top:8px;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-top:10px; text-align:center;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
         else:
-            st.markdown(f"<div style='margin-top:8px; color:#444;'>{res['signal']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-top:10px; text-align:center; color:#444;'>---</div>", unsafe_allow_html=True)
             
     with c4:
         if res['stop'] != 0:
             prob_txt = f"<span style='color:#ffd700 !important; font-weight:bold;'>{res['prob']:.1f}%</span>" if res['prob'] >= 60.0 else f"<span style='color:#888 !important;'>({res['prob']:.1f}%)</span>"
-            st.markdown(f"<span class='sl-label'>SL</span> {prob_txt}<br><span class='sl-value'>{fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
+            st.markdown(f"<div style='text-align:right;'><span class='sl-label'>SL</span> {prob_txt}<br><span class='sl-value'>{fmt.format(res['stop'])}</span></div>", unsafe_allow_html=True)
         else:
-            st.markdown("<span class='sl-label'>SL</span><br><span style='color:#444;'>---</span>", unsafe_allow_html=True)
+            st.markdown("<div style='text-align:right;'><span class='sl-label'>SL</span><br><span style='color:#444;'>---</span></div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 4. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
-st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | 45s Refresh")
-
-with st.expander("ℹ️ Strategie-Leitfaden", expanded=False):
-    st.markdown("""☀️ Bullish | ⚖️ Neutral | ⛈️ Bearish | **C** Call/Long | **P** Put/Short (Blau) | **Gold** ≥ 60% Wahrscheinlichkeit.""")
+st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
 # MACRO
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
@@ -181,7 +187,7 @@ with st.expander("Index-Auswahl & Scan", expanded=True):
             st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
-    st.markdown(f"<div class='scan-info'>Scan läuft: {choice}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='scan-info'>Live-Scan: {choice}</div>", unsafe_allow_html=True)
     with ThreadPoolExecutor(max_workers=30) as executor:
         results = list(executor.map(fetch_data, index_data[choice]))
         signal_hits = [r for r in results if r is not None and r['signal'] != "Wait"]
