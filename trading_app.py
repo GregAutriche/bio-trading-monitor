@@ -23,7 +23,7 @@ st.markdown("""
     .stApp { background-color: #050a0f; }
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
     
-    /* MAXIMALE KOMPRIMIERUNG DER ZEILEN */
+    /* ZEILEN-STYLING: Maximal kompakt */
     .row-container { 
         border-bottom: 1px solid #1a202c; 
         padding: 0px 0px !important; 
@@ -31,22 +31,25 @@ st.markdown("""
         line-height: 1.1 !important; 
     }
     
-    /* Entfernt Streamlit Standard-Abstände zwischen Elementen */
+    /* TITEL (Fett) & KURS (Normal) - Gleiche Größe */
+    .stock-title { font-weight: bold; font-size: 1.05rem; display: block; }
+    .kurs-label { color: #e0e0e0 !important; font-weight: normal; font-size: 1.05rem; }
+    
+    .indicator-label { color: #666; font-size: 0.7rem; margin-top: -2px; }
+    .sl-label { color: #888; font-size: 0.7rem; }
+    .sl-value { color: #e0e0e0; font-weight: bold; font-size: 1.0rem; }
+
+    .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.85rem; }
+    .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.85rem; }
+    .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.85rem; }
+    
+    .header-text { font-size: 18px; font-weight: bold; margin-top: 5px; margin-bottom: 2px; color: #ffd700 !important; }
+    
     [data-testid="stVerticalBlock"] > div {
         padding-top: 0rem !important;
         padding-bottom: 0rem !important;
         margin-top: 0px !important;
     }
-
-    .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
-    .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
-    .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
-    
-    .sl-label { color: #888; font-size: 0.7rem; }
-    .sl-value { color: #e0e0e0; font-weight: bold; font-size: 0.95rem; }
-    .indicator-label { color: #666; font-size: 0.65rem; }
-    .kurs-label { color: #888; font-size: 0.75rem; }
-    .header-text { font-size: 18px; font-weight: bold; margin-top: 5px; margin-bottom: 2px; color: #ffd700 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -118,54 +121,48 @@ def render_row(res):
     if not res: return
     fmt = "{:.6f}" if ("=" in res['ticker']) else "{:.2f}"
     st.markdown("<div class='row-container'>", unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns([1.6, 0.6, 0.6, 1.6])
+    c1, c2, c3, c4 = st.columns([1.8, 0.6, 0.6, 1.8])
     
     with c1:
         rsi_c = "#3fb950" if res['rsi'] < 30 else "#ff4b4b" if res['rsi'] > 70 else "#666"
         adx_c = "#ffd700" if (not np.isnan(res['adx']) and res['adx'] > 25) else "#666"
         adx_txt = f"{res['adx']:.1f}" if not np.isnan(res['adx']) else "---"
-        st.markdown(f"**{res['display_name']}**<br><span class='kurs-label'>K: {fmt.format(res['price'])}</span><br><span class='indicator-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b> | ADX: <b style='color:{adx_c};'>{adx_txt}</b></span>", unsafe_allow_html=True)
+        st.markdown(f"""
+            <span class='stock-title'>{res['display_name']}</span>
+            <span class='kurs-label'>K: {fmt.format(res['price'])}</span><br>
+            <span class='indicator-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b> | ADX: <b style='color:{adx_c};'>{adx_txt}</b></span>
+        """, unsafe_allow_html=True)
     with c2:
         color = "#3fb950" if res['delta'] >= 0 else "#007bff"
-        st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.75rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align:center; margin-top:2px;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.8rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
     with c3:
         if res['signal'] != "Wait":
             cls = "sig-box-high" if res['prob'] >= 60.0 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
-            st.markdown(f"<div style='margin-top:2px; text-align:center;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
-        else: st.markdown(f"<div style='margin-top:2px; text-align:center; color:#333;'>---</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-top:6px; text-align:center;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
+        else: st.markdown(f"<div style='margin-top:6px; text-align:center; color:#333;'>---</div>", unsafe_allow_html=True)
     with c4:
         if res['stop'] != 0:
             p_c = "#ffd700" if res['prob'] >= 60.0 else "#666"
             st.markdown(f"<div style='text-align:right;'><span class='sl-label'>SL</span> <b style='color:{p_c};'>{res['prob']:.1f}%</b><br><span class='sl-value'>{fmt.format(res['stop'])}</span></div>", unsafe_allow_html=True)
-        else: st.markdown("<div style='text-align:right; margin-top:2px; color:#333;'>---</div>", unsafe_allow_html=True)
+        else: st.markdown("<div style='text-align:right; margin-top:4px; color:#333;'>---</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 4. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
 
-# KORRIGIERTE BESCHREIBUNG OHNE CODE-ANZEIGE
 with st.expander("ℹ️ DETAILLIERTE STRATEGIE-LOGIK", expanded=False):
     st.markdown("""
-    <div style='background-color: #0d1117; padding: 10px; border-radius: 5px; border: 1px solid #30363d;'>
-        <p style='color: #e0e0e0 !important; font-size: 0.9rem; margin-bottom: 5px;'><strong>1. Das Bauer-Signal (Momentum):</strong><br>
-        Scannt nach Preistrends über/unter dem <b>SMA 20</b> mit <b>3-Tage-Bestätigung</b>:</p>
-        <ul style='color: #e0e0e0 !important; font-size: 0.85rem;'>
-            <li><span style='color:#3fb950 !important; font-weight:bold;'>C (Long):</span> Kurs > SMA20 UND 3 Tage steigend.</li>
-            <li><span style='color:#007bff !important; font-weight:bold;'>P (Short):</span> Kurs < SMA20 UND 3 Tage fallend.</li>
-        </ul>
-        <p style='color: #e0e0e0 !important; font-size: 0.9rem; margin-bottom: 5px;'><strong>2. Indikatoren & Gold-Logik:</strong></p>
-        <ul style='color: #e0e0e0 !important; font-size: 0.85rem;'>
-            <li><span style='color:#ffd700 !important; font-weight:bold;'>Gold-Status:</span> Statistische Trefferrate (Backtest 12M) <b>≥ 60%</b>.</li>
-            <li><b>ADX > 25:</b> Bestätigt starken Trend. <b>RSI:</b> Grün (<30) = Überverkauft, Rot (>70) = Überkauft.</li>
-        </ul>
+    <div style='background-color: #0d1117; padding: 10px; border-radius: 5px; border: 1px solid #30363d; color: #e0e0e0 !important;'>
+        <p style='margin-bottom: 5px;'><strong>1. Bauer-Signal:</strong> Trendbestätigung über SMA20 mit 3-Tage-Muster (Call/Put).</p>
+        <p style='margin-bottom: 5px;'><strong>2. Filter:</strong> RSI < 30 (überverkauft), RSI > 70 (überhitzt). ADX > 25 zeigt Trendstärke.</p>
+        <p><strong>3. Risikomanagement:</strong> SL via 1.5x ATR (Volatilitäts-Stop).</p>
     </div>
     """, unsafe_allow_html=True)
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 for t in macro_tickers:
-    res = fetch_data(t)
-    if res: render_row(res)
+    res = fetch_data(t); render_row(res) if res else None
 
 st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
 index_data = {
