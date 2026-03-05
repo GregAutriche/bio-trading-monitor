@@ -146,11 +146,11 @@ def render_row(res):
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 4. MAIN APP ---
-st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
+st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie 📡</div>", unsafe_allow_html=True)
 st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
 # --- WIEDERHERGESTELLTE BESCHREIBUNG ---
-with st.expander("ℹ️ Strategie-Leitfaden & Markt-Symbole", expanded=False):
+with st.expander("ℹ️ Strategie-Leitfaden + Markt-Symbole ℹ️", expanded=False):
     st.markdown("""
     ### 📡 Die Bauer-Strategie Pro 2026
     Dieser Scanner analysiert Märkte basierend auf Momentum und Trendbestätigung.
@@ -172,7 +172,7 @@ with st.expander("ℹ️ Strategie-Leitfaden & Markt-Symbole", expanded=False):
     """, unsafe_allow_html=True)
 
 # MACRO
-st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
+st.markdown("<div class='header-text'>🌍 Macro + Indices 🌍</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 for t in macro_tickers:
     res = fetch_data(t)
@@ -210,4 +210,5 @@ if st.session_state.scan_active:
         else: st.info("Keine aktiven Signale.")
 else:
     st.warning("Scanner im Standby.")
+
 
