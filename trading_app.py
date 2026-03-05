@@ -208,3 +208,4 @@ if st.session_state.scan_active:
         for r in hits: render_row(r)
 else: st.warning("Scanner im Standby.")
 
+
