@@ -24,9 +24,12 @@ st.markdown("""
     .stApp { background-color: #050a0f; }
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
     .header-text { font-size: 24px; font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
-    .sig-box-p { color: #ff4b4b; border: 1px solid #ff4b4b; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    
+    /* Signal Design: P = BLAU, C = GRÜN, HIGH = GOLD */
+    .sig-box-p { color: #007bff; border: 1px solid #007bff; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
     .sig-box-c { color: #3fb950; border: 1px solid #3fb950; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
     .sig-box-high { color: #ffd700; border: 1px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    
     .sl-label { color: #888; font-size: 0.85rem; }
     .sl-value { color: #e0e0e0; font-weight: bold; font-size: 1.1rem; }
     .prob-val { color: #888; font-size: 0.85rem; margin-left: 5px; }
@@ -99,12 +102,17 @@ def render_row(res):
     with c1:
         st.markdown(f"**{res['display_name']}**<br><span class='kurs-label'>Kurs: {fmt.format(res['price'])}</span>", unsafe_allow_html=True)
     with c2:
-        color = "#3fb950" if res['delta'] >= 0 else "#ff4b4b"
+        # BLAU für negatives Delta, GRÜN für positives
+        color = "#3fb950" if res['delta'] >= 0 else "#007bff"
         st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{color}; font-size:0.85rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
     
     with c3:
         if res['signal'] != "Wait":
-            cls = "sig-box-high" if res['prob'] >= 60.0 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
+            # LOGIK: Signal-Box (Gold bei >60%, sonst Grün/Blau)
+            if res['prob'] >= 60.0:
+                cls = "sig-box-high"
+            else:
+                cls = "sig-box-c" if res['signal'] == "C" else "sig-box-p"
             st.markdown(f"<br><span class='{cls}'>{res['signal']}</span>", unsafe_allow_html=True)
         else: 
             st.markdown(f"<br><span style='color:#444;'>{res['signal']}</span>", unsafe_allow_html=True)
@@ -119,39 +127,39 @@ def render_row(res):
 
 # --- 5. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
-st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
+st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Refresh: 45s")
 
 # --- STRATEGIE BESCHREIBUNG (EXPANDER) ---
 with st.expander("ℹ️ Strategie-Leitfaden & Markt-Symbole", expanded=False):
     st.markdown("""
     ### 📡 Die Bauer-Strategie Pro 2026
-    Dieser Scanner analysiert Märkte basierend auf Momentum und Trendbestätigung.
+    Analyse von Momentum-Mustern und Trendbestätigungen.
     
     **1. Markt-Zustand (Symbole):**
-    *   ☀️ **Bullish:** Der Kurs liegt über dem SMA20 und das Tagesplus beträgt mehr als 0,3%.
-    *   ⚖️ **Neutral:** Der Markt bewegt sich seitwärts oder hat nur sehr geringe Dynamik.
-    *   ⛈️ **Bearish:** Der Kurs liegt unter dem SMA20 oder weist ein deutliches Tagesminus auf.
+    *   ☀️ **Bullish:** Kurs > SMA20 und Tagesplus > 0,3%.
+    *   ⚖️ **Neutral:** Geringe Volatilität oder Seitwärtsphase.
+    *   ⛈️ **Bearish:** Kurs < SMA20 oder deutlicher Abverkauf.
     
     **2. Die Signal-Logik:**
-    *   <span class='sig-box-c'>C</span> **(Call/Long):** Kurs > SMA20 **und** 3 aufeinanderfolgende steigende Schlusskurse.
-    *   <span class='sig-box-p'>P</span> **(Put/Short):** Kurs < SMA20 **und** 3 aufeinanderfolgende fallende Schlusskurse.
-    *   **Wait:** Kein eindeutiger Trend im Momentum-Fenster erkennbar.
+    *   <span style='color:#3fb950; border:1px solid #3fb950; padding:2px 5px; border-radius:3px; font-weight:bold;'>C</span> **(Call/Long):** Kurs liegt über SMA20 und die letzten 3 Tage waren steigend.
+    *   <span style='color:#007bff; border:1px solid #007bff; padding:2px 5px; border-radius:3px; font-weight:bold;'>P</span> **(Put/Short):** Kurs liegt unter SMA20 und die letzten 3 Tage waren fallend.
+    *   **Wait:** Aktuell kein valider Momentum-Einstieg vorhanden.
     
     **3. Wahrscheinlichkeit (Backtest):**
-    Die Prozentzahl zeigt, wie oft dieses Signal in den letzten 12 Monaten nach 3 Tagen im Profit landete. 
-    Werte <span style='color:#ffd700; font-weight:bold;'>≥ 60,0%</span> gelten als **High Probability** und werden gold markiert.
+    Historische Trefferquote der letzten 12 Monate. Signale mit <span style='color:#ffd700; font-weight:bold;'>≥ 60,0%</span> werden gold markiert.
     
     **4. Risikomanagement:**
-    Der **Stop-Loss** basiert auf der Average True Range (ATR x 1.5). Er dient als technischer Schutz vor Volatilitätsspitzen.
+    Der **Stop-Loss** wird technisch via ATR (1.5x) berechnet, um Marktrauschen abzufedern.
     """, unsafe_allow_html=True)
 
-
+# --- MACRO SEKTION ---
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 for t in macro_tickers:
     res = fetch_data(t)
     if res: render_row(res)
 
+# --- SCANNER SEKTION ---
 st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
 
 with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
@@ -174,11 +182,10 @@ with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
             st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
-    st.info(f"Live-Scan läuft: {choice}")
+    st.info(f"Live-Scan: {choice}")
     with ThreadPoolExecutor(max_workers=10) as executor:
         results = list(executor.map(fetch_data, index_data[choice]))
         valid_results = sorted([r for r in results if r is not None], key=lambda x: x['prob'], reverse=True)
         for r in valid_results: render_row(r)
 else:
-    st.warning("Scanner im Standby.")
-
+    st.warning("Scanner Standby. Bitte 'Scan Start' drücken.")
