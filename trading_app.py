@@ -25,6 +25,7 @@ st.markdown("""
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
     .header-text { font-size: 24px; font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
     
+    /* Signal Design: P = BLAU, C = GRÜN, HIGH = GOLD */
     .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
     .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
     .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
@@ -34,6 +35,7 @@ st.markdown("""
     .indicator-label { color: #888; font-size: 0.75rem; margin-top: 2px; }
     .kurs-label { color: #888; font-size: 0.85rem; }
     .row-container { border-bottom: 1px solid #1a202c; padding: 12px 0; width: 100%; }
+    .scan-info { color: #ffd700; font-style: italic; font-size: 0.9rem; margin-bottom: 10px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -44,7 +46,7 @@ def get_historical_data(ticker):
     try:
         t_obj = yf.Ticker(ticker)
         df = t_obj.history(period="1y", interval="1d", auto_adjust=True)
-        if df.empty or len(df) < 30: return None, None
+        if df.empty or len(df) < 35: return None, None
         return df, t_obj.info.get('shortName') or ticker
     except: return None, None
 
@@ -56,7 +58,7 @@ def calculate_indicators(df):
     rs = gain / loss
     df['RSI'] = 100 - (100 / (1 + rs))
     
-    # ADX (Trendstärke) vereinfacht
+    # ADX (Trendstärke)
     plus_dm = df['High'].diff()
     minus_dm = df['Low'].diff()
     plus_dm[plus_dm < 0] = 0
@@ -145,7 +147,29 @@ def render_row(res):
 
 # --- 4. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
-st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Refresh: 45s")
+st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
+
+# --- WIEDERHERGESTELLTE BESCHREIBUNG ---
+with st.expander("ℹ️ Strategie-Leitfaden & Markt-Symbole", expanded=False):
+    st.markdown("""
+    ### 📡 Die Bauer-Strategie Pro 2026
+    Dieser Scanner analysiert Märkte basierend auf Momentum und Trendbestätigung.
+    
+    **1. Markt-Zustand (Symbole):**
+    *   ☀️ **Bullish:** Kurs > SMA20 und Tagesplus > 0,3%.
+    *   ⚖️ **Neutral:** Geringe Volatilität oder Seitwärtsphase.
+    *   ⛈️ **Bearish:** Kurs < SMA20 oder deutlicher Abverkauf.
+    
+    **2. Die Signal-Logik & RSI:**
+    *   <span style='color:#3fb950; border:1px solid #3fb950; padding:2px 5px; border-radius:3px; font-weight:bold;'>C</span> **(Call/Long):** Kurs > SMA20 und 3 steigende Tage. (RSI < 30 leuchtet GRÜN für Erholungschance).
+    *   <span style='color:#007bff; border:1px solid #007bff; padding:2px 5px; border-radius:3px; font-weight:bold;'>P</span> **(Put/Short):** Kurs < SMA20 und 3 fallende Tage. (RSI > 70 leuchtet ROT für Korrekturgefahr).
+    
+    **3. Wahrscheinlichkeit (Gold-Logik):**
+    Die Prozentzahl zeigt die historische Trefferquote (12 Monate). Signale mit <span style='color:#ffd700; font-weight:bold;'>≥ 60,0%</span> werden gold markiert.
+    
+    **4. ADX (Trendstärke):**
+    Ein ADX-Wert über <b style='color:#ffd700;'>25</b> zeigt einen starken Trend an, was die Zuverlässigkeit der Signale erhöht.
+    """, unsafe_allow_html=True)
 
 # MACRO
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
@@ -166,7 +190,7 @@ index_data = {
 }
 
 with st.expander("Index-Auswahl & Scan", expanded=True):
-    col_sel, col_btn = st.columns(2) # FIX: Hier war die Fehlermeldung
+    col_sel, col_btn = st.columns(2) # FIX: st.columns(2) verhindert den TypeError
     if 'scan_active' not in st.session_state: st.session_state.scan_active = False
     with col_sel:
         choice = st.radio("Wähle Markt:", list(index_data.keys()), horizontal=True)
@@ -176,13 +200,13 @@ with st.expander("Index-Auswahl & Scan", expanded=True):
             st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
-    st.info(f"Live-Scan {choice} läuft...")
+    st.markdown(f"<div class='scan-info'>Scanne {choice}... Zeige nur Treffer mit Signal.</div>", unsafe_allow_html=True)
     with ThreadPoolExecutor(max_workers=30) as executor:
         results = list(executor.map(fetch_data, index_data[choice]))
         signal_hits = [r for r in results if r is not None and r['signal'] != "Wait"]
         if signal_hits:
             sorted_hits = sorted(signal_hits, key=lambda x: (x['prob'] < 60.0, -x['prob']))
             for r in sorted_hits: render_row(r)
-        else: st.info("Keine aktiven Signale gefunden.")
+        else: st.info("Keine aktiven Signale.")
 else:
     st.warning("Scanner im Standby.")
