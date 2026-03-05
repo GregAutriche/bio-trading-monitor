@@ -122,23 +122,29 @@ st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>"
 st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 45s")
 
 # --- STRATEGIE BESCHREIBUNG (EXPANDER) ---
-with st.expander("ℹ️ Strategie-Leitfaden & Logik", expanded=False):
+with st.expander("ℹ️ Strategie-Leitfaden & Markt-Symbole", expanded=False):
     st.markdown("""
     ### 📡 Die Bauer-Strategie Pro 2026
     Dieser Scanner analysiert Märkte basierend auf Momentum und Trendbestätigung.
     
-    **1. Die Signal-Logik:**
-    *   **C (Call/Long):** Kurs > SMA20 **und** 3 aufeinanderfolgende steigende Schlusskurse.
-    *   **P (Put/Short):** Kurs < SMA20 **und** 3 aufeinanderfolgende fallende Schlusskurse.
-    *   **Wait:** Kein eindeutiger Trend im Momentum-Fenster.
+    **1. Markt-Zustand (Symbole):**
+    *   ☀️ **Bullish:** Der Kurs liegt über dem SMA20 und das Tagesplus beträgt mehr als 0,3%.
+    *   ⚖️ **Neutral:** Der Markt bewegt sich seitwärts oder hat nur sehr geringe Dynamik.
+    *   ⛈️ **Bearish:** Der Kurs liegt unter dem SMA20 oder weist ein deutliches Tagesminus auf.
     
-    **2. Wahrscheinlichkeit (Backtest):**
+    **2. Die Signal-Logik:**
+    *   <span class='sig-box-c'>C</span> **(Call/Long):** Kurs > SMA20 **und** 3 aufeinanderfolgende steigende Schlusskurse.
+    *   <span class='sig-box-p'>P</span> **(Put/Short):** Kurs < SMA20 **und** 3 aufeinanderfolgende fallende Schlusskurse.
+    *   **Wait:** Kein eindeutiger Trend im Momentum-Fenster erkennbar.
+    
+    **3. Wahrscheinlichkeit (Backtest):**
     Die Prozentzahl zeigt, wie oft dieses Signal in den letzten 12 Monaten nach 3 Tagen im Profit landete. 
-    Werte **≥ 60%** werden **gold (High Probability)** markiert.
+    Werte <span style='color:#ffd700; font-weight:bold;'>≥ 60,0%</span> gelten als **High Probability** und werden gold markiert.
     
-    **3. Risikomanagement:**
+    **4. Risikomanagement:**
     Der **Stop-Loss** basiert auf der Average True Range (ATR x 1.5). Er dient als technischer Schutz vor Volatilitätsspitzen.
-    """)
+    """, unsafe_allow_html=True)
+
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
@@ -175,3 +181,4 @@ if st.session_state.scan_active:
         for r in valid_results: render_row(r)
 else:
     st.warning("Scanner im Standby.")
+
