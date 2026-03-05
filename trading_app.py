@@ -24,35 +24,39 @@ st.markdown("""
     .stApp { background-color: #050a0f; }
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
     
-    /* OPTIMIERTER ZEILENABSTAND (2px) */
+    /* RADIKALE ABSTANDS-REDUKTION (None-Fix & Spacing) */
+    [data-testid="stVerticalBlock"] > div {
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+        margin-top: -8px !important; /* Zieht Elemente aktiv nach oben */
+    }
+    
     .row-container { 
         border-bottom: 1px solid #1a202c; 
-        padding: 2px 0px !important; 
+        padding: 0px !important; 
         margin: 0px !important; 
-        line-height: 1.2 !important; 
+        line-height: 1.0 !important; 
     }
     
-    /* Status-Bar Styling */
     .status-bar { 
-        font-size: 0.85rem; 
-        color: #888 !important; 
-        border-bottom: 1px solid #30363d; 
-        padding-bottom: 5px; 
-        margin-bottom: 10px;
+        font-size: 0.8rem; 
+        color: #666 !important; 
+        border-bottom: 1px solid #1a202c; 
+        padding-bottom: 2px;
     }
 
-    .stock-title { font-weight: bold; font-size: 1.05rem; display: block; }
-    .kurs-label { color: #e0e0e0 !important; font-weight: normal; font-size: 1.05rem; }
+    .stock-title { font-weight: bold; font-size: 1.05rem; display: block; margin: 0; }
+    .kurs-label { color: #e0e0e0 !important; font-weight: normal; font-size: 1.05rem; margin: 0; }
     
-    .indicator-label { color: #666; font-size: 0.75rem; margin-top: 1px; }
-    .sl-label { color: #888; font-size: 0.75rem; }
-    .sl-value { color: #e0e0e0; font-weight: bold; font-size: 1.0rem; }
+    .indicator-label { color: #555; font-size: 0.65rem; line-height: 0.9; }
+    .sl-label { color: #777; font-size: 0.7rem; }
+    .sl-value { color: #e0e0e0; font-weight: bold; font-size: 0.95rem; }
 
-    .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 1px 5px; border-radius: 3px; font-weight: bold; font-size: 0.85rem; }
-    .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 1px 5px; border-radius: 3px; font-weight: bold; font-size: 0.85rem; }
-    .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 1px 5px; border-radius: 3px; font-weight: bold; font-size: 0.85rem; }
+    .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
+    .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
+    .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
     
-    .header-text { font-size: 18px; font-weight: bold; margin-top: 5px; color: #ffd700 !important; }
+    .header-text { font-size: 18px; font-weight: bold; margin-top: 2px; color: #ffd700 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -129,52 +133,42 @@ def render_row(res):
         rsi_c = "#3fb950" if res['rsi'] < 30 else "#ff4b4b" if res['rsi'] > 70 else "#666"
         adx_c = "#ffd700" if (not np.isnan(res['adx']) and res['adx'] > 25) else "#666"
         adx_txt = f"{res['adx']:.1f}" if not np.isnan(res['adx']) else "---"
-        st.markdown(f"""
-            <span class='stock-title'>{res['display_name']}</span>
-            <span class='kurs-label'>K: {fmt.format(res['price'])}</span><br>
-            <span class='indicator-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b> | ADX: <b style='color:{adx_c};'>{adx_txt}</b></span>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<span class='stock-title'>{res['display_name']}</span><span class='kurs-label'>K: {fmt.format(res['price'])}</span><br><span class='indicator-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b> | ADX: <b style='color:{adx_c};'>{adx_txt}</b></span>", unsafe_allow_html=True)
     with c2:
         color = "#3fb950" if res['delta'] >= 0 else "#007bff"
-        st.markdown(f"<div style='text-align:center; margin-top:5px;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.85rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.75rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
     with c3:
         if res['signal'] != "Wait":
             cls = "sig-box-high" if res['prob'] >= 60.0 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
-            st.markdown(f"<div style='margin-top:10px; text-align:center;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
-        else: st.markdown(f"<div style='margin-top:10px; text-align:center; color:#333;'>---</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-top:2px; text-align:center;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
+        else: st.markdown(f"<div style='margin-top:2px; text-align:center; color:#222;'>---</div>", unsafe_allow_html=True)
     with c4:
         if res['stop'] != 0:
             p_c = "#ffd700" if res['prob'] >= 60.0 else "#666"
             st.markdown(f"<div style='text-align:right;'><span class='sl-label'>SL</span> <b style='color:{p_c};'>{res['prob']:.1f}%</b><br><span class='sl-value'>{fmt.format(res['stop'])}</span></div>", unsafe_allow_html=True)
-        else: st.markdown("<div style='text-align:right; margin-top:8px; color:#333;'>---</div>", unsafe_allow_html=True)
+        else: st.markdown("<div style='text-align:right; margin-top:2px; color:#222;'>---</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 4. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
-
-# STATUS ANZEIGE (LETZTES UPDATE & INTERVALL)
-last_update = datetime.now().strftime("%H:%M:%S")
-st.markdown(f"""
-    <div class='status-bar'>
-        🕒 Letztes Update: <b>{last_update}</b> | 🔄 Intervall: <b>45s Auto-Refresh</b>
-    </div>
-""", unsafe_allow_html=True)
+st.markdown(f"<div class='status-bar'>🕒 Update: {datetime.now().strftime('%H:%M:%S')} | 🔄 45s Refresh</div>", unsafe_allow_html=True)
 
 with st.expander("ℹ️ AUSFÜHRLICHE STRATEGIE-BESCHREIBUNG", expanded=False):
     st.markdown("""
-    <div style='background-color: #0d1117; padding: 12px; border-radius: 5px; border: 1px solid #30363d;'>
-        <p style='margin-bottom: 5px;'><strong>1. Bauer-Signal:</strong> Momentum-Muster via SMA20 & 3-Tage-Bestätigung.</p>
-        <p style='margin-bottom: 5px;'><strong>2. Filter:</strong> RSI < 30 (Kaufzone) / > 70 (Verkaufszone). ADX > 25 (Trendstärke).</p>
-        <p><strong>3. Wahrscheinlichkeit:</strong> Gold-Status bei historischer Trefferquote ≥ 60%.</p>
+    <div style='background-color: #0d1117; padding: 10px; border-radius: 5px; border: 1px solid #30363d; color: #e0e0e0 !important;'>
+        <p style='margin-bottom: 5px;'><strong>1. Bauer-Signal:</strong> Momentum-Bestätigung über SMA20 mit 3-Tage-Muster.</p>
+        <p style='margin-bottom: 5px;'><strong>2. Filter:</strong> RSI < 30 (Kaufchance) / > 70 (Überhitzt). ADX > 25 zeigt Trendstärke.</p>
+        <p><strong>3. Gold-Logik:</strong> Signale mit historischer Trefferrate ≥ 60% werden gold markiert.</p>
     </div>
     """, unsafe_allow_html=True)
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 for t in macro_tickers:
-    res = fetch_data(t); render_row(res) if res else None
+    res = fetch_data(t)
+    if res: render_row(res)
 
-st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
+st.markdown("<div class='header-text' style='margin-top:10px;'>🔭 Market Scanner</div>", unsafe_allow_html=True)
 index_data = {
     "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "DTE.DE", "DBK.DE", "SAP.DE", "SIE.DE", "VOW3.DE"],
     "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC"],
