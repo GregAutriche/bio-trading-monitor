@@ -156,8 +156,40 @@ st.markdown(f"<div class='status-bar'>🕒 Update: {datetime.now().strftime('%H:
 
 with st.expander("ℹ️ STRATEGIE-LOGIK", expanded=False):
     st.markdown("""
-    <div style='background-color: #0d1117; padding: 10px; border-radius: 5px; border: 1px solid #30363d; color: #e0e0e0 !important;'>
-        <p style='margin: 0; font-size: 0.85rem;'><b>Bauer-Signal:</b> SMA20 & 3-Tage-Momentum. <b>Gold:</b> ≥ 60% Prob. <b>Filter:</b> RSI < 30 / > 70 & ADX > 25.</p>
+    <div style='background-color: #0d1117; padding: 15px; border-radius: 8px; border: 1px solid #30363d; color: #e0e0e0 !important;'>
+        <h3 style='color: #ffd700 !important; margin-top: 0;'>📡 Dr. Gregor Bauer Strategie Pro 2026</h3>
+        
+        <p style='color: #e0e0e0 !important;'><strong>1. Das Bauer-Signal (Kern-Momentum):</strong><br>
+        Das System identifiziert Trends durch das Zusammenspiel von Preis und gleitendem Durchschnitt. Ein Signal wird generiert, wenn zwei Bedingungen erfüllt sind:</p>
+        <ul style='color: #e0e0e0 !important;'>
+            <li><b>Trend-Filter:</b> Der Kurs muss über (für Long) oder unter (für Short) dem <b>SMA 20</b> liegen.</li>
+            <li><b>3-Tage-Bestätigung:</b> 
+                <br> - <span style='color:#3fb950 !important; font-weight:bold;'>C (Call/Long):</span> Kurs > SMA20 UND Schlusskurs(Heute) > Gestern > Vorgestern.
+                <br> - <span style='color:#007bff !important; font-weight:bold;'>P (Put/Short):</span> Kurs < SMA20 UND Schlusskurs(Heute) < Gestern < Vorgestern.
+            </li>
+        </ul>
+
+        <p style='color: #e0e0e0 !important;'><strong>2. Statistische Validierung (Gold-Logik):</strong><br>
+        Jedes generierte Signal durchläuft einen automatischen <b>12-Monats-Backtest</b>. Die App prüft historisch, wie oft dieses spezifische Muster bei dieser Aktie nach 3 Handelstagen im Profit endete.</p>
+        <ul style='color: #e0e0e0 !important;'>
+            <li><span style='color:#ffd700 !important; font-weight:bold;'>Gold-Status (≥ 60%):</span> Kennzeichnet Signale mit einer statistisch hohen Erfolgswahrscheinlichkeit. Diese werden ohne Klammern und in Gold hervorgehoben.</li>
+        </ul>
+
+        <p style='color: #e0e0e0 !important;'><strong>3. Trend-Indikatoren (ADX & RSI):</strong><br>
+        Diese Filter dienen der Qualitätssicherung, um "Whipsaws" (Fehlsignale) zu minimieren:</p>
+        <ul style='color: #e0e0e0 !important;'>
+            <li><b>ADX (Average Directional Index):</b> Misst die <b>Trendstärke</b>. Werte <b style='color:#ffd700 !important;'>über 25</b> bestätigen einen stabilen Trend. Werte unter 20 deuten auf einen unruhigen Seitwärtsmarkt hin.</li>
+            <li><b>RSI (Relative Strength Index):</b> Identifiziert <b>Extremzonen</b>. 
+                <br> - <span style='color:#3fb950 !important;'>Grün (< 30):</span> Überverkauft (Günstiger Einstieg für Long möglich).
+                <br> - <span style='color:#ff4b4b !important;'>Rot (> 70):</span> Überkauft (Vorsicht vor plötzlichen Korrekturen).
+            </li>
+        </ul>
+
+        <p style='color: #e0e0e0 !important;'><strong>4. Risikomanagement (Stop-Loss):</strong><br>
+        Der <b>Stop-Loss (SL)</b> ist dynamisch und passt sich der Volatilität an. Er nutzt die <b>1.5-fache ATR</b> (Average True Range). 
+        <br><i>Logik:</i> Der Stop liegt weit genug entfernt, um normales Marktrauschen zu tolerieren, schließt die Position aber sofort, wenn der Trend bricht.</p>
+        
+        <p style='font-size: 0.8rem; color: #888 !important; font-style: italic;'>Haftungsausschluss: Die Berechnungen basieren auf historischen Daten von Yahoo Finance. Trading beinhaltet Risiken. Keine Anlageberatung.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -190,3 +222,4 @@ if st.session_state.scan_active:
         hits = sorted([r for r in results if r and r['signal'] != "Wait"], key=lambda x: (x['prob'] < 60.0, -x['prob']))
         for r in hits: render_row(r)
 else: st.warning("Scanner im Standby.")
+
