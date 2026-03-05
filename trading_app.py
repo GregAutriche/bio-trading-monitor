@@ -102,13 +102,11 @@ def render_row(res):
     with c1:
         st.markdown(f"**{res['display_name']}**<br><span class='kurs-label'>Kurs: {fmt.format(res['price'])}</span>", unsafe_allow_html=True)
     with c2:
-        # BLAU für negatives Delta, GRÜN für positives
         color = "#3fb950" if res['delta'] >= 0 else "#007bff"
         st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{color}; font-size:0.85rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
     
     with c3:
         if res['signal'] != "Wait":
-            # LOGIK: Signal-Box (Gold bei >60%, sonst Grün/Blau)
             if res['prob'] >= 60.0:
                 cls = "sig-box-high"
             else:
@@ -119,8 +117,12 @@ def render_row(res):
             
     with c4:
         if res['stop'] != 0:
-            prob_txt = f"<span style='color:#ffd700; font-weight:bold;'>{res['prob']:.1f}%</span>" if res['prob'] >= 60.0 else f"({res['prob']:.1f}%)"
-            st.markdown(f"<span class='sl-label'>Stop-Loss</span> <span class='prob-val'>{prob_txt}</span><br><span class='sl-value'>{fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
+            if res['prob'] >= 60.0:
+                prob_txt = f"<span style='color:#ffd700; font-weight:bold; font-size:1.0rem;'>{res['prob']:.1f}%</span>"
+            else:
+                prob_txt = f"<span style='color:#888;'>({res['prob']:.1f}%)</span>"
+            
+            st.markdown(f"<span class='sl-label'>Stop-Loss</span> {prob_txt}<br><span class='sl-value'>{fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
         else: 
             st.markdown("<span class='sl-label'>Stop-Loss</span><br><span style='color:#444;'>---</span>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
@@ -171,7 +173,7 @@ with st.expander("Scanner-Einstellungen & Index-Auswahl", expanded=True):
         "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "BAJAJ-AUTO.NS", "BHARTIARTL.NS"]
     }
     
-    col_sel, col_btn = st.columns([3, 1])
+    col_sel, col_btn = st.columns([3,1])
     if 'scan_active' not in st.session_state: st.session_state.scan_active = False
     
     with col_sel:
@@ -188,4 +190,4 @@ if st.session_state.scan_active:
         valid_results = sorted([r for r in results if r is not None], key=lambda x: x['prob'], reverse=True)
         for r in valid_results: render_row(r)
 else:
-    st.warning("Scanner Standby. Bitte 'Scan Start' drücken.")
+    st.warning("Scanner im Standby.")
