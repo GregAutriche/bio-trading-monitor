@@ -179,7 +179,7 @@ for t in macro_tickers:
     if res: render_row(res)
 
 # SCANNER
-st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
+st.markdown("<br><div class='header-text'>🔭 Fokus / Markt Screener 🔭</div>", unsafe_allow_html=True)
 
 index_data = {
     "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "DTE.DE", "DBK.DE", "SAP.DE", "SIE.DE", "VOW3.DE"],
@@ -210,5 +210,6 @@ if st.session_state.scan_active:
         else: st.info("Keine aktiven Signale.")
 else:
     st.warning("Scanner im Standby.")
+
 
 
