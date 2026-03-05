@@ -23,34 +23,40 @@ st.markdown("""
     .stApp { background-color: #050a0f; }
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
     
-    /* RADIKALE ABSTANDS-REDUKTION */
+    /* RADIKALE KOMPRIMIERUNG */
+    [data-testid="stVerticalBlock"] {
+        gap: 0rem !important;
+    }
+    
+    [data-testid="stVerticalBlock"] > div {
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+        margin-top: -2px !important; /* Zieht Zeilen aktiv zusammen */
+        margin-bottom: 0px !important;
+    }
+
     .row-container { 
         border-bottom: 1px solid #1a202c; 
         padding: 0px !important; 
         margin: 0px !important; 
-        line-height: 1.0 !important; 
+        line-height: 0.9 !important; /* Extrem eng */
     }
     
-    /* Streamlit Widget-Abstände eliminieren */
-    [data-testid="stVerticalBlock"] > div {
-        padding-top: 0rem !important;
-        padding-bottom: 0rem !important;
-        margin-top: 0px !important;
-        margin-bottom: 0px !important;
-    }
+    .stock-title { font-weight: bold; font-size: 1.0rem; display: block; margin: 0; }
+    .kurs-label { color: #e0e0e0 !important; font-weight: normal; font-size: 1.0rem; margin: 0; }
+    .indicator-label { color: #555; font-size: 0.65rem; margin: 0; line-height: 0.8; }
+    .sl-label { color: #777; font-size: 0.65rem; }
+    .sl-value { color: #e0e0e0; font-weight: bold; font-size: 0.9rem; }
 
-    .stock-title { font-weight: bold; font-size: 1.05rem; display: block; margin: 0; }
-    .kurs-label { color: #e0e0e0 !important; font-weight: normal; font-size: 1.05rem; margin: 0; }
+    .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 0px 3px; border-radius: 2px; font-weight: bold; font-size: 0.75rem; }
+    .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 0px 3px; border-radius: 2px; font-weight: bold; font-size: 0.75rem; }
+    .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 0px 3px; border-radius: 2px; font-weight: bold; font-size: 0.75rem; }
     
-    .indicator-label { color: #666; font-size: 0.65rem; margin: 0; line-height: 1.0; }
-    .sl-label { color: #888; font-size: 0.7rem; }
-    .sl-value { color: #e0e0e0; font-weight: bold; font-size: 0.95rem; }
-
-    .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
-    .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
-    .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 0px 4px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
+    .header-text { font-size: 16px; font-weight: bold; margin-top: 2px; margin-bottom: 0px; color: #ffd700 !important; }
     
-    .header-text { font-size: 18px; font-weight: bold; margin-top: 5px; margin-bottom: 2px; color: #ffd700 !important; }
+    /* Scrollbar Styling für Kompaktansicht */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: #1a202c; border-radius: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -119,52 +125,43 @@ def fetch_data(ticker):
 
 # --- 3. UI RENDERER ---
 def render_row(res):
-    # KEIN RETURN-WERT: Verhindert das 'None' in Streamlit
     fmt = "{:.6f}" if ("=" in res['ticker']) else "{:.2f}"
     st.markdown("<div class='row-container'>", unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns([1.8, 0.6, 0.6, 1.8])
+    c1, c2, c3, c4 = st.columns([2.0, 0.5, 0.5, 2.0]) # Spalten breiter für Text
     
     with c1:
-        rsi_c = "#3fb950" if res['rsi'] < 30 else "#ff4b4b" if res['rsi'] > 70 else "#666"
-        adx_c = "#ffd700" if (not np.isnan(res['adx']) and res['adx'] > 25) else "#666"
+        rsi_c = "#3fb950" if res['rsi'] < 30 else "#ff4b4b" if res['rsi'] > 70 else "#555"
+        adx_c = "#ffd700" if (not np.isnan(res['adx']) and res['adx'] > 25) else "#555"
         adx_txt = f"{res['adx']:.1f}" if not np.isnan(res['adx']) else "---"
-        st.markdown(f"""
-            <span class='stock-title'>{res['display_name']}</span>
-            <span class='kurs-label'>K: {fmt.format(res['price'])}</span><br>
-            <span class='indicator-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b> | ADX: <b style='color:{adx_c};'>{adx_txt}</b></span>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<span class='stock-title'>{res['display_name']}</span><span class='kurs-label'>K: {fmt.format(res['price'])}</span><br><span class='indicator-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b> | ADX: <b style='color:{adx_c};'>{adx_txt}</b></span>", unsafe_allow_html=True)
     with c2:
         color = "#3fb950" if res['delta'] >= 0 else "#007bff"
-        st.markdown(f"<div style='text-align:center; margin-top:2px;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.75rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{color} !important; font-size:0.7rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
     with c3:
         if res['signal'] != "Wait":
             cls = "sig-box-high" if res['prob'] >= 60.0 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
-            st.markdown(f"<div style='margin-top:4px; text-align:center;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
-        else: st.markdown(f"<div style='margin-top:4px; text-align:center; color:#333;'>---</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-top:2px; text-align:center;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
+        else: st.markdown(f"<div style='margin-top:2px; text-align:center; color:#222;'>---</div>", unsafe_allow_html=True)
     with c4:
         if res['stop'] != 0:
-            p_c = "#ffd700" if res['prob'] >= 60.0 else "#666"
+            p_c = "#ffd700" if res['prob'] >= 60.0 else "#555"
             st.markdown(f"<div style='text-align:right;'><span class='sl-label'>SL</span> <b style='color:{p_c};'>{res['prob']:.1f}%</b><br><span class='sl-value'>{fmt.format(res['stop'])}</span></div>", unsafe_allow_html=True)
-        else: st.markdown("<div style='text-align:right; margin-top:2px; color:#333;'>---</div>", unsafe_allow_html=True)
+        else: st.markdown("<div style='text-align:right; margin-top:2px; color:#222;'>---</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 4. MAIN APP ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro</div>", unsafe_allow_html=True)
 
-with st.expander("ℹ️ DETAILLIERTE STRATEGIE-LOGIK", expanded=False):
-    st.markdown("""
-    <div style='background-color: #0d1117; padding: 10px; border-radius: 5px; border: 1px solid #30363d; color: #e0e0e0 !important;'>
-        <p style='margin: 0; font-size: 0.9rem;'><strong>Bauer-Signal:</strong> Momentum via SMA20 & 3-Tage-Muster. <strong>RSI:</strong> Extremzonen (<30 / >70). <strong>ADX:</strong> Trendstärke (>25).</p>
-    </div>
-    """, unsafe_allow_html=True)
+with st.expander("ℹ️ INFO", expanded=False):
+    st.write("Bauer-Momentum via SMA20 | RSI < 30 (Kauf) / > 70 (Verkauf) | Gold ≥ 60%")
 
 st.markdown("<div class='header-text'>🌍 Macro & Indices</div>", unsafe_allow_html=True)
 macro_tickers = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 for t in macro_tickers:
     res = fetch_data(t)
-    if res is not None: render_row(res)
+    if res: render_row(res)
 
-st.markdown("<br><div class='header-text'>🔭 Market Scanner</div>", unsafe_allow_html=True)
+st.markdown("<div class='header-text' style='margin-top:10px;'>🔭 Market Scanner</div>", unsafe_allow_html=True)
 index_data = {
     "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "DTE.DE", "DBK.DE", "SAP.DE", "SIE.DE", "VOW3.DE"],
     "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC"],
@@ -184,6 +181,6 @@ with col_btn:
 if st.session_state.scan_active:
     with ThreadPoolExecutor(max_workers=30) as executor:
         results = list(executor.map(fetch_data, index_data[choice]))
-        hits = sorted([r for r in results if r is not None and r['signal'] != "Wait"], key=lambda x: (x['prob'] < 60.0, -x['prob']))
+        hits = sorted([r for r in results if r and r['signal'] != "Wait"], key=lambda x: (x['prob'] < 60.0, -x['prob']))
         for r in hits: render_row(r)
 else: st.warning("Scanner im Standby.")
