@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-# --- 0. CONFIG & DARK BLUE STYLE ---
+# --- 0. CONFIG & NAVY STYLE ---
 st.set_page_config(layout="wide", page_title="Bauer Strategy Pro 2026", page_icon="📡")
 
 st.markdown("""
@@ -22,37 +22,40 @@ st.markdown("""
 
 # --- 1. DYNAMISCHE TICKER-QUELLEN ---
 @st.cache_data(ttl=86400)
-def fetch_all_market_maps():
+def fetch_market_maps():
     maps = {}
-    # DAX 40
+    # DAX 40 (Aktien)
     try:
-        df = pd.read_html("https://en.wikipedia.org/wiki/DAX")[4]
-        maps["DAX 40 🇩🇪"] = dict(zip([t.replace('.', '-') + ".DE" for t in df['Ticker']], df['Company']))
-    except: maps["DAX 40 🇩🇪"] = {"SAP.DE": "SAP SE", "SIE.DE": "Siemens AG"}
+        df = pd.read_html("https://en.wikipedia.org")
+        maps["DAX 40 🇩🇪"] = dict(zip([t.replace('.', '-') + ".DE" for t in df[0]['Ticker']], df[0]['Company']))
+    except: maps["DAX 40 🇩🇪"] = {"SAP.DE": "SAP SE"}
 
-    # NASDAQ 100
+    # NASDAQ 100 (Aktien)
     try:
-        df = pd.read_html("https://en.wikipedia.org/wiki/Nasdaq-100")[4]
-        maps["NASDAQ 100 🇺🇸"] = dict(zip(df['Ticker'], df['Company']))
-    except: maps["NASDAQ 100 🇺🇸"] = {"AAPL": "Apple Inc.", "MSFT": "Microsoft"}
+        df = pd.read_html("https://en.wikipedia.org")
+        maps["NASDAQ 100 🇺🇸"] = dict(zip(df[4]['Ticker'], df[4]['Company']))
+    except: maps["NASDAQ 100 🇺🇸"] = {"AAPL": "Apple Inc."}
 
-    # EURO STOXX 50
+    # EURO STOXX 50 (Aktien)
     try:
-        df = pd.read_html("https://en.wikipedia.org/wiki/EURO_STOXX_50")[3]
-        maps["EURO STOXX 50 🇪🇺"] = dict(zip(df['Ticker'], df['Name']))
-    except: maps["EURO STOXX 50 🇪🇺"] = {"ASML.AS": "ASML", "MC.PA": "LVMH"}
+        df = pd.read_html("https://en.wikipedia.org")
+        maps["EURO STOXX 50 🇪🇺"] = dict(zip(df[4]['Ticker'], df[4]['Name']))
+    except: maps["EURO STOXX 50 🇪🇺"] = {"ASML.AS": "ASML"}
 
-    # FOREX & INDIZES (Immer vollständig)
+    # FOREX & INDIZES (Die Benchmarks + FX-Paare)
     maps["FOREX & INDIZES 🌍"] = {
-        "EURUSD=X": "Euro / US-Dollar", "GBPUSD=X": "Pfund / USD", "USDJPY=X": "Dollar / Yen",
-        "BTC-USD": "Bitcoin", "ETH-USD": "Ethereum", "^GDAXI": "DAX Index", "^IXIC": "NASDAQ Index"
+        "^GDAXI": "DAX INDEX", 
+        "^STOXX50E": "EURO STOXX 50 INDEX",
+        "^IXIC": "NASDAQ COMPOSITE",
+        "EURUSD=X": "EUR/USD", 
+        "GBPUSD=X": "GBP/USD", 
+        "USDJPY=X": "USD/JPY"
     }
     return maps
 
 # --- 2. ANALYSE LOGIK ---
 def run_analysis(ticker_map, filter_wait=True):
     tickers = list(ticker_map.keys())
-    # Nutze Batch-Download für alle Ticker eines Index gleichzeitig
     data = yf.download(tickers, period="1y", interval="1d", group_by='ticker', auto_adjust=True, progress=False)
     
     results = []
@@ -69,14 +72,14 @@ def run_analysis(ticker_map, filter_wait=True):
             signal = "C" if (curr > p1 > p2 and curr > c_sma) else "P" if (curr < p1 < p2 and curr < c_sma) else "Wait"
             if filter_wait and signal == "Wait": continue
             
-            # Indikatoren
+            # RSI & ATR
             diff = close.diff()
             g = diff.where(diff > 0, 0).rolling(14).mean()
             l = -diff.where(diff < 0, 0).rolling(14).mean()
             rsi = 100 - (100 / (1 + (g/l))).iloc[-1]
             atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1]
             
-            # Backtest Prob
+            # Prob ohne "Win" Label
             hits, total = 0, 0
             if signal != "Wait":
                 for i in range(-35, -5):
@@ -99,54 +102,49 @@ def run_analysis(ticker_map, filter_wait=True):
         except: continue
     return results
 
-# --- 3. UI LAYOUT ---
+# --- 3. UI ---
 st.markdown("<div class='header-text'>📡 Bauer Strategy Pro 2026</div>", unsafe_allow_html=True)
-st.write(f"Scan-Zeit: {datetime.now().strftime('%H:%M:%S')} | Automatische Aktualisierung aktiv")
 
 with st.expander("ℹ️ VOLLSTÄNDIGE STRATEGIE-LOGIK & SYMBOLE ℹ️", expanded=True):
     st.markdown("""
     - **Marktzustand:** ☀️ Bullish (Kurs > SMA20), ⚖️ Neutral, ⛈️ Bearish (Kurs < SMA20).
     - **C (Call):** Kurs über SMA20 + 3 Tage steigendes Momentum.
     - **P (Put):** Kurs unter SMA20 + 3 Tage fallendes Momentum.
-    - **Forex/Indizes:** Werden zur Marktübersicht **immer vollständig** angezeigt.
+    - **Forex & Indizes:** Werden zur Marktübersicht **immer vollständig** angezeigt.
     - **Aktien:** Es werden nur aktive Signale (C/P) gelistet.
     """)
 
-m_maps = fetch_all_market_maps()
+m_maps = fetch_market_maps()
 tabs = st.tabs(list(m_maps.keys()))
 
 for i, (index_name, t_map) in enumerate(m_maps.items()):
     with tabs[i]:
-        # Logik: Forex zeigt ALLES, Aktien nur Signale
-        is_fixed_view = ("FOREX" in index_name)
-        data_results = run_analysis(t_map, filter_wait=not is_fixed_view)
+        is_fixed = ("FOREX" in index_name)
+        data_results = run_analysis(t_map, filter_wait=not is_fixed)
         
         if not data_results:
-            st.info("Aktuell keine aktiven C/P Signale in dieser Auswahl.")
+            st.info("Keine aktiven Signale.")
         else:
-            # Sortierung: Aktive Signale zuerst
             data_results = sorted(data_results, key=lambda x: (x['signal'] == "Wait", -x['prob']))
-            
             for res in data_results:
-                is_fx = any(x in res['ticker'] for x in ["=", "-", "^"])
-                fmt = "{:.5f}" if is_fx else "{:.2f}"
+                is_fx = any(x in res['ticker'] for x in ["=", "^"])
+                fmt = "{:.5f}" if "=" in res['ticker'] else "{:.2f}"
                 
                 st.markdown("<div class='row-container'>", unsafe_allow_html=True)
                 c1, c2, c3, c4 = st.columns([2, 1, 0.8, 1.2])
                 with c1:
                     st.markdown(f"**{res['name']}** <small>({res['ticker']})</small> {res['icon']}", unsafe_allow_html=True)
-                    rsi_color = "#ff4b4b" if res['rsi'] > 70 else "#00ff41" if res['rsi'] < 30 else "#8892b0"
-                    st.markdown(f"<span class='metric-label'>RSI: <b style='color:{rsi_color}'>{res['rsi']:.1f}</b></span>", unsafe_allow_html=True)
+                    st.markdown(f"<span class='metric-label'>RSI: {res['rsi']:.1f}</span>", unsafe_allow_html=True)
                 with c2:
-                    d_color = "#00ff41" if res['delta'] >= 0 else "#ff4b4b"
-                    st.markdown(f"**{fmt.format(res['price'])}**<br><span style='color:{d_color}; font-size:0.8rem;'>{res['delta']:+.2f}%</span>", unsafe_allow_html=True)
+                    d_col = "#00ff41" if res['delta'] >= 0 else "#ff4b4b"
+                    st.markdown(f"**{fmt.format(res['price'])}**<br><span style='color:{d_col}; font-size:0.8rem;'>{res['delta']:+.2f}%</span>", unsafe_allow_html=True)
                 with c3:
                     if res['signal'] != "Wait":
                         s_cls = "sig-box-high" if res['prob'] >= 60 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
                         st.markdown(f"<span class='{s_cls}'>{res['signal']}</span>", unsafe_allow_html=True)
-                    else: st.markdown("<span style='color:#444;'>---</span>", unsafe_allow_html=True)
+                    else: st.markdown("<span style='color:#444;'>WAIT</span>", unsafe_allow_html=True)
                 with c4:
                     if res['signal'] != "Wait":
-                        st.markdown(f"**{res['prob']:.1f}% Win**<br><span class='metric-label'>SL: {fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
+                        st.markdown(f"**{res['prob']:.1f}%**<br><span class='metric-label'>SL: {fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
                     else: st.markdown("<span class='metric-label'>Monitoring</span>", unsafe_allow_html=True)
                 st.markdown("</div>", unsafe_allow_html=True)
