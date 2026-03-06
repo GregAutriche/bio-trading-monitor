@@ -32,7 +32,7 @@ capital = st.sidebar.number_input("Gesamtkapital (€)", value=10000, step=1000)
 risk_pct = st.sidebar.slider("Risiko pro Trade (%)", 0.1, 5.0, 1.0, 0.1)
 risk_amount = capital * (risk_pct / 100)
 
-# --- 2. DYNAMISCHE MARKT-DATEN (ROBUSTES SCRAPING) ---
+# --- 2. DYNAMISCHE MARKT-DATEN (HOCHROBUSTES SCRAPING) ---
 @st.cache_data(ttl=86400)
 def get_market_maps():
     maps = {}
@@ -40,25 +40,33 @@ def get_market_maps():
     # DAX 40
     try:
         tables = pd.read_html("https://en.wikipedia.org")
-        df = max(tables, key=len) # Nimmt die Tabelle mit den meisten Zeilen
-        maps["DAX 40 🇩🇪"] = dict(zip([str(t).replace('.', '-') + ".DE" for t in df['Ticker']], df['Company']))
+        df = max(tables, key=len)
+        t_col = next(c for c in df.columns if c in ['Ticker', 'Symbol', 'Ticker-Symbol'])
+        n_col = next(c for c in df.columns if c in ['Company', 'Unternehmen', 'Name'])
+        maps["DAX 40 🇩🇪"] = dict(zip([str(t).replace('.', '-') + ".DE" for t in df[t_col]], df[n_col]))
     except:
         dax_fallback = ["ADS.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BEI.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DBK.DE", "DB1.DE", "LHA.DE", "DPW.DE", "DTE.DE", "EOAN.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PAH3.DE", "PUM.DE", "RWE.DE", "SAP.DE", "SRT3.DE", "SIE.DE", "SHL.DE", "SY1.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "DHL.DE", "RNR.DE", "CBK.DE", "BNR.DE"]
         maps["DAX 40 🇩🇪"] = {t: t for t in dax_fallback}
 
-    # NASDAQ 100
+    # NASDAQ 100 (Flexibles Spalten-Matching)
     try:
         tables = pd.read_html("https://en.wikipedia.org")
         df = max(tables, key=len)
-        maps["NASDAQ 100 🇺🇸"] = dict(zip(df['Ticker'], df['Company']))
-    except: maps["NASDAQ 100 🇺🇸"] = {"AAPL": "Apple Inc.", "MSFT": "Microsoft"}
+        t_col = next(c for c in df.columns if c in ['Ticker', 'Symbol', 'Symbol'])
+        n_col = next(c for c in df.columns if c in ['Company', 'Security', 'Name'])
+        maps["NASDAQ 100 🇺🇸"] = dict(zip(df[t_col], df[n_col]))
+    except:
+        # Erweiterter Fallback für NASDAQ
+        nas_list = ["AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "GOOG", "META", "TSLA", "PEP", "AVGO", "COST", "ADBE", "CSCO", "NFLX", "AMD", "CMCSA", "TMUS", "INTC", "TXN", "AMGN", "HON", "INTU", "SBUX", "AMAT", "QCOM", "ISRG", "MDLZ", "VRTX", "BKNG", "GILD"]
+        maps["NASDAQ 100 🇺🇸"] = {t: t for t in nas_list}
 
-    # EURO STOXX 50 (Spezial-Fix für Tabellen-Suche)
+    # EURO STOXX 50
     try:
         tables = pd.read_html("https://en.wikipedia.org")
         df = max(tables, key=len)
-        t_col = 'Ticker' if 'Ticker' in df.columns else 'Symbol'
-        maps["EURO STOXX 50 🇪🇺"] = dict(zip(df[t_col], df['Name']))
+        t_col = next(c for c in df.columns if c in ['Ticker', 'Symbol', 'Ticker symbol'])
+        n_col = next(c for c in df.columns if c in ['Name', 'Company', 'Security'])
+        maps["EURO STOXX 50 🇪🇺"] = dict(zip(df[t_col], df[n_col]))
     except:
         es_fallback = ["ASML.AS", "MC.PA", "OR.PA", "LIN.DE", "TTE.PA", "SAP.DE", "SAN.MC", "SIE.DE", "AIR.PA", "IBE.MC"]
         maps["EURO STOXX 50 🇪🇺"] = {t: t for t in es_fallback}
@@ -72,6 +80,7 @@ def get_market_maps():
 # --- 3. BAUER STRATEGIE ENGINE ---
 def analyze_market(ticker_map, filter_active=True):
     tickers = list(ticker_map.keys())
+    # Batch-Download ist effizienter als 100 Einzelanfragen
     data = yf.download(tickers, period="1y", interval="1d", group_by='ticker', auto_adjust=True, progress=False)
     results = []
     for ticker, full_name in ticker_map.items():
@@ -128,10 +137,6 @@ with st.expander("ℹ️ VOLLSTÄNDIGER STRATEGIE-LEITFADEN & REGELWERK ℹ️",
     ### 4. Risikomanagement (Stop-Loss & Stk.)
     - **Stop-Loss (SL):** Berechnung bei 1,5x ATR (Volatilität).
     - **Stk. (Stückzahl):** Exakte Anzahl basierend auf Kontogröße und Risiko pro Trade.
-    
-    ### 5. RSI-Warnsystem (14 Tage)
-    - **Überhitzt (>70):** Korrekturgefahr.
-    - **Überverkauft (<30):** Erholungschance.
     """)
 
 market_maps = get_market_maps()
