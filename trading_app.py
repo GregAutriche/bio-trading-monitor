@@ -10,19 +10,29 @@ st.set_page_config(layout="wide", page_title="Bauer Strategy Pro 2026", page_ico
 
 st.markdown("""
     <style>
+    /* Hintergrund & Grundschrift */
     .stApp { background-color: #0a192f; }
     h1, h2, h3, p, span, label, div { color: #e6f1ff !important; font-family: 'Segoe UI', sans-serif; }
-    .header-text { font-size: 24px; font-weight: bold; color: #64ffda !important; border-bottom: 2px solid #64ffda; padding-bottom: 5px; margin-bottom: 10px; }
+    
+    /* Header & Abstände */
+    .header-text { font-size: 26px; font-weight: bold; color: #64ffda !important; border-bottom: 2px solid #64ffda; padding-bottom: 5px; margin-bottom: 10px; }
+    
+    /* Signal Design */
     .sig-box-c { color: #00ff41 !important; border: 1px solid #00ff41; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(0, 255, 65, 0.1); }
     .sig-box-p { color: #007bff !important; border: 1px solid #007bff; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(0, 123, 255, 0.1); }
     .sig-box-high { color: #ffd700 !important; border: 2px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(255, 215, 0, 0.2); }
+    
+    /* Kompakte Zeilenhöhe */
     .row-container { border-bottom: 1px solid #172a45; padding: 4px 0; margin: 0; }
     .metric-label { color: #8892b0; font-size: 0.75rem; }
-    .price-text { font-size: 1.0rem; font-weight: bold; }
+    .price-text { font-size: 1.05rem; font-weight: bold; }
+    
+    /* Expander Optimierung */
+    .stExpander { border: 1px solid #172a45 !important; background-color: rgba(23, 42, 69, 0.4) !important; margin-bottom: 15px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 1. DYNAMISCHE MARKT-DATEN ---
+# --- 1. DYNAMISCHE MARKT-DATEN (VOLLSTÄNDIGKEIT) ---
 @st.cache_data(ttl=86400)
 def get_complete_market_maps():
     maps = {}
@@ -45,8 +55,7 @@ def get_complete_market_maps():
         maps["EURO STOXX 50 🇪🇺"] = dict(zip(df_es50['Ticker'], df_es50['Name']))
     except: maps["EURO STOXX 50 🇪🇺"] = {"ASML.AS": "ASML Holding"}
 
-    # INDICES & FOREX (EXAKTE REIHENFOLGE WIE VEREINBART)
-    # OrderedDict sorgt dafür, dass die Reihenfolge bei der Verarbeitung erhalten bleibt
+    # INDICES & FOREX (EXAKTE REIHENFOLGE)
     indices_forex = OrderedDict([
         ("EURUSD=X", "EUR/USD"),
         ("^STOXX50E", "EUROSTOXX"),
@@ -57,7 +66,6 @@ def get_complete_market_maps():
         ("XU100.IS", "BIST")
     ])
     maps["INDICES & FOREX 🌍"] = indices_forex
-    
     return maps
 
 # --- 2. BAUER STRATEGIE ENGINE ---
@@ -66,7 +74,6 @@ def analyze_market(ticker_map, filter_active=True):
     data = yf.download(tickers, period="1y", interval="1d", group_by='ticker', auto_adjust=True, progress=False)
     
     results = []
-    # Iteration über ticker_map stellt sicher, dass die Reihenfolge (besonders bei Forex/Indices) gewahrt bleibt
     for ticker, full_name in ticker_map.items():
         try:
             df = data[ticker].dropna() if len(tickers) > 1 else data.dropna()
@@ -77,17 +84,18 @@ def analyze_market(ticker_map, filter_active=True):
             curr, p1, p2 = close.iloc[-1], close.iloc[-2], close.iloc[-3]
             c_sma = sma20.iloc[-1]
             
+            # SIGNAL LOGIK
             signal = "C" if (curr > p1 > p2 and curr > c_sma) else "P" if (curr < p1 < p2 and curr < c_sma) else "Wait"
             if filter_active and signal == "Wait": continue
             
-            # Indikatoren
+            # RSI & ATR
             diff = close.diff()
             gain = diff.where(diff > 0, 0).rolling(14).mean()
             loss = -diff.where(diff < 0, 0).rolling(14).mean()
             rsi = 100 - (100 / (1 + (gain/loss))).iloc[-1]
             atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1]
             
-            # Backtest Wahrscheinlichkeit
+            # Backtest Wahrscheinlichkeit (12 Monate)
             hits, total = 0, 0
             if signal != "Wait":
                 for i in range(-45, -5):
@@ -113,29 +121,47 @@ def analyze_market(ticker_map, filter_active=True):
 # --- 3. UI RENDERING ---
 st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro 2026</div>", unsafe_allow_html=True)
 
-with st.expander("ℹ️ AUSFÜHRLICHE STRATEGIE-LOGIK & REGELWERK ℹ️", expanded=True):
-    col_a, col_b, col_c = st.columns(3)
-    with col_a:
-        st.markdown("**1. Marktzustand:** ☀️ Bullish (Kurs > SMA20), ⚖️ Neutral, ⛈️ Bearish (Kurs < SMA20).")
-    with col_b:
-        st.markdown("**2. Signal-Trigger:** C (Call) / P (Put) durch 3 Tage Bestätigung + SMA20 Filter.")
-    with col_c:
-        st.markdown("**3. Risiko:** SL basierend auf 1.5x ATR. Prozentwert zeigt historische Erfolgsrate.")
+# AUSFÜHRLICHE BESCHREIBUNG (UNTEREINANDER)
+with st.expander("ℹ️ VOLLSTÄNDIGER STRATEGIE-LEITFADEN & REGELWERK ℹ️", expanded=True):
+    st.markdown("""
+    ### 1. Marktzustand & Trend-Indikator
+    Die Symbole zeigen die aktuelle Marktverfassung im Verhältnis zum gleitenden Durchschnitt (SMA 20) an:
+    *   ☀️ **Bullish:** Der aktuelle Kurs liegt über dem SMA 20 und weist eine positive Tagesperformance von über 0,2 % auf. Fokus auf Long-Einstiege.
+    *   ⚖️ **Neutral:** Der Markt befindet sich in einer Konsolidierung oder weist eine sehr geringe Volatilität auf (Tagesplus/minus < 0,2 %).
+    *   ⛈️ **Bearish:** Der Kurs liegt unter dem SMA 20 oder es herrscht starker Verkaufsdruck. Fokus auf Short-Einstiege.
 
+    ### 2. Signal-Trigger (Die 3-Tage-Momentum-Regel)
+    Ein Signal wird generiert, wenn Trend und kurzfristiges Momentum übereinstimmen:
+    *   **C (Call / Long):** Der Schlusskurs liegt über dem SMA 20 **UND** die Kurse sind an drei aufeinanderfolgenden Tagen gestiegen. Dies bestätigt eine nachhaltige Aufwärtsbewegung.
+    *   **P (Put / Short):** Der Schlusskurs liegt unter dem SMA 20 **UND** die Kurse sind an drei aufeinanderfolgenden Tagen gefallen. Dies bestätigt eine nachhaltige Abwärtsbewegung.
+
+    ### 3. Statistische Wahrscheinlichkeit & Backtest
+    Der Prozentwert gibt die historische Zuverlässigkeit des Signals an. Hierbei wird das exakte Setup (3-Tage-Regel) über die letzten 12 Monate für den jeweiligen Einzelwert geprüft. Werte über **60 %** gelten als statistisch signifikant und werden als Gold-Signal markiert.
+
+    ### 4. Risikomanagement (Stop-Loss & RSI)
+    *   **Stop-Loss (SL):** Der Schutz-Stopp wird basierend auf der Average True Range (ATR 14) berechnet. Der Abstand entspricht dem 1,5-fachen der aktuellen Volatilität.
+    *   **RSI (14):** Dient als Warnindikator. Werte über **70** signalisieren eine Überhitzung (Korrekturgefahr), Werte unter **30** einen überverkauften Markt (Erholungschance).
+    
+    ### 5. Marktübersicht
+    *   **Indizes & Forex:** Diese Sektion zeigt zur Marktbeobachtung **immer alle Werte** in der festgelegten Reihenfolge an.
+    *   **Aktien-Tabs:** Um Rauschen zu vermeiden, werden hier **nur aktive Handelssignale (C oder P)** eingeblendet.
+    """)
+
+# MARKT-TABS
 market_maps = get_complete_market_maps()
 tabs = st.tabs(list(market_maps.keys()))
 
 for i, (tab_name, t_map) in enumerate(market_maps.items()):
     with tabs[i]:
-        is_fixed_view = ("FOREX" in tab_name)
-        data_results = analyze_market(t_map, filter_active=not is_fixed_view)
+        is_fixed = ("FOREX" in tab_name)
+        data_results = analyze_market(t_map, filter_active=not is_fixed)
         
         if not data_results:
-            st.info("Keine aktiven Handelssignale.")
+            st.info("Aktuell keine aktiven Handelssignale vorhanden.")
         else:
-            # Bei Forex/Indices behalten wir die exakte Listenreihenfolge bei
-            if not is_fixed_view:
-                data_results = sorted(data_results, key=lambda x: (x['signal'] == "Wait", -x['prob']))
+            # Bei Aktien nach Wahrscheinlichkeit sortieren, bei Forex Reihenfolge beibehalten
+            if not is_fixed:
+                data_results = sorted(data_results, key=lambda x: -x['prob'])
             
             for res in data_results:
                 fmt = "{:.5f}" if "=" in res['ticker'] else "{:.2f}"
@@ -144,8 +170,8 @@ for i, (tab_name, t_map) in enumerate(market_maps.items()):
                 c1, c2, c3, c4 = st.columns([2.5, 1, 0.7, 1.2])
                 with c1:
                     st.markdown(f"<span style='font-weight:bold;'>{res['name']}</span> {res['icon']}", unsafe_allow_html=True)
-                    rsi_c = "#ff4b4b" if res['rsi'] > 70 else "#00ff41" if res['rsi'] < 30 else "#8892b0"
-                    st.markdown(f"<span class='metric-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b></span>", unsafe_allow_html=True)
+                    rsi_col = "#ff4b4b" if res['rsi'] > 70 else "#00ff41" if res['rsi'] < 30 else "#8892b0"
+                    st.markdown(f"<span class='metric-label'>RSI: <b style='color:{rsi_col};'>{res['rsi']:.1f}</b></span>", unsafe_allow_html=True)
                 with c2:
                     d_col = "#00ff41" if res['delta'] >= 0 else "#ff4b4b"
                     st.markdown(f"<span class='price-text'>{fmt.format(res['price'])}</span><br><span style='color:{d_col}; font-size:0.75rem;'>{res['delta']:+.2f}%</span>", unsafe_allow_html=True)
