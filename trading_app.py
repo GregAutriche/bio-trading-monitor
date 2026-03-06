@@ -2,7 +2,7 @@ import os
 import sys
 import math
 
-# --- 1. MATPLOTLIB BACKEND FIX (Zwingend für Cloud-Deployment) ---
+# --- 1. MATPLOTLIB FIX (Backend für Cloud-Stabilität) ---
 import matplotlib
 matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
@@ -75,7 +75,7 @@ def fetch_data(ticker):
         curr = float(df['Close'].iloc[-1])
         prev, prev2 = df['Close'].iloc[-2], df['Close'].iloc[-3]
         sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
-        daily_delta = ((curr - df['Open'].iloc[-1]) / (df['Open'].iloc[-1] + 1e-9)) * 100
+        daily_delta = ((curr - df['Open'].iloc[-1]) / df['Open'].iloc[-1]) * 100
         
         signal = "C" if (curr > prev > prev2 and curr > sma20) else "P" if (curr < prev < prev2 and curr < sma20) else "Wait"
         
@@ -103,7 +103,6 @@ def fetch_data(ticker):
     except: return None
 
 def render_row(res):
-    if not res: return
     fmt = "{:.6f}" if "=" in res['ticker'] else "{:.2f}"
     st.markdown("<div class='row-container'>", unsafe_allow_html=True)
     c1, c2, c3, c4, c5 = st.columns([1.2, 0.6, 0.8, 0.5, 1.1])
@@ -131,39 +130,35 @@ with st.expander("ℹ️ Ausführlicher Strategie-Leitfaden & Markt-Logik ℹ️
     Dieser Monitor analysiert Märkte basierend auf Dr. Gregor Bauers Trend- und Momentum-Strategie.
     
     **1. Markt-Zustand (Symbole):**
-    *   ☀️ **Bullish:** Kurs über SMA20 und Tagesplus > 0,3%. Starkes Momentum.
+    *   ☀️ **Bullish:** Kurs steht über dem SMA20 und das Tagesplus ist > 0,3%.
     *   ⚖️ **Neutral:** Kurs konsolidiert oder Tagesbewegung ist minimal (< 0,3%). 
     *   ⛈️ **Bearish:** Kurs unter SMA20 oder deutlicher Abverkauf am heutigen Tag.
     
     **2. Indikatoren-Analyse:**
     *   **Trend-Chart:** Visualisiert die Preisbewegung der **letzten 20 Handelstage**.
     *   **RSI (14):** Relative Stärke Index (<30 überverkauft / >70 überkauft).
-    *   **ADX (14):** Misst die Trendstärke. ADX > 25 signalisiert einen robusten Trend.
+    *   **ADX (14):** Misst die Trendstärke (>25 ist ein stabiler Trend).
     
     **3. Signale & Backtest:**
-    *   <span class='sig-box-c'>C</span> **(Call):** Bestätigter Aufwärtstrend (3 Tage steigend + Kurs > SMA20).
-    *   <span class='sig-box-p'>P</span> **(Put):** Bestätigter Abwärtstrend (3 Tage fallend + Kurs < SMA20).
-    *   **Gold-Status:** Signale mit einer historischen Trefferquote von **≥ 60,0%**.
+    *   <span class='sig-box-c'>C</span> **(Call):** Trendbestätigung Long.
+    *   <span class='sig-box-p'>P</span> **(Put):** Trendbestätigung Short.
+    *   **Gold-Status:** Historische Trefferquote von **≥ 60,0%**.
     """)
 
-# --- 5. MACRO + INDICES (FIX: Jetzt mit garantierter Anzeige) ---
+# --- 5. MACRO SECTION ---
 st.markdown("<div class='header-text'>🌍 Macro + Indices 🌍</div>", unsafe_allow_html=True)
 macro_list = ["EURUSD=X", "EURRUB=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI", "RTSI.ME"]
-
-all_signals = [] # Sammel-Liste für Backtesting
-
 with ThreadPoolExecutor(max_workers=10) as ex:
-    m_res = list(ex.map(fetch_data, macro_list))
-    for res in m_res:
-        if res:
-            render_row(res)
-            if res['signal'] != "Wait": all_signals.append(res)
+    m_res = [r for r in ex.map(fetch_data, macro_list) if r]
+    for r in m_res: render_row(r)
 
-# --- 6. SCREENER (Vervollständigte Listen) ---
+# --- 6. SCREENER (Vervollständigte Listen für 80% Logik) ---
 index_data = {
     "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DTE.DE", "DBK.DE", "DB1.DE", "DHL.DE", "EON.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PUM.DE", "PAH3.DE", "RWE.DE", "SAP.DE", "SIE.DE", "SHL.DE", "SY1.DE", "TKA.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "BEI.DE", "CBK.DE", "RHM.DE", "SRT3.DE", "ENR.DE", "QIA.DE"],
-    "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC", "ITX.MC", "CS.PA", "BNP.PA", "IBE.MC", "SU.PA", "ADYEN.AS", "EL.PA", "BAS.DE", "RMS.PA", "ABI.BR", "ENI.MI", "BBVA.MC", "SAF.PA", "KER.PA", "MBG.DE", "BMW.DE", "CRH.IE", "VIV.PA", "AD.AS", "BN.PA", "DTE.DE", "BAYN.DE", "ISP.MI", "MUV2.DE", "ENEL.MI", "ALV.DE", "SAN.PA", "IFX.DE", "AI.PA", "DG.PA", "VOW3.DE", "STLAM.MI", "ADS.DE", "LIN.DE", "FME.DE", "CON.DE", "BN.PA", "PRX.AS", "HER.PA", "RACE.MI", "VNE.PA"],
-    "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL", "META", "AVGO", "COST", "NFLX", "ADBE", "AMD", "PEP", "INTC", "CSCO", "TMUS", "TXN", "QCOM", "AMAT", "ISRG", "AMGN", "HON", "SBUX", "BKNG", "GILD", "INTU", "MDLZ", "VRTX", "ADI", "REGN", "PYPL", "PANW", "SNPS", "LRCX", "KLAC", "CDNS", "MELI", "CSX", "MAR", "ORLY", "CTAS", "ROP", "NXPI", "MNST", "KDP", "ADSK", "TEAM", "LULU", "AEP", "BKR", "CPRT", "DXCM", "EXC", "FAST", "FTNT", "KHC", "MCHP", "ODFL", "PAYX", "PCAR", "PDD", "WDAY", "XEL", "ZS", "ABNB", "ANSS", "ASML", "AZN", "BIIB", "CEG", "CHTR", "DDOG", "DLTR", "FANG", "GEHC", "IDXX", "ILMN", "LCID", "MDB", "MRVL", "ON", "ROST", "SIRI", "VRSK", "WBD", "CTSH", "CDW", "SPLK", "WBA", "ALGN", "EBAY", "ENPH", "JD", "LULU", "PDD", "MNST", "KDP", "AEP", "FAST", "EXC", "PAYX", "PCAR", "MCHP", "CPRT", "ODFL", "CTAS", "ROP", "ADSK", "TEAM"]
+    "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC", "ITX.MC", "CS.PA", "BNP.PA", "IBE.MC", "SU.PA", "ADYEN.AS", "EL.PA", "BAS.DE", "RMS.PA", "ABI.BR", "ENI.MI", "BBVA.MC", "SAF.PA", "KER.PA", "MBG.DE", "BMW.DE", "CRH.IE", "VIV.PA", "AD.AS", "BN.PA", "DTE.DE", "BAYN.DE", "ISP.MI", "MUV2.DE", "ENEL.MI", "ALV.DE", "SAN.PA", "IFX.DE", "AI.PA", "DG.PA", "VOW3.DE", "STLAM.MI", "ADS.DE", "LIN.DE", "FME.DE", "CON.DE", "PRX.AS", "HER.PA", "RACE.MI", "VNE.PA"],
+    "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL", "META", "AVGO", "COST", "NFLX", "ADBE", "AMD", "PEP", "INTC", "CSCO", "TMUS", "TXN", "QCOM", "AMAT", "ISRG", "AMGN", "HON", "SBUX", "BKNG", "GILD", "INTU", "MDLZ", "VRTX", "ADI", "REGN", "PYPL", "PANW", "SNPS", "LRCX", "KLAC", "CDNS", "MELI", "CSX", "MAR", "ORLY", "CTAS", "ROP", "NXPI", "MNST", "KDP", "ADSK", "TEAM", "LULU", "AEP", "BKR", "CPRT", "DXCM", "EXC", "FAST", "FTNT", "KHC", "MCHP", "ODFL", "PAYX", "PCAR", "PDD", "WDAY", "XEL", "ZS", "ABNB", "ANSS", "ASML", "AZN", "BIIB", "CEG", "CHTR", "DDOG", "DLTR", "FANG", "GEHC", "IDXX", "ILMN", "LCID", "MDB", "MRVL", "ON", "ROST", "SIRI", "VRSK", "WBD", "CTSH", "CDW", "SPLK", "WBA", "ALGN", "EBAY", "ENPH", "JD", "LULU", "PDD", "MNST", "KDP", "AEP", "FAST", "EXC", "PAYX", "PCAR", "MCHP", "CPRT", "ODFL", "CTAS", "ROP", "ADSK", "TEAM"],
+    "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS", "ASELS.IS", "KCHOL.IS", "SAHOL.IS", "BIMAS.IS", "ARCLK.IS", "SISE.IS", "GARAN.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS", "PETKM.IS", "KRDMD.IS", "PGSUS.IS", "TOASO.IS", "FROTO.IS"],
+    "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "SBIN.NS", "BHARTIARTL.NS", "AXISBANK.NS", "LT.NS", "ITC.NS", "HINDUNILVR.NS", "BAJFINANCE.NS", "MARUTI.NS", "SUNPHARMA.NS", "KOTAKBANK.NS"]
 }
 
 st.markdown("<br><div class='header-text'>🔭 Markt Screener 🔭</div>", unsafe_allow_html=True)
@@ -180,19 +175,17 @@ with st.expander("Index-Auswahl & Scan Steuerung", expanded=True):
 if st.session_state.scan_active:
     tickers = index_data[choice]
     total = len(tickers)
-    min_req = math.ceil(total * 0.8) # Korrekt aufgerundet
+    # Logik-Korrektur: math.ceil garantiert echtes Aufrunden für mindestens 80%
+    min_req = math.ceil(total * 0.8) 
     
     st.markdown(f"<div class='scan-info'>Scanne {choice}... ({total} Werte) | Anzeige ab: {min_req} Werten.</div>", unsafe_allow_html=True)
     
     with ThreadPoolExecutor(max_workers=30) as ex:
-        s_results = list(ex.map(fetch_data, tickers))
+        results = [r for r in ex.map(fetch_data, tickers) if r]
     
-    valid_results = [r for r in s_results if r]
-    loaded = len(valid_results)
-    
+    loaded = len(results)
     if loaded >= min_req:
-        hits = [r for r in valid_results if r['signal'] != "Wait"]
-        all_signals.extend(hits) # Für globales Backtesting
+        hits = [r for r in results if r['signal'] != "Wait"]
         st.success(f"Scan bereit: {loaded} von {total} Werten geladen.")
         for r in sorted(hits, key=lambda x: -x['prob']): render_row(r)
     else:
@@ -201,23 +194,41 @@ else: st.warning("Scanner im Standby.")
 
 # --- 7. DYNAMISCHES BACKTESTING (Top-Pick Analyse) ---
 st.markdown("---")
+
+# Initialisierung des Top-Picks
+top_ticker = "SAP.DE"  # Standard-Referenz
 top_res = None
 
-# Suche den absolut besten Wert aus Macro + Screener
-if all_signals:
-    top_res = sorted(all_signals, key=lambda x: -x['prob'])[0]
-else:
-    top_res = fetch_data("SAP.DE") # Fallback
+# Logik: Suche den Wert mit der höchsten Wahrscheinlichkeit aus dem aktiven Scan
+if st.session_state.scan_active and 'results' in locals():
+    # Nur Werte mit echtem Signal (C oder P) berücksichtigen
+    valid_hits = [r for r in results if r is not None and r['signal'] != "Wait"]
+    if valid_hits:
+        # Sortiere nach Wahrscheinlichkeit absteigend und nimm den ersten
+        top_res = sorted(valid_hits, key=lambda x: -x['prob'])[0]
+        top_ticker = top_res['ticker']
 
-with st.expander(f"📈 Top-Signal Backtesting: {top_res['name'] if top_res else 'Suche...'}", expanded=True):
+# Daten abrufen (falls nicht schon durch top_res vorhanden)
+if not top_res:
+    top_res = fetch_data(top_ticker)
+
+with st.expander(f"📈 Top-Signal Backtesting: {top_res['name'] if top_res else top_ticker}", expanded=True):
     if top_res:
-        st.write(f"Detaillierte Analyse für den stärksten Signalgeber: **{top_res['name']}** ({top_res['ticker']})")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Beste Trefferquote", f"{top_res['prob']:.1f}%")
-        c2.metric("Trendstärke (ADX)", f"{top_res['adx']:.1f}")
-        c3.metric("RSI (Momentum)", f"{top_res['rsi']:.1f}")
+        st.write(f"Detaillierte Strategie-Analyse für **{top_res['name']}** ({top_res['ticker']})")
         
-        color = "#3fb950" if top_res['signal'] == "C" else "#007bff"
-        st.markdown(f"Aktuelles Signal: <b style='color:{color}; font-size:1.2rem;'>{top_res['signal']}</b> | Empfohlener Stop: **{top_res['stop']:.2f}**", unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        # Metriken für den Top-Wert
+        c1.metric("Beste Trefferquote", f"{top_res['prob']:.1f}%", help="Historische Genauigkeit der Signale (100 Tage)")
+        c2.metric("Trendstärke (ADX)", f"{top_res['adx']:.1f}", help="Werte über 25 deuten auf einen starken Trend hin")
+        c3.metric("Aktueller RSI", f"{top_res['rsi']:.1f}", help="Überkauft > 70, Überverkauft < 30")
+        
+        # Handlungsempfehlung basierend auf dem Top-Signal
+        if top_res['signal'] == "C":
+            st.success(f"🚀 Strategie-Empfehlung: **CALL/LONG** (Historische Chance: {top_res['prob']:.1f}%)")
+        elif top_res['signal'] == "P":
+            st.info(f"📉 Strategie-Empfehlung: **PUT/SHORT** (Historische Chance: {top_res['prob']:.1f}%)")
+            
+        st.markdown(f"**Empfohlener Stop-Loss:** <span class='sl-value'>{top_res['stop']:.2f}</span>", unsafe_allow_html=True)
     else:
-        st.info("Keine Signale zum Backtesten vorhanden.")
+        st.info("Führe einen Scan aus, um den aktuell stärksten Wert hier detailliert zu analysieren.")
+
