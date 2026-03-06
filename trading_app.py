@@ -106,7 +106,7 @@ def fetch_data(ticker):
     stop = curr - (last_atr * 1.5) if signal == "C" else curr + (last_atr * 1.5) if signal == "P" else 0
     icon = "☀️" if (curr > sma20 and delta > 0.3) else "⚖️" if abs(delta) < 0.3 else "⛈️"
     spark_data = df['Close'].tail(20)
-    spark_color = "#3fb950" if curr >= spark_data.iloc[0] else "#007bff"
+    spark_color = "#3fb950" if curr >= spark_data.iloc[-1] else "#007bff"
     spark_img = create_sparkline(spark_data, spark_color)
     return {
         "display_name": name, "ticker": ticker, "price": curr, "delta": delta, "signal": signal, 
@@ -147,26 +147,26 @@ st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Refresh: 60s")
 
 with st.expander("ℹ️ Strategie-Leitfaden", expanded=False):
     st.markdown("""
-    - **Trend-Chart:** Zeigt den Kursverlauf der **letzten 20 Handelstage**.
+    - **Trend-Chart:** Kursverlauf der **letzten 20 Handelstage**.
     - **Zustand:** ☀️ Bullish (>SMA20), ⚖️ Neutral, ⛈️ Bearish (<SMA20).
-    - **Signale:** <span class='sig-box-c'>C</span> (Call), <span class='sig-box-p'>P</span> (Put). Gold ab 60% Trefferquote.
+    - **Signale:** <span class='sig-box-c'>C</span> (Call), <span class='sig-box-p'>P</span> (Put). Gold ab 60% Quote.
     """, unsafe_allow_html=True)
 
-# --- 5. MACRO SECTION (Bitcoin entfernt) ---
+# --- 5. MACRO SECTION ---
 st.markdown("<div class='header-text'>🌍 Macro + Indices 🌍</div>", unsafe_allow_html=True)
 macro_list = ["EURUSD=X", "EURRUB=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI", "RTSI.ME"]
 with ThreadPoolExecutor(max_workers=10) as executor:
     m_results = list(executor.map(fetch_data, macro_list))
     for r in m_results: render_row(r)
 
-# --- 6. SCANNER SECTION (Mit Counter) ---
+# --- 6. SCANNER SECTION (Mit 80% Validierung) ---
 st.markdown("<br><div class='header-text'>🔭 Markt Screener 🔭</div>", unsafe_allow_html=True)
 index_data = {
-    "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DTE.DE", "DBK.DE", "DB1.DE", "DHL.DE", "EON.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PUM.DE", "PAH3.DE", "RWE.DE", "SAP.DE", "SIE.DE", "SHL.DE", "SY1.DE", "TKA.DE", "VOW3.DE", "VNA.DE", "ZAL.DE"],
-    "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC", "ITX.MC", "CS.PA"],
-    "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL", "META", "AVGO", "COST", "NFLX"],
-    "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS", "ASELS.IS", "KCHOL.IS", "SAHOL.IS"],
-    "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "SBIN.NS", "BHARTIARTL.NS"]
+    "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DTE.DE", "DBK.DE", "DB1.DE", "DHL.DE", "EON.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PUM.DE", "PAH3.DE", "RWE.DE", "SAP.DE", "SIE.DE", "SHL.DE", "SY1.DE", "TKA.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "BEI.DE", "CBK.DE", "RHM.DE"],
+    "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC", "ITX.MC", "CS.PA", "BNP.PA", "IBE.MC", "SU.PA", "ADYEN.AS", "EL.PA", "BAS.DE"],
+    "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL", "META", "AVGO", "COST", "NFLX", "ADBE", "AMD", "PEP", "INTC", "CSCO"],
+    "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS", "ASELS.IS", "KCHOL.IS", "SAHOL.IS", "BIMAS.IS", "ARCLK.IS", "SISE.IS"],
+    "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "SBIN.NS", "BHARTIARTL.NS", "AXISBANK.NS", "LT.NS"]
 }
 
 if 'scan_active' not in st.session_state: st.session_state.scan_active = False
@@ -179,16 +179,28 @@ with st.expander("Index-Auswahl & Scan", expanded=True):
             st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
-    total_count = len(index_data[choice])
-    st.markdown(f"<div class='scan-info'>Scanne {choice}... ({total_count} Werte insgesamt) | Zeige nur Signale.</div>", unsafe_allow_html=True)
+    tickers = index_data[choice]
+    total = len(tickers)
+    st.markdown(f"<div class='scan-info'>Scanne {choice}... ({total} Werte insgesamt) | Zeige nur Signale.</div>", unsafe_allow_html=True)
+    
     with ThreadPoolExecutor(max_workers=30) as executor:
-        results = list(executor.map(fetch_data, index_data[choice]))
-        signal_hits = [r for r in results if r is not None and r['signal'] != "Wait"]
-        if signal_hits:
-            st.success(f"{len(signal_hits)} Signale in {choice} gefunden.")
-            for r in sorted(signal_hits, key=lambda x: (x['prob'] < 60.0, -x['prob'])): render_row(r)
-        else: st.info(f"Keine Signale unter den {total_count} gescannten Werten.")
-else: st.warning("Screener im Standby.")
+        results = list(executor.map(fetch_data, tickers))
+        
+        # Validierung: Wie viele Werte wurden erfolgreich geladen?
+        valid_results = [r for r in results if r is not None]
+        load_percentage = (len(valid_results) / total) * 100
+        
+        if load_percentage >= 80:
+            signal_hits = [r for r in valid_results if r['signal'] != "Wait"]
+            if signal_hits:
+                st.success(f"{len(signal_hits)} Signale gefunden ({len(valid_results)}/{total} Werten geladen).")
+                for r in sorted(signal_hits, key=lambda x: (x['prob'] < 60.0, -x['prob'])): render_row(r)
+            else:
+                st.info(f"Keine Signale gefunden ({len(valid_results)}/{total} Werte erfolgreich gescannt).")
+        else:
+            st.warning(f"⏳ Scan läuft noch... Bitte warten ({len(valid_results)}/{total} Werten geladen).")
+else:
+    st.warning("Screener im Standby.")
 
 # --- 7. BACKTESTING ---
 st.markdown("---")
