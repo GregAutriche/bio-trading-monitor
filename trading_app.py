@@ -5,7 +5,7 @@ import numpy as np
 from datetime import datetime
 from collections import OrderedDict
 
-# --- 0. CONFIG & NAVY DESIGN (COMPACT) ---
+# --- 0. CONFIG & CLEAN NAVY DESIGN ---
 st.set_page_config(layout="wide", page_title="Bauer Strategy Pro 2026", page_icon="📡")
 
 st.markdown("""
@@ -19,13 +19,15 @@ st.markdown("""
     .sig-box-p { color: #007bff !important; border: 1px solid #007bff; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(0, 123, 255, 0.1); }
     .sig-box-high { color: #ffd700 !important; border: 2px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(255, 215, 0, 0.2); }
     
-    /* Kompaktes Layout & Sparkline-Fix */
-    .row-container { border-bottom: 1px solid #172a45; padding: 4px 0; margin: 0; }
+    /* FIX: Sparkline-Bereinigung - Entfernt weiße Boxen und Achsenbeschriftungen komplett */
+    [data-testid="stVegaLiteChart"] { 
+        background-color: transparent !important; 
+        margin-top: -20px !important;
+    }
+    
+    .row-container { border-bottom: 1px solid #172a45; padding: 10px 0; margin: 0; }
     .metric-label { color: #8892b0; font-size: 0.75rem; }
     .price-text { font-size: 1.05rem; font-weight: bold; }
-    
-    /* Entfernt Achsen und weißes Padding bei Charts */
-    [data-testid="stVegaLiteChart"] { background-color: transparent !important; margin-top: -25px !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -52,7 +54,6 @@ def get_market_maps():
         maps["EURO STOXX 50 🇪🇺"] = dict(zip(df_es50['Ticker'], df_es50['Name']))
     except: maps["EURO STOXX 50 🇪🇺"] = {"ASML.AS": "ASML Holding"}
 
-    # EXAKTE REIHENFOLGE WIE VEREINBART
     indices_forex = OrderedDict([
         ("EURUSD=X", "EUR/USD"), ("^STOXX50E", "EUROSTOXX"), ("^GDAXI", "DAX"),
         ("^IXIC", "NASDAQ"), ("EURRUB=X", "EUR/RUB"), ("^NSEI", "NIFTY"), ("XU100.IS", "BIST")
@@ -72,6 +73,7 @@ def analyze_market(ticker_map, filter_active=True):
             close = df['Close']; sma20 = close.rolling(20).mean()
             curr, p1, p2 = close.iloc[-1], close.iloc[-2], close.iloc[-3]
             signal = "C" if (curr > p1 > p2 and curr > sma20.iloc[-1]) else "P" if (curr < p1 < p2 and curr < sma20.iloc[-1]) else "Wait"
+            
             if filter_active and signal == "Wait": continue
             
             atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1]
@@ -91,7 +93,7 @@ def analyze_market(ticker_map, filter_active=True):
             
             results.append({
                 "name": full_name, "ticker": ticker, "price": curr, "signal": signal, "stk": stk,
-                "prob": (hits/total*100) if total > 0 else 50.0, "stop": sl, "spark": close.tail(15),
+                "prob": (hits/total*100) if total > 0 else 50.0, "stop": sl, "spark": close.tail(14),
                 "rsi": 100 - (100 / (1 + (close.diff().where(close.diff() > 0, 0).rolling(14).mean() / -close.diff().where(close.diff() < 0, 0).rolling(14).mean()))).iloc[-1],
                 "delta": ((curr/df['Open'].iloc[-1])-1)*100, "icon": "☀️" if (curr > sma20.iloc[-1] and (curr/df['Open'].iloc[-1]-1)>0.002) else "⚖️" if abs(curr/df['Open'].iloc[-1]-1)<0.002 else "⛈️"
             })
@@ -130,27 +132,34 @@ tabs = st.tabs(list(m_maps.keys()))
 for i, (tab_name, t_map) in enumerate(m_maps.items()):
     with tabs[i]:
         is_fixed = ("FOREX" in tab_name)
-        data_res = analyze_market(t_map, filter_active=not is_fixed)
-        for res in data_res:
-            st.markdown("<div class='row-container'>", unsafe_allow_html=True)
-            c1, c2, c3, c4 = st.columns([2.2, 1, 0.6, 1.2])
-            with c1:
-                st.markdown(f"**{res['name']}** {res['icon']}")
-                st.area_chart(res['spark'], height=45, use_container_width=True)
-            with c2:
+        with st.spinner(f"Scanne {len(t_map)} Werte..."):
+            data_res = analyze_market(t_map, filter_active=not is_fixed)
+        
+        if not data_res:
+            st.warning(f"Scan abgeschlossen: Aktuell keine Werte im {tab_name}, die die C/P Kriterien erfüllen.")
+        else:
+            if not is_fixed: data_res = sorted(data_res, key=lambda x: -x['prob'])
+            for res in data_res:
                 fmt = "{:.5f}" if "=" in res['ticker'] else "{:.2f}"
-                st.markdown(f"<span class='price-text'>{fmt.format(res['price'])}</span>", unsafe_allow_html=True)
-                rsi_c = "#ff4b4b" if res['rsi'] > 70 else "#00ff41" if res['rsi'] < 30 else "#8892b0"
-                st.markdown(f"<span class='metric-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b></span>", unsafe_allow_html=True)
-            with c3:
-                if res['signal'] != "Wait":
-                    cls = "sig-box-high" if res['prob'] >= 60 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
-                    st.markdown(f"<span class='{cls}'>{res['signal']}</span>", unsafe_allow_html=True)
-                else: st.markdown("<span style='color:#333; font-weight:bold; font-size:0.8rem;'>WAIT</span>", unsafe_allow_html=True)
-            with c4:
-                if res['signal'] != "Wait":
-                    p_col = "#ffd700" if res['prob'] >= 60 else "#e6f1ff"
-                    st.markdown(f"<b style='color:{p_col};'>{res['prob']:.1f}%</b> | **{res['stk']} Stk.**", unsafe_allow_html=True)
-                    st.markdown(f"<span class='metric-label'>SL: {fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
-                else: st.markdown("<span class='metric-label'>Monitoring</span>", unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown("<div class='row-container'>", unsafe_allow_html=True)
+                c1, c2, c3, c4 = st.columns([2.2, 1, 0.6, 1.2])
+                with c1:
+                    st.markdown(f"**{res['name']}** {res['icon']}")
+                    # Sparkline-Fix: Minimalistischer Area Chart ohne jegliche Beschriftungen
+                    st.area_chart(res['spark'], height=50, use_container_width=True)
+                with c2:
+                    st.markdown(f"<span class='price-text'>{fmt.format(res['price'])}</span>", unsafe_allow_html=True)
+                    rsi_c = "#ff4b4b" if res['rsi'] > 70 else "#00ff41" if res['rsi'] < 30 else "#8892b0"
+                    st.markdown(f"<span class='metric-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b></span>", unsafe_allow_html=True)
+                with c3:
+                    if res['signal'] != "Wait":
+                        cls = "sig-box-high" if res['prob'] >= 60 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
+                        st.markdown(f"<span class='{cls}'>{res['signal']}</span>", unsafe_allow_html=True)
+                    else: st.markdown("<span style='color:#333; font-weight:bold; font-size:0.8rem;'>WAIT</span>", unsafe_allow_html=True)
+                with c4:
+                    if res['signal'] != "Wait":
+                        p_col = "#ffd700" if res['prob'] >= 60 else "#e6f1ff"
+                        st.markdown(f"<b style='color:{p_col};'>{res['prob']:.1f}%</b> | **{res['stk']} Stk.**", unsafe_allow_html=True)
+                        st.markdown(f"<span class='metric-label'>SL: {fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
+                    else: st.markdown("<span class='metric-label'>Monitoring</span>", unsafe_allow_html=True)
+                st.markdown("</div>", unsafe_allow_html=True)
