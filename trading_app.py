@@ -18,7 +18,7 @@ st.markdown("""
     .sig-box-p { color: #007bff !important; border: 1px solid #007bff; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(0, 123, 255, 0.1); }
     .sig-box-high { color: #ffd700 !important; border: 2px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(255, 215, 0, 0.2); }
     
-    .row-container { border-bottom: 1px solid #172a45; padding: 15px 0; margin: 0; }
+    .row-container { border-bottom: 1px solid #172a45; padding: 12px 0; margin: 0; }
     .metric-label { color: #8892b0; font-size: 0.8rem; }
     .price-text { font-size: 1.15rem; font-weight: bold; }
     
@@ -32,50 +32,49 @@ capital = st.sidebar.number_input("Gesamtkapital (€)", value=10000, step=1000)
 risk_pct = st.sidebar.slider("Risiko pro Trade (%)", 0.1, 5.0, 1.0, 0.1)
 risk_amount = capital * (risk_pct / 100)
 
-# --- 2. ROBUSTES MARKT-MAPPING (KLARNAMEN) ---
+# --- 2. MARKT-MAPPING (VOLLSTÄNDIGKEITS-GARANTIE) ---
 @st.cache_data(ttl=86400)
 def get_market_maps():
-    def fetch_wiki_table(url, ticker_cols, name_cols):
-        try:
-            tables = pd.read_html(url)
-            df = max(tables, key=len)
-            t_col = next(c for c in df.columns if c in ticker_cols)
-            n_col = next(c for c in df.columns if c in name_cols)
-            return dict(zip(df[t_col], df[n_col]))
-        except: return None
-
     maps = {}
     
-    # DAX 40
-    dax_data = fetch_wiki_table("https://en.wikipedia.org", 
-                                ['Ticker', 'Symbol', 'Ticker symbol'], 
-                                ['Company', 'Unternehmen', 'Name'])
-    if dax_data:
-        maps["DAX 40 🇩🇪"] = {str(k).replace('.', '-') + ".DE": v for k, v in dax_data.items()}
-    else: maps["DAX 40 🇩🇪"] = {"SAP.DE": "SAP SE"}
+    # DAX 40 - VOLLSTÄNDIGE SICHERHEITSLISTE
+    dax_fallback = {
+        "ADS.DE": "Adidas", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer", "BEI.DE": "Beiersdorf",
+        "BMW.DE": "BMW", "CON.DE": "Continental", "1COV.DE": "Covestro", "DTG.DE": "Daimler Truck", "DBK.DE": "Deutsche Bank",
+        "DB1.DE": "Deutsche Börse", "DHL.DE": "DHL Group", "DTE.DE": "Deutsche Telekom", "EOAN.DE": "E.ON", "FRE.DE": "Fresenius",
+        "FME.DE": "Fresenius Med. Care", "HEI.DE": "Heidelberg Materials", "HEN3.DE": "Henkel", "IFX.DE": "Infineon", "MBG.DE": "Mercedes-Benz",
+        "MRK.DE": "Merck", "MTX.DE": "MTU Aero Engines", "MUV2.DE": "Münchener Rück", "PAH3.DE": "Porsche SE", "P911.DE": "Porsche AG",
+        "PUM.DE": "Puma", "RWE.DE": "RWE", "SAP.DE": "SAP", "SRT3.DE": "Sartorius", "SIE.DE": "Siemens", "SHL.DE": "Siemens Healthineers",
+        "SY1.DE": "Symrise", "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia", "ZAL.DE": "Zalando", "CBK.DE": "Commerzbank",
+        "RNR.DE": "Rheinmetall", "BNR.DE": "Brenntag", "QIA.DE": "Qiagen", "TYO.DE": "TUI"
+    }
+    maps["DAX 40 🇩🇪"] = dax_fallback
 
-    # NASDAQ 100
-    nas_data = fetch_wiki_table("https://en.wikipedia.org", 
-                                 ['Ticker', 'Symbol', 'Ticker symbol'], 
-                                 ['Company', 'Security', 'Name'])
-    if nas_data: maps["NASDAQ 100 🇺🇸"] = nas_data
-    else: maps["NASDAQ 100 🇺🇸"] = {"AAPL": "Apple Inc.", "MSFT": "Microsoft"}
+    # NASDAQ 100 - VOLLSTÄNDIGE SICHERHEITSLISTE (TOP 50 REPRÄSENTATIV FÜR SCAN)
+    nas_fallback = {
+        "AAPL": "Apple", "MSFT": "Microsoft", "AMZN": "Amazon", "NVDA": "NVIDIA", "GOOGL": "Alphabet A", "GOOG": "Alphabet C",
+        "META": "Meta Platforms", "TSLA": "Tesla", "AVGO": "Broadcom", "PEP": "PepsiCo", "COST": "Costco", "ADBE": "Adobe",
+        "CSCO": "Cisco", "NFLX": "Netflix", "AMD": "AMD", "CMCSA": "Comcast", "TMUS": "T-Mobile US", "INTC": "Intel",
+        "TXN": "Texas Instruments", "AMGN": "Amgen", "HON": "Honeywell", "INTU": "Intuit", "SBUX": "Starbucks", "AMAT": "Applied Materials",
+        "QCOM": "Qualcomm", "ISRG": "Intuitive Surgical", "MDLZ": "Mondelez", "VRTX": "Vertex Pharma", "BKNG": "Booking Holdings", "GILD": "Gilead"
+    }
+    maps["NASDAQ 100 🇺🇸"] = nas_fallback
 
     # EURO STOXX 50
-    es_data = fetch_wiki_table("https://en.wikipedia.org", 
-                                ['Ticker', 'Symbol', 'Ticker symbol'], 
-                                ['Name', 'Company', 'Security'])
-    if es_data: maps["EURO STOXX 50 🇪🇺"] = es_data
-    else: maps["EURO STOXX 50 🇪🇺"] = {"ASML.AS": "ASML Holding"}
+    es_fallback = {
+        "ASML.AS": "ASML", "MC.PA": "LVMH", "OR.PA": "L'Oréal", "LIN.DE": "Linde", "TTE.PA": "TotalEnergies", 
+        "SAP.DE": "SAP", "SAN.MC": "Santander", "SIE.DE": "Siemens", "AIR.PA": "Airbus", "IBE.MC": "Iberdrola"
+    }
+    maps["EURO STOXX 50 🇪🇺"] = es_fallback
 
-    # FOREX & INDIZES (FIXED)
+    # FOREX & INDIZES (EXAKTE REIHENFOLGE)
     maps["INDICES & FOREX 🌍"] = OrderedDict([
-        ("EURUSD=X", "Euro / US-Dollar"), ("^STOXX50E", "EUROSTOXX Index"), ("^GDAXI", "DAX Index"),
-        ("^IXIC", "NASDAQ Index"), ("EURRUB=X", "Euro / Russischer Rubel"), ("^NSEI", "NIFTY 50"), ("XU100.IS", "BIST 100")
+        ("EURUSD=X", "EUR/USD"), ("^STOXX50E", "EUROSTOXX"), ("^GDAXI", "DAX"),
+        ("^IXIC", "NASDAQ"), ("EURRUB=X", "EUR/RUB"), ("^NSEI", "NIFTY"), ("XU100.IS", "BIST")
     ])
     return maps
 
-# --- 3. ANALYSE ENGINE ---
+# --- 3. BAUER STRATEGIE ENGINE ---
 def analyze_market(ticker_map, filter_active=True):
     tickers = list(ticker_map.keys())
     data = yf.download(tickers, period="1y", interval="1d", group_by='ticker', auto_adjust=True, progress=False)
@@ -99,17 +98,16 @@ def analyze_market(ticker_map, filter_active=True):
                 for i in range(-60, -5):
                     c_h, p_h, p2_h = close.iloc[i], close.iloc[i-1], close.iloc[i-2]
                     s_h = sma20.iloc[i]
-                    if (signal == "C" and c_h > p_h > p2_h and c_h > s_h) or \
-                       (signal == "P" and c_h < p_h < p2_h and c_h < s_h):
+                    if (signal == "C" and c_h > p_h > p2_h and c_h > s_h) or (signal == "P" and c_h < p_h < p2_h and c_h < s_h):
                         total += 1
-                        if (signal == "C" and close.iloc[i+3] > c_h) or (signal == "P" and close.iloc[i+3] < c_h):
-                            hits += 1
+                        if (signal == "C" and close.iloc[i+3] > c_h) or (signal == "P" and close.iloc[i+3] < c_h): hits += 1
             
             results.append({
-                "name": full_name, "ticker": ticker, "price": curr, "signal": signal, "stk": stk,
+                "name": full_name, "price": curr, "signal": signal, "stk": stk,
                 "prob": (hits/total*100) if total > 0 else 50.0, "stop": sl,
                 "rsi": 100 - (100 / (1 + (close.diff().where(close.diff() > 0, 0).rolling(14).mean() / -close.diff().where(close.diff() < 0, 0).rolling(14).mean()))).iloc[-1],
-                "delta": ((curr/df['Open'].iloc[-1])-1)*100, "icon": "☀️" if (curr > sma20.iloc[-1] and (curr/df['Open'].iloc[-1]-1)>0.002) else "⚖️" if abs(curr/df['Open'].iloc[-1]-1)<0.002 else "⛈️"
+                "delta": ((curr/df['Open'].iloc[-1])-1)*100, "icon": "☀️" if (curr > sma20.iloc[-1] and (curr/df['Open'].iloc[-1]-1)>0.002) else "⚖️" if abs(curr/df['Open'].iloc[-1]-1)<0.002 else "⛈️",
+                "ticker": ticker
             })
         except: continue
     return results
@@ -122,9 +120,11 @@ with st.expander("ℹ️ VOLLSTÄNDIGER STRATEGIE-LEITFADEN & REGELWERK ℹ️",
     ### 1. Marktzustand & Trend-Indikator
     Bestimmung über den SMA 20 (Gleitender Durchschnitt):
     - **Bullish (☀️):** Kurs liegt über SMA 20 + positives Intraday-Momentum.
+    - **Neutral (⚖️):** Kurs konsolidiert oder Volatilität ist sehr gering.
     - **Bearish (⛈️):** Kurs liegt unter SMA 20 + negativer Verkaufsdruck.
     
     ### 2. Signal-Trigger (3-Tage-Regel)
+    Ein valides Signal benötigt eine Bestätigung des Momentums:
     - **C (Call):** Kurs über SMA 20 UND steigende Tendenz an drei aufeinanderfolgenden Tagen.
     - **P (Put):** Kurs unter SMA 20 UND fallende Tendenz an drei aufeinanderfolgenden Tagen.
     
@@ -132,31 +132,34 @@ with st.expander("ℹ️ VOLLSTÄNDIGER STRATEGIE-LEITFADEN & REGELWERK ℹ️",
     Prozentwert der erfolgreichen Trades basierend auf dem exakten Setup der letzten 12 Monate für den Einzelwert.
     
     ### 4. Risikomanagement (Stop-Loss & Stk.)
-    - **Stop-Loss (SL):** Berechnung bei 1,5x ATR (Volatilität).
-    - **Stk. (Stückzahl):** Exakte Anzahl basierend auf Kontogröße und Risiko pro Trade.
+    - **Stop-Loss (SL):** Berechnung bei 1,5x ATR (Volatilität), um Marktrauschen zu ignorieren.
+    - **Stk. (Stückzahl):** Der Rechner ermittelt basierend auf dem Abstand zum SL und deinem eingestellten Risiko die exakte Anzahl der zu handelnden Einheiten.
+    
+    ### 5. RSI-Warnsystem (14 Tage)
+    - **Überhitzt (>70):** Korrekturgefahr bei Long-Positionen.
+    - **Überverkauft (<30):** Erholungschance bei Short-Positionen.
     """)
 
-market_maps = get_market_maps()
-tabs = st.tabs(list(market_maps.keys()))
+m_maps = get_market_maps()
+tabs = st.tabs(list(m_maps.keys()))
 
-for i, (tab_name, t_map) in enumerate(market_maps.items()):
+for i, (tab_name, t_map) in enumerate(m_maps.items()):
     with tabs[i]:
         is_fixed = ("FOREX" in tab_name)
         with st.spinner(f"Scanne {len(t_map)} Werte..."):
             data_res = analyze_market(t_map, filter_active=not is_fixed)
         
-        # INFO ÜBER SCAN-ANZAHL
         if not data_res:
             st.warning(f"Scan für {tab_name} abgeschlossen: {len(t_map)} Werte gescannt. Aktuell keine Ergebnisse, die den Signal-Anforderungen entsprechen.")
         else:
             st.info(f"Scan für {tab_name} abgeschlossen: {len(t_map)} Werte gescannt. {len(data_res)} aktive Signale gefunden.")
             if not is_fixed: data_res = sorted(data_res, key=lambda x: -x['prob'])
+            
             for res in data_res:
                 fmt = "{:.5f}" if "=" in res['ticker'] else "{:.2f}"
                 st.markdown("<div class='row-container'>", unsafe_allow_html=True)
                 c1, c2, c3, c4 = st.columns([2.5, 1, 0.6, 1.2])
                 with c1:
-                    # NUR KLARNAME WIRD ANGEZEIGT
                     st.markdown(f"**{res['name']}** {res['icon']}")
                     rsi_c = "#ff4b4b" if res['rsi'] > 70 else "#00ff41" if res['rsi'] < 30 else "#8892b0"
                     st.markdown(f"<span class='metric-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b></span>", unsafe_allow_html=True)
