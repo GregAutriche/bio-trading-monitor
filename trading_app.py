@@ -90,143 +90,19 @@ def get_market_maps():
     ])
     return maps
 
-# --- 3. BAUER STRATEGIE ENGINE ---
-def analyze_market(ticker_map, filter_active=True):
-    tickers = list(ticker_map.keys())
-    data = yf.download(tickers, period="1y", interval="1d", group_by='ticker', auto_adjust=True, progress=False)
-    results = []
-    
-    for ticker, full_name in ticker_map.items():
-        try:
-            df = data[ticker].dropna() if len(tickers) > 1 else data.dropna()
-            if len(df) < 40: continue
-            
-            close = df['Close']; sma20 = close.rolling(20).mean()
-            curr, p1, p2 = close.iloc[-1], close.iloc[-2], close.iloc[-3]
-            signal = "C" if (curr > p1 > p2 and curr > sma20.iloc[-1]) else "P" if (curr < p1 < p2 and curr < sma20.iloc[-1]) else "Wait"
-            
-            day_delta = ((curr / df['Open'].iloc[-1]) - 1) * 100
-            sentiment = "Bull" if (curr > sma20.iloc[-1] and day_delta > 0.2) else "Bear" if (curr < sma20.iloc[-1] or day_delta < -0.2) else "Neut"
-            
-            if filter_active and signal == "Wait": 
-                # Auch bei Wait-Werten für die Heatmap speichern
-                results.append({"signal": "Wait", "sentiment": sentiment, "prob": 0, "delta": day_delta})
-                continue
-            
-            atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1]
-            sl = curr - (atr * 1.5) if signal == "C" else curr + (atr * 1.5)
-            stk = int(risk_amount / abs(curr - sl)) if abs(curr - sl) > 0 else 0
-            
-            hits, total = 0, 0
-            if signal != "Wait":
-                for i in range(-60, -5):
-                    c_h, p_h, p2_h = close.iloc[i], close.iloc[i-1], close.iloc[i-2]
-                    s_h = sma20.iloc[i]
-                    h_sig = "C" if (c_h > p_h > p2_h and c_h > s_h) else "P" if (c_h < p_h < p2_h and c_h < s_h) else None
-                    if h_sig == signal:
-                        total += 1
-                        if (signal == "C" and close.iloc[i+3] > c_h) or (signal == "P" and close.iloc[i+3] < c_h): hits += 1
-            
-            results.append({
-                "name": full_name, "ticker": ticker, "price": curr, "signal": signal, "stk": stk,
-                "prob": (hits/total*100) if total > 0 else 50.0, "stop": sl, "sentiment": sentiment,
-                "rsi": 100 - (100 / (1 + (close.diff().where(close.diff() > 0, 0).rolling(14).mean() / -close.diff().where(close.diff() < 0, 0).rolling(14).mean()))).iloc[-1],
-                "delta": day_delta, "icon": "☀️" if sentiment == "Bull" else "⚖️" if sentiment == "Neut" else "⛈️"
-            })
-        except: continue
-    return results
-
-# --- 4. UI RENDERING ---
-st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie Pro 2026</div>", unsafe_allow_html=True)
-
-with st.expander("ℹ️ VOLLSTÄNDIGER STRATEGIE-LEITFADEN & REGELWERK ℹ️", expanded=True):
-    st.markdown("""
-    ### 1. Marktzustand & Trend-Indikator
-    Bestimmung über den SMA 20 (Gleitender Durchschnitt):
-    - **Bullish (☀️):** Kurs liegt über SMA 20 + positives Intraday-Momentum.
-    - **Neutral (⚖️):** Kurs konsolidiert oder Volatilität ist sehr gering.
-    - **Bearish (⛈️):** Kurs liegt unter SMA 20 + negativer Verkaufsdruck.
-    
-    ### 2. Signal-Trigger (3-Tage-Regel)
-    Ein valides Signal benötigt eine Bestätigung des Momentums:
-    - **C (Call):** Kurs über SMA 20 UND steigende Tendenz an drei aufeinanderfolgenden Tagen.
-    - **P (Put):** Kurs unter SMA 20 UND fallende Tendenz an drei aufeinanderfolgenden Tagen.
-    
-    ### 3. Markt-Heatmap (Breadth)
-    Die farbige Leiste zeigt die Verteilung des gesamten Index:
-    - <span style='color:#00ff41;'>Grün</span>: Anteil bullischer Aktien.
-    - <span style='color:#8892b0;'>Grau</span>: Anteil neutraler Aktien.
-    - <span style='color:#ff4b4b;'>Rot</span>: Anteil bärischer Aktien.
-    
-    ### 4. Risikomanagement (Stop-Loss & Stk.)
-    - **Stop-Loss (SL):** Berechnung bei 1,5x ATR (Volatilität).
-    - **Stk. (Stückzahl):** Anzahl basierend auf Risiko pro Trade (Sidebar).
-    """)
-
-market_maps = get_market_maps()
-tabs = st.tabs(list(market_maps.keys()))
-
-for i, (tab_name, t_map) in enumerate(market_maps.items()):
-    with tabs[i]:
-        is_fixed = ("FOREX" in tab_name)
-        with st.spinner(f"Scanne {len(t_map)} Werte..."):
-            data_res = analyze_market(t_map, filter_active=not is_fixed)
-        
-        # HEATMAP BERECHNUNG
-        total_vals = len(data_res)
-        bull_p = (len([x for x in data_res if x['sentiment'] == "Bull"]) / total_vals) * 100
-        neut_p = (len([x for x in data_res if x['sentiment'] == "Neut"]) / total_vals) * 100
-        bear_p = (len([x for x in data_res if x['sentiment'] == "Bear"]) / total_vals) * 100
-        
-        st.markdown(f"""
-            <div class='metric-label'>Markt-Heatmap {tab_name} ({total_vals} Werte gescannt)</div>
-            <div class='breath-bar'>
-                <div class='breath-bull' style='width: {bull_p}%'></div>
-                <div class='breath-neut' style='width: {neut_p}%'></div>
-                <div class='breath-bear' style='width: {bear_p}%'></div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        # FILTERN FÜR ANZEIGE (Wait-Werte nur für Heatmap genutzt)
-        final_display = [x for x in data_res if x.get('name')]
-        
-        if not final_display and not is_fixed:
-            st.warning(f"Aktuell keine aktiven C/P Signale gefunden.")
-        else:
-            if not is_fixed:
-                final_display = sorted(final_display, key=lambda x: (x['prob'], abs(x['delta'])), reverse=True)
-            
-            for res in final_display:
-                fmt = "{:.5f}" if "=" in res['ticker'] else "{:.2f}"
-                st.markdown("<div class='row-container'>", unsafe_allow_html=True)
-                c1, c2, c3, c4 = st.columns([2.5, 1, 0.6, 1.2])
-                with c1:
-                    st.markdown(f"**{res['name']}** {res['icon']}")
-                    rsi_c = "#ff4b4b" if res['rsi'] > 70 else "#00ff41" if res['rsi'] < 30 else "#8892b0"
-                    st.markdown(f"<span class='metric-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b></span>", unsafe_allow_html=True)
-                with c2:
-                    d_col = "#00ff41" if res['delta'] >= 0 else "#ff4b4b"
-                    st.markdown(f"<span class='price-text'>{fmt.format(res['price'])}</span><br><span style='color:{d_col}; font-size:0.8rem;'>{res['delta']:+.2f}%</span>", unsafe_allow_html=True)
-                with c3:
-                    if res['signal'] != "Wait":
-                        cls = "sig-box-high" if res['prob'] >= 60 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
-                        st.markdown(f"<span class='{cls}'>{res['signal']}</span>", unsafe_allow_html=True)
-                    else: st.markdown("<span style='color:#333; font-weight:bold; font-size:0.8rem;'>WAIT</span>", unsafe_allow_html=True)
-                with c4:
-                    if res['signal'] != "Wait":
-                        p_col = "#ffd700" if res['prob'] >= 60 else "#e6f1ff"
-                        st.markdown(f"<b style='color:{p_col};'>{res['prob']:.1f}%</b> | **{res['stk']} Stk.**", unsafe_allow_html=True)
-                        st.markdown(f"<span class='metric-label'>SL: {fmt.format(res['stop'])}</span>", unsafe_allow_html=True)
-                    else: st.markdown("<span class='metric-label'>Monitoring</span>", unsafe_allow_html=True)
-                st.markdown("</div>", unsafe_allow_html=True)
-
 # --- BAUER SIGNAL-FUNKTION (3-Tage-Regel + SMA20) ---
 def bauer_signal(df):
+    # Schutz: Mindestens 25 Kerzen nötig (SMA20 + 3-Tage-Regel)
+    if len(df) < 25:
+        return None
+
     close = df["Close"]
     sma20 = close.rolling(20).mean()
 
-    curr, p1, p2 = close.iloc[-1], close.iloc[-2], close.iloc[-3]
-    sma = sma20.iloc[-1]
+    curr = close.iloc[-1]
+    p1   = close.iloc[-2]
+    p2   = close.iloc[-3]
+    sma  = sma20.iloc[-1]
 
     if curr > p1 > p2 and curr > sma:
         return "C"
@@ -244,8 +120,10 @@ def backtest_strategy(df, signal_func, atr_mult_sl=1.5, atr_mult_tp=2.0, hold_da
     trades = []
     position = None
 
-    for i in range(20, len(df)-hold_days):
+    for i in range(20, len(df) - hold_days):
         row = df.iloc[i]
+
+        # WICHTIG: vollständigen DataFrame übergeben, nicht einzelne Zeile!
         sig = signal_func(df.iloc[:i+1])
 
         # Einstieg
@@ -356,5 +234,3 @@ with st.expander("📈 Backtesting – Microsoft (MSFT)"):
 
         st.subheader("Trades")
         st.dataframe(trades)
-
-
