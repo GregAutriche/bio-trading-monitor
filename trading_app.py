@@ -19,9 +19,9 @@ st.markdown("""
     .sig-box-p { color: #007bff !important; border: 1px solid #007bff; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(0, 123, 255, 0.1); }
     .sig-box-high { color: #ffd700 !important; border: 2px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(255, 215, 0, 0.2); }
     
-    .row-container { border-bottom: 1px solid #172a45; padding: 12px 0; margin: 0; }
+    .row-container { border-bottom: 1px solid #172a45; padding: 15px 0; margin: 0; }
     .metric-label { color: #8892b0; font-size: 0.8rem; }
-    .price-text { font-size: 1.1rem; font-weight: bold; }
+    .price-text { font-size: 1.15rem; font-weight: bold; }
     
     /* Sidebar */
     [data-testid="stSidebar"] { background-color: #0d1b2a; border-right: 1px solid #172a45; }
@@ -51,7 +51,6 @@ def get_market_maps():
         maps["EURO STOXX 50 🇪🇺"] = dict(zip(df_es50['Ticker'], df_es50['Name']))
     except: maps["EURO STOXX 50 🇪🇺"] = {"ASML.AS": "ASML Holding"}
 
-    # EXAKTE REIHENFOLGE WIE VEREINBART
     maps["INDICES & FOREX 🌍"] = OrderedDict([
         ("EURUSD=X", "EUR/USD"), ("^STOXX50E", "EUROSTOXX"), ("^GDAXI", "DAX"),
         ("^IXIC", "NASDAQ"), ("EURRUB=X", "EUR/RUB"), ("^NSEI", "NIFTY"), ("XU100.IS", "BIST")
@@ -66,7 +65,7 @@ def analyze_market(ticker_map, filter_active=True):
     for ticker, full_name in ticker_map.items():
         try:
             df = data[ticker].dropna() if len(tickers) > 1 else data.dropna()
-            if len(df) < 35: continue
+            if len(df) < 40: continue
             close = df['Close']; sma20 = close.rolling(20).mean()
             curr, p1, p2 = close.iloc[-1], close.iloc[-2], close.iloc[-3]
             signal = "C" if (curr > p1 > p2 and curr > sma20.iloc[-1]) else "P" if (curr < p1 < p2 and curr < sma20.iloc[-1]) else "Wait"
@@ -77,15 +76,17 @@ def analyze_market(ticker_map, filter_active=True):
             sl = curr - (atr * 1.5) if signal == "C" else curr + (atr * 1.5)
             stk = int(risk_amount / abs(curr - sl)) if abs(curr - sl) > 0 else 0
             
-            # Backtest 12 Monate
+            # Backtest 60 Tage für präzisere Wahrscheinlichkeit
             hits, total = 0, 0
             if signal != "Wait":
-                for i in range(-45, -5):
+                for i in range(-60, -5):
                     c_h, p_h, p2_h = close.iloc[i], close.iloc[i-1], close.iloc[i-2]
                     s_h = sma20.iloc[i]
+                    # Exakte Trigger-Bedingung prüfen
                     h_sig = "C" if (c_h > p_h > p2_h and c_h > s_h) else "P" if (c_h < p_h < p2_h and c_h < s_h) else None
                     if h_sig == signal:
                         total += 1
+                        # Prüfung ob der Preis 3 Tage später in Signalrichtung steht
                         if (signal == "C" and close.iloc[i+3] > c_h) or (signal == "P" and close.iloc[i+3] < c_h): hits += 1
             
             results.append({
@@ -133,7 +134,7 @@ for i, (tab_name, t_map) in enumerate(market_maps.items()):
             data_res = analyze_market(t_map, filter_active=not is_fixed)
         
         if not data_res:
-            st.warning(f"Scan für {tab_name} abgeschlossen: Aktuell keine Ergebnisse, die den Signal-Anforderungen entsprechen.")
+            st.warning(f"Scan für {tab_name} abgeschlossen: {len(t_map)} Werte gescannt. Aktuell keine Ergebnisse, die den Signal-Anforderungen entsprechen.")
         else:
             if not is_fixed: data_res = sorted(data_res, key=lambda x: -x['prob'])
             for res in data_res:
