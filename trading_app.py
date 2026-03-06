@@ -32,38 +32,36 @@ capital = st.sidebar.number_input("Gesamtkapital (€)", value=10000, step=1000)
 risk_pct = st.sidebar.slider("Risiko pro Trade (%)", 0.1, 5.0, 1.0, 0.1)
 risk_amount = capital * (risk_pct / 100)
 
-# --- 2. DYNAMISCHE MARKT-DATEN (FIXED SCRAPING) ---
+# --- 2. DYNAMISCHE MARKT-DATEN (ROBUSTES SCRAPING) ---
 @st.cache_data(ttl=86400)
 def get_market_maps():
     maps = {}
     
-    # DAX 40 vollständig (Robustes Scraping)
+    # DAX 40
     try:
         tables = pd.read_html("https://en.wikipedia.org")
-        df_dax = next(t for t in tables if 'Ticker' in t.columns)
-        maps["DAX 40 🇩🇪"] = dict(zip([str(t).replace('.', '-') + ".DE" for t in df_dax['Ticker']], df_dax['Company']))
+        df = max(tables, key=len) # Nimmt die Tabelle mit den meisten Zeilen
+        maps["DAX 40 🇩🇪"] = dict(zip([str(t).replace('.', '-') + ".DE" for t in df['Ticker']], df['Company']))
     except:
-        # Sicherheits-Fallback falls Wikipedia-Struktur sich ändert
-        dax_list = ["ADS.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BEI.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DBK.DE", 
-                    "DB1.DE", "LHA.DE", "DPW.DE", "DTE.DE", "EOAN.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", 
-                    "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PAH3.DE", "PUM.DE", "RWE.DE", "SAP.DE", "SRT3.DE", "SIE.DE", 
-                    "SHL.DE", "SY1.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "DHL.DE", "RNR.DE", "CBK.DE", "BNR.DE"]
-        maps["DAX 40 🇩🇪"] = {t: t.split('.')[0] for t in dax_list}
+        dax_fallback = ["ADS.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BEI.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DBK.DE", "DB1.DE", "LHA.DE", "DPW.DE", "DTE.DE", "EOAN.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PAH3.DE", "PUM.DE", "RWE.DE", "SAP.DE", "SRT3.DE", "SIE.DE", "SHL.DE", "SY1.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "DHL.DE", "RNR.DE", "CBK.DE", "BNR.DE"]
+        maps["DAX 40 🇩🇪"] = {t: t for t in dax_fallback}
 
-    # NASDAQ 100 vollständig
+    # NASDAQ 100
     try:
         tables = pd.read_html("https://en.wikipedia.org")
-        df_ndx = next(t for t in tables if 'Ticker' in t.columns)
-        maps["NASDAQ 100 🇺🇸"] = dict(zip(df_ndx['Ticker'], df_ndx['Company']))
+        df = max(tables, key=len)
+        maps["NASDAQ 100 🇺🇸"] = dict(zip(df['Ticker'], df['Company']))
     except: maps["NASDAQ 100 🇺🇸"] = {"AAPL": "Apple Inc.", "MSFT": "Microsoft"}
 
-    # EURO STOXX 50 vollständig
+    # EURO STOXX 50 (Spezial-Fix für Tabellen-Suche)
     try:
         tables = pd.read_html("https://en.wikipedia.org")
-        df_es50 = next(t for t in tables if any(col in t.columns for col in ['Ticker', 'Symbol']))
-        ticker_col = 'Ticker' if 'Ticker' in df_es50.columns else 'Symbol'
-        maps["EURO STOXX 50 🇪🇺"] = dict(zip(df_es50[ticker_col], df_es50['Name']))
-    except: maps["EURO STOXX 50 🇪🇺"] = {"ASML.AS": "ASML Holding"}
+        df = max(tables, key=len)
+        t_col = 'Ticker' if 'Ticker' in df.columns else 'Symbol'
+        maps["EURO STOXX 50 🇪🇺"] = dict(zip(df[t_col], df['Name']))
+    except:
+        es_fallback = ["ASML.AS", "MC.PA", "OR.PA", "LIN.DE", "TTE.PA", "SAP.DE", "SAN.MC", "SIE.DE", "AIR.PA", "IBE.MC"]
+        maps["EURO STOXX 50 🇪🇺"] = {t: t for t in es_fallback}
 
     maps["INDICES & FOREX 🌍"] = OrderedDict([
         ("EURUSD=X", "EUR/USD"), ("^STOXX50E", "EUROSTOXX"), ("^GDAXI", "DAX"),
@@ -94,11 +92,12 @@ def analyze_market(ticker_map, filter_active=True):
             if signal != "Wait":
                 for i in range(-60, -5):
                     c_h, p_h, p2_h = close.iloc[i], close.iloc[i-1], close.iloc[i-2]
-                    s_h = sma20.iloc[i]
-                    h_sig = "C" if (c_h > p_h > p2_h and c_h > s_h) else "P" if (c_h < p_h < p2_h and c_h < s_h) else None
-                    if h_sig == signal:
+                    if (signal == "C" and c_h > p_h > p2_h and c_h > sma20.iloc[i]):
                         total += 1
-                        if (signal == "C" and close.iloc[i+3] > c_h) or (signal == "P" and close.iloc[i+3] < c_h): hits += 1
+                        if close.iloc[i+3] > c_h: hits += 1
+                    elif (signal == "P" and c_h < p_h < p2_h and c_h < sma20.iloc[i]):
+                        total += 1
+                        if close.iloc[i+3] < c_h: hits += 1
             
             results.append({
                 "name": full_name, "ticker": ticker, "price": curr, "signal": signal, "stk": stk,
