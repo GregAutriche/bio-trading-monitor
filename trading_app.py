@@ -32,55 +32,52 @@ capital = st.sidebar.number_input("Gesamtkapital (€)", value=10000, step=1000)
 risk_pct = st.sidebar.slider("Risiko pro Trade (%)", 0.1, 5.0, 1.0, 0.1)
 risk_amount = capital * (risk_pct / 100)
 
-# --- 2. DYNAMISCHE MARKT-DATEN (HOCHROBUSTES SCRAPING) ---
+# --- 2. ROBUSTES MARKT-MAPPING (KLARNAMEN) ---
 @st.cache_data(ttl=86400)
 def get_market_maps():
+    def fetch_wiki_table(url, ticker_cols, name_cols):
+        try:
+            tables = pd.read_html(url)
+            df = max(tables, key=len)
+            t_col = next(c for c in df.columns if c in ticker_cols)
+            n_col = next(c for c in df.columns if c in name_cols)
+            return dict(zip(df[t_col], df[n_col]))
+        except: return None
+
     maps = {}
     
     # DAX 40
-    try:
-        tables = pd.read_html("https://en.wikipedia.org")
-        df = max(tables, key=len)
-        t_col = next(c for c in df.columns if c in ['Ticker', 'Symbol', 'Ticker-Symbol'])
-        n_col = next(c for c in df.columns if c in ['Company', 'Unternehmen', 'Name'])
-        maps["DAX 40 🇩🇪"] = dict(zip([str(t).replace('.', '-') + ".DE" for t in df[t_col]], df[n_col]))
-    except:
-        dax_fallback = ["ADS.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BEI.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DBK.DE", "DB1.DE", "LHA.DE", "DPW.DE", "DTE.DE", "EOAN.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PAH3.DE", "PUM.DE", "RWE.DE", "SAP.DE", "SRT3.DE", "SIE.DE", "SHL.DE", "SY1.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "DHL.DE", "RNR.DE", "CBK.DE", "BNR.DE"]
-        maps["DAX 40 🇩🇪"] = {t: t for t in dax_fallback}
+    dax_data = fetch_wiki_table("https://en.wikipedia.org", 
+                                ['Ticker', 'Symbol', 'Ticker symbol'], 
+                                ['Company', 'Unternehmen', 'Name'])
+    if dax_data:
+        maps["DAX 40 🇩🇪"] = {str(k).replace('.', '-') + ".DE": v for k, v in dax_data.items()}
+    else: maps["DAX 40 🇩🇪"] = {"SAP.DE": "SAP SE"}
 
-    # NASDAQ 100 (Flexibles Spalten-Matching)
-    try:
-        tables = pd.read_html("https://en.wikipedia.org")
-        df = max(tables, key=len)
-        t_col = next(c for c in df.columns if c in ['Ticker', 'Symbol', 'Symbol'])
-        n_col = next(c for c in df.columns if c in ['Company', 'Security', 'Name'])
-        maps["NASDAQ 100 🇺🇸"] = dict(zip(df[t_col], df[n_col]))
-    except:
-        # Erweiterter Fallback für NASDAQ
-        nas_list = ["AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "GOOG", "META", "TSLA", "PEP", "AVGO", "COST", "ADBE", "CSCO", "NFLX", "AMD", "CMCSA", "TMUS", "INTC", "TXN", "AMGN", "HON", "INTU", "SBUX", "AMAT", "QCOM", "ISRG", "MDLZ", "VRTX", "BKNG", "GILD"]
-        maps["NASDAQ 100 🇺🇸"] = {t: t for t in nas_list}
+    # NASDAQ 100
+    nas_data = fetch_wiki_table("https://en.wikipedia.org", 
+                                 ['Ticker', 'Symbol', 'Ticker symbol'], 
+                                 ['Company', 'Security', 'Name'])
+    if nas_data: maps["NASDAQ 100 🇺🇸"] = nas_data
+    else: maps["NASDAQ 100 🇺🇸"] = {"AAPL": "Apple Inc.", "MSFT": "Microsoft"}
 
     # EURO STOXX 50
-    try:
-        tables = pd.read_html("https://en.wikipedia.org")
-        df = max(tables, key=len)
-        t_col = next(c for c in df.columns if c in ['Ticker', 'Symbol', 'Ticker symbol'])
-        n_col = next(c for c in df.columns if c in ['Name', 'Company', 'Security'])
-        maps["EURO STOXX 50 🇪🇺"] = dict(zip(df[t_col], df[n_col]))
-    except:
-        es_fallback = ["ASML.AS", "MC.PA", "OR.PA", "LIN.DE", "TTE.PA", "SAP.DE", "SAN.MC", "SIE.DE", "AIR.PA", "IBE.MC"]
-        maps["EURO STOXX 50 🇪🇺"] = {t: t for t in es_fallback}
+    es_data = fetch_wiki_table("https://en.wikipedia.org", 
+                                ['Ticker', 'Symbol', 'Ticker symbol'], 
+                                ['Name', 'Company', 'Security'])
+    if es_data: maps["EURO STOXX 50 🇪🇺"] = es_data
+    else: maps["EURO STOXX 50 🇪🇺"] = {"ASML.AS": "ASML Holding"}
 
+    # FOREX & INDIZES (FIXED)
     maps["INDICES & FOREX 🌍"] = OrderedDict([
-        ("EURUSD=X", "EUR/USD"), ("^STOXX50E", "EUROSTOXX"), ("^GDAXI", "DAX"),
-        ("^IXIC", "NASDAQ"), ("EURRUB=X", "EUR/RUB"), ("^NSEI", "NIFTY"), ("XU100.IS", "BIST")
+        ("EURUSD=X", "Euro / US-Dollar"), ("^STOXX50E", "EUROSTOXX Index"), ("^GDAXI", "DAX Index"),
+        ("^IXIC", "NASDAQ Index"), ("EURRUB=X", "Euro / Russischer Rubel"), ("^NSEI", "NIFTY 50"), ("XU100.IS", "BIST 100")
     ])
     return maps
 
-# --- 3. BAUER STRATEGIE ENGINE ---
+# --- 3. ANALYSE ENGINE ---
 def analyze_market(ticker_map, filter_active=True):
     tickers = list(ticker_map.keys())
-    # Batch-Download ist effizienter als 100 Einzelanfragen
     data = yf.download(tickers, period="1y", interval="1d", group_by='ticker', auto_adjust=True, progress=False)
     results = []
     for ticker, full_name in ticker_map.items():
@@ -101,12 +98,12 @@ def analyze_market(ticker_map, filter_active=True):
             if signal != "Wait":
                 for i in range(-60, -5):
                     c_h, p_h, p2_h = close.iloc[i], close.iloc[i-1], close.iloc[i-2]
-                    if (signal == "C" and c_h > p_h > p2_h and c_h > sma20.iloc[i]):
+                    s_h = sma20.iloc[i]
+                    if (signal == "C" and c_h > p_h > p2_h and c_h > s_h) or \
+                       (signal == "P" and c_h < p_h < p2_h and c_h < s_h):
                         total += 1
-                        if close.iloc[i+3] > c_h: hits += 1
-                    elif (signal == "P" and c_h < p_h < p2_h and c_h < sma20.iloc[i]):
-                        total += 1
-                        if close.iloc[i+3] < c_h: hits += 1
+                        if (signal == "C" and close.iloc[i+3] > c_h) or (signal == "P" and close.iloc[i+3] < c_h):
+                            hits += 1
             
             results.append({
                 "name": full_name, "ticker": ticker, "price": curr, "signal": signal, "stk": stk,
@@ -148,15 +145,18 @@ for i, (tab_name, t_map) in enumerate(market_maps.items()):
         with st.spinner(f"Scanne {len(t_map)} Werte..."):
             data_res = analyze_market(t_map, filter_active=not is_fixed)
         
+        # INFO ÜBER SCAN-ANZAHL
         if not data_res:
             st.warning(f"Scan für {tab_name} abgeschlossen: {len(t_map)} Werte gescannt. Aktuell keine Ergebnisse, die den Signal-Anforderungen entsprechen.")
         else:
+            st.info(f"Scan für {tab_name} abgeschlossen: {len(t_map)} Werte gescannt. {len(data_res)} aktive Signale gefunden.")
             if not is_fixed: data_res = sorted(data_res, key=lambda x: -x['prob'])
             for res in data_res:
                 fmt = "{:.5f}" if "=" in res['ticker'] else "{:.2f}"
                 st.markdown("<div class='row-container'>", unsafe_allow_html=True)
                 c1, c2, c3, c4 = st.columns([2.5, 1, 0.6, 1.2])
                 with c1:
+                    # NUR KLARNAME WIRD ANGEZEIGT
                     st.markdown(f"**{res['name']}** {res['icon']}")
                     rsi_c = "#ff4b4b" if res['rsi'] > 70 else "#00ff41" if res['rsi'] < 30 else "#8892b0"
                     st.markdown(f"<span class='metric-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b></span>", unsafe_allow_html=True)
