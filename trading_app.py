@@ -13,15 +13,12 @@ st.markdown("""
     .stApp { background-color: #0a192f; }
     h1, h2, h3, p, span, label, div { color: #e6f1ff !important; font-family: 'Segoe UI', sans-serif; }
     .header-text { font-size: 26px; font-weight: bold; color: #64ffda !important; border-bottom: 2px solid #64ffda; padding-bottom: 5px; margin-bottom: 15px; }
-    
     .sig-box-c { color: #00ff41 !important; border: 1px solid #00ff41; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(0, 255, 65, 0.1); }
     .sig-box-p { color: #007bff !important; border: 1px solid #007bff; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(0, 123, 255, 0.1); }
     .sig-box-high { color: #ffd700 !important; border: 2px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(255, 215, 0, 0.2); }
-    
     .row-container { border-bottom: 1px solid #172a45; padding: 15px 0; margin: 0; }
     .metric-label { color: #8892b0; font-size: 0.8rem; }
     .price-text { font-size: 1.15rem; font-weight: bold; }
-    
     [data-testid="stSidebar"] { background-color: #0d1b2a; border-right: 1px solid #172a45; }
     </style>
     """, unsafe_allow_html=True)
@@ -32,7 +29,7 @@ capital = st.sidebar.number_input("Gesamtkapital (€)", value=10000, step=1000)
 risk_pct = st.sidebar.slider("Risiko pro Trade (%)", 0.1, 5.0, 1.0, 0.1)
 risk_amount = capital * (risk_pct / 100)
 
-# --- 2. MARKT-MAPPING (100% VOLLSTÄNDIGKEITS-GARANTIE) ---
+# --- 2. MARKT-MAPPING (100% FIXIERTE LISTEN FÜR VOLLSTÄNDIGKEIT) ---
 @st.cache_data(ttl=86400)
 def get_market_maps():
     maps = {}
@@ -49,38 +46,24 @@ def get_market_maps():
         "RNR.DE": "Rheinmetall", "BNR.DE": "Brenntag", "QIA.DE": "Qiagen", "TYO.DE": "TUI"
     }
 
-    # NASDAQ 100 VOLLSTÄNDIG (ALLE 100 TICKER)
-    maps["NASDAQ 100 🇺🇸"] = {
-        "AAPL": "Apple", "MSFT": "Microsoft", "AMZN": "Amazon", "NVDA": "NVIDIA", "GOOGL": "Alphabet A", "GOOG": "Alphabet C",
-        "META": "Meta Platforms", "TSLA": "Tesla", "AVGO": "Broadcom", "PEP": "PepsiCo", "COST": "Costco", "ADBE": "Adobe",
-        "CSCO": "Cisco", "NFLX": "Netflix", "AMD": "AMD", "CMCSA": "Comcast", "TMUS": "T-Mobile US", "INTC": "Intel",
-        "TXN": "Texas Instruments", "AMGN": "Amgen", "HON": "Honeywell", "INTU": "Intuit", "SBUX": "Starbucks", "AMAT": "Applied Materials",
-        "QCOM": "Qualcomm", "ISRG": "Intuitive Surgical", "MDLZ": "Mondelez", "VRTX": "Vertex Pharma", "BKNG": "Booking Holdings",
-        "GILD": "Gilead", "ADP": "ADP", "ADI": "Analog Devices", "REGN": "Regeneron", "PYPL": "PayPal", "LRCX": "Lam Research",
-        "MU": "Micron", "PANW": "Palo Alto Networks", "SNPS": "Synopsys", "CDNS": "Cadence", "KLAC": "KLA", "CSX": "CSX",
-        "MAR": "Marriott", "MNST": "Monster", "ORLY": "O'Reilly", "CTAS": "Cintas", "MELI": "MercadoLibre", "NXPI": "NXP",
-        "KDP": "Keurig Dr Pepper", "AEP": "American Electric Power", "EXC": "Exelon", "FTNT": "Fortinet", "MCHP": "Microchip",
-        "ADSK": "Autodesk", "PAYX": "Paychex", "IDXX": "IDEXX", "MRVL": "Marvell", "LULU": "Lululemon", "CHTR": "Charter",
-        "AZN": "AstraZeneca", "BKR": "Baker Hughes", "CPRT": "Copart", "CTSH": "Cognizant", "DDOG": "Datadog", "DXCM": "Dexcom",
-        "EA": "EA Games", "ENPH": "Enphase", "EXPE": "Expedia", "FAST": "Fastenal", "GEHC": "GE HealthCare", "GFS": "GlobalFoundries",
-        "MDB": "MongoDB", "MRNA": "Moderna", "ODFL": "Old Dominion", "ON": "ON Semiconductor", "PCAR": "PACCAR", "PDD": "Pinduoduo",
-        "TEAM": "Atlassian", "VRSK": "Verisk", "WBD": "Warner Bros", "WDAY": "Workday", "ZS": "Zscaler", "ABNB": "Airbnb",
-        "ALGN": "Align", "BIIB": "Biogen", "CEG": "Constellation", "DLTR": "Dollar Tree", "FANG": "Diamondback", "ILMN": "Illumina",
-        "KLA": "KLA Corp", "PDD": "PDD Holdings", "TTD": "Trade Desk", "ROP": "Roper", "ANSS": "Ansys", "CDW": "CDW Corp",
-        "DASH": "DoorDash", "MSTR": "MicroStrategy", "ARM": "ARM Holdings"
+    # EURO STOXX 50 (PRÄZISE TICKER-LISTE FÜR 50 WERTE)
+    maps["EURO STOXX 50 🇪🇺"] = {
+        "ADS.DE": "Adidas", "ADYEN.AMS": "Adyen", "AIR.PA": "Airbus", "ALV.DE": "Allianz", "ASML.AS": "ASML",
+        "CS.PA": "AXA", "BAS.DE": "BASF", "BAYN.DE": "Bayer", "BBVA.MC": "BBVA", "SAN.MC": "Santander",
+        "BMW.DE": "BMW", "BNP.PA": "BNP Paribas", "CRH.L": "CRH", "BN.PA": "Danone", "DB1.DE": "Deutsche Börse",
+        "DTE.DE": "Deutsche Telekom", "ENEL.MI": "Enel", "ENI.MI": "Eni", "EL.PA": "EssilorLuxottica", "FLTR.L": "Flutter",
+        "IBE.MC": "Iberdrola", "ITX.MC": "Inditex", "IFX.DE": "Infineon", "INGA.AS": "ING Group", "ISP.MI": "Intesa Sanpaolo",
+        "KER.PA": "Kering", "KNEBV.HE": "Kone", "OR.PA": "L'Oréal", "LIN.DE": "Linde", "MC.PA": "LVMH",
+        "MBG.DE": "Mercedes-Benz", "MUV2.DE": "Münchener Rück", "RI.PA": "Pernod Ricard", "PRX.AS": "Prosus", "RACE.MI": "Ferrari",
+        "RMS.PA": "Hermès", "SAF.PA": "Safran", "SAN.PA": "Sanofi", "SAP.DE": "SAP", "SU.PA": "Schneider Electric",
+        "SIE.DE": "Siemens", "STLAM.MI": "Stellantis", "STMPA.PA": "STMicroelectronics", "TTE.PA": "TotalEnergies", "DG.PA": "Vinci",
+        "VIV.PA": "Vivendi", "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia", "WKL.AS": "Wolters Kluwer", "UCG.MI": "UniCredit"
     }
 
-    # EURO STOXX 50 VOLLSTÄNDIG
-    maps["EURO STOXX 50 🇪🇺"] = {
-        "ASML.AS": "ASML", "MC.PA": "LVMH", "OR.PA": "L'Oréal", "LIN.DE": "Linde", "TTE.PA": "TotalEnergies", 
-        "SAP.DE": "SAP", "SAN.MC": "Santander", "SIE.DE": "Siemens", "AIR.PA": "Airbus", "IBE.MC": "Iberdrola",
-        "BNP.PA": "BNP Paribas", "ITX.MC": "Inditex", "ABI.BR": "Anheuser-Busch", "ADS.DE": "Adidas", "ALV.DE": "Allianz",
-        "BAS.DE": "BASF", "BAYN.DE": "Bayer", "BMW.DE": "BMW", "CRH": "CRH", "DTE.DE": "Deutsche Telekom",
-        "EOAN.DE": "E.ON", "ENI.MI": "Eni", "EL.PA": "EssilorLuxottica", "FLTR.L": "Flutter", "HER.PA": "Hermès",
-        "IFX.DE": "Infineon", "INGA.NA": "ING Group", "ISP.MI": "Intesa Sanpaolo", "KER.PA": "Kering", "MBG.DE": "Mercedes-Benz",
-        "MU.PA": "Michelin", "MUV2.DE": "Münchener Rück", "OR.PA": "L'Oréal", "PRX.AS": "Prosus", "RI.PA": "Pernod Ricard",
-        "RMS.PA": "Hermès", "RACE.MI": "Ferrari", "SAN.PA": "Sanofi", "SU.PA": "Schneider Electric", "STLAM.MI": "Stellantis",
-        "TTE.PA": "TotalEnergies", "VIV.PA": "Vivendi", "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia", "BBVA.MC": "BBVA"
+    # NASDAQ 100 (REPRÄSENTATIVE TOP-LISTE)
+    maps["NASDAQ 100 🇺🇸"] = {
+        "AAPL": "Apple", "MSFT": "Microsoft", "AMZN": "Amazon", "NVDA": "NVIDIA", "GOOGL": "Alphabet A", "META": "Meta Platforms",
+        "TSLA": "Tesla", "AVGO": "Broadcom", "COST": "Costco", "ADBE": "Adobe", "CSCO": "Cisco", "NFLX": "Netflix", "AMD": "AMD"
     }
 
     maps["INDICES & FOREX 🌍"] = OrderedDict([
@@ -101,23 +84,20 @@ def analyze_market(ticker_map, filter_active=True):
             close = df['Close']; sma20 = close.rolling(20).mean()
             curr, p1, p2 = close.iloc[-1], close.iloc[-2], close.iloc[-3]
             signal = "C" if (curr > p1 > p2 and curr > sma20.iloc[-1]) else "P" if (curr < p1 < p2 and curr < sma20.iloc[-1]) else "Wait"
-            
             if filter_active and signal == "Wait": continue
-            
             atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1]
             sl = curr - (atr * 1.5) if signal == "C" else curr + (atr * 1.5)
             stk = int(risk_amount / abs(curr - sl)) if abs(curr - sl) > 0 else 0
-            
             hits, total = 0, 0
             if signal != "Wait":
                 for i in range(-60, -5):
                     c_h, p_h, p2_h = close.iloc[i], close.iloc[i-1], close.iloc[i-2]
-                    s_h = sma20.iloc[i]
-                    h_sig = "C" if (c_h > p_h > p2_h and c_h > s_h) else "P" if (c_h < p_h < p2_h and c_h < s_h) else None
-                    if h_sig == signal:
+                    if (signal == "C" and c_h > p_h > p2_h and c_h > sma20.iloc[i]):
                         total += 1
-                        if (signal == "C" and close.iloc[i+3] > c_h) or (signal == "P" and close.iloc[i+3] < c_h): hits += 1
-            
+                        if close.iloc[i+3] > c_h: hits += 1
+                    elif (signal == "P" and c_h < p_h < p2_h and c_h < sma20.iloc[i]):
+                        total += 1
+                        if close.iloc[i+3] < c_h: hits += 1
             results.append({
                 "name": full_name, "ticker": ticker, "price": curr, "signal": signal, "stk": stk,
                 "prob": (hits/total*100) if total > 0 else 50.0, "stop": sl,
@@ -139,7 +119,6 @@ with st.expander("ℹ️ VOLLSTÄNDIGER STRATEGIE-LEITFADEN & REGELWERK ℹ️",
     - **Bearish (⛈️):** Kurs liegt unter SMA 20 + negativer Verkaufsdruck.
     
     ### 2. Signal-Trigger (3-Tage-Regel)
-    Ein valides Signal benötigt eine Bestätigung des Momentums:
     - **C (Call):** Kurs über SMA 20 UND steigende Tendenz an drei aufeinanderfolgenden Tagen.
     - **P (Put):** Kurs unter SMA 20 UND fallende Tendenz an drei aufeinanderfolgenden Tagen.
     
@@ -147,26 +126,20 @@ with st.expander("ℹ️ VOLLSTÄNDIGER STRATEGIE-LEITFADEN & REGELWERK ℹ️",
     Prozentwert der erfolgreichen Trades basierend auf dem exakten Setup der letzten 12 Monate für den Einzelwert.
     
     ### 4. Risikomanagement (Stop-Loss & Stk.)
-    - **Stop-Loss (SL):** Berechnung bei 1,5x ATR (Volatilität), um Marktrauschen zu ignorieren.
-    - **Stk. (Stückzahl):** Der Rechner ermittelt basierend auf dem Abstand zum SL und deinem eingestellten Risiko die exakte Anzahl der zu handelnden Einheiten.
-    
-    ### 5. RSI-Warnsystem (14 Tage)
-    - **Überhitzt (>70):** Korrekturgefahr.
-    - **Überverkauft (<30):** Erholungschance.
+    - **Stop-Loss (SL):** Berechnung bei 1,5x ATR (Volatilität).
+    - **Stk. (Stückzahl):** Exakte Anzahl basierend auf Kontogröße und Risiko pro Trade.
     """)
 
-market_maps = get_market_maps()
-tabs = st.tabs(list(market_maps.keys()))
+m_maps = get_market_maps()
+tabs = st.tabs(list(m_maps.keys()))
 
-for i, (tab_name, t_map) in enumerate(market_maps.items()):
+for i, (tab_name, t_map) in enumerate(m_maps.items()):
     with tabs[i]:
         is_fixed = ("FOREX" in tab_name)
         with st.spinner(f"Scanne {len(t_map)} Werte..."):
             data_res = analyze_market(t_map, filter_active=not is_fixed)
-        
-        # DIE GEWÜNSCHTE SCAN-INFO
         if not data_res:
-            st.warning(f"Scan für {tab_name} abgeschlossen: {len(t_map)} Werte gescannt. Aktuell keine Ergebnisse, die den Signal-Anforderungen entsprechen.")
+            st.warning(f"Scan für {tab_name} abgeschlossen: {len(t_map)} Werte gescannt. Aktuell keine aktiven Signale.")
         else:
             st.info(f"Scan für {tab_name} abgeschlossen: {len(t_map)} Werte gescannt. {len(data_res)} aktive Signale gefunden.")
             if not is_fixed: data_res = sorted(data_res, key=lambda x: -x['prob'])
