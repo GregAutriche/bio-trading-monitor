@@ -192,12 +192,42 @@ if st.session_state.scan_active:
         st.warning(f"⏳ Sammle Daten... Aktuell {loaded} von {total} Werten geladen. (Benötigt: {min_req})")
 else: st.warning("Scanner im Standby.")
 
-# --- 7. BACKTESTING ---
+# --- 7. DYNAMISCHES BACKTESTING (Top-Pick Analyse) ---
 st.markdown("---")
-with st.expander("📈 Backtesting-Details (Fokus: SAP)"):
-    sap_res = fetch_data("SAP.DE")
-    if sap_res:
-        st.write(f"Analyse für: **{sap_res['name']}**")
-        c1, c2 = st.columns(2)
-        c1.metric("Trefferquote", f"{sap_res['prob']:.1f}%")
-        c2.metric("ADX (Trend)", f"{sap_res['adx']:.1f}")
+
+# Initialisierung des Top-Picks
+top_ticker = "SAP.DE"  # Standard-Referenz
+top_res = None
+
+# Logik: Suche den Wert mit der höchsten Wahrscheinlichkeit aus dem aktiven Scan
+if st.session_state.scan_active and 'results' in locals():
+    # Nur Werte mit echtem Signal (C oder P) berücksichtigen
+    valid_hits = [r for r in results if r is not None and r['signal'] != "Wait"]
+    if valid_hits:
+        # Sortiere nach Wahrscheinlichkeit absteigend und nimm den ersten
+        top_res = sorted(valid_hits, key=lambda x: -x['prob'])[0]
+        top_ticker = top_res['ticker']
+
+# Daten abrufen (falls nicht schon durch top_res vorhanden)
+if not top_res:
+    top_res = fetch_data(top_ticker)
+
+with st.expander(f"📈 Top-Signal Backtesting: {top_res['name'] if top_res else top_ticker}", expanded=True):
+    if top_res:
+        st.write(f"Detaillierte Strategie-Analyse für **{top_res['name']}** ({top_res['ticker']})")
+        
+        c1, c2, c3 = st.columns(3)
+        # Metriken für den Top-Wert
+        c1.metric("Beste Trefferquote", f"{top_res['prob']:.1f}%", help="Historische Genauigkeit der Signale (100 Tage)")
+        c2.metric("Trendstärke (ADX)", f"{top_res['adx']:.1f}", help="Werte über 25 deuten auf einen starken Trend hin")
+        c3.metric("Aktueller RSI", f"{top_res['rsi']:.1f}", help="Überkauft > 70, Überverkauft < 30")
+        
+        # Handlungsempfehlung basierend auf dem Top-Signal
+        if top_res['signal'] == "C":
+            st.success(f"🚀 Strategie-Empfehlung: **CALL/LONG** (Historische Chance: {top_res['prob']:.1f}%)")
+        elif top_res['signal'] == "P":
+            st.info(f"📉 Strategie-Empfehlung: **PUT/SHORT** (Historische Chance: {top_res['prob']:.1f}%)")
+            
+        st.markdown(f"**Empfohlener Stop-Loss:** <span class='sl-value'>{top_res['stop']:.2f}</span>", unsafe_allow_html=True)
+    else:
+        st.info("Führe einen Scan aus, um den aktuell stärksten Wert hier detailliert zu analysieren.")
