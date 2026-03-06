@@ -1,7 +1,7 @@
 import os
 import sys
 
-# --- 1. MATPLOTLIB FIX ---
+# --- 1. MATPLOTLIB FIX (Backend für Cloud-Stabilität) ---
 import matplotlib
 matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
@@ -25,7 +25,7 @@ import base64
 import io
 from streamlit_autorefresh import st_autorefresh
 
-# --- 2. SETUP & REFRESH ---
+# --- 2. SETUP & REFRESH (60 Sek) ---
 st_autorefresh(interval=60000, key="datarefresh")
 st.set_page_config(layout="wide", page_title="Bauer Strategy Pro 2026", page_icon="📡")
 
@@ -129,35 +129,35 @@ with st.expander("ℹ️ Ausführlicher Strategie-Leitfaden & Markt-Logik ℹ️
     Dieser Monitor analysiert Märkte basierend auf Dr. Gregor Bauers Trend- und Momentum-Strategie.
     
     **1. Markt-Zustand (Symbole):**
-    *   ☀️ **Bullish:** Kurs steht über dem SMA20 und das Tagesplus ist > 0,3%. Starkes Momentum.
+    *   ☀️ **Bullish:** Kurs steht über dem SMA20 und das Tagesplus ist > 0,3%.
     *   ⚖️ **Neutral:** Kurs konsolidiert oder Tagesbewegung ist minimal (< 0,3%). 
     *   ⛈️ **Bearish:** Kurs unter SMA20 oder deutlicher Abverkauf am heutigen Tag.
     
     **2. Indikatoren-Analyse:**
     *   **Trend-Chart:** Visualisiert die Preisbewegung der **letzten 20 Handelstage**.
-    *   **RSI (14):** Relative Stärke Index. Werte < 30 deuten auf Überverkauf (Erholungschance), > 70 auf Überkauf hin.
-    *   **ADX (14):** Misst die **Trendstärke**. Ein ADX > 25 signalisiert einen robusten Trend.
+    *   **RSI (14):** Relative Stärke Index (<30 überverkauft / >70 überkauft).
+    *   **ADX (14):** Misst die Trendstärke (>25 ist ein stabiler Trend).
     
     **3. Signale & Backtest:**
-    *   <span class='sig-box-c'>C</span> **(Call):** Bestätigter Aufwärtstrend (3 Tage steigend + Kurs > SMA20).
-    *   <span class='sig-box-p'>P</span> **(Put):** Bestätigter Abwärtstrend (3 Tage fallend + Kurs < SMA20).
-    *   **Gold-Status:** Signale mit einer historischen Trefferquote von **≥ 60,0%** leuchten Gold.
+    *   <span class='sig-box-c'>C</span> **(Call):** Trendbestätigung Long.
+    *   <span class='sig-box-p'>P</span> **(Put):** Trendbestätigung Short.
+    *   **Gold-Status:** Historische Trefferquote von **≥ 60,0%**.
     """)
 
-# --- 5. MACRO ---
+# --- 5. MACRO SECTION ---
 st.markdown("<div class='header-text'>🌍 Macro + Indices 🌍</div>", unsafe_allow_html=True)
 macro_list = ["EURUSD=X", "EURRUB=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI", "RTSI.ME"]
 with ThreadPoolExecutor(max_workers=10) as ex:
     m_res = [r for r in ex.map(fetch_data, macro_list) if r]
     for r in m_res: render_row(r)
 
-# --- 6. SCREENER (Erweiterte Listen) ---
+# --- 6. SCREENER (Optimierte Listen für 80% Logik) ---
 index_data = {
-    "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DTE.DE", "DBK.DE", "DB1.DE", "DHL.DE", "EON.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PUM.DE", "PAH3.DE", "RWE.DE", "SAP.DE", "SIE.DE", "SHL.DE", "SY1.DE", "TKA.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "BEI.DE", "CBK.DE", "RHM.DE", "SRT3.DE", "ENR.DE", "DB1.DE"],
-    "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC", "ITX.MC", "CS.PA", "BNP.PA", "IBE.MC", "SU.PA", "ADYEN.AS", "EL.PA", "BAS.DE", "RMS.PA", "ABI.BR", "ENI.MI", "BBVA.MC", "SAF.PA", "KER.PA", "MBG.DE", "BMW.DE", "CRH.IE", "VIV.PA", "AD.AS", "BN.PA", "DTE.DE", "BAYN.DE", "ISP.MI", "MUV2.DE", "ENEL.MI", "ALV.DE", "SAN.PA", "OR.PA", "IFX.DE", "ASML.AS", "AI.PA", "BNP.PA", "CS.PA", "TTE.PA", "DG.PA", "VOW3.DE", "STLAM.MI", "ADS.DE", "LIN.DE", "FME.DE", "BAS.DE", "CON.DE"],
-    "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL", "META", "AVGO", "COST", "NFLX", "ADBE", "AMD", "PEP", "INTC", "CSCO", "TMUS", "TXN", "QCOM", "AMAT", "ISRG", "AMGN", "HON", "SBUX", "BKNG", "GILD", "INTU", "MDLZ", "VRTX", "ADI", "REGN", "PYPL", "PANW", "SNPS", "LRCX", "ASML", "KLAC", "CDNS", "MELI", "CSX", "MAR", "ORLY", "CTAS", "ROP", "NXPI", "MNST", "KDP", "ADSK", "TEAM", "LULU", "AEP", "BKR", "CPRT", "DXCM", "EXC", "FAST", "FTNT", "KHC", "MCHP", "ODFL", "PAYX", "PCAR", "PDD", "WDAY", "XEL", "ZS"],
-    "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS", "ASELS.IS", "KCHOL.IS", "SAHOL.IS", "BIMAS.IS", "ARCLK.IS", "SISE.IS", "GARAN.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS", "PETKM.IS", "KRDMD.IS", "HEKTS.IS", "SASA.IS", "KOZAL.IS", "KOZAA.IS", "PGSUS.IS", "DOHOL.IS", "TOASO.IS", "FROTO.IS", "TKFEN.IS", "ENKAI.IS"],
-    "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "SBIN.NS", "BHARTIARTL.NS", "AXISBANK.NS", "LT.NS", "ITC.NS", "HINDUNILVR.NS", "BAJFINANCE.NS", "MARUTI.NS", "SUNPHARMA.NS", "KOTAKBANK.NS", "TATAMOTORS.NS", "ONGC.NS", "ADANIENT.NS", "ADANIPORTS.NS", "ASIANPAINT.NS", "TITAN.NS", "BAJAJFINSV.NS", "ULTRACEMCO.NS", "JSWSTEEL.NS", "GRASIM.NS", "POWERGRID.NS", "NTPC.NS", "M&M.NS", "COALINDIA.NS", "NESTLEIND.NS"]
+    "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DTE.DE", "DBK.DE", "DB1.DE", "DHL.DE", "EON.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PUM.DE", "PAH3.DE", "RWE.DE", "SAP.DE", "SIE.DE", "SHL.DE", "SY1.DE", "TKA.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "BEI.DE", "CBK.DE", "RHM.DE", "SRT3.DE", "ENR.DE", "QIA.DE"],
+    "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC", "ITX.MC", "CS.PA", "BNP.PA", "IBE.MC", "SU.PA", "ADYEN.AS", "EL.PA", "BAS.DE", "RMS.PA", "ABI.BR", "ENI.MI", "BBVA.MC", "SAF.PA", "KER.PA", "MBG.DE", "BMW.DE", "CRH.IE", "VIV.PA", "AD.AS", "BN.PA", "DTE.DE", "BAYN.DE", "ISP.MI", "MUV2.DE", "ENEL.MI", "ALV.DE", "SAN.PA", "IFX.DE", "AI.PA", "DG.PA", "VOW3.DE", "STLAM.MI", "ADS.DE", "LIN.DE", "FME.DE", "CON.DE", "BBVA.MC", "BN.PA", "PRX.AS", "HER.PA", "RACE.MI", "VNE.PA"],
+    "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL", "META", "AVGO", "COST", "NFLX", "ADBE", "AMD", "PEP", "INTC", "CSCO", "TMUS", "TXN", "QCOM", "AMAT", "ISRG", "AMGN", "HON", "SBUX", "BKNG", "GILD", "INTU", "MDLZ", "VRTX", "ADI", "REGN", "PYPL", "PANW", "SNPS", "LRCX", "KLAC", "CDNS", "MELI", "CSX", "MAR", "ORLY", "CTAS", "ROP", "NXPI", "MNST", "KDP", "ADSK", "TEAM", "LULU", "AEP", "BKR", "CPRT", "DXCM", "EXC", "FAST", "FTNT", "KHC", "MCHP", "ODFL", "PAYX", "PCAR", "PDD", "WDAY", "XEL", "ZS", "ABNB", "ADSK", "ANSS", "ASML", "AZN", "BIIB", "CEG", "CHTR", "DDOG", "DLTR", "FANG", "GEHC", "IDXX", "ILMN", "KDP", "LCID", "LRCX", "MDB", "MRVL", "ON", "ORLY", "PANW", "PDD", "PYPL", "ROST", "SGEN", "SIRI", "SNPS", "TEAM", "VRSK", "WBD", "ZS"],
+    "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS", "ASELS.IS", "KCHOL.IS", "SAHOL.IS", "BIMAS.IS", "ARCLK.IS", "SISE.IS", "GARAN.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS", "PETKM.IS", "KRDMD.IS", "PGSUS.IS", "TOASO.IS", "FROTO.IS"],
+    "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "SBIN.NS", "BHARTIARTL.NS", "AXISBANK.NS", "LT.NS", "ITC.NS", "HINDUNILVR.NS", "BAJFINANCE.NS", "MARUTI.NS", "SUNPHARMA.NS", "KOTAKBANK.NS"]
 }
 
 st.markdown("<br><div class='header-text'>🔭 Markt Screener 🔭</div>", unsafe_allow_html=True)
@@ -174,9 +174,9 @@ with st.expander("Index-Auswahl & Scan Steuerung", expanded=True):
 if st.session_state.scan_active:
     tickers = index_data[choice]
     total = len(tickers)
-    min_req = int(total * 0.8) # Strikte 80%-Logik
+    min_req = int(total * 0.8) 
     
-    st.markdown(f"<div class='scan-info'>Scanne {choice}... ({total} Werte insgesamt) | Anzeige ab: {min_req} Werten.</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='scan-info'>Scanne {choice}... ({total} Werte) | Anzeige ab: {min_req} Werten.</div>", unsafe_allow_html=True)
     
     with ThreadPoolExecutor(max_workers=30) as ex:
         results = [r for r in ex.map(fetch_data, tickers) if r]
