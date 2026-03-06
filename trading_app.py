@@ -19,16 +19,17 @@ st.markdown("""
     .sig-box-p { color: #007bff !important; border: 1px solid #007bff; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(0, 123, 255, 0.1); }
     .sig-box-high { color: #ffd700 !important; border: 2px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(255, 215, 0, 0.2); }
     
-    /* Kompaktes Zeilenlayout - Verhindert weiße Boxen */
-    .row-container { border-bottom: 1px solid #172a45; padding: 8px 0; margin: 0; }
+    /* Kompaktes Zeilenlayout - FIX: Verhindert weiße Boxen */
+    .row-container { border-bottom: 1px solid #172a45; padding: 6px 0; margin: 0; }
     .metric-label { color: #8892b0; font-size: 0.75rem; line-height: 1.2; }
     .price-text { font-size: 1.1rem; font-weight: bold; }
     
+    /* Sparkline-Fix: Entfernt Achsen, Labels und weißen Hintergrund */
+    [data-testid="stVegaLiteChart"] canvas { filter: brightness(0.8) !important; }
+    .stVegaLiteChart { margin-top: -25px !important; background-color: transparent !important; }
+    
     /* Sidebar */
     [data-testid="stSidebar"] { background-color: #0d1b2a; border-right: 1px solid #172a45; }
-    
-    /* Entfernt Standard-Padding von Charts für Sparklines */
-    .stAreaChart, .stLineChart { margin-top: -15px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -56,6 +57,7 @@ def get_market_maps():
         maps["EURO STOXX 50 🇪🇺"] = dict(zip(df_es50['Ticker'], df_es50['Name']))
     except: maps["EURO STOXX 50 🇪🇺"] = {"ASML.AS": "ASML Holding"}
 
+    # REIHENFOLGE WIE BESPROCHEN
     maps["INDICES & FOREX 🌍"] = OrderedDict([
         ("EURUSD=X", "EUR/USD"), ("^STOXX50E", "EUROSTOXX"), ("^GDAXI", "DAX"),
         ("^IXIC", "NASDAQ"), ("EURRUB=X", "EUR/RUB"), ("^NSEI", "NIFTY"), ("XU100.IS", "BIST")
@@ -70,34 +72,40 @@ def analyze_market(ticker_map, filter_active=True):
     for ticker, full_name in ticker_map.items():
         try:
             df = data[ticker].dropna() if len(tickers) > 1 else data.dropna()
-            if len(df) < 35: continue
+            if len(df) < 40: continue
             close = df['Close']
             sma20 = close.rolling(20).mean()
             curr, p1, p2 = close.iloc[-1], close.iloc[-2], close.iloc[-3]
             c_sma = sma20.iloc[-1]
+            
             signal = "C" if (curr > p1 > p2 and curr > c_sma) else "P" if (curr < p1 < p2 and curr < c_sma) else "Wait"
             if filter_active and signal == "Wait": continue
+            
             atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1]
             sl = curr - (atr * 1.5) if signal == "C" else curr + (atr * 1.5)
             sl_dist = abs(curr - sl)
             shares = int(risk_amount / sl_dist) if sl_dist > 0 else 0
-            # RSI & Prob
+            
+            # RSI & Wahrscheinlichkeit
             diff = close.diff(); g = diff.where(diff > 0, 0).rolling(14).mean(); l = -diff.where(diff < 0, 0).rolling(14).mean()
             rsi = 100 - (100 / (1 + (g/l))).iloc[-1]
+            
             hits, total = 0, 0
             if signal != "Wait":
-                for i in range(-45, -5):
+                for i in range(-50, -5):
                     c_h, p_h, p2_h = close.iloc[i], close.iloc[i-1], close.iloc[i-2]
-                    if (signal == "C" and c_h > p_h > p2_h and c_h > sma20.iloc[i]):
+                    s_h = sma20.iloc[i]
+                    if signal == "C" and c_h > p_h > p2_h and c_h > s_h:
                         total += 1
                         if close.iloc[i+3] > c_h: hits += 1
-                    elif (signal == "P" and c_h < p_h < p2_h and c_h < sma20.iloc[i]):
+                    elif signal == "P" and c_h < p_h < p2_h and c_h < s_h:
                         total += 1
                         if close.iloc[i+3] < c_h: hits += 1
+            
             results.append({
                 "name": full_name, "ticker": ticker, "price": curr, "signal": signal,
                 "prob": (hits/total*100) if total > 0 else 50.0, "rsi": rsi, "stop": sl, "shares": shares,
-                "delta": ((curr/df['Open'].iloc[-1])-1)*100, "spark": close.tail(15), 
+                "delta": ((curr/df['Open'].iloc[-1])-1)*100, "spark": close.tail(20), 
                 "icon": "☀️" if (curr > c_sma and (curr/df['Open'].iloc[-1]-1)>0.002) else "⚖️" if abs(curr/df['Open'].iloc[-1]-1)<0.002 else "⛈️"
             })
         except: continue
@@ -134,8 +142,8 @@ for i, (tab_name, t_map) in enumerate(m_maps.items()):
                 c1, c2, c3, c4, c5 = st.columns([2.2, 0.8, 0.8, 0.6, 1.2])
                 with c1:
                     st.markdown(f"**{res['name']}** {res['icon']}")
-                    # Saubere Sparkline ohne Achsen/Hintergrund
-                    st.area_chart(res['spark'], height=45, use_container_width=True)
+                    # Sparkline-Fix: Nutze area_chart mit CSS-Fix
+                    st.area_chart(res['spark'], height=40, use_container_width=True)
                 with c2:
                     st.markdown(f"<span class='price-text'>{fmt.format(res['price'])}</span>", unsafe_allow_html=True)
                     rsi_col = "#ff4b4b" if res['rsi'] > 70 else "#00ff41" if res['rsi'] < 30 else "#8892b0"
