@@ -19,15 +19,12 @@ st.markdown("""
     .sig-box-p { color: #007bff !important; border: 1px solid #007bff; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(0, 123, 255, 0.1); }
     .sig-box-high { color: #ffd700 !important; border: 2px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(255, 215, 0, 0.2); }
     
-    /* FIX: Sparkline-Bereinigung - Entfernt weiße Boxen und Achsenbeschriftungen komplett */
-    [data-testid="stVegaLiteChart"] { 
-        background-color: transparent !important; 
-        margin-top: -20px !important;
-    }
+    .row-container { border-bottom: 1px solid #172a45; padding: 12px 0; margin: 0; }
+    .metric-label { color: #8892b0; font-size: 0.8rem; }
+    .price-text { font-size: 1.1rem; font-weight: bold; }
     
-    .row-container { border-bottom: 1px solid #172a45; padding: 10px 0; margin: 0; }
-    .metric-label { color: #8892b0; font-size: 0.75rem; }
-    .price-text { font-size: 1.05rem; font-weight: bold; }
+    /* Sidebar */
+    [data-testid="stSidebar"] { background-color: #0d1b2a; border-right: 1px solid #172a45; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -37,7 +34,7 @@ capital = st.sidebar.number_input("Gesamtkapital (€)", value=10000, step=1000)
 risk_pct = st.sidebar.slider("Risiko pro Trade (%)", 0.1, 5.0, 1.0, 0.1)
 risk_amount = capital * (risk_pct / 100)
 
-# --- 2. DYNAMISCHE MARKT-DATEN (VOLLSTÄNDIGKEIT) ---
+# --- 2. DYNAMISCHE MARKT-DATEN ---
 @st.cache_data(ttl=86400)
 def get_market_maps():
     maps = {}
@@ -54,11 +51,11 @@ def get_market_maps():
         maps["EURO STOXX 50 🇪🇺"] = dict(zip(df_es50['Ticker'], df_es50['Name']))
     except: maps["EURO STOXX 50 🇪🇺"] = {"ASML.AS": "ASML Holding"}
 
-    indices_forex = OrderedDict([
+    # EXAKTE REIHENFOLGE WIE VEREINBART
+    maps["INDICES & FOREX 🌍"] = OrderedDict([
         ("EURUSD=X", "EUR/USD"), ("^STOXX50E", "EUROSTOXX"), ("^GDAXI", "DAX"),
         ("^IXIC", "NASDAQ"), ("EURRUB=X", "EUR/RUB"), ("^NSEI", "NIFTY"), ("XU100.IS", "BIST")
     ])
-    maps["INDICES & FOREX 🌍"] = indices_forex
     return maps
 
 # --- 3. BAUER STRATEGIE ENGINE ---
@@ -93,7 +90,7 @@ def analyze_market(ticker_map, filter_active=True):
             
             results.append({
                 "name": full_name, "ticker": ticker, "price": curr, "signal": signal, "stk": stk,
-                "prob": (hits/total*100) if total > 0 else 50.0, "stop": sl, "spark": close.tail(14),
+                "prob": (hits/total*100) if total > 0 else 50.0, "stop": sl,
                 "rsi": 100 - (100 / (1 + (close.diff().where(close.diff() > 0, 0).rolling(14).mean() / -close.diff().where(close.diff() < 0, 0).rolling(14).mean()))).iloc[-1],
                 "delta": ((curr/df['Open'].iloc[-1])-1)*100, "icon": "☀️" if (curr > sma20.iloc[-1] and (curr/df['Open'].iloc[-1]-1)>0.002) else "⚖️" if abs(curr/df['Open'].iloc[-1]-1)<0.002 else "⛈️"
             })
@@ -126,31 +123,30 @@ with st.expander("ℹ️ VOLLSTÄNDIGER STRATEGIE-LEITFADEN & REGELWERK ℹ️",
     - **Überverkauft (<30):** Erholungschance.
     """)
 
-m_maps = get_market_maps()
-tabs = st.tabs(list(m_maps.keys()))
+market_maps = get_market_maps()
+tabs = st.tabs(list(market_maps.keys()))
 
-for i, (tab_name, t_map) in enumerate(m_maps.items()):
+for i, (tab_name, t_map) in enumerate(market_maps.items()):
     with tabs[i]:
         is_fixed = ("FOREX" in tab_name)
         with st.spinner(f"Scanne {len(t_map)} Werte..."):
             data_res = analyze_market(t_map, filter_active=not is_fixed)
         
         if not data_res:
-            st.warning(f"Scan abgeschlossen: Aktuell keine Werte im {tab_name}, die die C/P Kriterien erfüllen.")
+            st.warning(f"Scan für {tab_name} abgeschlossen: Aktuell keine Ergebnisse, die den Signal-Anforderungen entsprechen.")
         else:
             if not is_fixed: data_res = sorted(data_res, key=lambda x: -x['prob'])
             for res in data_res:
                 fmt = "{:.5f}" if "=" in res['ticker'] else "{:.2f}"
                 st.markdown("<div class='row-container'>", unsafe_allow_html=True)
-                c1, c2, c3, c4 = st.columns([2.2, 1, 0.6, 1.2])
+                c1, c2, c3, c4 = st.columns([2.5, 1, 0.6, 1.2])
                 with c1:
                     st.markdown(f"**{res['name']}** {res['icon']}")
-                    # Sparkline-Fix: Minimalistischer Area Chart ohne jegliche Beschriftungen
-                    st.area_chart(res['spark'], height=50, use_container_width=True)
-                with c2:
-                    st.markdown(f"<span class='price-text'>{fmt.format(res['price'])}</span>", unsafe_allow_html=True)
                     rsi_c = "#ff4b4b" if res['rsi'] > 70 else "#00ff41" if res['rsi'] < 30 else "#8892b0"
                     st.markdown(f"<span class='metric-label'>RSI: <b style='color:{rsi_c};'>{res['rsi']:.1f}</b></span>", unsafe_allow_html=True)
+                with c2:
+                    d_col = "#00ff41" if res['delta'] >= 0 else "#ff4b4b"
+                    st.markdown(f"<span class='price-text'>{fmt.format(res['price'])}</span><br><span style='color:{d_col}; font-size:0.8rem;'>{res['delta']:+.2f}%</span>", unsafe_allow_html=True)
                 with c3:
                     if res['signal'] != "Wait":
                         cls = "sig-box-high" if res['prob'] >= 60 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
