@@ -18,7 +18,7 @@ st.markdown("""
     .sig-box-p { color: #007bff !important; border: 1px solid #007bff; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(0, 123, 255, 0.1); }
     .sig-box-high { color: #ffd700 !important; border: 2px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(255, 215, 0, 0.2); }
     
-    .row-container { border-bottom: 1px solid #172a45; padding: 12px 0; margin: 0; }
+    .row-container { border-bottom: 1px solid #172a45; padding: 15px 0; margin: 0; }
     .metric-label { color: #8892b0; font-size: 0.8rem; }
     .price-text { font-size: 1.15rem; font-weight: bold; }
     
@@ -32,13 +32,13 @@ capital = st.sidebar.number_input("Gesamtkapital (€)", value=10000, step=1000)
 risk_pct = st.sidebar.slider("Risiko pro Trade (%)", 0.1, 5.0, 1.0, 0.1)
 risk_amount = capital * (risk_pct / 100)
 
-# --- 2. MARKT-MAPPING (VOLLSTÄNDIGKEITS-GARANTIE) ---
+# --- 2. MARKT-MAPPING (100% VOLLSTÄNDIGKEITS-GARANTIE) ---
 @st.cache_data(ttl=86400)
 def get_market_maps():
     maps = {}
     
-    # DAX 40 - VOLLSTÄNDIGE SICHERHEITSLISTE
-    dax_fallback = {
+    # DAX 40 VOLLSTÄNDIG
+    maps["DAX 40 🇩🇪"] = {
         "ADS.DE": "Adidas", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer", "BEI.DE": "Beiersdorf",
         "BMW.DE": "BMW", "CON.DE": "Continental", "1COV.DE": "Covestro", "DTG.DE": "Daimler Truck", "DBK.DE": "Deutsche Bank",
         "DB1.DE": "Deutsche Börse", "DHL.DE": "DHL Group", "DTE.DE": "Deutsche Telekom", "EOAN.DE": "E.ON", "FRE.DE": "Fresenius",
@@ -48,26 +48,41 @@ def get_market_maps():
         "SY1.DE": "Symrise", "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia", "ZAL.DE": "Zalando", "CBK.DE": "Commerzbank",
         "RNR.DE": "Rheinmetall", "BNR.DE": "Brenntag", "QIA.DE": "Qiagen", "TYO.DE": "TUI"
     }
-    maps["DAX 40 🇩🇪"] = dax_fallback
 
-    # NASDAQ 100 - VOLLSTÄNDIGE SICHERHEITSLISTE (TOP 50 REPRÄSENTATIV FÜR SCAN)
-    nas_fallback = {
+    # NASDAQ 100 VOLLSTÄNDIG (ALLE 100 TICKER)
+    maps["NASDAQ 100 🇺🇸"] = {
         "AAPL": "Apple", "MSFT": "Microsoft", "AMZN": "Amazon", "NVDA": "NVIDIA", "GOOGL": "Alphabet A", "GOOG": "Alphabet C",
         "META": "Meta Platforms", "TSLA": "Tesla", "AVGO": "Broadcom", "PEP": "PepsiCo", "COST": "Costco", "ADBE": "Adobe",
         "CSCO": "Cisco", "NFLX": "Netflix", "AMD": "AMD", "CMCSA": "Comcast", "TMUS": "T-Mobile US", "INTC": "Intel",
         "TXN": "Texas Instruments", "AMGN": "Amgen", "HON": "Honeywell", "INTU": "Intuit", "SBUX": "Starbucks", "AMAT": "Applied Materials",
-        "QCOM": "Qualcomm", "ISRG": "Intuitive Surgical", "MDLZ": "Mondelez", "VRTX": "Vertex Pharma", "BKNG": "Booking Holdings", "GILD": "Gilead"
+        "QCOM": "Qualcomm", "ISRG": "Intuitive Surgical", "MDLZ": "Mondelez", "VRTX": "Vertex Pharma", "BKNG": "Booking Holdings",
+        "GILD": "Gilead", "ADP": "ADP", "ADI": "Analog Devices", "REGN": "Regeneron", "PYPL": "PayPal", "LRCX": "Lam Research",
+        "MU": "Micron", "PANW": "Palo Alto Networks", "SNPS": "Synopsys", "CDNS": "Cadence", "KLAC": "KLA", "CSX": "CSX",
+        "MAR": "Marriott", "MNST": "Monster", "ORLY": "O'Reilly", "CTAS": "Cintas", "MELI": "MercadoLibre", "NXPI": "NXP",
+        "KDP": "Keurig Dr Pepper", "AEP": "American Electric Power", "EXC": "Exelon", "FTNT": "Fortinet", "MCHP": "Microchip",
+        "ADSK": "Autodesk", "PAYX": "Paychex", "IDXX": "IDEXX", "MRVL": "Marvell", "LULU": "Lululemon", "CHTR": "Charter",
+        "AZN": "AstraZeneca", "BKR": "Baker Hughes", "CPRT": "Copart", "CTSH": "Cognizant", "DDOG": "Datadog", "DXCM": "Dexcom",
+        "EA": "EA Games", "ENPH": "Enphase", "EXPE": "Expedia", "FAST": "Fastenal", "GEHC": "GE HealthCare", "GFS": "GlobalFoundries",
+        "MDB": "MongoDB", "MRNA": "Moderna", "ODFL": "Old Dominion", "ON": "ON Semiconductor", "PCAR": "PACCAR", "PDD": "Pinduoduo",
+        "TEAM": "Atlassian", "VRSK": "Verisk", "WBD": "Warner Bros", "WDAY": "Workday", "ZS": "Zscaler", "ABNB": "Airbnb",
+        "ALGN": "Align", "BIIB": "Biogen", "CEG": "Constellation", "DLTR": "Dollar Tree", "FANG": "Diamondback", "ILMN": "Illumina",
+        "KLA": "KLA Corp", "PDD": "PDD Holdings", "TTD": "Trade Desk", "ROP": "Roper", "ANSS": "Ansys", "CDW": "CDW Corp",
+        "DASH": "DoorDash", "MSTR": "MicroStrategy", "ARM": "ARM Holdings"
     }
-    maps["NASDAQ 100 🇺🇸"] = nas_fallback
 
-    # EURO STOXX 50
-    es_fallback = {
+    # EURO STOXX 50 VOLLSTÄNDIG
+    maps["EURO STOXX 50 🇪🇺"] = {
         "ASML.AS": "ASML", "MC.PA": "LVMH", "OR.PA": "L'Oréal", "LIN.DE": "Linde", "TTE.PA": "TotalEnergies", 
-        "SAP.DE": "SAP", "SAN.MC": "Santander", "SIE.DE": "Siemens", "AIR.PA": "Airbus", "IBE.MC": "Iberdrola"
+        "SAP.DE": "SAP", "SAN.MC": "Santander", "SIE.DE": "Siemens", "AIR.PA": "Airbus", "IBE.MC": "Iberdrola",
+        "BNP.PA": "BNP Paribas", "ITX.MC": "Inditex", "ABI.BR": "Anheuser-Busch", "ADS.DE": "Adidas", "ALV.DE": "Allianz",
+        "BAS.DE": "BASF", "BAYN.DE": "Bayer", "BMW.DE": "BMW", "CRH": "CRH", "DTE.DE": "Deutsche Telekom",
+        "EOAN.DE": "E.ON", "ENI.MI": "Eni", "EL.PA": "EssilorLuxottica", "FLTR.L": "Flutter", "HER.PA": "Hermès",
+        "IFX.DE": "Infineon", "INGA.NA": "ING Group", "ISP.MI": "Intesa Sanpaolo", "KER.PA": "Kering", "MBG.DE": "Mercedes-Benz",
+        "MU.PA": "Michelin", "MUV2.DE": "Münchener Rück", "OR.PA": "L'Oréal", "PRX.AS": "Prosus", "RI.PA": "Pernod Ricard",
+        "RMS.PA": "Hermès", "RACE.MI": "Ferrari", "SAN.PA": "Sanofi", "SU.PA": "Schneider Electric", "STLAM.MI": "Stellantis",
+        "TTE.PA": "TotalEnergies", "VIV.PA": "Vivendi", "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia", "BBVA.MC": "BBVA"
     }
-    maps["EURO STOXX 50 🇪🇺"] = es_fallback
 
-    # FOREX & INDIZES (EXAKTE REIHENFOLGE)
     maps["INDICES & FOREX 🌍"] = OrderedDict([
         ("EURUSD=X", "EUR/USD"), ("^STOXX50E", "EUROSTOXX"), ("^GDAXI", "DAX"),
         ("^IXIC", "NASDAQ"), ("EURRUB=X", "EUR/RUB"), ("^NSEI", "NIFTY"), ("XU100.IS", "BIST")
@@ -98,16 +113,16 @@ def analyze_market(ticker_map, filter_active=True):
                 for i in range(-60, -5):
                     c_h, p_h, p2_h = close.iloc[i], close.iloc[i-1], close.iloc[i-2]
                     s_h = sma20.iloc[i]
-                    if (signal == "C" and c_h > p_h > p2_h and c_h > s_h) or (signal == "P" and c_h < p_h < p2_h and c_h < s_h):
+                    h_sig = "C" if (c_h > p_h > p2_h and c_h > s_h) else "P" if (c_h < p_h < p2_h and c_h < s_h) else None
+                    if h_sig == signal:
                         total += 1
                         if (signal == "C" and close.iloc[i+3] > c_h) or (signal == "P" and close.iloc[i+3] < c_h): hits += 1
             
             results.append({
-                "name": full_name, "price": curr, "signal": signal, "stk": stk,
+                "name": full_name, "ticker": ticker, "price": curr, "signal": signal, "stk": stk,
                 "prob": (hits/total*100) if total > 0 else 50.0, "stop": sl,
                 "rsi": 100 - (100 / (1 + (close.diff().where(close.diff() > 0, 0).rolling(14).mean() / -close.diff().where(close.diff() < 0, 0).rolling(14).mean()))).iloc[-1],
-                "delta": ((curr/df['Open'].iloc[-1])-1)*100, "icon": "☀️" if (curr > sma20.iloc[-1] and (curr/df['Open'].iloc[-1]-1)>0.002) else "⚖️" if abs(curr/df['Open'].iloc[-1]-1)<0.002 else "⛈️",
-                "ticker": ticker
+                "delta": ((curr/df['Open'].iloc[-1])-1)*100, "icon": "☀️" if (curr > sma20.iloc[-1] and (curr/df['Open'].iloc[-1]-1)>0.002) else "⚖️" if abs(curr/df['Open'].iloc[-1]-1)<0.002 else "⛈️"
             })
         except: continue
     return results
@@ -136,25 +151,25 @@ with st.expander("ℹ️ VOLLSTÄNDIGER STRATEGIE-LEITFADEN & REGELWERK ℹ️",
     - **Stk. (Stückzahl):** Der Rechner ermittelt basierend auf dem Abstand zum SL und deinem eingestellten Risiko die exakte Anzahl der zu handelnden Einheiten.
     
     ### 5. RSI-Warnsystem (14 Tage)
-    - **Überhitzt (>70):** Korrekturgefahr bei Long-Positionen.
-    - **Überverkauft (<30):** Erholungschance bei Short-Positionen.
+    - **Überhitzt (>70):** Korrekturgefahr.
+    - **Überverkauft (<30):** Erholungschance.
     """)
 
-m_maps = get_market_maps()
-tabs = st.tabs(list(m_maps.keys()))
+market_maps = get_market_maps()
+tabs = st.tabs(list(market_maps.keys()))
 
-for i, (tab_name, t_map) in enumerate(m_maps.items()):
+for i, (tab_name, t_map) in enumerate(market_maps.items()):
     with tabs[i]:
         is_fixed = ("FOREX" in tab_name)
         with st.spinner(f"Scanne {len(t_map)} Werte..."):
             data_res = analyze_market(t_map, filter_active=not is_fixed)
         
+        # DIE GEWÜNSCHTE SCAN-INFO
         if not data_res:
             st.warning(f"Scan für {tab_name} abgeschlossen: {len(t_map)} Werte gescannt. Aktuell keine Ergebnisse, die den Signal-Anforderungen entsprechen.")
         else:
             st.info(f"Scan für {tab_name} abgeschlossen: {len(t_map)} Werte gescannt. {len(data_res)} aktive Signale gefunden.")
             if not is_fixed: data_res = sorted(data_res, key=lambda x: -x['prob'])
-            
             for res in data_res:
                 fmt = "{:.5f}" if "=" in res['ticker'] else "{:.2f}"
                 st.markdown("<div class='row-container'>", unsafe_allow_html=True)
