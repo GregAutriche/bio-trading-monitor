@@ -14,7 +14,6 @@ st.markdown("""
     h1, h2, h3, p, span, label, div { color: #e6f1ff !important; font-family: 'Segoe UI', sans-serif; }
     .header-text { font-size: 26px; font-weight: bold; color: #64ffda !important; border-bottom: 2px solid #64ffda; padding-bottom: 5px; margin-bottom: 15px; }
     
-    /* Signal Design */
     .sig-box-c { color: #00ff41 !important; border: 1px solid #00ff41; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(0, 255, 65, 0.1); }
     .sig-box-p { color: #007bff !important; border: 1px solid #007bff; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(0, 123, 255, 0.1); }
     .sig-box-high { color: #ffd700 !important; border: 2px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-weight: bold; background: rgba(255, 215, 0, 0.2); }
@@ -23,7 +22,6 @@ st.markdown("""
     .metric-label { color: #8892b0; font-size: 0.8rem; }
     .price-text { font-size: 1.15rem; font-weight: bold; }
     
-    /* Sidebar */
     [data-testid="stSidebar"] { background-color: #0d1b2a; border-right: 1px solid #172a45; }
     </style>
     """, unsafe_allow_html=True)
@@ -34,21 +32,37 @@ capital = st.sidebar.number_input("Gesamtkapital (€)", value=10000, step=1000)
 risk_pct = st.sidebar.slider("Risiko pro Trade (%)", 0.1, 5.0, 1.0, 0.1)
 risk_amount = capital * (risk_pct / 100)
 
-# --- 2. DYNAMISCHE MARKT-DATEN ---
+# --- 2. DYNAMISCHE MARKT-DATEN (FIXED SCRAPING) ---
 @st.cache_data(ttl=86400)
 def get_market_maps():
     maps = {}
+    
+    # DAX 40 vollständig (Robustes Scraping)
     try:
-        df_dax = pd.read_html("https://en.wikipedia.org")
-        maps["DAX 40 🇩🇪"] = dict(zip([t.replace('.', '-') + ".DE" for t in df_dax['Ticker']], df_dax['Company']))
-    except: maps["DAX 40 🇩🇪"] = {"SAP.DE": "SAP SE"}
+        tables = pd.read_html("https://en.wikipedia.org")
+        df_dax = next(t for t in tables if 'Ticker' in t.columns)
+        maps["DAX 40 🇩🇪"] = dict(zip([str(t).replace('.', '-') + ".DE" for t in df_dax['Ticker']], df_dax['Company']))
+    except:
+        # Sicherheits-Fallback falls Wikipedia-Struktur sich ändert
+        dax_list = ["ADS.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BEI.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DBK.DE", 
+                    "DB1.DE", "LHA.DE", "DPW.DE", "DTE.DE", "EOAN.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", 
+                    "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PAH3.DE", "PUM.DE", "RWE.DE", "SAP.DE", "SRT3.DE", "SIE.DE", 
+                    "SHL.DE", "SY1.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "DHL.DE", "RNR.DE", "CBK.DE", "BNR.DE"]
+        maps["DAX 40 🇩🇪"] = {t: t.split('.')[0] for t in dax_list}
+
+    # NASDAQ 100 vollständig
     try:
-        df_ndx = pd.read_html("https://en.wikipedia.org")
+        tables = pd.read_html("https://en.wikipedia.org")
+        df_ndx = next(t for t in tables if 'Ticker' in t.columns)
         maps["NASDAQ 100 🇺🇸"] = dict(zip(df_ndx['Ticker'], df_ndx['Company']))
-    except: maps["NASDAQ 100 🇺🇸"] = {"AAPL": "Apple Inc."}
+    except: maps["NASDAQ 100 🇺🇸"] = {"AAPL": "Apple Inc.", "MSFT": "Microsoft"}
+
+    # EURO STOXX 50 vollständig
     try:
-        df_es50 = pd.read_html("https://en.wikipedia.org")
-        maps["EURO STOXX 50 🇪🇺"] = dict(zip(df_es50['Ticker'], df_es50['Name']))
+        tables = pd.read_html("https://en.wikipedia.org")
+        df_es50 = next(t for t in tables if any(col in t.columns for col in ['Ticker', 'Symbol']))
+        ticker_col = 'Ticker' if 'Ticker' in df_es50.columns else 'Symbol'
+        maps["EURO STOXX 50 🇪🇺"] = dict(zip(df_es50[ticker_col], df_es50['Name']))
     except: maps["EURO STOXX 50 🇪🇺"] = {"ASML.AS": "ASML Holding"}
 
     maps["INDICES & FOREX 🌍"] = OrderedDict([
@@ -76,17 +90,14 @@ def analyze_market(ticker_map, filter_active=True):
             sl = curr - (atr * 1.5) if signal == "C" else curr + (atr * 1.5)
             stk = int(risk_amount / abs(curr - sl)) if abs(curr - sl) > 0 else 0
             
-            # Backtest 60 Tage für präzisere Wahrscheinlichkeit
             hits, total = 0, 0
             if signal != "Wait":
                 for i in range(-60, -5):
                     c_h, p_h, p2_h = close.iloc[i], close.iloc[i-1], close.iloc[i-2]
                     s_h = sma20.iloc[i]
-                    # Exakte Trigger-Bedingung prüfen
                     h_sig = "C" if (c_h > p_h > p2_h and c_h > s_h) else "P" if (c_h < p_h < p2_h and c_h < s_h) else None
                     if h_sig == signal:
                         total += 1
-                        # Prüfung ob der Preis 3 Tage später in Signalrichtung steht
                         if (signal == "C" and close.iloc[i+3] > c_h) or (signal == "P" and close.iloc[i+3] < c_h): hits += 1
             
             results.append({
