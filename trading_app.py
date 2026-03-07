@@ -292,7 +292,7 @@ st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 60s")
 
 with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘", expanded=False):
     st.markdown("""
-    ## 🧭 Gesamtüberblick des Momentum‑Monitors
+    ## 🧭 Überblick des Momentum‑Monitors 🧭
 
     Der Momentum‑Monitor ist ein professionelles Analyse‑Dashboard, das Aktien‑ und Marktbewegungen in Echtzeit bewertet. 
     Er kombiniert technische Analyse, Trend‑Erkennung, statistische Risiko‑Modelle und visuelle Darstellung in einem 
@@ -301,7 +301,7 @@ with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘
 
     ---
 
-    ## 🎯 Ziel des Systems
+    ## 🎯 Ziel des Systems 🎯
 
     Der Monitor wurde entwickelt, um:
     - Markttrends frühzeitig zu erkennen  
@@ -312,10 +312,8 @@ with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘
     - synthetische Zukunftsszenarien zu simulieren (Monte‑Carlo)  
 
     Er eignet sich für Trader, quantitative Analysten, Portfolio‑Manager und systematische Strategien.
-
     ---
-
-    ## ⚙️ Technische Basis
+    ## ⚙️ Technische Basis ⚙️
 
     Das Dashboard nutzt moderne Technologien:
     - **Streamlit** für UI, Layout und Auto‑Refresh  
@@ -327,13 +325,11 @@ with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘
 
     ---
 
-    ## 🌍 Macro + Indices
+    ## 🌍 Macro + Indices 🌍
 
     Dieser Bereich zeigt die wichtigsten Märkte:
-    - EUR/USD  
-    - DAX  
-    - EuroStoxx  
-    - Nasdaq  
+    . EUR/USD  
+    . DAX, EuroStoxx, Nasdaq  
     - BIST  
     - NIFTY  
 
@@ -350,7 +346,7 @@ with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘
 
     ---
 
-    ## 🔭 Markt‑Screener
+    ## 🔭 Markt‑Screener 🔭
 
     Der Nutzer wählt einen Markt (z. B. DAX, Nasdaq, NIFTY).  
     Der Screener:
@@ -377,7 +373,7 @@ with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘
 
     ---
 
-    ## ⭐ Top‑Signale Analyse
+    ## ⭐ Top‑Signale Analyse ⭐
 
     Die besten 3 Signale des gesamten Scans werden ausgewählt – basierend auf:
     - Signalqualität  
@@ -388,7 +384,7 @@ with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘
 
     ---
 
-    ## 🎲 Monte‑Carlo Risikoanalyse
+    ## 🎲 Monte‑Carlo Risikoanalyse 🎲
 
     Die Monte‑Carlo‑Simulation erzeugt synthetische Marktverläufe und testet die Strategie unter:
     - Trend‑Phasen  
@@ -409,18 +405,6 @@ with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘
     - wie robust ein Signal wirklich ist  
     - wie schlimm der Worst‑Case werden kann  
     - wie hoch die Chance auf langfristigen Erfolg ist  
-
-    ---
-
-    ## 🧩 Warum der Monitor optimal funktioniert
-
-    - Screener bleibt schnell  
-    - Monte‑Carlo nur für Top‑Signale  
-    - klare UI‑Struktur  
-    - effiziente Datenverarbeitung  
-    - professionelle Risikoanalyse  
-
-    Der Monitor ist damit ein leistungsstarkes Werkzeug für Momentum‑Trading und quantitative Marktanalyse.
     """)
 
 
@@ -554,4 +538,5 @@ with st.expander("📈 Top-Signale Analyse", expanded=True):
                 )
     else:
         st.info("Warte auf Signale...")
+
 
