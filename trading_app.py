@@ -152,34 +152,51 @@ with ThreadPoolExecutor(max_workers=10) as ex:
     m_res = [r for r in ex.map(fetch_data, macro_list) if r]
     for r in m_res: render_row(r)
 
-# --- 6. SCREENER (Vervollständigte Listen für 80% Logik) ---
-index_data = {
-    "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DTE.DE", "DBK.DE", "DB1.DE", "DHL.DE", "EON.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PUM.DE", "PAH3.DE", "RWE.DE", "SAP.DE", "SIE.DE", "SHL.DE", "SY1.DE", "TKA.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "BEI.DE", "CBK.DE", "RHM.DE", "SRT3.DE", "ENR.DE", "QIA.DE"],
-    "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC", "ITX.MC", "CS.PA", "BNP.PA", "IBE.MC", "SU.PA", "ADYEN.AS", "EL.PA", "BAS.DE", "RMS.PA", "ABI.BR", "ENI.MI", "BBVA.MC", "SAF.PA", "KER.PA", "MBG.DE", "BMW.DE", "CRH.IE", "VIV.PA", "AD.AS", "BN.PA", "DTE.DE", "BAYN.DE", "ISP.MI", "MUV2.DE", "ENEL.MI", "ALV.DE", "SAN.PA", "IFX.DE", "AI.PA", "DG.PA", "VOW3.DE", "STLAM.MI", "ADS.DE", "LIN.DE", "FME.DE", "CON.DE", "PRX.AS", "HER.PA", "RACE.MI", "VNE.PA"],
-    "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL", "META", "AVGO", "COST", "NFLX", "ADBE", "AMD", "PEP", "INTC", "CSCO", "TMUS", "TXN", "QCOM", "AMAT", "ISRG", "AMGN", "HON", "SBUX", "BKNG", "GILD", "INTU", "MDLZ", "VRTX", "ADI", "REGN", "PYPL", "PANW", "SNPS", "LRCX", "KLAC", "CDNS", "MELI", "CSX", "MAR", "ORLY", "CTAS", "ROP", "NXPI", "MNST", "KDP", "ADSK", "TEAM", "LULU", "AEP", "BKR", "CPRT", "DXCM", "EXC", "FAST", "FTNT", "KHC", "MCHP", "ODFL", "PAYX", "PCAR", "PDD", "WDAY", "XEL", "ZS", "ABNB", "ANSS", "ASML", "AZN", "BIIB", "CEG", "CHTR", "DDOG", "DLTR", "FANG", "GEHC", "IDXX", "ILMN", "LCID", "MDB", "MRVL", "ON", "ROST", "SIRI", "VRSK", "WBD", "CTSH", "CDW", "SPLK", "WBA", "ALGN", "EBAY", "ENPH", "JD", "LULU", "PDD", "MNST", "KDP", "AEP", "FAST", "EXC", "PAYX", "PCAR", "MCHP", "CPRT", "ODFL", "CTAS", "ROP", "ADSK", "TEAM"],
-    "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS", "ASELS.IS", "KCHOL.IS", "SAHOL.IS", "BIMAS.IS", "ARCLK.IS", "SISE.IS", "GARAN.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS", "PETKM.IS", "KRDMD.IS", "PGSUS.IS", "TOASO.IS", "FROTO.IS"],
-    "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "SBIN.NS", "BHARTIARTL.NS", "AXISBANK.NS", "LT.NS", "ITC.NS", "HINDUNILVR.NS", "BAJFINANCE.NS", "MARUTI.NS", "SUNPHARMA.NS", "KOTAKBANK.NS"]
-}
+# --- 6. SCREENER (Automatisierte Live-Listen) ---
+@st.cache_data(ttl=86400)  # Liste wird nur 1x pro Tag vom Web geladen
+def get_live_tickers(market_choice):
+    try:
+        if market_choice == "Nasdaq 100":
+            url = 'https://en.wikipedia.org'
+            table = pd.read_html(url)[4] # Tabelle 4 enthält die Ticker
+            # .unique() entfernt die Doppel-Listings (GOOGL/GOOG), damit es exakt 100 sind
+            return sorted(table['Ticker'].unique().tolist())
+            
+        elif market_choice == "DAX 40":
+            url = 'https://en.wikipedia.org'
+            table = pd.read_html(url)[4]
+            return sorted(table['Ticker'].tolist())
+
+        elif market_choice == "EuroStoxx 50":
+            url = 'https://en.wikipedia.org'
+            table = pd.read_html(url)[4]
+            # Kürzel an yfinance Format anpassen (z.B. SAP -> SAP.DE)
+            return sorted(table['Ticker'].tolist())
+            
+    except Exception as e:
+        st.error(f"Fehler beim Laden der Live-Liste: {e}")
+        # Dein alter Fallback, falls Wikipedia mal down ist
+        return ["AAPL", "MSFT", "NVDA", "SAP.DE", "ADS.DE"]
 
 st.markdown("<br><div class='header-text'>🔭 Markt Screener 🔭</div>", unsafe_allow_html=True)
 if 'scan_active' not in st.session_state: st.session_state.scan_active = False
 
 with st.expander("Index-Auswahl & Scan Steuerung", expanded=True):
     col_sel, col_btn = st.columns(2)
-    with col_sel: choice = st.radio("Markt:", list(index_data.keys()), horizontal=True)
+    with col_sel: 
+        choice = st.radio("Markt:", ["Nasdaq 100", "DAX 40", "EuroStoxx 50"], horizontal=True)
     with col_btn:
         st.write("<br>", unsafe_allow_html=True)
         if st.button("🚀 Scan Start/Stop", use_container_width=True):
             st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
-    tickers = index_data[choice]
+    # Hier passiert die Magie: Die Liste ist jetzt immer sauber
+    tickers = get_live_tickers(choice)
     total = len(tickers)
-    # Logik-Korrektur: math.ceil garantiert echtes Aufrunden für mindestens 80%
     min_req = math.ceil(total * 0.8) 
     
     st.markdown(f"<div class='scan-info'>Scanne {choice}... ({total} Werte) | Anzeige ab: {min_req} Werten.</div>", unsafe_allow_html=True)
-    
     with ThreadPoolExecutor(max_workers=30) as ex:
         results = [r for r in ex.map(fetch_data, tickers) if r]
     
@@ -231,5 +248,6 @@ with st.expander(f"📈 Top-Signal Backtesting: {top_res['name'] if top_res else
         st.markdown(f"**Empfohlener Stop-Loss:** <span class='sl-value'>{top_res['stop']:.2f}</span>", unsafe_allow_html=True)
     else:
         st.info("Führe einen Scan aus, um den aktuell stärksten Wert hier detailliert zu analysieren.")
+
 
 
