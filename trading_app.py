@@ -199,41 +199,44 @@ top_results = []
 if st.session_state.scan_active and 'results' in locals() and results:
     valid_hits = [r for r in results if r['signal'] in ["C", "P"]]
     if valid_hits: 
-        top_results = sorted(valid_hits, key=lambda x: -x['prob'])[:3]
+        top_results = sorted(valid_hits, key=lambda x: (-x['prob'], -x['adx']))[:3]
 
 with st.expander(f"📈 Top-Signale Analyse (Top {len(top_results)})", expanded=True):
     if top_results:
-        st.write("Detaillierte Analyse der stärksten Momentum-Werte:")
-        
         for i, res in enumerate(top_results):
-            # CSS Klassen-Logik für die Farbe
+            # CSS Klasse für Signal-Farbe
             sig_class = "sig-box-high" if res["prob"] >= 60 else ("sig-box-c" if res["signal"]=="C" else "sig-box-p")
             
-            # HTML String sauber zusammenbauen
+            # Hauptzeile: Signal, Name, Kurs, SL
             html_line = f"""
-            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin: 10px 0;">
-                <div class="{sig_class}" style="flex: 0 0 40px; text-align: center; font-size: 0.9rem; padding: 2px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 10px;">
+                <div class="{sig_class}" style="flex: 0 0 35px; text-align: center; font-size: 0.85rem; padding: 2px;">
                     {res['signal']}
                 </div>
                 <div style="flex: 1; font-size: 0.85rem; color: #eee; padding: 0 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                     {res['name']}
                 </div>
-                <div style="flex: 0 0 170px; text-align: right; white-space: nowrap;">
-                    <span style="font-size: 1.4rem; font-weight: bold; color: #e0e0e0;">{res['price']:.2f}</span>
+                <div style="flex: 0 0 180px; text-align: right; white-space: nowrap;">
+                    <span style="font-size: 1.4rem; font-weight: bold; color: #fff;">{res['price']:.2f}</span>
                     <span style="font-size: 0.85rem; color: #ff4b4b; margin-left: 10px;">SL ({res['stop']:.2f})</span>
                 </div>
             </div>
             """
-            # WICHTIG: unsafe_allow_html=True muss hier stehen
             st.markdown(html_line, unsafe_allow_html=True)
             
-            # Metriken in Streamlit-Spalten (sicherer als HTML)
-            m1, m2, m3 = st.columns(3)
-            with m1: st.caption(f"Wahrsch: :gold[**{res['prob']:.1f}%**]" if res['prob'] >= 60 else f"Wahrsch: **{res['prob']:.1f}%**")
-            with m2: st.caption(f"Trend (ADX): **{res['adx']:.1f}**")
-            with m3: st.caption(f"Momentum (RSI): **{res['rsi']:.1f}**")
+            # Metriken-Zeile: Nach links ausgerichtet, ohne ":gold" Text
+            # Wir nutzen HTML für die Ausrichtung nach links (statt st.columns)
+            prob_color = "#ffd700" if res['prob'] >= 60 else "#e0e0e0"
+            metrics_html = f"""
+            <div style="display: flex; gap: 30px; margin-left: 50px; margin-bottom: 10px; font-family: monospace; font-size: 0.75rem; color: #888;">
+                <div>Wahrsch: <span style="color: {prob_color}; font-weight: bold;">{res['prob']:.1f}%</span></div>
+                <div>Trend (ADX): <span style="color: #e0e0e0;">{res['adx']:.1f}</span></div>
+                <div>Momentum (RSI): <span style="color: #e0e0e0;">{res['rsi']:.1f}</span></div>
+            </div>
+            """
+            st.markdown(metrics_html, unsafe_allow_html=True)
             
             if i < len(top_results) - 1:
-                st.markdown("<hr style='margin: 10px 0; opacity: 0.2;'>", unsafe_allow_html=True)
+                st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>", unsafe_allow_html=True)
     else:
         st.info("Warte auf Signale...")
