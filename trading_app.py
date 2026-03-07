@@ -197,36 +197,37 @@ if st.session_state.scan_active:
 else: st.warning("Scanner im Standby.")
 
 # --- 7. DYNAMISCHES BACKTESTING (Vollständig mit Signal & Kurs) ---
-# --- 7. DYNAMISCHES BACKTESTING (Kompakte Ansicht) ---
 st.markdown("---")
 top_res = None
 if st.session_state.scan_active and 'results' in locals() and results:
     valid_hits = [r for r in results if r['signal'] != "Wait"]
     if valid_hits: 
-        # Nehme das erste Element der sortierten Liste
-        top_res = sorted(valid_hits, key=lambda x: -x['prob'])[0]
+        # Nimm den Wert mit der höchsten Wahrscheinlichkeit
+        top_res = sorted(valid_hits, key=lambda x: -x['prob'], reverse=True)[0]
 
 with st.expander(f"📈 Top-Signal Analyse: {top_res['name'] if top_res else '---'}", expanded=True):
     if top_res:
-        c_head1, c_head2 = st.columns([2, 1])
-        with c_head1:
-            st.subheader(f"{top_res['name']} ({top_res['ticker']})")
-            # Kurs und SL direkt darunter in Klammern
+        # Spalten-Layout: Klein für Signal, Breit für Daten
+        c_sig, c_data = st.columns([0.4, 3.6])
+        
+        with c_sig:
+            # Signal vorne und etwas kleiner (font-size 1.8rem statt 2.5rem)
+            cls = "sig-box-high" if top_res['prob'] >= 60 else ("sig-box-c" if top_res['signal']=="C" else "sig-box-p")
+            st.markdown(f"<div style='text-align:center; font-size:1.8rem; margin-top:15px;' class='{cls}'>{top_res['signal']}</div>", unsafe_allow_html=True)
+            
+        with c_data:
+            # Name, Kurs und SL
             st.markdown(f"""
-                <div style='line-height: 1.2;'>
+                <div style='line-height: 1.1;'>
+                    <span style='font-size: 1.2rem; color: #888;'>{top_res['name']} ({top_res['ticker']})</span><br>
                     <span style='font-size: 2.2rem; font-weight: bold;'>{top_res['price']:.2f}</span><br>
-                    <span style='font-size: 1.1rem; color: #ff4b4b;'>SL ({top_res['stop']:.2f})</span>
+                    <span style='font-size: 1.0rem; color: #ff4b4b; opacity: 0.9;'>SL ({top_res['stop']:.2f})</span>
                 </div>
             """, unsafe_allow_html=True)
-            
-        with c_head2:
-            # Signal-Box (C oder P)
-            cls = "sig-box-high" if top_res['prob'] >= 60 else ("sig-box-c" if top_res['signal']=="C" else "sig-box-p")
-            st.markdown(f"<div style='text-align:center; font-size:2.5rem; margin-top:10px;' class='{cls}'>{top_res['signal']}</div>", unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # Metriken-Zeile
+        # Metriken-Zeile (Wahrscheinlichkeit, ADX, RSI)
         c1, c2, c3 = st.columns(3)
         c1.metric("Wahrscheinlichkeit", f"{top_res['prob']:.1f}%")
         c2.metric("Trendstärke (ADX)", f"{top_res['adx']:.1f}")
