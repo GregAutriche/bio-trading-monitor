@@ -290,11 +290,139 @@ def render_row(res):
 st.markdown("<div class='header-text'>📡 Momentum Strategie 📡</div>", unsafe_allow_html=True)
 st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 60s")
 
-with st.expander("ℹ️ Ausführlicher Strategie-Leitfaden & Markt-Logik ℹ️", expanded=False):
+with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘", expanded=False):
     st.markdown("""
-    ### 📡 System-Logik Pro 2026
-    Dieser Monitor analysiert Märkte basierend auf Dr. Gregor Bauers Trend- und Momentum-Strategie.
+    ## 🧭 Gesamtüberblick des Momentum‑Monitors
+
+    Der Momentum‑Monitor ist ein professionelles Analyse‑Dashboard, das Aktien‑ und Marktbewegungen in Echtzeit bewertet. 
+    Er kombiniert technische Analyse, Trend‑Erkennung, statistische Risiko‑Modelle und visuelle Darstellung in einem 
+    einzigen, leistungsstarken System. Die Architektur ist so optimiert, dass sie schnell, stabil, übersichtlich und 
+    wissenschaftlich fundiert arbeitet.
+
+    ---
+
+    ## 🎯 Ziel des Systems
+
+    Der Monitor wurde entwickelt, um:
+    - Markttrends frühzeitig zu erkennen  
+    - Momentum‑Signale (Long/Short) zu identifizieren  
+    - Trendstärke und Marktqualität zu bewerten  
+    - Risiko und Drawdown‑Gefahr einzuschätzen  
+    - die besten Chancen pro Markt herauszufiltern  
+    - synthetische Zukunftsszenarien zu simulieren (Monte‑Carlo)  
+
+    Er eignet sich für Trader, quantitative Analysten, Portfolio‑Manager und systematische Strategien.
+
+    ---
+
+    ## ⚙️ Technische Basis
+
+    Das Dashboard nutzt moderne Technologien:
+    - **Streamlit** für UI, Layout und Auto‑Refresh  
+    - **yfinance (Batch‑Download)** für schnelle Kursdaten  
+    - **SVG‑Sparklines** für extrem schnelle Mini‑Charts  
+    - **Caching** für minimale Ladezeiten  
+    - **NumPy / Pandas** für technische Indikatoren  
+    - **Monte‑Carlo‑Simulation** für Risiko‑Analyse  
+
+    ---
+
+    ## 🌍 Macro + Indices
+
+    Dieser Bereich zeigt die wichtigsten Märkte:
+    - EUR/USD  
+    - DAX  
+    - EuroStoxx  
+    - Nasdaq  
+    - BIST  
+    - NIFTY  
+
+    Für jeden Index werden angezeigt:
+    - aktueller Preis  
+    - Tagesveränderung  
+    - Sparkline (20‑Tage‑Verlauf)  
+    - RSI & ADX  
+    - Momentum‑Signal (C/P/Wait)  
+    - Stop‑Loss  
+    - Trend‑Icon (☀️ ⚖️ ⛈️)
+
+    Dieser Abschnitt dient als Marktüberblick, um bullische, neutrale oder riskante Marktphasen zu erkennen.
+
+    ---
+
+    ## 🔭 Markt‑Screener
+
+    Der Nutzer wählt einen Markt (z. B. DAX, Nasdaq, NIFTY).  
+    Der Screener:
+    - lädt alle Aktien des Index in einem einzigen Batch  
+    - berechnet Momentum‑Signale  
+    - filtert die besten Chancen  
+    - zeigt nur relevante Treffer an  
+
+    Angezeigt werden:
+    - Name  
+    - Preis  
+    - Tagesveränderung  
+    - Sparkline  
+    - RSI / ADX  
+    - Signal (C/P/Wait)  
+    - Stop‑Loss  
+    - Trend‑Icon  
+
+    Der Screener ist extrem schnell, da:
+    - keine Monte‑Carlo‑Simulationen ausgeführt werden  
+    - SVG statt PNG genutzt wird  
+    - Batch‑Daten geladen werden  
+    - Caching aktiv ist  
+
+    ---
+
+    ## ⭐ Top‑Signale Analyse
+
+    Die besten 3 Signale des gesamten Scans werden ausgewählt – basierend auf:
+    - Signalqualität  
+    - Wahrscheinlichkeit  
+    - Trendstärke (ADX)  
+
+    Für diese Top‑Signale wird zusätzlich eine **Monte‑Carlo‑Simulation** durchgeführt.
+
+    ---
+
+    ## 🎲 Monte‑Carlo Risikoanalyse
+
+    Die Monte‑Carlo‑Simulation erzeugt synthetische Marktverläufe und testet die Strategie unter:
+    - Trend‑Phasen  
+    - Mean‑Reversion  
+    - Crash‑Phasen  
+    - Volatilitäts‑Clustern  
+
+    Angezeigt werden:
+    - Marktregime  
+    - Median‑Ergebnis  
+    - Worst‑Case‑Ergebnis  
+    - Value‑at‑Risk (5%)  
+    - Median‑Drawdown  
+    - Worst‑Drawdown  
+    - Überlebenswahrscheinlichkeit  
+
+    Diese Analyse zeigt:
+    - wie robust ein Signal wirklich ist  
+    - wie schlimm der Worst‑Case werden kann  
+    - wie hoch die Chance auf langfristigen Erfolg ist  
+
+    ---
+
+    ## 🧩 Warum der Monitor optimal funktioniert
+
+    - Screener bleibt schnell  
+    - Monte‑Carlo nur für Top‑Signale  
+    - klare UI‑Struktur  
+    - effiziente Datenverarbeitung  
+    - professionelle Risikoanalyse  
+
+    Der Monitor ist damit ein leistungsstarkes Werkzeug für Momentum‑Trading und quantitative Marktanalyse.
     """)
+
 
 # --- MACRO SECTION ---
 
@@ -426,3 +554,4 @@ with st.expander("📈 Top-Signale Analyse", expanded=True):
                 )
     else:
         st.info("Warte auf Signale...")
+
