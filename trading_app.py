@@ -139,10 +139,9 @@ with ThreadPoolExecutor(max_workers=10) as ex:
     m_res = [r for r in ex.map(fetch_data, macro_list) if r]
     for r in m_res: render_row(r)
 
-# --- 6. SCREENER (Logik: Nur Signale > 45% oder Top 3) ---
+# --- 6. SCREENER (DAX, EuroStoxx, IBEX, NASDAQ, BIST, NIFTY) ---
 @st.cache_data(ttl=86400)
 def get_live_tickers(market_choice):
-    # Alle Fallbacks für die 6 Märkte
     fallbacks = {
         "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DTE.DE", "DBK.DE", "DB1.DE", "DHL.DE", "EON.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PUM.DE", "PAH3.DE", "RWE.DE", "SAP.DE", "SIE.DE", "SHL.DE", "SY1.DE", "TKA.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "BEI.DE", "CBK.DE", "RHM.DE", "SRT3.DE", "ENR.DE", "QIA.DE"],
         "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC", "ITX.MC", "CS.PA", "BNP.PA", "IBE.MC", "SU.PA", "ADYEN.AS", "EL.PA", "BAS.DE", "RMS.PA", "ABI.BR", "ENI.MI", "BBVA.MC", "SAF.PA", "KER.PA", "MBG.DE", "BMW.DE", "CRH.IE", "VIV.PA", "AD.AS", "BN.PA", "DTE.DE", "BAYN.DE", "ISP.MI", "MUV2.DE", "ENEL.MI", "ALV.DE", "SAN.PA", "IFX.DE", "AI.PA", "DG.PA", "VOW3.DE", "STLAM.MI"],
@@ -153,16 +152,14 @@ def get_live_tickers(market_choice):
     }
     try:
         if market_choice == "Nasdaq 100":
-            df = pd.read_html('https://en.wikipedia.org')
-            return sorted(df[3]['Ticker'].unique().tolist())
+            df = pd.read_html('https://en.wikipedia.org')[4]
+            return sorted(df['Ticker'].unique().tolist())
         elif market_choice == "DAX 40":
-            df = pd.read_html('https://en.wikipedia.org')
-            return sorted(df[4]['Ticker'].tolist())
+            df = pd.read_html('https://en.wikipedia.org')[4]
+            return sorted(df['Ticker'].tolist())
         elif market_choice == "IBEX 35":
-            df = pd.read_html('https://en.wikipedia.org')
-            tickers = df[1]['Ticker'].tolist()
-            return [t + ".MC" if not t.endswith(".MC") else t for t in tickers]
-        # Alle anderen Märkte nutzen die Fallback-Listen
+            df = pd.read_html('https://en.wikipedia.org')[1]
+            return [t + ".MC" for t in df['Ticker'].tolist()]
         return fallbacks.get(market_choice, ["AAPL"])
     except:
         return fallbacks.get(market_choice, ["AAPL"])
@@ -172,7 +169,7 @@ if 'scan_active' not in st.session_state: st.session_state.scan_active = False
 
 with st.expander("Index-Auswahl & Scan Steuerung", expanded=True):
     choice = st.radio("Markt:", ["DAX 40", "EuroStoxx 50", "IBEX 35", "Nasdaq 100", "BIST 100", "NIFTY 50"], horizontal=True)
-        :
+    if st.button("🚀 Scan Start/Stop", use_container_width=True):
         st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
@@ -182,19 +179,18 @@ if st.session_state.scan_active:
     with ThreadPoolExecutor(max_workers=30) as ex:
         results = [r for r in ex.map(fetch_data, tickers) if r]
     
-    # FILTER-LOGIK
     all_sigs = [r for r in results if r['signal'] in ["C", "P"]]
     sorted_sigs = sorted(all_sigs, key=lambda x: -x['prob'])
     top_3_tickers = [r['ticker'] for r in sorted_sigs[:3]]
     
-    # Nur anzeigen wenn prob >= 45 ODER in Top 3
+    # Hauptliste: Nur Signale (C/P) UND Prob >= 45% (außer Top 3)
     hits = [r for r in sorted_sigs if r['prob'] >= 45 or r['ticker'] in top_3_tickers]
 
     if hits:
-        st.info(f"Scan bereit: {len(results)} Werte geprüft. {len(hits)} relevante Signale gefunden.")
+        st.info(f"Scan bereit: {len(results)} geprüft. {len(hits)} relevante Signale gefunden.")
         for r in hits: render_row(r)
     else:
-        st.warning("Keine starken Signale (>45%) aktuell verfügbar.")
+        st.warning("Keine relevanten Signale aktuell verfügbar.")
 
 # --- 7. DYNAMISCHES BACKTESTING (Top 3) ---
 st.markdown("---")
@@ -204,21 +200,16 @@ if st.session_state.scan_active and 'results' in locals() and results:
     if valid_hits: 
         top_results = sorted(valid_hits, key=lambda x: (-x['prob'], -x['adx']))[:3]
 
-with st.expander(f"📈 Top-Signale Analyse (Top {len(top_results)})", expanded=True):
+with st.expander(f"📈 Top-Signale Analyse", expanded=True):
     if top_results:
         for i, res in enumerate(top_results):
-            # CSS Klasse für Signal-Farbe
             sig_class = "sig-box-high" if res["prob"] >= 60 else ("sig-box-c" if res["signal"]=="C" else "sig-box-p")
             
-            # Hauptzeile: Signal, Name, Kurs, SL
+            # Zeile 1: Signal | Name | Preis | SL
             html_line = f"""
             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 10px;">
-                <div class="{sig_class}" style="flex: 0 0 35px; text-align: center; font-size: 0.85rem; padding: 2px;">
-                    {res['signal']}
-                </div>
-                <div style="flex: 1; font-size: 0.85rem; color: #eee; padding: 0 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    {res['name']}
-                </div>
+                <div class="{sig_class}" style="flex: 0 0 35px; text-align: center; font-size: 0.85rem; padding: 2px;">{res['signal']}</div>
+                <div style="flex: 1; font-size: 0.85rem; color: #eee; padding: 0 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{res['name']}</div>
                 <div style="flex: 0 0 180px; text-align: right; white-space: nowrap;">
                     <span style="font-size: 1.4rem; font-weight: bold; color: #fff;">{res['price']:.2f}</span>
                     <span style="font-size: 0.85rem; color: #ff4b4b; margin-left: 10px;">SL ({res['stop']:.2f})</span>
@@ -227,26 +218,16 @@ with st.expander(f"📈 Top-Signale Analyse (Top {len(top_results)})", expanded=
             """
             st.markdown(html_line, unsafe_allow_html=True)
             
-            # Metriken-Zeile: Nach links ausgerichtet, ohne ":gold" Text
-            # Wir nutzen HTML für die Ausrichtung nach links (statt st.columns)
+            # Zeile 2: Metriken (Nach links unter den Namen geschoben)
             prob_color = "#ffd700" if res['prob'] >= 60 else "#e0e0e0"
             metrics_html = f"""
-            <div style="display: flex; gap: 30px; margin-left: 50px; margin-bottom: 10px; font-family: monospace; font-size: 0.75rem; color: #888;">
+            <div style="display: flex; gap: 30px; margin-left: 50px; margin-bottom: 10px; font-family: monospace; font-size: 0.7rem; color: #888;">
                 <div>Wahrsch: <span style="color: {prob_color}; font-weight: bold;">{res['prob']:.1f}%</span></div>
                 <div>Trend (ADX): <span style="color: #e0e0e0;">{res['adx']:.1f}</span></div>
                 <div>Momentum (RSI): <span style="color: #e0e0e0;">{res['rsi']:.1f}</span></div>
             </div>
             """
             st.markdown(metrics_html, unsafe_allow_html=True)
-            
-            if i < len(top_results) - 1:
-                st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>", unsafe_allow_html=True)
+            if i < len(top_results) - 1: st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>", unsafe_allow_html=True)
     else:
         st.info("Warte auf Signale...")
-
-
-
-
-
-
-
