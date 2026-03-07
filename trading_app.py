@@ -175,23 +175,32 @@ with st.expander("Index-Auswahl & Scan Steuerung", expanded=True):
 
 if st.session_state.scan_active:
     tickers = get_live_tickers(choice)
-    tickers = list(dict.fromkeys(tickers)) # Finale Dubletten-Prüfung
+    tickers = list(dict.fromkeys(tickers)) # Dubletten-Schutz
     total = len(tickers)
-    min_req = math.ceil(total * 0.8) 
     
-    st.markdown(f"<div class='scan-info'>Scanne {choice}... ({total} Werte) | Anzeige ab: {min_req} Werten.</div>", unsafe_allow_html=True)
+    # Fortschritts-Info
+    st.markdown(f"<div class='scan-info'>Scanne {choice}... ({total} Werte)</div>", unsafe_allow_html=True)
     
     with ThreadPoolExecutor(max_workers=30) as ex:
         results = [r for r in ex.map(fetch_data, tickers) if r]
     
     loaded = len(results)
-    if loaded >= min_req:
-        hits = [r for r in results if r['signal'] != "Wait"]
-        st.success(f"Scan bereit: {loaded} von {total} Werten geladen.")
-        for r in sorted(hits, key=lambda x: -x['prob'], reverse=True): render_row(r)
+    # Filter: Nur Werte mit Signal "C" oder "P"
+    hits = [r for r in results if r['signal'] in ["C", "P"]]
+    
+    # Infobox für den Status
+    if loaded > 0:
+        st.info(f"✅ Scan abgeschlossen: {loaded} von {total} Werten geprüft. {len(hits)} Signale gefunden.")
+        
+        if hits:
+            # Sortierung nach Wahrscheinlichkeit
+            for r in sorted(hits, key=lambda x: -x['prob']):
+                render_row(r)
+        else:
+            st.warning("Keine aktuellen Signale (C/P) in diesem Markt gefunden.")
     else:
-        st.warning(f"⏳ Sammle Daten... Aktuell {loaded} von {total} Werten geladen. (Benötigt: {min_req})")
-else: st.warning("Scanner im Standby.")
+        st.warning("⏳ Sammle Daten... Bitte warten.")
+
 
 # --- 7. DYNAMISCHES BACKTESTING (Top 3 Signale) ---
 st.markdown("---")
@@ -239,3 +248,4 @@ with st.expander(f"📈 Top-Signale Analyse (Top {len(top_results)})", expanded=
                 st.markdown("<hr style='margin: 10px 0; border-color: #262730;'>", unsafe_allow_html=True)
     else:
         st.info("Bitte starte den Scan oben, um die Top-Signale zu sehen.")
+
