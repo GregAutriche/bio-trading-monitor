@@ -153,19 +153,19 @@ def get_live_tickers(market_choice):
     }
     try:
         if market_choice == "Nasdaq 100":
-            df = pd.read_html('https://en.wikipedia.org')[4]
-            return sorted(df['Ticker'].unique().tolist())
+            df = pd.read_html('https://en.wikipedia.org')
+            return sorted(df[3]['Ticker'].unique().tolist())
         elif market_choice == "DAX 40":
-            df = pd.read_html('https://en.wikipedia.org')[4]
-            return sorted(df['Ticker'].tolist())
+            df = pd.read_html('https://en.wikipedia.org')
+            return sorted(df[4]['Ticker'].tolist())
         elif market_choice == "IBEX 35":
-            df = pd.read_html('https://en.wikipedia.org')[1]
-            return [t + ".MC" if not t.endswith(".MC") else t for t in df['Ticker'].tolist()]
-        # EuroStoxx, BIST und NIFTY nutzen die stabilen Fallbacks
+            df = pd.read_html('https://en.wikipedia.org')
+            tickers = df[1]['Ticker'].tolist()
+            return [t + ".MC" if not t.endswith(".MC") else t for t in tickers]
+        # Alle anderen Märkte nutzen die Fallback-Listen
         return fallbacks.get(market_choice, ["AAPL"])
     except:
         return fallbacks.get(market_choice, ["AAPL"])
-
 
 st.markdown("<br><div class='header-text'>🔭 Markt Screener 🔭</div>", unsafe_allow_html=True)
 if 'scan_active' not in st.session_state: st.session_state.scan_active = False
@@ -243,6 +243,7 @@ with st.expander(f"📈 Top-Signale Analyse (Top {len(top_results)})", expanded=
                 st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>", unsafe_allow_html=True)
     else:
         st.info("Warte auf Signale...")
+
 
 
 
