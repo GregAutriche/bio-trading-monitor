@@ -7,7 +7,7 @@ import matplotlib
 matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 
-# --- AUTO-INSTALLER ---
+# --- AUTO-INSTALLER (Fix für Fehlermeldung 2/2) ---
 def install_and_import(package):
     try:
         __import__(package.replace('-', '_'))
@@ -15,6 +15,8 @@ def install_and_import(package):
         os.system(f"{sys.executable} -m pip install {package}")
 
 install_and_import('streamlit-autorefresh')
+install_and_import('lxml') # Behebt 'Missing dependency lxml'
+install_and_import('html5lib')
 
 import streamlit as st
 import yfinance as yf
@@ -128,55 +130,36 @@ with st.expander("ℹ️ Ausführlicher Strategie-Leitfaden & Markt-Logik ℹ️
     st.markdown("""
     ### 📡 System-Logik Pro 2026
     Dieser Monitor analysiert Märkte basierend auf Dr. Gregor Bauers Trend- und Momentum-Strategie.
-    
-    **1. Markt-Zustand (Symbole):**
-    *   ☀️ **Bullish:** Kurs steht über dem SMA20 und das Tagesplus ist > 0,3%.
-    *   ⚖️ **Neutral:** Kurs konsolidiert oder Tagesbewegung ist minimal (< 0,3%). 
-    *   ⛈️ **Bearish:** Kurs unter SMA20 oder deutlicher Abverkauf am heutigen Tag.
-    
-    **2. Indikatoren-Analyse:**
-    *   **Trend-Chart:** Visualisiert die Preisbewegung der **letzten 20 Handelstage**.
-    *   **RSI (14):** Relative Stärke Index (<30 überverkauft / >70 überkauft).
-    *   **ADX (14):** Misst die Trendstärke (>25 ist ein stabiler Trend).
-    
-    **3. Signale & Backtest:**
-    *   <span class='sig-box-c'>C</span> **(Call):** Trendbestätigung Long.
-    *   <span class='sig-box-p'>P</span> **(Put):** Trendbestätigung Short.
-    *   **Gold-Status:** Historische Trefferquote von **≥ 60,0%**.
     """)
 
 # --- 5. MACRO SECTION ---
 st.markdown("<div class='header-text'>🌍 Macro + Indices 🌍</div>", unsafe_allow_html=True)
-macro_list = ["EURUSD=X", "EURRUB=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI", "RTSI.ME"]
+macro_list = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 with ThreadPoolExecutor(max_workers=10) as ex:
     m_res = [r for r in ex.map(fetch_data, macro_list) if r]
     for r in m_res: render_row(r)
 
-# --- 6. SCREENER (Automatisierte Live-Listen) ---
-@st.cache_data(ttl=86400)  # Liste wird nur 1x pro Tag vom Web geladen
+# --- 6. SCREENER (Fix für 109 Werte & BIST/Nifty) ---
+@st.cache_data(ttl=86400)
 def get_live_tickers(market_choice):
+    # Fallback-Daten falls Scraping fehlschlägt oder für BIST/NIFTY
+    fallbacks = {
+        "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DTE.DE", "DBK.DE", "DB1.DE", "DHL.DE", "EON.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PUM.DE", "PAH3.DE", "RWE.DE", "SAP.DE", "SIE.DE", "SHL.DE", "SY1.DE", "TKA.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "BEI.DE", "CBK.DE", "RHM.DE", "SRT3.DE", "ENR.DE", "QIA.DE"],
+        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL", "META", "AVGO", "COST", "NFLX", "ADBE", "AMD", "PEP", "INTC", "CSCO", "TMUS", "TXN", "QCOM", "AMAT", "ISRG", "AMGN", "HON", "SBUX", "BKNG", "GILD", "INTU", "MDLZ", "VRTX", "ADI", "REGN", "PYPL", "PANW", "SNPS", "LRCX", "KLAC", "CDNS", "MELI", "CSX", "MAR", "ORLY", "CTAS", "ROP", "NXPI", "MNST", "KDP", "ADSK", "TEAM", "LULU", "AEP", "BKR", "CPRT", "DXCM", "EXC", "FAST", "FTNT", "KHC", "MCHP", "ODFL", "PAYX", "PCAR", "PDD", "WDAY", "XEL", "ZS", "ABNB", "ANSS", "ASML", "AZN", "BIIB", "CEG", "CHTR", "DDOG", "DLTR", "FANG", "GEHC", "IDXX", "ILMN", "LCID", "MDB", "MRVL", "ON", "ROST", "SIRI", "VRSK", "WBD", "CTSH", "CDW", "WBA", "ALGN", "EBAY", "ENPH", "JD"],
+        "BIST 100": ["THYAO.IS", "TUPRS.IS", "AKBNK.IS", "ISCTR.IS", "EREGL.IS", "ASELS.IS", "KCHOL.IS", "SAHOL.IS", "BIMAS.IS", "ARCLK.IS", "SISE.IS", "GARAN.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS", "PETKM.IS", "KRDMD.IS", "PGSUS.IS", "TOASO.IS", "FROTO.IS"],
+        "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "SBIN.NS", "BHARTIARTL.NS", "AXISBANK.NS", "LT.NS", "ITC.NS", "HINDUNILVR.NS", "BAJFINANCE.NS", "MARUTI.NS", "SUNPHARMA.NS", "KOTAKBANK.NS"]
+    }
     try:
         if market_choice == "Nasdaq 100":
-            url = 'https://en.wikipedia.org'
-            table = pd.read_html(url)[4] # Tabelle 4 enthält die Ticker
-            # .unique() entfernt die Doppel-Listings (GOOGL/GOOG), damit es exakt 100 sind
-            return sorted(table['Ticker'].unique().tolist())
-            
+            df_list = pd.read_html('https://en.wikipedia.org')
+            # Extrahiere Ticker und entferne Dubletten (Alphabet Class A/C)
+            return sorted(df_list[4]['Ticker'].unique().tolist())
         elif market_choice == "DAX 40":
-            url = 'https://en.wikipedia.org'
-            table = pd.read_html(url)[4]
-            return sorted(table['Ticker'].tolist())
-
-        elif market_choice == "EuroStoxx 50":
-            url = 'https://en.wikipedia.org'
-            table = pd.read_html(url)[4]
-            # Kürzel an yfinance Format anpassen (z.B. SAP -> SAP.DE)
-            return sorted(table['Ticker'].tolist())
-            
-    except Exception as e:
-        st.error(f"Fehler beim Laden der Live-Liste: {e}")
-        # Dein alter Fallback, falls Wikipedia mal down ist
-        return ["AAPL", "MSFT", "NVDA", "SAP.DE", "ADS.DE"]
+            df_list = pd.read_html('https://en.wikipedia.org')
+            return sorted(df_list[4]['Ticker'].tolist())
+        return fallbacks.get(market_choice, ["AAPL"])
+    except:
+        return fallbacks.get(market_choice, ["AAPL"])
 
 st.markdown("<br><div class='header-text'>🔭 Markt Screener 🔭</div>", unsafe_allow_html=True)
 if 'scan_active' not in st.session_state: st.session_state.scan_active = False
@@ -184,19 +167,20 @@ if 'scan_active' not in st.session_state: st.session_state.scan_active = False
 with st.expander("Index-Auswahl & Scan Steuerung", expanded=True):
     col_sel, col_btn = st.columns(2)
     with col_sel: 
-        choice = st.radio("Markt:", ["Nasdaq 100", "DAX 40", "EuroStoxx 50"], horizontal=True)
+        choice = st.radio("Markt:", ["Nasdaq 100", "DAX 40", "BIST 100", "NIFTY 50"], horizontal=True)
     with col_btn:
         st.write("<br>", unsafe_allow_html=True)
         if st.button("🚀 Scan Start/Stop", use_container_width=True):
             st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
-    # Hier passiert die Magie: Die Liste ist jetzt immer sauber
     tickers = get_live_tickers(choice)
+    tickers = list(dict.fromkeys(tickers)) # Finale Dubletten-Prüfung
     total = len(tickers)
     min_req = math.ceil(total * 0.8) 
     
     st.markdown(f"<div class='scan-info'>Scanne {choice}... ({total} Werte) | Anzeige ab: {min_req} Werten.</div>", unsafe_allow_html=True)
+    
     with ThreadPoolExecutor(max_workers=30) as ex:
         results = [r for r in ex.map(fetch_data, tickers) if r]
     
@@ -204,50 +188,25 @@ if st.session_state.scan_active:
     if loaded >= min_req:
         hits = [r for r in results if r['signal'] != "Wait"]
         st.success(f"Scan bereit: {loaded} von {total} Werten geladen.")
-        for r in sorted(hits, key=lambda x: -x['prob']): render_row(r)
+        for r in sorted(hits, key=lambda x: -x['prob'], reverse=True): render_row(r)
     else:
         st.warning(f"⏳ Sammle Daten... Aktuell {loaded} von {total} Werten geladen. (Benötigt: {min_req})")
 else: st.warning("Scanner im Standby.")
 
-# --- 7. DYNAMISCHES BACKTESTING (Top-Pick Analyse) ---
+# --- 7. DYNAMISCHES BACKTESTING ---
 st.markdown("---")
-
-# Initialisierung des Top-Picks
-top_ticker = "SAP.DE"  # Standard-Referenz
+# Suche Top-Pick aus den aktuellen Ergebnissen
 top_res = None
+if st.session_state.scan_active and 'results' in locals() and results:
+    valid_hits = [r for r in results if r['signal'] != "Wait"]
+    if valid_hits: top_res = sorted(valid_hits, key=lambda x: -x['prob'])[0]
 
-# Logik: Suche den Wert mit der höchsten Wahrscheinlichkeit aus dem aktiven Scan
-if st.session_state.scan_active and 'results' in locals():
-    # Nur Werte mit echtem Signal (C oder P) berücksichtigen
-    valid_hits = [r for r in results if r is not None and r['signal'] != "Wait"]
-    if valid_hits:
-        # Sortiere nach Wahrscheinlichkeit absteigend und nimm den ersten
-        top_res = sorted(valid_hits, key=lambda x: -x['prob'])[0]
-        top_ticker = top_res['ticker']
-
-# Daten abrufen (falls nicht schon durch top_res vorhanden)
-if not top_res:
-    top_res = fetch_data(top_ticker)
-
-with st.expander(f"📈 Top-Signal Backtesting: {top_res['name'] if top_res else top_ticker}", expanded=True):
+with st.expander(f"📈 Top-Signal Backtesting: {top_res['name'] if top_res else '---'}", expanded=True):
     if top_res:
-        st.write(f"Detaillierte Strategie-Analyse für **{top_res['name']}** ({top_res['ticker']})")
-        
         c1, c2, c3 = st.columns(3)
-        # Metriken für den Top-Wert
-        c1.metric("Beste Trefferquote", f"{top_res['prob']:.1f}%", help="Historische Genauigkeit der Signale (100 Tage)")
-        c2.metric("Trendstärke (ADX)", f"{top_res['adx']:.1f}", help="Werte über 25 deuten auf einen starken Trend hin")
-        c3.metric("Aktueller RSI", f"{top_res['rsi']:.1f}", help="Überkauft > 70, Überverkauft < 30")
-        
-        # Handlungsempfehlung basierend auf dem Top-Signal
-        if top_res['signal'] == "C":
-            st.success(f"🚀 Strategie-Empfehlung: **CALL/LONG** (Historische Chance: {top_res['prob']:.1f}%)")
-        elif top_res['signal'] == "P":
-            st.info(f"📉 Strategie-Empfehlung: **PUT/SHORT** (Historische Chance: {top_res['prob']:.1f}%)")
-            
-        st.markdown(f"**Empfohlener Stop-Loss:** <span class='sl-value'>{top_res['stop']:.2f}</span>", unsafe_allow_html=True)
+        c1.metric("Trefferquote", f"{top_res['prob']:.1f}%")
+        c2.metric("ADX", f"{top_res['adx']:.1f}")
+        c3.metric("RSI", f"{top_res['rsi']:.1f}")
+        st.write(f"Empfohlener Stop-Loss: **{top_res['stop']:.2f}**")
     else:
-        st.info("Führe einen Scan aus, um den aktuell stärksten Wert hier detailliert zu analysieren.")
-
-
-
+        st.info("Führe einen Scan aus, um den stärksten Wert zu analysieren.")
