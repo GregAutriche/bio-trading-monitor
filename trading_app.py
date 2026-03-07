@@ -158,6 +158,14 @@ def get_live_tickers(market_choice):
             df_list = pd.read_html('https://en.wikipedia.org')
             # Extrahiere Ticker und entferne Dubletten (Alphabet Class A/C)
             return sorted(df_list[4]['Ticker'].unique().tolist())
+
+        elif market_choice == "IBEX 35":
+            # Versuche Live-Daten von Wikipedia zu laden
+            df = pd.read_html('https://en.wikipedia.org/wiki/IBEX_35')
+        return fallbacks.get(market_choice, ["AAPL"])
+    except:
+        return fallbacks.get(market_choice, ["AAPL"])        
+        
         elif market_choice == "DAX 40":
             df_list = pd.read_html('https://en.wikipedia.org')
             return sorted(df_list[4]['Ticker'].tolist())
@@ -252,6 +260,7 @@ with st.expander(f"📈 Top-Signale Analyse (Top {len(top_results)})", expanded=
                 st.markdown("<hr style='margin: 10px 0; border-color: #262730;'>", unsafe_allow_html=True)
     else:
         st.info("Bitte starte den Scan oben, um die Top-Signale zu sehen.")
+
 
 
 
