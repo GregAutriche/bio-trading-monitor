@@ -302,7 +302,6 @@ with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘
     ---
 
     ## 🎯 Ziel des Systems 🎯
-
     Der Monitor wurde entwickelt, um:
     - Markttrends frühzeitig zu erkennen  
     - Momentum‑Signale (Long/Short) zu identifizieren  
@@ -311,10 +310,10 @@ with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘
     - die besten Chancen pro Markt herauszufiltern  
     - synthetische Zukunftsszenarien zu simulieren (Monte‑Carlo)  
 
-      Er eignet sich für Trader, quantitative Analysten, Portfolio‑Manager und systematische Strategien.
+      Er eignet sich für Trader, quantitative Analysten,
+      Portfolio‑Manager und systematische Strategien.
     ---
     ## ⚙️ Technische Basis ⚙️
-
     Das Dashboard nutzt moderne Technologien:
     - **Streamlit** für UI, Layout und Auto‑Refresh  
     - **yfinance (Batch‑Download)** für schnelle Kursdaten  
@@ -326,7 +325,6 @@ with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘
     ---
 
     ## 🌍 Macro + Indices 🌍
-
     Dieser Bereich zeigt die wichtigsten Märkte:
     . EUR/USD  
     . DAX, EuroStoxx, Nasdaq  
@@ -347,7 +345,6 @@ with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘
     ---
 
     ## 🔭 Markt‑Screener 🔭
-
     Der Nutzer wählt einen Markt (z. B. DAX, Nasdaq, NIFTY).  
     Der Screener:
     - lädt alle Aktien des Index in einem einzigen Batch  
@@ -374,7 +371,6 @@ with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘
     ---
 
     ## ⭐ Top‑Signale Analyse ⭐
-
     Die besten 3 Signale des gesamten Scans werden ausgewählt – basierend auf:
     - Signalqualität  
     - Wahrscheinlichkeit  
@@ -385,7 +381,6 @@ with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘
     ---
 
     ## 🎲 Monte‑Carlo Risikoanalyse 🎲
-
     Die Monte‑Carlo‑Simulation erzeugt synthetische Marktverläufe und testet die Strategie unter:
     - Trend‑Phasen  
     - Mean‑Reversion  
@@ -538,6 +533,7 @@ with st.expander("📈 Top-Signale Analyse", expanded=True):
                 )
     else:
         st.info("Warte auf Signale...")
+
 
 
 
