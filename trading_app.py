@@ -139,10 +139,9 @@ with ThreadPoolExecutor(max_workers=10) as ex:
     m_res = [r for r in ex.map(fetch_data, macro_list) if r]
     for r in m_res: render_row(r)
 
-# --- 6. SCREENER (Fix für 109 Werte & BIST/Nifty) ---
+# --- 6. SCREENER (Logik: Nur Signale > 45% oder Top 3) ---
 @st.cache_data(ttl=86400)
 def get_live_tickers(market_choice):
-    # Alle Fallbacks an einem Ort gesammelt
     fallbacks = {
         "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DTE.DE", "DBK.DE", "DB1.DE", "DHL.DE", "EON.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PUM.DE", "PAH3.DE", "RWE.DE", "SAP.DE", "SIE.DE", "SHL.DE", "SY1.DE", "TKA.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "BEI.DE", "CBK.DE", "RHM.DE", "SRT3.DE", "ENR.DE", "QIA.DE"],
         "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL", "META", "AVGO", "COST", "NFLX", "ADBE", "AMD", "PEP", "INTC", "CSCO", "TMUS", "TXN", "QCOM", "AMAT", "ISRG", "AMGN", "HON", "SBUX", "BKNG", "GILD", "INTU", "MDLZ", "VRTX", "ADI", "REGN", "PYPL", "PANW", "SNPS", "LRCX", "KLAC", "CDNS", "MELI", "CSX", "MAR", "ORLY", "CTAS", "ROP", "NXPI", "MNST", "KDP", "ADSK", "TEAM", "LULU", "AEP", "BKR", "CPRT", "DXCM", "EXC", "FAST", "FTNT", "KHC", "MCHP", "ODFL", "PAYX", "PCAR", "PDD", "WDAY", "XEL", "ZS", "ABNB", "ANSS", "ASML", "AZN", "BIIB", "CEG", "CHTR", "DDOG", "DLTR", "FANG", "GEHC", "IDXX", "ILMN", "LCID", "MDB", "MRVL", "ON", "ROST", "SIRI", "VRSK", "WBD", "CTSH", "CDW", "WBA", "ALGN", "EBAY", "ENPH", "JD"],
@@ -150,117 +149,77 @@ def get_live_tickers(market_choice):
         "BIST 100": ["AEFES.IS", "AGHOL.IS", "AKBNK.IS", "AKCNS.IS", "AKSA.IS", "AKSEN.IS", "ALARK.IS", "ALBRK.IS", "ALFAS.IS", "ARCLK.IS", "ASELS.IS", "ASTOR.IS", "ASUZU.IS", "AYDEM.IS", "BAGFS.IS", "BERA.IS", "BIENP.IS", "BIMAS.IS", "BRMEN.IS", "BRSAN.IS", "BRYAT.IS", "BUCIM.IS", "CANTE.IS", "CCOLA.IS", "CIMSA.IS", "CWENE.IS", "DOAS.IS", "DOHOL.IS", "EGEEN.IS", "EKGYO.IS", "ENJSA.IS", "ENKAI.IS", "EREGL.IS", "EUPWR.IS", "FROTO.IS", "GARAN.IS", "GENIL.IS", "GESAN.IS", "GUBRF.IS", "GWIND.IS", "HALKB.IS", "HEKTS.IS", "IPEKE.IS", "ISCTR.IS", "ISDMR.IS", "ISGYO.IS", "ISMEN.IS", "IZMDC.IS", "KARDM.IS", "KAYSE.IS", "KCHOL.IS", "KENT.IS", "KONTR.IS", "KORDS.IS", "KOZAA.IS", "KOZAL.IS", "KRDMD.IS", "MAVI.IS", "MGROS.IS", "MIATK.IS", "ODAS.IS", "OTKAR.IS", "OYAKC.IS", "PENTA.IS", "PETKM.IS", "PGSUS.IS", "QUAGR.IS", "SAHOL.IS", "SASA.IS", "SAYAS.IS", "SDTTR.IS", "SISE.IS", "SKBNK.IS", "SMRTG.IS", "SOKM.IS", "TARKN.IS", "TAVHL.IS", "TCELL.IS", "THYAO.IS", "TKFEN.IS", "TKNSA.IS", "TMSN.IS", "TOASO.IS", "TSKB.IS", "TTKOM.IS", "TTRAK.IS", "TUPRS.IS", "TURSG.IS", "ULKER.IS", "VAKBN.IS", "VESBE.IS", "VESTL.IS", "YEOTK.IS", "YKBNK.IS", "YYLGD.IS", "ZOREN.IS"],
         "NIFTY 50": ["ADANIENT.NS", "ADANIPORTS.NS", "APOLLOHOSP.NS", "ASIANPAINT.NS", "AXISBANK.NS", "BAJAJ-AUTO.NS", "BAJFINANCE.NS", "BAJAJFINSV.NS", "BPCL.NS", "BHARTIARTL.NS", "BRITANNIA.NS", "CIPLA.NS", "COALINDIA.NS", "DIVISLAB.NS", "DRREDDY.NS", "EICHERMOT.NS", "GRASIM.NS", "HCLTECH.NS", "HDFCBANK.NS", "HDFCLIFE.NS", "HEROMOTOCO.NS", "HINDALCO.NS", "HINDUNILVR.NS", "ICICIBANK.NS", "ITC.NS", "INDUSINDBK.NS", "INFY.NS", "JSWSTEEL.NS", "KOTAKBANK.NS", "LT.NS", "LTIM.NS", "M&M.NS", "MARUTI.NS", "NESTLEIND.NS", "NTPC.NS", "ONGC.NS", "POWERGRID.NS", "RELIANCE.NS", "SBILIFE.NS", "SBIN.NS", "SUNPHARMA.NS", "TCS.NS", "TATACONSUM.NS", "TATAMOTORS.NS", "TATASTEEL.NS", "TECHM.NS", "TITAN.NS", "ULTRACEMCO.NS", "UPL.NS", "WIPRO.NS"]
     }
-    
     try:
         if market_choice == "Nasdaq 100":
-            df = pd.read_html('https://en.wikipedia.org')
-            return sorted(df[3]['Ticker'].unique().tolist()) # Index 3 ist oft die Ticker-Tabelle
+            df = pd.read_html('https://en.wikipedia.org')[4]
+            return sorted(df['Ticker'].unique().tolist())
         elif market_choice == "DAX 40":
-            df = pd.read_html('https://en.wikipedia.org')
-            return sorted(df[4]['Ticker'].tolist())
+            df = pd.read_html('https://en.wikipedia.org')[4]
+            return sorted(df['Ticker'].tolist())
         elif market_choice == "IBEX 35":
-            df = pd.read_html('https://en.wikipedia.org')
-            tickers = df[1]['Ticker'].tolist()
+            df = pd.read_html('https://en.wikipedia.org')[1]
+            tickers = df['Ticker'].tolist()
             return [t + ".MC" if not t.endswith(".MC") else t for t in tickers]
-        # Für alle anderen Märkte (BIST/Nifty) nutzen wir die stabilen Fallbacks
         return fallbacks.get(market_choice, ["AAPL"])
-    except Exception as e:
-        # Falls Wikipedia das Format ändert, greift sofort der Fallback
+    except:
         return fallbacks.get(market_choice, ["AAPL"])
 
 st.markdown("<br><div class='header-text'>🔭 Markt Screener 🔭</div>", unsafe_allow_html=True)
 if 'scan_active' not in st.session_state: st.session_state.scan_active = False
 
 with st.expander("Index-Auswahl & Scan Steuerung", expanded=True):
-    col_sel, col_btn = st.columns(2)
-    with col_sel: 
-        choice = st.radio("Markt:", ["Nasdaq 100", "DAX 40", "IBEX 35", "BIST 100", "NIFTY 50"], horizontal=True)
-
-    with col_btn:
-        st.write("<br>", unsafe_allow_html=True)
-        if st.button("🚀 Scan Start/Stop", use_container_width=True):
-            st.session_state.scan_active = not st.session_state.scan_active
+    choice = st.radio("Markt:", ["Nasdaq 100", "DAX 40", "IBEX 35", "BIST 100", "NIFTY 50"], horizontal=True)
+    if st.button("🚀 Scan Start/Stop", use_container_width=True):
+        st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
     tickers = get_live_tickers(choice)
-    tickers = list(dict.fromkeys(tickers)) # Dubletten-Schutz
-    total = len(tickers)
-    
-    # Fortschritts-Info
-    st.markdown(f"<div class='scan-info'>Scanne {choice}... ({total} Werte)</div>", unsafe_allow_html=True)
+    tickers = list(dict.fromkeys(tickers)) 
     
     with ThreadPoolExecutor(max_workers=30) as ex:
         results = [r for r in ex.map(fetch_data, tickers) if r]
     
-    loaded = len(results)
-    # Filter: Nur Werte mit Signal "C" oder "P"
-    hits = [r for r in results if r['signal'] in ["C", "P"]]
+    # FILTER-LOGIK
+    all_sigs = [r for r in results if r['signal'] in ["C", "P"]]
+    sorted_sigs = sorted(all_sigs, key=lambda x: -x['prob'])
+    top_3_tickers = [r['ticker'] for r in sorted_sigs[:3]]
     
-    # Infobox für den Status
-    if loaded > 0:
-        st.info(f"✅ Scan abgeschlossen: {loaded} von {total} Werten geprüft. {len(hits)} Signale gefunden.")
-        
-        if hits:
-            # Sortierung nach Wahrscheinlichkeit
-            for r in sorted(hits, key=lambda x: -x['prob']):
-                render_row(r)
-        else:
-            st.warning("Keine aktuellen Signale (C/P) in diesem Markt gefunden.")
+    # Nur anzeigen wenn prob >= 45 ODER in Top 3
+    hits = [r for r in sorted_sigs if r['prob'] >= 45 or r['ticker'] in top_3_tickers]
+
+    if hits:
+        st.info(f"Scan bereit: {len(results)} Werte geprüft. {len(hits)} relevante Signale gefunden.")
+        for r in hits: render_row(r)
     else:
-        st.warning("⏳ Sammle Daten... Bitte warten.")
+        st.warning("Keine starken Signale (>45%) aktuell verfügbar.")
 
-
-# --- 7. DYNAMISCHES BACKTESTING (Top 3 Signale) ---
+# --- 7. DYNAMISCHES BACKTESTING (Top 3) ---
 st.markdown("---")
 top_results = []
 if st.session_state.scan_active and 'results' in locals() and results:
-    # Filtert alle Werte mit C oder P Signal
-    valid_hits = [r for r in results if r['signal'] != "Wait"]
+    valid_hits = [r for r in results if r['signal'] in ["C", "P"]]
     if valid_hits: 
-        # Sortiert nach Wahrscheinlichkeit absteigend und nimmt die besten 3
         top_results = sorted(valid_hits, key=lambda x: -x['prob'])[:3]
 
 with st.expander(f"📈 Top-Signale Analyse (Top {len(top_results)})", expanded=True):
     if top_results:
         for i, res in enumerate(top_results):
-            # Kompakte Zeile für jedes Signal
             st.markdown(f"""
-                <div style='display: flex; align-items: center; gap: 20px; white-space: nowrap; margin-bottom: 10px;'>
-                    <!-- 1. Signal -->
-                    <div style='font-size: 1rem; min-width: 35px; text-align: center; padding: 2px;' 
+                <div style='display: flex; align-items: center; gap: 20px; white-space: nowrap; margin-bottom: 5px;'>
+                    <div style='font-size: 1rem; min-width: 40px; text-align: center;' 
                          class='{"sig-box-high" if res["prob"] >= 60 else ("sig-box-c" if res["signal"]=="C" else "sig-box-p")}'>
                         {res['signal']}
                     </div>
-                    <!-- 2. Name & Ticker -->
-                    <div style='font-size: 0.85rem; color: #aaa; width: 200px; overflow: hidden; text-overflow: ellipsis;'>
-                        {res['name']}
-                    </div>
-                    <!-- 3. Kurs -->
-                    <div style='font-size: 1.4rem; font-weight: bold; min-width: 100px;'>
-                        {res['price']:.2f}
-                    </div>
-                    <!-- 4. Stop Loss -->
-                    <div style='font-size: 0.85rem; color: #ff4b4b;'>
-                        SL ({res['stop']:.2f})
-                    </div>
+                    <div style='font-size: 0.9rem; color: #aaa; width: 180px;'>{res['name']}</div>
+                    <div style='font-size: 1.6rem; font-weight: bold;'>{res['price']:.2f}</div>
+                    <div style='font-size: 0.9rem; color: #ff4b4b;'>SL ({res['stop']:.2f})</div>
                 </div>
             """, unsafe_allow_html=True)
             
-            # Metriken kompakt darunter in kleinen Spalten
-            m1, m2, m3, m4 = st.columns([1, 1, 1, 2])
-            m1.caption(f"Prob: **{res['prob']:.1f}%**")
+            m1, m2, m3 = st.columns(3)
+            m1.caption(f"Wahrsch: **{res['prob']:.1f}%**")
             m2.caption(f"ADX: **{res['adx']:.1f}**")
             m3.caption(f"RSI: **{res['rsi']:.1f}**")
-            
-            if i < len(top_results) - 1:
-                st.markdown("<hr style='margin: 10px 0; border-color: #262730;'>", unsafe_allow_html=True)
+            if i < len(top_results) - 1: st.markdown("<hr style='margin:10px 0; opacity:0.1;'>", unsafe_allow_html=True)
     else:
-        st.info("Bitte starte den Scan oben, um die Top-Signale zu sehen.")
-
-
-
-
-
-
-
-
+        st.info("Warte auf Signale...")
