@@ -174,7 +174,8 @@ if 'scan_active' not in st.session_state: st.session_state.scan_active = False
 with st.expander("Index-Auswahl & Scan Steuerung", expanded=True):
     col_sel, col_btn = st.columns(2)
     with col_sel: 
-        choice = st.radio("Markt:", ["Nasdaq 100", "DAX 40", "BIST 100", "NIFTY 50"], horizontal=True)
+        choice = st.radio("Markt:", ["Nasdaq 100", "DAX 40", "IBEX 35", "BIST 100", "NIFTY 50"], horizontal=True)
+
     with col_btn:
         st.write("<br>", unsafe_allow_html=True)
         if st.button("🚀 Scan Start/Stop", use_container_width=True):
@@ -255,6 +256,7 @@ with st.expander(f"📈 Top-Signale Analyse (Top {len(top_results)})", expanded=
                 st.markdown("<hr style='margin: 10px 0; border-color: #262730;'>", unsafe_allow_html=True)
     else:
         st.info("Bitte starte den Scan oben, um die Top-Signale zu sehen.")
+
 
 
 
