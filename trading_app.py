@@ -48,7 +48,7 @@ def sparkline_svg(series, color="#3fb950"):
     span = max_v - min_v if max_v != min_v else 1.0
     norm = [(v - min_v) / span for v in values]
     points = " ".join(f"{i},{1 - v}" for i, v in enumerate(norm))
-    width = len(values) - 1
+    width = max(len(values) - 1, 1)
     svg = f"""
     <svg width="120" height="30" viewBox="0 0 {width} 1" xmlns="http://www.w3.org/2000/svg">
         <polyline fill="none" stroke="{color}" stroke-width="0.08" points="{points}" />
@@ -96,7 +96,7 @@ def get_name_for_ticker(ticker):
     except Exception:
         return ticker
 
-# --- MONTE-CARLO / REGIME-LOGIK ---
+# --- MONTE-CARLO / REGIME-LOGIK (nur für Top-Signale) ---
 
 def hurst_exponent(ts):
     lags = range(2, 20)
@@ -107,7 +107,6 @@ def hurst_exponent(ts):
 def detect_regimes(df):
     df = df.copy()
     df["ret"] = df["Close"].pct_change()
-    df["vol"] = df["ret"].rolling(20).std()
     df["atr"] = (df["High"] - df["Low"]).rolling(14).mean()
 
     hurst = hurst_exponent(df["Close"].dropna())
@@ -128,11 +127,11 @@ def detect_regimes(df):
     return regime
 
 def bootstrap_market(df, block_size=20, length=252):
-    blocks = []
     prices = df["Close"].values
     n = len(prices)
     if n <= block_size:
         return prices
+    blocks = []
     while len(blocks) * block_size < length:
         start = np.random.randint(0, n - block_size)
         block = prices[start:start + block_size]
@@ -157,7 +156,7 @@ def simulate_strategy_on_path(prices):
     equity = (1 + long_ret + short_ret).cumprod()
     return equity
 
-def monte_carlo_regime_simulation(df, sims=1000, block_size=20, length=252):
+def monte_carlo_regime_simulation(df, sims=500, block_size=20, length=252):
     regime = detect_regimes(df)
     results = []
     max_dds = []
@@ -237,8 +236,6 @@ def compute_signal_from_df(ticker, df):
 
         name = get_name_for_ticker(ticker)
 
-        mc = monte_carlo_regime_simulation(df)
-
         return {
             "name": name,
             "ticker": ticker,
@@ -250,8 +247,7 @@ def compute_signal_from_df(ticker, df):
             "rsi": rsi.iloc[-1],
             "adx": adx,
             "spark": spark,
-            "icon": icon,
-            "mc": mc
+            "icon": icon
         }
     except Exception:
         return None
@@ -403,7 +399,12 @@ with st.expander("📈 Top-Signale Analyse", expanded=True):
             """
             st.markdown(metrics_html, unsafe_allow_html=True)
 
-            mc = res.get("mc", None)
+            # Monte-Carlo nur hier, on-demand
+            with st.spinner(f"Monte-Carlo für {res['ticker']}..."):
+                df_mc_map = fetch_batch_data(res['ticker'])
+                df_mc = df_mc_map.get(res['ticker'])
+                mc = monte_carlo_regime_simulation(df_mc) if df_mc is not None else None
+
             if mc:
                 mc_html = f"""
                 <div style="margin-left: 50px; margin-bottom: 10px; font-family: monospace; font-size: 0.7rem; color: #aaa;">
