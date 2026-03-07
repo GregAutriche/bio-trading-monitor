@@ -172,7 +172,7 @@ if 'scan_active' not in st.session_state: st.session_state.scan_active = False
 
 with st.expander("Index-Auswahl & Scan Steuerung", expanded=True):
     choice = st.radio("Markt:", ["DAX 40", "EuroStoxx 50", "IBEX 35", "Nasdaq 100", "BIST 100", "NIFTY 50"], horizontal=True)
-    :
+        :
         st.session_state.scan_active = not st.session_state.scan_active
 
 if st.session_state.scan_active:
@@ -243,6 +243,7 @@ with st.expander(f"📈 Top-Signale Analyse (Top {len(top_results)})", expanded=
                 st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>", unsafe_allow_html=True)
     else:
         st.info("Warte auf Signale...")
+
 
 
 
