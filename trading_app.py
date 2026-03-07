@@ -1,13 +1,7 @@
 import os
 import sys
-import math
 
-# --- 1. MATPLOTLIB FIX (Backend für Cloud-Stabilität) ---
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-
-# --- AUTO-INSTALLER (Fix für Fehlermeldung 2/2) ---
+# --- AUTO-INSTALLER ---
 def install_and_import(package):
     try:
         __import__(package.replace('-', '_'))
@@ -15,17 +9,13 @@ def install_and_import(package):
         os.system(f"{sys.executable} -m pip install {package}")
 
 install_and_import('streamlit-autorefresh')
-install_and_import('lxml')  # Behebt 'Missing dependency lxml'
+install_and_import('lxml')
 install_and_import('html5lib')
 
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import numpy as np
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
-import base64
-import io
 from streamlit_autorefresh import st_autorefresh
 
 # --- 2. SETUP & REFRESH (60 Sek) ---
@@ -49,24 +39,26 @@ st.markdown("""
 
 # --- 3. CORE FUNCTIONS ---
 
-def create_sparkline(data, color):
-    fig, ax = plt.subplots(figsize=(2.5, 0.6), dpi=70)
-    ax.plot(data.values, color=color, linewidth=2.5)
-    ax.axis('off')
-    buf = io.BytesIO()
-    fig.savefig(buf, format='png', transparent=True, bbox_inches='tight', pad_inches=0)
-    plt.close(fig)
-    return base64.b64encode(buf.getvalue()).decode()
+def sparkline_svg(series, color="#3fb950"):
+    values = list(series.values)
+    if len(values) < 2:
+        return ""
+    min_v, max_v = min(values), max(values)
+    span = max_v - min_v if max_v != min_v else 1.0
+    norm = [(v - min_v) / span for v in values]
+    points = " ".join(f"{i},{1 - v}" for i, v in enumerate(norm))
+    width = len(values) - 1
+    svg = f"""
+    <svg width="120" height="30" viewBox="0 0 {width} 1" xmlns="http://www.w3.org/2000/svg">
+        <polyline fill="none" stroke="{color}" stroke-width="0.08" points="{points}" />
+    </svg>
+    """
+    return svg
 
 @st.cache_data(ttl=300)
 def fetch_batch_data(tickers):
-    """
-    Holt Kursdaten für mehrere Ticker in einem Rutsch (Batch),
-    statt für jeden Ticker einzeln.
-    """
     if isinstance(tickers, str):
         tickers = [tickers]
-
     try:
         data = yf.download(
             tickers=tickers,
@@ -78,10 +70,7 @@ def fetch_batch_data(tickers):
         )
     except Exception:
         return {}
-
     result = {}
-
-    # MultiIndex (mehrere Ticker)
     if isinstance(data.columns, pd.MultiIndex):
         for t in tickers:
             try:
@@ -92,19 +81,13 @@ def fetch_batch_data(tickers):
             except Exception:
                 continue
     else:
-        # Einzelner Ticker
         df_t = data.dropna()
         if not df_t.empty and len(tickers) == 1:
             result[tickers[0]] = df_t
-
     return result
 
 @st.cache_data(ttl=3600)
 def get_name_for_ticker(ticker):
-    """
-    Holt den Kurznamen eines Tickers und cached ihn separat,
-    damit nicht bei jedem Re-Run info() aufgerufen wird.
-    """
     try:
         t_obj = yf.Ticker(ticker)
         name = t_obj.info.get('shortName') or ticker
@@ -113,22 +96,16 @@ def get_name_for_ticker(ticker):
         return ticker
 
 def compute_signal_from_df(ticker, df):
-    """
-    Reine Berechnungsfunktion: nimmt einen DataFrame mit OHLC,
-    berechnet Indikatoren, Signal, SL, Prob, Sparkline etc.
-    """
     try:
         if df is None or df.empty or len(df) < 35:
             return None
 
-        # RSI
         delta_p = df['Close'].diff()
         gain = delta_p.where(delta_p > 0, 0).rolling(window=14).mean()
         loss = (-delta_p.where(delta_p < 0, 0)).rolling(window=14).mean()
         rs = gain / (loss + 1e-9)
         rsi = 100 - (100 / (1 + rs))
 
-        # ATR + ADX (vereinfachte ADX-Variante)
         tr = pd.concat([
             df['High'] - df['Low'],
             (df['High'] - df['Close'].shift()).abs(),
@@ -149,7 +126,6 @@ def compute_signal_from_df(ticker, df):
         else:
             signal = "Wait"
 
-        # Backtest-ähnliche Trefferquote
         bt_df = df.tail(100).copy()
         bt_df['SMA20'] = bt_df['Close'].rolling(window=20).mean()
         hits, sigs = 0, 0
@@ -165,7 +141,7 @@ def compute_signal_from_df(ticker, df):
                     hits += 1
         prob = (hits / sigs * 100) if sigs > 0 else 50.0
 
-        spark_img = create_sparkline(
+        spark = sparkline_svg(
             df['Close'].tail(20),
             "#3fb950" if curr >= df['Close'].iloc[-2] else "#007bff"
         )
@@ -183,7 +159,7 @@ def compute_signal_from_df(ticker, df):
             "prob": prob,
             "rsi": rsi.iloc[-1],
             "adx": adx,
-            "spark": spark_img,
+            "spark": spark,
             "icon": icon
         }
     except Exception:
@@ -205,10 +181,7 @@ def render_row(res):
             unsafe_allow_html=True
         )
     with c3:
-        st.markdown(
-            f'<img src="data:image/png;base64,{res["spark"]}" width="100">',
-            unsafe_allow_html=True
-        )
+        st.markdown(res["spark"], unsafe_allow_html=True)
         st.markdown(
             f"<span class='indicator-label'>RSI: {res['rsi']:.1f} | ADX: {res['adx']:.1f}</span>",
             unsafe_allow_html=True
