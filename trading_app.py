@@ -311,7 +311,7 @@ with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘
     - die besten Chancen pro Markt herauszufiltern  
     - synthetische Zukunftsszenarien zu simulieren (Monte‑Carlo)  
 
-    Er eignet sich für Trader, quantitative Analysten, Portfolio‑Manager und systematische Strategien.
+      Er eignet sich für Trader, quantitative Analysten, Portfolio‑Manager und systematische Strategien.
     ---
     ## ⚙️ Technische Basis ⚙️
 
@@ -538,5 +538,6 @@ with st.expander("📈 Top-Signale Analyse", expanded=True):
                 )
     else:
         st.info("Warte auf Signale...")
+
 
 
