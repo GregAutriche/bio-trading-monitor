@@ -196,23 +196,40 @@ if st.session_state.scan_active:
         st.warning(f"⏳ Sammle Daten... Aktuell {loaded} von {total} Werten geladen. (Benötigt: {min_req})")
 else: st.warning("Scanner im Standby.")
 
-# --- 7. DYNAMISCHES BACKTESTING ---
+# --- 7. DYNAMISCHES BACKTESTING (Vollständig mit Signal & Kurs) ---
 st.markdown("---")
-# Suche Top-Pick aus den aktuellen Ergebnissen
 top_res = None
 if st.session_state.scan_active and 'results' in locals() and results:
     valid_hits = [r for r in results if r['signal'] != "Wait"]
-    if valid_hits: top_res = sorted(valid_hits, key=lambda x: -x['prob'])[0]
+    if valid_hits: 
+        top_res = sorted(valid_hits, key=lambda x: -x['prob'])[0]
 
-with st.expander(f"📈 Top-Signal Backtesting: {top_res['name'] if top_res else '---'}", expanded=True):
+with st.expander(f"📈 Top-Signal Analyse: {top_res['name'] if top_res else '---'}", expanded=True):
     if top_res:
+        # Kopfzeile mit Kurs und Signal-Box
+        c_head1, c_head2 = st.columns([2, 1])
+        with c_head1:
+            st.subheader(f"{top_res['name']} ({top_res['ticker']})")
+            st.markdown(f"### Aktueller Kurs: **{top_res['price']:.2f}**")
+        with c_head2:
+            cls = "sig-box-high" if top_res['prob'] >= 60 else ("sig-box-c" if top_res['signal']=="C" else "sig-box-p")
+            st.markdown(f"<br><div style='text-align:center; font-size:2rem;' class='{cls}'>{top_res['signal']}</div>", unsafe_allow_html=True)
+
+        st.write("---")
+        
+        # Metriken-Zeile
         c1, c2, c3 = st.columns(3)
-        c1.metric("Trefferquote", f"{top_res['prob']:.1f}%")
-        c2.metric("ADX", f"{top_res['adx']:.1f}")
-        c3.metric("RSI", f"{top_res['rsi']:.1f}")
-        st.write(f"Empfohlener Stop-Loss: **{top_res['stop']:.2f}**")
+        c1.metric("Historische Trefferquote", f"{top_res['prob']:.1f}%")
+        c2.metric("Trendstärke (ADX)", f"{top_res['adx']:.1f}")
+        c3.metric("RSI (Momentum)", f"{top_res['rsi']:.1f}")
+        
+        # Handlungsempfehlung
+        st.write("---")
+        if top_res['signal'] == "C":
+            st.success(f"✅ Strategie-Empfehlung: **LONG / CALL**")
+        else:
+            st.info(f"🛑 Strategie-Empfehlung: **SHORT / PUT**")
+            
+        st.error(f"🛡️ Empfohlener Stop-Loss: **{top_res['stop']:.2f}**")
     else:
-        st.info("Führe einen Scan aus, um den stärksten Wert zu analysieren.")
-
-
-
+        st.info("Bitte starte den Scan oben, um das stärkste Signal hier im Detail zu sehen.")
