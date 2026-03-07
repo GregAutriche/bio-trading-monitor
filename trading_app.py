@@ -197,29 +197,48 @@ if st.session_state.scan_active:
 st.markdown("---")
 top_results = []
 if st.session_state.scan_active and 'results' in locals() and results:
+    # Filtert erneut nur die echten Signale (C/P)
     valid_hits = [r for r in results if r['signal'] in ["C", "P"]]
     if valid_hits: 
+        # Sortiert nach Wahrscheinlichkeit absteigend und nimmt die besten 3
         top_results = sorted(valid_hits, key=lambda x: -x['prob'])[:3]
 
 with st.expander(f"📈 Top-Signale Analyse (Top {len(top_results)})", expanded=True):
     if top_results:
+        st.markdown("<div style='margin-bottom: 15px; color: #888; font-size: 0.8rem;'>Detaillierte Analyse der stärksten Momentum-Werte:</div>", unsafe_allow_html=True)
+        
         for i, res in enumerate(top_results):
+            # Nutzt Flexbox mit festen Breiten-Zuweisungen gegen Überlappung
             st.markdown(f"""
-                <div style='display: flex; align-items: center; gap: 20px; white-space: nowrap; margin-bottom: 5px;'>
-                    <div style='font-size: 1rem; min-width: 40px; text-align: center;' 
+                <div style='display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 5px; width: 100%;'>
+                    
+                    <!-- 1. Signal (Festbreite, damit nichts verrutscht) -->
+                    <div style='flex: 0 0 40px; text-align: center; font-size: 0.9rem; padding: 2px;' 
                          class='{"sig-box-high" if res["prob"] >= 60 else ("sig-box-c" if res["signal"]=="C" else "sig-box-p")}'>
                         {res['signal']}
                     </div>
-                    <div style='font-size: 0.9rem; color: #aaa; width: 180px;'>{res['name']}</div>
-                    <div style='font-size: 1.6rem; font-weight: bold;'>{res['price']:.2f}</div>
-                    <div style='font-size: 0.9rem; color: #ff4b4b;'>SL ({res['stop']:.2f})</div>
+                    
+                    <!-- 2. Name (Nimmt den restlichen Platz ein, kürzt bei Bedarf mit ... ab) -->
+                    <div style='flex: 1 1 auto; font-size: 0.85rem; color: #eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 5px;'>
+                        {res['name']}
+                    </div>
+                    
+                    <!-- 3. Kurs & SL (Rechtsbündig, Festbreite für Stabilität) -->
+                    <div style='flex: 0 0 160px; text-align: right; white-space: nowrap;'>
+                        <span style='font-size: 1.4rem; font-weight: bold;'>{res['price']:.2f}</span>
+                        <span style='font-size: 0.85rem; color: #ff4b4b; margin-left: 8px;'>SL ({res['stop']:.2f})</span>
+                    </div>
                 </div>
             """, unsafe_allow_html=True)
             
-            m1, m2, m3 = st.columns(3)
-            m1.caption(f"Wahrsch: **{res['prob']:.1f}%**")
-            m2.caption(f"ADX: **{res['adx']:.1f}**")
-            m3.caption(f"RSI: **{res['rsi']:.1f}**")
-            if i < len(top_results) - 1: st.markdown("<hr style='margin:10px 0; opacity:0.1;'>", unsafe_allow_html=True)
+            # Kompakte Metriken in drei Spalten direkt unter der Zeile
+            m1, m2, m3 = st.columns([1, 1, 1])
+            m1.caption(f"Wahrsch: <span style='color:{'#ffd700' if res['prob']>=60 else '#e0e0e0'};'>**{res['prob']:.1f}%**</span>", unsafe_allow_html=True)
+            m2.caption(f"Trend (ADX): **{res['adx']:.1f}**")
+            m3.caption(f"Momentum (RSI): **{res['rsi']:.1f}**")
+            
+            # Trennlinie zwischen den Top-Werten
+            if i < len(top_results) - 1:
+                st.markdown("<hr style='margin: 10px 0; border: 0; border-top: 1px solid #333; opacity: 0.3;'>", unsafe_allow_html=True)
     else:
-        st.info("Warte auf Signale...")
+        st.info("Warte auf Signale aus dem aktiven Markt-Scan...")
