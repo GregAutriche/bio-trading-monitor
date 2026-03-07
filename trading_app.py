@@ -4,7 +4,7 @@ import math
 
 # --- 1. MATPLOTLIB FIX (Backend für Cloud-Stabilität) ---
 import matplotlib
-matplotlib.use('Agg') 
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # --- AUTO-INSTALLER (Fix für Fehlermeldung 2/2) ---
@@ -15,7 +15,7 @@ def install_and_import(package):
         os.system(f"{sys.executable} -m pip install {package}")
 
 install_and_import('streamlit-autorefresh')
-install_and_import('lxml') # Behebt 'Missing dependency lxml'
+install_and_import('lxml')  # Behebt 'Missing dependency lxml'
 install_and_import('html5lib')
 
 import streamlit as st
@@ -48,6 +48,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 3. CORE FUNCTIONS ---
+
 def create_sparkline(data, color):
     fig, ax = plt.subplots(figsize=(2.5, 0.6), dpi=70)
     ax.plot(data.values, color=color, linewidth=2.5)
@@ -58,68 +59,170 @@ def create_sparkline(data, color):
     return base64.b64encode(buf.getvalue()).decode()
 
 @st.cache_data(ttl=300)
-def fetch_data(ticker):
+def fetch_batch_data(tickers):
+    """
+    Holt Kursdaten für mehrere Ticker in einem Rutsch (Batch),
+    statt für jeden Ticker einzeln.
+    """
+    if isinstance(tickers, str):
+        tickers = [tickers]
+
+    try:
+        data = yf.download(
+            tickers=tickers,
+            period="1y",
+            interval="1d",
+            auto_adjust=True,
+            group_by='ticker',
+            threads=True
+        )
+    except Exception:
+        return {}
+
+    result = {}
+
+    # MultiIndex (mehrere Ticker)
+    if isinstance(data.columns, pd.MultiIndex):
+        for t in tickers:
+            try:
+                if t in data.columns.get_level_values(0):
+                    df_t = data.xs(t, axis=1, level=0).dropna()
+                    if not df_t.empty:
+                        result[t] = df_t
+            except Exception:
+                continue
+    else:
+        # Einzelner Ticker
+        df_t = data.dropna()
+        if not df_t.empty and len(tickers) == 1:
+            result[tickers[0]] = df_t
+
+    return result
+
+@st.cache_data(ttl=3600)
+def get_name_for_ticker(ticker):
+    """
+    Holt den Kurznamen eines Tickers und cached ihn separat,
+    damit nicht bei jedem Re-Run info() aufgerufen wird.
+    """
     try:
         t_obj = yf.Ticker(ticker)
-        df = t_obj.history(period="1y", interval="1d", auto_adjust=True)
-        if df.empty or len(df) < 35: return None
-        
+        name = t_obj.info.get('shortName') or ticker
+        return name
+    except Exception:
+        return ticker
+
+def compute_signal_from_df(ticker, df):
+    """
+    Reine Berechnungsfunktion: nimmt einen DataFrame mit OHLC,
+    berechnet Indikatoren, Signal, SL, Prob, Sparkline etc.
+    """
+    try:
+        if df is None or df.empty or len(df) < 35:
+            return None
+
+        # RSI
         delta_p = df['Close'].diff()
-        gain = (delta_p.where(delta_p > 0, 0)).rolling(window=14).mean()
+        gain = delta_p.where(delta_p > 0, 0).rolling(window=14).mean()
         loss = (-delta_p.where(delta_p < 0, 0)).rolling(window=14).mean()
         rs = gain / (loss + 1e-9)
         rsi = 100 - (100 / (1 + rs))
-        
-        tr = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
+
+        # ATR + ADX (vereinfachte ADX-Variante)
+        tr = pd.concat([
+            df['High'] - df['Low'],
+            (df['High'] - df['Close'].shift()).abs(),
+            (df['Low'] - df['Close'].shift()).abs()
+        ], axis=1).max(axis=1)
         atr = tr.rolling(window=14).mean().iloc[-1]
-        adx = (abs(df['High'].diff() - abs(df['Low'].diff())) / (tr + 1e-9)).rolling(window=14).mean().iloc[-1] * 100
-        
+        adx = ((df['High'].diff().abs() - df['Low'].diff().abs()).abs() / (tr + 1e-9)).rolling(window=14).mean().iloc[-1] * 100
+
         curr = float(df['Close'].iloc[-1])
         prev, prev2 = df['Close'].iloc[-2], df['Close'].iloc[-3]
         sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
         daily_delta = ((curr - df['Open'].iloc[-1]) / df['Open'].iloc[-1]) * 100
-        
-        signal = "C" if (curr > prev > prev2 and curr > sma20) else "P" if (curr < prev < prev2 and curr < sma20) else "Wait"
-        
+
+        if curr > prev > prev2 and curr > sma20:
+            signal = "C"
+        elif curr < prev < prev2 and curr < sma20:
+            signal = "P"
+        else:
+            signal = "Wait"
+
+        # Backtest-ähnliche Trefferquote
         bt_df = df.tail(100).copy()
         bt_df['SMA20'] = bt_df['Close'].rolling(window=20).mean()
         hits, sigs = 0, 0
-        for i in range(20, len(bt_df)-3):
+        for i in range(20, len(bt_df) - 3):
             c_h, p_h, p2_h = bt_df['Close'].iloc[i], bt_df['Close'].iloc[i-1], bt_df['Close'].iloc[i-2]
             if signal == "C" and (c_h > p_h > p2_h and c_h > bt_df['SMA20'].iloc[i]):
                 sigs += 1
-                if bt_df['Close'].iloc[i+3] > c_h: hits += 1
+                if bt_df['Close'].iloc[i+3] > c_h:
+                    hits += 1
             elif signal == "P" and (c_h < p_h < p2_h and c_h < bt_df['SMA20'].iloc[i]):
                 sigs += 1
-                if bt_df['Close'].iloc[i+3] < c_h: hits += 1
+                if bt_df['Close'].iloc[i+3] < c_h:
+                    hits += 1
         prob = (hits / sigs * 100) if sigs > 0 else 50.0
 
-        spark_img = create_sparkline(df['Close'].tail(20), "#3fb950" if curr >= df['Close'].iloc[-2] else "#007bff")
+        spark_img = create_sparkline(
+            df['Close'].tail(20),
+            "#3fb950" if curr >= df['Close'].iloc[-2] else "#007bff"
+        )
         icon = "☀️" if (curr > sma20 and daily_delta > 0.3) else "⚖️" if abs(daily_delta) < 0.3 else "⛈️"
-        
+
+        name = get_name_for_ticker(ticker)
+
         return {
-            "name": t_obj.info.get('shortName') or ticker, "ticker": ticker, "price": curr, 
-            "delta": daily_delta, "signal": signal, "stop": curr - (atr*1.5) if signal=="C" else curr + (atr*1.5) if signal=="P" else 0,
-            "prob": prob, "rsi": rsi.iloc[-1], "adx": adx, "spark": spark_img, "icon": icon
+            "name": name,
+            "ticker": ticker,
+            "price": curr,
+            "delta": daily_delta,
+            "signal": signal,
+            "stop": curr - (atr * 1.5) if signal == "C" else curr + (atr * 1.5) if signal == "P" else 0,
+            "prob": prob,
+            "rsi": rsi.iloc[-1],
+            "adx": adx,
+            "spark": spark_img,
+            "icon": icon
         }
-    except: return None
+    except Exception:
+        return None
 
 def render_row(res):
     fmt = "{:.6f}" if "=" in res['ticker'] else "{:.2f}"
     st.markdown("<div class='row-container'>", unsafe_allow_html=True)
     c1, c2, c3, c4, c5 = st.columns([1.2, 0.6, 0.8, 0.5, 1.1])
-    with c1: st.markdown(f"**{res['name']}**<br><small>{fmt.format(res['price'])}</small>", unsafe_allow_html=True)
-    with c2: st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{'#3fb950' if res['delta']>=0 else '#007bff'};'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
+    with c1:
+        st.markdown(
+            f"**{res['name']}**<br><small>{fmt.format(res['price'])}</small>",
+            unsafe_allow_html=True
+        )
+    with c2:
+        st.markdown(
+            f"<div style='text-align:center;'>{res['icon']}<br>"
+            f"<span style='color:{'#3fb950' if res['delta']>=0 else '#007bff'};'>{res['delta']:+.2f}%</span></div>",
+            unsafe_allow_html=True
+        )
     with c3:
-        st.markdown(f'<img src="data:image/png;base64,{res["spark"]}" width="100">', unsafe_allow_html=True)
-        st.markdown(f"<span class='indicator-label'>RSI: {res['rsi']:.1f} | ADX: {res['adx']:.1f}</span>", unsafe_allow_html=True)
+        st.markdown(
+            f'<img src="data:image/png;base64,{res["spark"]}" width="100">',
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<span class='indicator-label'>RSI: {res['rsi']:.1f} | ADX: {res['adx']:.1f}</span>",
+            unsafe_allow_html=True
+        )
     with c4:
         if res['signal'] != "Wait":
-            cls = "sig-box-high" if res['prob'] >= 60 else ("sig-box-c" if res['signal']=="C" else "sig-box-p")
+            cls = "sig-box-high" if res['prob'] >= 60 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
             st.markdown(f"<br><span class='{cls}'>{res['signal']}</span>", unsafe_allow_html=True)
     with c5:
         if res['stop'] != 0:
-            st.markdown(f"<small>SL ({res['prob']:.1f}%)</small><br><b>{fmt.format(res['stop'])}</b>", unsafe_allow_html=True)
+            st.markdown(
+                f"<small>SL ({res['prob']:.1f}%)</small><br><b>{fmt.format(res['stop'])}</b>",
+                unsafe_allow_html=True
+            )
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 4. UI MAIN ---
@@ -135,9 +238,18 @@ with st.expander("ℹ️ Ausführlicher Strategie-Leitfaden & Markt-Logik ℹ️
 # --- 5. MACRO SECTION ---
 st.markdown("<div class='header-text'>🌍 Macro + Indices 🌍</div>", unsafe_allow_html=True)
 macro_list = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
-with ThreadPoolExecutor(max_workers=10) as ex:
-    m_res = [r for r in ex.map(fetch_data, macro_list) if r]
-    for r in m_res: render_row(r)
+
+macro_data = fetch_batch_data(macro_list)
+m_res = []
+for t in macro_list:
+    df_t = macro_data.get(t)
+    if df_t is not None:
+        res = compute_signal_from_df(t, df_t)
+        if res:
+            m_res.append(res)
+
+for r in m_res:
+    render_row(r)
 
 # --- 6. SCREENER (DAX, EuroStoxx, IBEX, NASDAQ, BIST, NIFTY) ---
 @st.cache_data(ttl=86400)
@@ -150,62 +262,57 @@ def get_live_tickers(market_choice):
         "BIST 100": ["AEFES.IS", "AGHOL.IS", "AKBNK.IS", "AKCNS.IS", "AKSA.IS", "AKSEN.IS", "ALARK.IS", "ALBRK.IS", "ALFAS.IS", "ARCLK.IS", "ASELS.IS", "ASTOR.IS", "ASUZU.IS", "AYDEM.IS", "BAGFS.IS", "BERA.IS", "BIENP.IS", "BIMAS.IS", "BRMEN.IS", "BRSAN.IS", "BRYAT.IS", "BUCIM.IS", "CANTE.IS", "CCOLA.IS", "CIMSA.IS", "CWENE.IS", "DOAS.IS", "DOHOL.IS", "EGEEN.IS", "EKGYO.IS", "ENJSA.IS", "ENKAI.IS", "EREGL.IS", "EUPWR.IS", "FROTO.IS", "GARAN.IS", "GENIL.IS", "GESAN.IS", "GUBRF.IS", "GWIND.IS", "HALKB.IS", "HEKTS.IS", "IPEKE.IS", "ISCTR.IS", "ISDMR.IS", "ISGYO.IS", "ISMEN.IS", "IZMDC.IS", "KARDM.IS", "KAYSE.IS", "KCHOL.IS", "KENT.IS", "KONTR.IS", "KORDS.IS", "KOZAA.IS", "KOZAL.IS", "KRDMD.IS", "MAVI.IS", "MGROS.IS", "MIATK.IS", "ODAS.IS", "OTKAR.IS", "OYAKC.IS", "PENTA.IS", "PETKM.IS", "PGSUS.IS", "QUAGR.IS", "SAHOL.IS", "SASA.IS", "SAYAS.IS", "SDTTR.IS", "SISE.IS", "SKBNK.IS", "SMRTG.IS", "SOKM.IS", "TARKN.IS", "TAVHL.IS", "TCELL.IS", "THYAO.IS", "TKFEN.IS", "TKNSA.IS", "TMSN.IS", "TOASO.IS", "TSKB.IS", "TTKOM.IS", "TTRAK.IS", "TUPRS.IS", "TURSG.IS", "ULKER.IS", "VAKBN.IS", "VESBE.IS", "VESTL.IS", "YEOTK.IS", "YKBNK.IS", "YYLGD.IS", "ZOREN.IS"],
         "NIFTY 50": ["ADANIENT.NS", "ADANIPORTS.NS", "APOLLOHOSP.NS", "ASIANPAINT.NS", "AXISBANK.NS", "BAJAJ-AUTO.NS", "BAJFINANCE.NS", "BAJAJFINSV.NS", "BPCL.NS", "BHARTIARTL.NS", "BRITANNIA.NS", "CIPLA.NS", "COALINDIA.NS", "DIVISLAB.NS", "DRREDDY.NS", "EICHERMOT.NS", "GRASIM.NS", "HCLTECH.NS", "HDFCBANK.NS", "HDFCLIFE.NS", "HEROMOTOCO.NS", "HINDALCO.NS", "HINDUNILVR.NS", "ICICIBANK.NS", "ITC.NS", "INDUSINDBK.NS", "INFY.NS", "JSWSTEEL.NS", "KOTAKBANK.NS", "LT.NS", "LTIM.NS", "M&M.NS", "MARUTI.NS", "NESTLEIND.NS", "NTPC.NS", "ONGC.NS", "POWERGRID.NS", "RELIANCE.NS", "SBILIFE.NS", "SBIN.NS", "SUNPHARMA.NS", "TCS.NS", "TATACONSUM.NS", "TATAMOTORS.NS", "TATASTEEL.NS", "TECHM.NS", "TITAN.NS", "ULTRACEMCO.NS", "UPL.NS", "WIPRO.NS"]
     }
-    try:
-        if market_choice == "Nasdaq 100":
-            df = pd.read_html('https://en.wikipedia.org')[4]
-            return sorted(df['Ticker'].unique().tolist())
-        elif market_choice == "DAX 40":
-            df = pd.read_html('https://en.wikipedia.org')[4]
-            return sorted(df['Ticker'].tolist())
-        elif market_choice == "IBEX 35":
-            df = pd.read_html('https://en.wikipedia.org')[1]
-            return [t + ".MC" for t in df['Ticker'].tolist()]
-        return fallbacks.get(market_choice, ["AAPL"])
-    except:
-        return fallbacks.get(market_choice, ["AAPL"])
+    return fallbacks.get(market_choice, ["AAPL"])
 
 st.markdown("<br><div class='header-text'>🔭 Markt Screener 🔭</div>", unsafe_allow_html=True)
-if 'scan_active' not in st.session_state: st.session_state.scan_active = False
+if 'scan_active' not in st.session_state:
+    st.session_state.scan_active = False
 
 with st.expander("Index-Auswahl & Scan Steuerung", expanded=True):
     choice = st.radio("Markt:", ["DAX 40", "EuroStoxx 50", "IBEX 35", "Nasdaq 100", "BIST 100", "NIFTY 50"], horizontal=True)
     if st.button("🚀 Scan Start/Stop", use_container_width=True):
         st.session_state.scan_active = not st.session_state.scan_active
 
+results = []
+
 if st.session_state.scan_active:
-    tickers = get_live_tickers(choice)
-    tickers = list(dict.fromkeys(tickers)) 
-    
-    with ThreadPoolExecutor(max_workers=30) as ex:
-        results = [r for r in ex.map(fetch_data, tickers) if r]
-    
+    tickers = list(dict.fromkeys(get_live_tickers(choice)))
+    batch = fetch_batch_data(tickers)
+
+    for t in tickers:
+        df_t = batch.get(t)
+        if df_t is None:
+            continue
+        res = compute_signal_from_df(t, df_t)
+        if res:
+            results.append(res)
+
     all_sigs = [r for r in results if r['signal'] in ["C", "P"]]
     sorted_sigs = sorted(all_sigs, key=lambda x: -x['prob'])
     top_3_tickers = [r['ticker'] for r in sorted_sigs[:3]]
-    
-    # Hauptliste: Nur Signale (C/P) UND Prob >= 45% (außer Top 3)
+
     hits = [r for r in sorted_sigs if r['prob'] >= 45 or r['ticker'] in top_3_tickers]
 
     if hits:
         st.info(f"Scan bereit: {len(results)} geprüft. {len(hits)} relevante Signale gefunden.")
-        for r in hits: render_row(r)
+        for r in hits:
+            render_row(r)
     else:
         st.warning("Keine relevanten Signale aktuell verfügbar.")
 
 # --- 7. DYNAMISCHES BACKTESTING (Top 3) ---
 st.markdown("---")
 top_results = []
-if st.session_state.scan_active and 'results' in locals() and results:
+if st.session_state.scan_active and results:
     valid_hits = [r for r in results if r['signal'] in ["C", "P"]]
-    if valid_hits: 
+    if valid_hits:
         top_results = sorted(valid_hits, key=lambda x: (-x['prob'], -x['adx']))[:3]
 
-with st.expander(f"📈 Top-Signale Analyse", expanded=True):
+with st.expander("📈 Top-Signale Analyse", expanded=True):
     if top_results:
         for i, res in enumerate(top_results):
-            sig_class = "sig-box-high" if res["prob"] >= 60 else ("sig-box-c" if res["signal"]=="C" else "sig-box-p")
-            
-            # Zeile 1: Signal | Name | Preis | SL
+            sig_class = "sig-box-high" if res["prob"] >= 60 else ("sig-box-c" if res["signal"] == "C" else "sig-box-p")
+
             html_line = f"""
             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 10px;">
                 <div class="{sig_class}" style="flex: 0 0 35px; text-align: center; font-size: 0.85rem; padding: 2px;">{res['signal']}</div>
@@ -217,8 +324,7 @@ with st.expander(f"📈 Top-Signale Analyse", expanded=True):
             </div>
             """
             st.markdown(html_line, unsafe_allow_html=True)
-            
-            # Zeile 2: Metriken (Nach links unter den Namen geschoben)
+
             prob_color = "#ffd700" if res['prob'] >= 60 else "#e0e0e0"
             metrics_html = f"""
             <div style="display: flex; gap: 30px; margin-left: 50px; margin-bottom: 10px; font-family: monospace; font-size: 0.7rem; color: #888;">
@@ -228,6 +334,11 @@ with st.expander(f"📈 Top-Signale Analyse", expanded=True):
             </div>
             """
             st.markdown(metrics_html, unsafe_allow_html=True)
-            if i < len(top_results) - 1: st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>", unsafe_allow_html=True)
+
+            if i < len(top_results) - 1:
+                st.markdown(
+                    "<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>",
+                    unsafe_allow_html=True
+                )
     else:
         st.info("Warte auf Signale...")
