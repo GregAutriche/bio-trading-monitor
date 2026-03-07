@@ -15,10 +15,11 @@ install_and_import('html5lib')
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+import numpy as np
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 
-# --- 2. SETUP & REFRESH (60 Sek) ---
+# --- SETUP & REFRESH ---
 st_autorefresh(interval=60000, key="datarefresh")
 st.set_page_config(layout="wide", page_title="Strategy", page_icon="📡")
 
@@ -37,7 +38,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. CORE FUNCTIONS ---
+# --- CORE FUNCTIONS ---
 
 def sparkline_svg(series, color="#3fb950"):
     values = list(series.values)
@@ -95,6 +96,93 @@ def get_name_for_ticker(ticker):
     except Exception:
         return ticker
 
+# --- MONTE-CARLO / REGIME-LOGIK ---
+
+def hurst_exponent(ts):
+    lags = range(2, 20)
+    tau = [np.sqrt(np.std(np.subtract(ts[lag:], ts[:-lag]))) for lag in lags]
+    poly = np.polyfit(np.log(lags), np.log(tau), 1)
+    return poly[0] * 2.0
+
+def detect_regimes(df):
+    df = df.copy()
+    df["ret"] = df["Close"].pct_change()
+    df["vol"] = df["ret"].rolling(20).std()
+    df["atr"] = (df["High"] - df["Low"]).rolling(14).mean()
+
+    hurst = hurst_exponent(df["Close"].dropna())
+
+    if hurst > 0.55:
+        regime = "trend"
+    elif hurst < 0.45:
+        regime = "meanrev"
+    else:
+        regime = "neutral"
+
+    if df["ret"].rolling(5).sum().iloc[-1] < -0.05:
+        regime = "crash"
+
+    if df["atr"].iloc[-1] > df["atr"].rolling(200).mean().iloc[-1] * 1.5:
+        regime = "volcluster"
+
+    return regime
+
+def bootstrap_market(df, block_size=20, length=252):
+    blocks = []
+    prices = df["Close"].values
+    n = len(prices)
+    if n <= block_size:
+        return prices
+    while len(blocks) * block_size < length:
+        start = np.random.randint(0, n - block_size)
+        block = prices[start:start + block_size]
+        blocks.append(block)
+    synthetic = np.concatenate(blocks)[:length]
+    return synthetic
+
+def simulate_strategy_on_path(prices):
+    df = pd.DataFrame({"Close": prices})
+    df["prev"] = df["Close"].shift(1)
+    df["prev2"] = df["Close"].shift(2)
+    df["sma20"] = df["Close"].rolling(20).mean()
+
+    df["signal_C"] = (df["Close"] > df["prev"]) & (df["prev"] > df["prev2"]) & (df["Close"] > df["sma20"])
+    df["signal_P"] = (df["Close"] < df["prev"]) & (df["prev"] < df["prev2"]) & (df["Close"] < df["sma20"])
+
+    df["ret"] = df["Close"].pct_change()
+
+    long_ret = df["ret"].where(df["signal_C"], 0)
+    short_ret = -df["ret"].where(df["signal_P"], 0)
+
+    equity = (1 + long_ret + short_ret).cumprod()
+    return equity
+
+def monte_carlo_regime_simulation(df, sims=1000, block_size=20, length=252):
+    regime = detect_regimes(df)
+    results = []
+    max_dds = []
+
+    for _ in range(sims):
+        synthetic = bootstrap_market(df, block_size=block_size, length=length)
+        equity = simulate_strategy_on_path(synthetic)
+        results.append(equity.iloc[-1])
+        dd = (equity / equity.cummax() - 1).min()
+        max_dds.append(dd)
+
+    results = np.array(results)
+    max_dds = np.array(max_dds)
+
+    return {
+        "regime": regime,
+        "median_equity": float(np.median(results)),
+        "worst_equity": float(np.min(results)),
+        "best_equity": float(np.max(results)),
+        "VaR_5": float(np.percentile(results, 5)),
+        "maxdd_median": float(np.median(max_dds)),
+        "maxdd_worst": float(np.min(max_dds)),
+        "survival_prob": float(np.mean(results > 0.8)),
+    }
+
 def compute_signal_from_df(ticker, df):
     try:
         if df is None or df.empty or len(df) < 35:
@@ -149,6 +237,8 @@ def compute_signal_from_df(ticker, df):
 
         name = get_name_for_ticker(ticker)
 
+        mc = monte_carlo_regime_simulation(df)
+
         return {
             "name": name,
             "ticker": ticker,
@@ -160,7 +250,8 @@ def compute_signal_from_df(ticker, df):
             "rsi": rsi.iloc[-1],
             "adx": adx,
             "spark": spark,
-            "icon": icon
+            "icon": icon,
+            "mc": mc
         }
     except Exception:
         return None
@@ -198,7 +289,8 @@ def render_row(res):
             )
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 4. UI MAIN ---
+# --- UI MAIN ---
+
 st.markdown("<div class='header-text'>📡 Momentum Strategie 📡</div>", unsafe_allow_html=True)
 st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 60s")
 
@@ -208,7 +300,8 @@ with st.expander("ℹ️ Ausführlicher Strategie-Leitfaden & Markt-Logik ℹ️
     Dieser Monitor analysiert Märkte basierend auf Dr. Gregor Bauers Trend- und Momentum-Strategie.
     """)
 
-# --- 5. MACRO SECTION ---
+# --- MACRO SECTION ---
+
 st.markdown("<div class='header-text'>🌍 Macro + Indices 🌍</div>", unsafe_allow_html=True)
 macro_list = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 
@@ -224,7 +317,8 @@ for t in macro_list:
 for r in m_res:
     render_row(r)
 
-# --- 6. SCREENER (DAX, EuroStoxx, IBEX, NASDAQ, BIST, NIFTY) ---
+# --- SCREENER ---
+
 @st.cache_data(ttl=86400)
 def get_live_tickers(market_choice):
     fallbacks = {
@@ -273,7 +367,8 @@ if st.session_state.scan_active:
     else:
         st.warning("Keine relevanten Signale aktuell verfügbar.")
 
-# --- 7. DYNAMISCHES BACKTESTING (Top 3) ---
+# --- TOP-SIGNALE + MONTE-CARLO ---
+
 st.markdown("---")
 top_results = []
 if st.session_state.scan_active and results:
@@ -300,13 +395,28 @@ with st.expander("📈 Top-Signale Analyse", expanded=True):
 
             prob_color = "#ffd700" if res['prob'] >= 60 else "#e0e0e0"
             metrics_html = f"""
-            <div style="display: flex; gap: 30px; margin-left: 50px; margin-bottom: 10px; font-family: monospace; font-size: 0.7rem; color: #888;">
+            <div style="display: flex; gap: 30px; margin-left: 50px; margin-bottom: 6px; font-family: monospace; font-size: 0.7rem; color: #888;">
                 <div>Wahrsch: <span style="color: {prob_color}; font-weight: bold;">{res['prob']:.1f}%</span></div>
                 <div>Trend (ADX): <span style="color: #e0e0e0;">{res['adx']:.1f}</span></div>
                 <div>Momentum (RSI): <span style="color: #e0e0e0;">{res['rsi']:.1f}</span></div>
             </div>
             """
             st.markdown(metrics_html, unsafe_allow_html=True)
+
+            mc = res.get("mc", None)
+            if mc:
+                mc_html = f"""
+                <div style="margin-left: 50px; margin-bottom: 10px; font-family: monospace; font-size: 0.7rem; color: #aaa;">
+                    <div>Regime: <span style="color:#ffd700;">{mc['regime']}</span></div>
+                    <div>Median Equity: <span style="color:#e0e0e0;">{mc['median_equity']:.2f}</span></div>
+                    <div>Worst Equity: <span style="color:#ff4b4b;">{mc['worst_equity']:.2f}</span></div>
+                    <div>VaR 5%: <span style="color:#ff9f43;">{mc['VaR_5']:.2f}</span></div>
+                    <div>Median MaxDD: <span style="color:#e0e0e0;">{mc['maxdd_median']*100:.1f}%</span></div>
+                    <div>Worst MaxDD: <span style="color:#ff4b4b;">{mc['maxdd_worst']*100:.1f}%</span></div>
+                    <div>Survival: <span style="color:#3fb950;">{mc['survival_prob']*100:.1f}%</span></div>
+                </div>
+                """
+                st.markdown(mc_html, unsafe_allow_html=True)
 
             if i < len(top_results) - 1:
                 st.markdown(
