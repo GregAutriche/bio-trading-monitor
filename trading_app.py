@@ -28,7 +28,7 @@ from streamlit_autorefresh import st_autorefresh
 
 # --- 2. SETUP & REFRESH (60 Sek) ---
 st_autorefresh(interval=60000, key="datarefresh")
-st.set_page_config(layout="wide", page_title="Bauer Strategy Pro 2026", page_icon="📡")
+st.set_page_config(layout="wide", page_title="Strategy", page_icon="📡")
 
 # --- STYLING ---
 st.markdown("""
@@ -121,7 +121,7 @@ def render_row(res):
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 4. UI MAIN ---
-st.markdown("<div class='header-text'>📡 Dr. Gregor Bauer Strategie 📡</div>", unsafe_allow_html=True)
+st.markdown("<div class='header-text'>📡 Momentum Strategie 📡</div>", unsafe_allow_html=True)
 st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 60s")
 
 with st.expander("ℹ️ Ausführlicher Strategie-Leitfaden & Markt-Logik ℹ️", expanded=False):
@@ -231,4 +231,5 @@ with st.expander(f"📈 Top-Signal Backtesting: {top_res['name'] if top_res else
         st.markdown(f"**Empfohlener Stop-Loss:** <span class='sl-value'>{top_res['stop']:.2f}</span>", unsafe_allow_html=True)
     else:
         st.info("Führe einen Scan aus, um den aktuell stärksten Wert hier detailliert zu analysieren.")
+
 
