@@ -193,46 +193,49 @@ if st.session_state.scan_active:
         st.warning(f"⏳ Sammle Daten... Aktuell {loaded} von {total} Werten geladen. (Benötigt: {min_req})")
 else: st.warning("Scanner im Standby.")
 
-# --- 7. DYNAMISCHES BACKTESTING ---
+# --- 7. DYNAMISCHES BACKTESTING (Top 3 Signale) ---
 st.markdown("---")
-top_res = None
+top_results = []
 if st.session_state.scan_active and 'results' in locals() and results:
+    # Filtert alle Werte mit C oder P Signal
     valid_hits = [r for r in results if r['signal'] != "Wait"]
     if valid_hits: 
-        top_res = sorted(valid_hits, key=lambda x: -x['prob'])[0]
+        # Sortiert nach Wahrscheinlichkeit absteigend und nimmt die besten 3
+        top_results = sorted(valid_hits, key=lambda x: -x['prob'])[:3]
 
-with st.expander(f"📈 Analyse: {top_res['name'] if top_res else '---'}", expanded=True):
-    if top_res:
-        # Alles in eine Zeile mit Flexbox
-        st.markdown(f"""
-            <div style='display: flex; align-items: center; gap: 20px; white-space: nowrap;'>
-                <!-- 1. Signal -->
-                <div style='font-size: 1.2rem; min-width: 45px; text-align: center;' 
-                     class='{"sig-box-high" if top_res["prob"] >= 60 else ("sig-box-c" if top_res["signal"]=="C" else "sig-box-p")}'>
-                    {top_res['signal']}
+with st.expander(f"📈 Top-Signale Analyse (Top {len(top_results)})", expanded=True):
+    if top_results:
+        for i, res in enumerate(top_results):
+            # Kompakte Zeile für jedes Signal
+            st.markdown(f"""
+                <div style='display: flex; align-items: center; gap: 20px; white-space: nowrap; margin-bottom: 10px;'>
+                    <!-- 1. Signal -->
+                    <div style='font-size: 1rem; min-width: 35px; text-align: center; padding: 2px;' 
+                         class='{"sig-box-high" if res["prob"] >= 60 else ("sig-box-c" if res["signal"]=="C" else "sig-box-p")}'>
+                        {res['signal']}
+                    </div>
+                    <!-- 2. Name & Ticker -->
+                    <div style='font-size: 0.85rem; color: #aaa; width: 200px; overflow: hidden; text-overflow: ellipsis;'>
+                        {res['name']}
+                    </div>
+                    <!-- 3. Kurs -->
+                    <div style='font-size: 1.4rem; font-weight: bold; min-width: 100px;'>
+                        {res['price']:.2f}
+                    </div>
+                    <!-- 4. Stop Loss -->
+                    <div style='font-size: 0.85rem; color: #ff4b4b;'>
+                        SL ({res['stop']:.2f})
+                    </div>
                 </div>
-                <!-- 2. Name & Ticker -->
-                <div style='font-size: 0.9rem; color: #aaa; overflow: hidden; text-overflow: ellipsis;'>
-                    {top_res['name']} ({top_res['ticker']})
-                </div>
-                <!-- 3. Kurs -->
-                <div style='font-size: 1.8rem; font-weight: bold;'>
-                    {top_res['price']:.2f}
-                </div>
-                <!-- 4. Stop Loss -->
-                <div style='font-size: 0.9rem; color: #ff4b4b; margin-top: 5px;'>
-                    SL ({top_res['stop']:.2f})
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-        
-        # Metriken (darunter, um die Lesbarkeit der Zahlen zu erhalten)
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Wahrscheinlichkeit", f"{top_res['prob']:.1f}%")
-        c2.metric("ADX", f"{top_res['adx']:.1f}")
-        c3.metric("RSI", f"{top_res['rsi']:.1f}")
-        
+            """, unsafe_allow_html=True)
+            
+            # Metriken kompakt darunter in kleinen Spalten
+            m1, m2, m3, m4 = st.columns([1, 1, 1, 2])
+            m1.caption(f"Prob: **{res['prob']:.1f}%**")
+            m2.caption(f"ADX: **{res['adx']:.1f}**")
+            m3.caption(f"RSI: **{res['rsi']:.1f}**")
+            
+            if i < len(top_results) - 1:
+                st.markdown("<hr style='margin: 10px 0; border-color: #262730;'>", unsafe_allow_html=True)
     else:
-        st.info("Bitte starte den Scan oben.")
+        st.info("Bitte starte den Scan oben, um die Top-Signale zu sehen.")
