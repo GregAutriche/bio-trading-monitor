@@ -411,14 +411,23 @@ macro_list = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 macro_data = fetch_batch_data(macro_list)
 m_res = []
 for t in macro_list:
-    df_t = macro_data.get(t)
-    if df_t is not None:
+    # Einzelabfrage pro Ticker mit kurzem Cache
+    @st.cache_data(ttl=300, show_spinner=False)
+    def fetch_single_ticker(ticker):
+        try:
+            return yf.download(ticker, period="1y", interval="1d", auto_adjust=True, threads=False, timeout=5)
+        except:
+            return None
+
+    df_t = fetch_single_ticker(t)
+    
+    if df_t is not None and not df_t.empty:
         res = compute_signal_from_df(t, df_t)
         if res:
-            m_res.append(res)
-
-for r in m_res:
-    render_row(r)
+            render_row(res)
+    else:
+        # Platzhalter, damit das Layout nicht springt, falls ein Ticker klemmt
+        st.markdown(f"<small style='color: #444;'>⌛ Lade {t}...</small>", unsafe_allow_html=True)
 
 # --- SCREENER ---
 
@@ -533,6 +542,7 @@ with st.expander("📈 Top-Signale Analyse", expanded=True):
                 )
     else:
         st.info("Warte auf Signale...")
+
 
 
 
