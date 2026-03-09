@@ -24,20 +24,21 @@ from streamlit_autorefresh import st_autorefresh
 st_autorefresh(interval=300000, key="datarefresh")
 st.set_page_config(layout="wide", page_title="Momentum Strategy", page_icon="📡")
 
-# --- STYLING ---
+# --- STYLING (HÖHENOPTIMIERUNG) ---
 st.markdown("""
     <style>
     .stApp { background-color: #050a0f; }
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
-    .header-text { font-size: 20px; font-weight: bold; margin-bottom: 2px; color: #ffd700 !important; }
-    .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 1px 4px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
-    .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 1px 4px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
-    .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 1px 4px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
-    .indicator-label { color: #666; font-size: 0.65rem; margin-top: 0px; display: block; }
-    /* Reduzierte Zeilenhöhe */
-    .row-container { border-bottom: 1px solid #1a202c; padding: 4px 0; width: 100%; line-height: 1.1; }
-    .mc-box { background-color: #0d1117; padding: 8px; border-radius: 6px; border: 1px solid #30363d; margin-bottom: 5px; font-size: 0.75rem; }
-    small { font-size: 0.7rem; color: #888; }
+    .header-text { font-size: 18px; font-weight: bold; margin-bottom: 0px; color: #ffd700 !important; }
+    .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 0px 3px; border-radius: 3px; font-weight: bold; font-size: 0.7rem; }
+    .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 0px 3px; border-radius: 3px; font-weight: bold; font-size: 0.7rem; }
+    .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 0px 3px; border-radius: 3px; font-weight: bold; font-size: 0.7rem; }
+    .indicator-label { color: #555; font-size: 0.6rem; margin-top: -2px; display: block; }
+    /* EXTREME HÖHENOPTIMIERUNG */
+    .row-container { border-bottom: 1px solid #1a202c; padding: 2px 0 !important; width: 100%; line-height: 1.0 !important; }
+    .mc-box { background-color: #0d1117; padding: 5px; border-radius: 4px; border: 1px solid #30363d; margin-top: 2px; font-size: 0.7rem; }
+    small { font-size: 0.65rem; color: #777; }
+    b { font-size: 0.8rem; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -51,20 +52,25 @@ def sparkline_svg(series, color="#3fb950"):
     norm = [(v - min_v) / span for v in values]
     points = " ".join(f"{i},{1 - v}" for i, v in enumerate(norm))
     width = max(len(values) - 1, 1)
-    return f'<svg width="90" height="20" viewBox="0 0 {width} 1" xmlns="http://www.w3.org"><polyline fill="none" stroke="{color}" stroke-width="0.12" points="{points}" /></svg>'
+    return f'<svg width="80" height="15" viewBox="0 0 {width} 1" xmlns="http://www.w3.org"><polyline fill="none" stroke="{color}" stroke-width="0.15" points="{points}" /></svg>'
 
 @st.cache_data(ttl=3600)
-def get_name_for_ticker(ticker):
+def get_name_safe(ticker):
+    """Erzwingt den Klarnamen, falls yfinance ihn im Batch-Modus vergisst."""
     mapping = {
-        "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40", 
-        "^STOXX50E": "EuroStoxx 50", "^IXIC": "NASDAQ Composite",
-        "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50"
+        "EURUSD=X": "Euro / US-Dollar", "^GDAXI": "DAX 40 Index", 
+        "^STOXX50E": "EuroStoxx 50", "^IXIC": "NASDAQ",
+        "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50",
+        "ADS.DE": "ADIDAS AG", "SAP.DE": "SAP SE", "SIE.DE": "SIEMENS AG", "AIR.DE": "AIRBUS SE"
     }
     if ticker in mapping: return mapping[ticker]
     try:
-        info = yf.Ticker(ticker).info
-        return info.get('shortName') or info.get('longName') or ticker
-    except: return ticker
+        # Einzelabfrage der Info ist langsam, daher cachen wir aggressiv
+        t_obj = yf.Ticker(ticker)
+        name = t_obj.info.get('shortName') or t_obj.info.get('longName') or ticker
+        return name.upper()
+    except:
+        return ticker
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_batch_data(tickers):
@@ -103,71 +109,46 @@ def compute_signal_from_df(ticker, df):
         daily_delta = ((curr - df['Open'].iloc[-1]) / df['Open'].iloc[-1]) * 100
         signal = "C" if curr > prev > prev2 and curr > sma20 else ("P" if curr < prev < prev2 and curr < sma20 else "Wait")
         
-        prob = 62.0 if adx > 25 else 54.0
-
         return {
-            "name": get_name_for_ticker(ticker), "ticker": ticker, "price": float(curr), "delta": daily_delta,
+            "name": get_name_safe(ticker), "ticker": ticker, "price": float(curr), "delta": daily_delta,
             "signal": signal, "stop": curr-(atr*1.5) if signal=="C" else (curr+(atr*1.5) if signal=="P" else 0),
-            "prob": prob, "rsi": rsi.iloc[-1], "adx": adx, "icon": "☀️" if (curr>sma20 and daily_delta>0.2) else ("⚖️" if abs(daily_delta)<0.2 else "⛈️"),
+            "prob": 64.0 if adx > 25 else 52.0, "rsi": rsi.iloc[-1], "adx": adx, 
+            "icon": "☀️" if (curr>sma20 and daily_delta>0.2) else ("⚖️" if abs(daily_delta)<0.2 else "⛈️"),
             "spark": sparkline_svg(cp.tail(20), "#3fb950" if curr>=prev else "#007bff")
         }
     except: return None
 
-# --- MONTE CARLO ---
-def monte_carlo_regime_simulation(df, sims=300):
-    if df is None or len(df) < 60: return None
+def monte_carlo_sim(df, sims=200):
+    if df is None or len(df) < 50: return None
     rets = df['Close'].pct_change().dropna()
-    
-    # Hurst Exponent Näherung
-    lags = range(2, 20)
-    tau = [np.sqrt(np.std(np.subtract(df['Close'].iloc[lag:].values, df['Close'].iloc[:-lag].values))) for lag in lags]
-    hurst = np.polyfit(np.log(lags), np.log(tau), 1)[0] * 2.0
-    
-    regime = "Trend" if hurst > 0.55 else ("Mean-Rev" if hurst < 0.45 else "Neutral")
-    if rets.tail(5).sum() < -0.06: regime = "CRASH-GEFAHR"
-
-    final_results = []
-    for _ in range(sims):
-        path = np.random.choice(rets, size=252, replace=True)
-        final_results.append(np.prod(1 + path))
-    
-    final_results = np.array(final_results)
-    return {
-        "regime": regime,
-        "median": np.median(final_results),
-        "worst": np.min(final_results),
-        "survival": np.mean(final_results > 0.8) * 100
-    }
+    res = [np.prod(1 + np.random.choice(rets, 252, replace=True)) for _ in range(sims)]
+    return {"median": np.median(res), "worst": np.min(res), "survival": np.mean(np.array(res) > 0.8) * 100}
 
 def render_row(res):
     fmt = "{:.6f}" if "=" in res['ticker'] else "{:.2f}"
     st.markdown("<div class='row-container'>", unsafe_allow_html=True)
-    c1, c2, c3, c4, c5 = st.columns([2.0, 0.5, 0.8, 0.5, 0.8])
+    c1, c2, c3, c4, c5 = st.columns([2.0, 0.4, 0.7, 0.4, 0.7])
     with c1: st.markdown(f"**{res['name']}**<br><small>{res['ticker']} | {fmt.format(res['price'])}</small>", unsafe_allow_html=True)
-    with c2: st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{'#3fb950' if res['delta']>=0 else '#007bff'}; font-size:0.7rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
+    with c2: st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{'#3fb950' if res['delta']>=0 else '#007bff'}; font-size:0.65rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
     with c3:
         st.markdown(res["spark"], unsafe_allow_html=True)
-        st.markdown(f"<span class='indicator-label'>RSI {res['rsi']:.0f} | ADX {res['adx']:.0f}</span>", unsafe_allow_html=True)
+        st.markdown(f"<span class='indicator-label'>RSI {res['rsi']:.0f} ADX {res['adx']:.0f}</span>", unsafe_allow_html=True)
     with c4:
         if res['signal'] != "Wait":
             cls = "sig-box-high" if res['prob'] >= 60 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
-            st.markdown(f"<div style='margin-top:2px;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-top:1px;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
     with c5:
-        if res['stop'] != 0: st.markdown(f"<small>SL ({res['prob']:.0f}%)</small><br><b style='font-size:0.75rem;'>{fmt.format(res['stop'])}</b>", unsafe_allow_html=True)
+        if res['stop'] != 0: st.markdown(f"<small>SL {res['prob']:.0f}%</small><br><b style='font-size:0.7rem;'>{fmt.format(res['stop'])}</b>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- UI MAIN ---
-st.markdown("<div class='header-text'>📡 Momentum Strategie Monitor</div>", unsafe_allow_html=True)
+st.markdown("<div class='header-text'>📡 MOMENTUM MONITOR</div>", unsafe_allow_html=True)
 
-with st.expander("📘 Ausführlicher Strategie‑Leitfaden", expanded=False):
-    st.markdown("""
-    - **Trend-Logik**: Erkennt 3-Tage-Folgen über/unter dem SMA20.
-    - **Monte-Carlo**: Simuliert 300 synthetische Jahresverläufe für Risiko-Assessments.
-    - **Regime**: Erkennt ob der Markt im Trend- oder Mean-Reversion Modus ist.
-    """)
+with st.expander("📘 Strategie & Logik", expanded=False):
+    st.markdown("Trend-Follow System: 3-Tage Bestätigung & SMA20 Filter.")
 
 # --- MACRO ---
-st.markdown("<div class='header-text'>🌍 Macro + Indices</div>", unsafe_allow_html=True)
+st.markdown("<div class='header-text'>🌍 MACRO</div>", unsafe_allow_html=True)
 m_list = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 m_data = fetch_batch_data(m_list)
 if m_data:
@@ -178,16 +159,16 @@ if m_data:
             if res: render_row(res)
 
 # --- SCREENER ---
-st.markdown("<br><div class='header-text'>🔭 Markt Screener</div>", unsafe_allow_html=True)
+st.markdown("<br><div class='header-text'>🔭 SCREENER</div>", unsafe_allow_html=True)
 choice = st.radio("Index:", ["DAX 40", "Nasdaq 100", "BIST 100"], horizontal=True, label_visibility="collapsed")
-if st.button("🚀 Scan Start/Stop", use_container_width=True): 
+if st.button("🚀 SCAN START/STOP", use_container_width=True): 
     st.session_state.scan_active = not st.session_state.get('scan_active', False)
 
 if st.session_state.get('scan_active', False):
     t_lists = {
-        "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "SAP.DE", "SIE.DE", "DTE.DE", "VOW3.DE"],
-        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL", "META", "AVGO", "COST", "NFLX"],
-        "BIST 100": ["THYAO.IS", "AKBNK.IS", "EREGL.IS", "TUPRS.IS", "SISE.IS", "KCHOL.IS"]
+        "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "SAP.DE", "SIE.DE"],
+        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL"],
+        "BIST 100": ["THYAO.IS", "AKBNK.IS", "TUPRS.IS"]
     }
     tickers = t_lists.get(choice, ["AAPL"])
     batch = fetch_batch_data(tickers)
@@ -201,15 +182,9 @@ if st.session_state.get('scan_active', False):
                 render_row(res)
 
     # --- TOP 3 MONTE CARLO ---
-    st.markdown("<br><div class='header-text'>📈 Top 3 Risiko-Analyse (Monte-Carlo)</div>", unsafe_allow_html=True)
+    st.markdown("<br><div class='header-text'>📈 MONTE-CARLO RISK</div>", unsafe_allow_html=True)
     top_3 = sorted([r for r in results if r['signal'] != "Wait"], key=lambda x: -x['prob'])[:3]
     for res in top_3:
-        mc = monte_carlo_regime_simulation(batch.get(res['ticker']))
+        mc = monte_carlo_sim(batch.get(res['ticker']))
         if mc:
-            st.markdown(f"""
-            <div class='mc-box'>
-                <b>{res['name']}</b> | Regime: <span style='color:#ffd700;'>{mc['regime']}</span> | 
-                Survival: <span style='color:#3fb950;'>{mc['survival']:.1f}%</span> | 
-                Median Equity: {mc['median']:.2f} | Worst: <span style='color:#ff4b4b;'>{mc['worst']:.2f}</span>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"<div class='mc-box'><b>{res['name']}</b> | Sur: <span style='color:#3fb950;'>{mc['survival']:.0f}%</span> | Med: {mc['median']:.2f} | Worst: <span style='color:#ff4b4b;'>{mc['worst']:.2f}</span></div>", unsafe_allow_html=True)
