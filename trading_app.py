@@ -411,13 +411,16 @@ macro_list = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 macro_data = fetch_batch_data(macro_list)
 m_res = []
 for t in macro_list:
+    df_t = fetch_single_safe(t)
     # Einzelabfrage pro Ticker mit kurzem Cache
-    @st.cache_data(ttl=300, show_spinner=False)
-    def fetch_single_ticker(ticker):
-        try:
-            return yf.download(ticker, period="1y", interval="1d", auto_adjust=True, threads=False, timeout=5)
-        except:
-            return None
+@st.cache_data(ttl=300, show_spinner=False)
+def fetch_single_safe(ticker):
+    try:
+        # Sehr kurzer Timeout, damit die App nicht einfriert
+        d = yf.download(ticker, period="1y", interval="1d", auto_adjust=True, threads=False, timeout=5)
+        return d if not d.empty else None
+    except:
+        return None
 
     df_t = fetch_single_ticker(t)
     
@@ -542,6 +545,7 @@ with st.expander("📈 Top-Signale Analyse", expanded=True):
                 )
     else:
         st.info("Warte auf Signale...")
+
 
 
 
