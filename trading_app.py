@@ -6,15 +6,15 @@ from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 
 # --- SETUP ---
-# Intervall auf 5 Minuten (300.000ms) für API-Stabilität
+# Intervall auf 5 Minuten (300.000ms) für maximale API-Stabilität
 st_autorefresh(interval=300000, key="datarefresh")
 st.set_page_config(layout="wide", page_title="Momentum Strategy", page_icon="📡")
 
-# --- STYLING ---
+# --- STYLING (REPARIERT & KONTRASTREICH) ---
 st.markdown("""
     <style>
     .stApp { background-color: #050a0f; }
-    .header-text { font-size: 22px; font-weight: bold; margin-top: 20px; color: #ffd700 !important; }
+    .header-text { font-size: 22px; font-weight: bold; margin-top: 15px; color: #ffd700 !important; }
     .row-container { border-bottom: 1px solid #1a202c; padding: 12px 0 !important; line-height: 1.4 !important; }
     .sig-box { padding: 4px 10px; border-radius: 5px; font-weight: bold; font-size: 0.9rem; display: inline-block; }
     .sig-c { background-color: rgba(63, 185, 80, 0.2); color: #3fb950; border: 1px solid #3fb950; }
@@ -24,29 +24,29 @@ st.markdown("""
         border: 1px solid #ffd700; margin-top: 15px; color: #ffffff !important; 
     }
     .gold-title { color: #ffd700; font-size: 1.1rem; font-weight: bold; }
-    .update-info { text-align: right; color: #666; font-size: 0.8rem; margin-top: -10px; }
+    .update-info { text-align: right; color: #666; font-size: 0.8rem; margin-top: -10px; margin-bottom: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- KLARNAMEN MAPPING ---
+# --- KLARNAMEN MAPPING (ALLE INDIZES) ---
 NAME_MAP = {
     "EURUSD=X": "EURO / US-DOLLAR", "^GDAXI": "DAX 40 INDEX", "^STOXX50E": "EUROSTOXX 50 INDEX", 
-    "^IXIC": "NASDAQ COMPOSITE", "XU100.IS": "BIST 100 INDEX", "ASML.AS": "ASML HOLDING",
-    "MC.PA": "LVMH MOET HENNESSY", "OR.PA": "L'OREAL SA", "TTE.PA": "TOTALENERGIES SE",
-    "SAN.MC": "BANCO SANTANDER", "SAP.DE": "SAP SE", "ADS.DE": "ADIDAS AG"
+    "^IXIC": "NASDAQ COMPOSITE", "XU100.IS": "BIST 100 INDEX", "^NSEI": "NIFTY 50 INDEX",
+    "ASML.AS": "ASML HOLDING", "MC.PA": "LVMH MOET HENNESSY", "OR.PA": "L'OREAL SA", 
+    "TTE.PA": "TOTALENERGIES SE", "SAN.MC": "BANCO SANTANDER", "SAP.DE": "SAP SE"
 }
 
 # --- FUNKTIONEN ---
 @st.cache_data(ttl=300)
 def fetch_data(tickers):
+    if not tickers: return None
     try:
-        # Einzelabfrage ist oft stabiler gegen KeyErrors
         data = yf.download(tickers, period="1y", interval="1d", auto_adjust=True, group_by='ticker', threads=False, timeout=10)
         return data
     except: return None
 
 def process_signal(ticker, df):
-    if df is None or df.empty or len(df) < 20: return None
+    if df is None or df.empty or len(df) < 25: return None
     cp = df['Close']
     curr, prev, prev2 = cp.iloc[-1], cp.iloc[-2], cp.iloc[-3]
     sma20 = cp.rolling(20).mean().iloc[-1]
@@ -59,11 +59,6 @@ def process_signal(ticker, df):
     sl = curr - (tr * 1.5) if sig == "C" else curr + (tr * 1.5) if sig == "P" else 0
     
     return {"name": NAME_MAP.get(ticker, ticker.upper()), "ticker": ticker, "price": curr, "sig": sig, "icon": icon, "sl": sl, "delta": delta, "df": df}
-
-def monte_carlo_sim(df, sims=200):
-    rets = df['Close'].pct_change().dropna()
-    res = [np.prod(1 + np.random.choice(rets, 252, replace=True)) for _ in range(sims)]
-    return {"median": np.median(res), "survival": np.mean(np.array(res) > 0.8) * 100}
 
 def render_row(res):
     st.markdown(f"""
@@ -86,47 +81,55 @@ def render_row(res):
     """, unsafe_allow_html=True)
 
 # --- APP ---
-# Update Informationen
+# Zeitstempel & Intervall
 st.markdown(f"<div class='update-info'>Letztes Update: {datetime.now().strftime('%H:%M:%S')} | Intervall: 5 Min.</div>", unsafe_allow_html=True)
 
-st.markdown("<div class='header-text'>🌍 GLOBAL MACRO</div>", unsafe_allow_html=True)
-macros = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC"]
-data_m = fetch_data(macros)
+# GLOBAL MACRO SECTION
+st.markdown("<div class='header-text'>🌍 GLOBAL MACRO + INDICES</div>", unsafe_allow_html=True)
+macro_list = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
+data_m = fetch_data(macro_list)
 
-for t in macros:
-    try:
-        df = data_m[t] if len(macros) > 1 else data_m
-        res = process_signal(t, df)
-        if res: render_row(res)
-    except: continue
+if data_m is not None:
+    for t in macro_list:
+        try:
+            df = data_m[t] if len(macro_list) > 1 else data_m
+            res = process_signal(t, df)
+            if res: render_row(res)
+        except: continue
 
-st.markdown("<div class='header-text'>🔭 EURO-MARKET SCREENER</div>", unsafe_allow_html=True)
+# EURO SCREENER SECTION
+st.markdown("<br><div class='header-text'>🔭 EURO-MARKT-SCREENER</div>", unsafe_allow_html=True)
 euro_list = ["ASML.AS", "MC.PA", "OR.PA", "TTE.PA", "SAN.MC", "SAP.DE"]
 
 if st.button("🚀 SCAN STARTEN", use_container_width=True):
     batch = fetch_data(euro_list)
     results = []
-    for t in euro_list:
-        try:
-            df = batch[t]
-            res = process_signal(t, df)
-            if res:
-                results.append(res)
-                render_row(res)
-        except: continue
+    if batch is not None:
+        for t in euro_list:
+            try:
+                df = batch[t]
+                res = process_signal(t, df)
+                if res:
+                    results.append(res)
+                    render_row(res)
+            except: continue
 
-    # --- TOP 3 GOLD LOGIK ---
-    st.markdown("<div class='header-text'>📈 RISIKO-ANALYSE (MONTE-CARLO)</div>", unsafe_allow_html=True)
-    for r in [x for x in results if x['sig'] != "Wait"][:3]:
-        mc = monte_carlo_sim(r['df'])
-        st.markdown(f"""
-        <div class="mc-box">
-            <span class="gold-title">{r['name']}</span> 
-            <span class="sig-box {'sig-c' if r['sig']=='C' else 'sig-p'}">{r['sig']}</span>
-            <div style="margin-top: 10px;">
-                Überlebens-Rate (1J): <b style="color:#3fb950;">{mc['survival']:.1f}%</b> | 
-                Median Equity: <b>{mc['median']:.2f}</b><br>
-                <small>Stop-Loss bei {r['sl']:.2f} zur Absicherung empfohlen.</small>
+    # TOP 3 RISK ANALYSIS
+    if any(r['sig'] != "Wait" for r in results):
+        st.markdown("<div class='header-text'>📈 RISIKO-ANALYSE (MONTE-CARLO)</div>", unsafe_allow_html=True)
+        for r in [x for x in results if x['sig'] != "Wait"][:3]:
+            # Schnelle Simulation
+            rets = r['df']['Close'].pct_change().dropna()
+            mc_surv = np.mean([np.prod(1 + np.random.choice(rets, 252, replace=True)) > 0.8 for _ in range(200)]) * 100
+            
+            st.markdown(f"""
+            <div class="mc-box">
+                <span class="gold-title">{r['name']}</span> 
+                <span class="sig-box {'sig-c' if r['sig']=='C' else 'sig-p'}">{r['sig']}</span>
+                <div style="margin-top: 10px;">
+                    Überlebens-Rate (1J): <b style="color:#3fb950;">{mc_surv:.1f}%</b> | 
+                    Stop-Loss: <b>{r['sl']:.2f}</b><br>
+                    <small>Trend bestätigt durch Wetter-Icon {r['icon']}.</small>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
