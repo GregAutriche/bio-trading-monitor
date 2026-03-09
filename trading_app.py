@@ -21,7 +21,7 @@ from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 
 # --- SETUP & REFRESH ---
-# Intervall auf 5 Minuten, um API-Sperren zu vermeiden
+# Intervall auf 5 Minuten (300.000ms), um API-Sperren und JS-Fehler zu vermeiden
 st_autorefresh(interval=300000, key="datarefresh")
 st.set_page_config(layout="wide", page_title="Momentum Strategy", page_icon="📡")
 
@@ -29,48 +29,47 @@ st.set_page_config(layout="wide", page_title="Momentum Strategy", page_icon="�
 st.markdown("""
     <style>
     .stApp { background-color: #050a0f; }
-    [data-testid="column"] { padding: 0px 6px !important; }
+    [data-testid="column"] { padding: 0px 8px !important; }
     [data-testid="stVerticalBlock"] { gap: 0rem !important; }
     
-    .header-text { font-size: 19px; font-weight: bold; margin-top: 12px; margin-bottom: 4px; color: #ffd700 !important; }
+    .header-text { font-size: 20px; font-weight: bold; margin-top: 15px; margin-bottom: 5px; color: #ffd700 !important; }
     
-    .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 1px 5px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
-    .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 1px 5px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
-    .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 1px 5px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
+    .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 1px 6px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; }
+    .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 1px 6px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; }
+    .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 1px 6px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; }
     
-    .indicator-label { color: #777; font-size: 0.68rem; margin-top: -1px; display: block; }
+    .indicator-label { color: #888; font-size: 0.7rem; margin-top: 1px; display: block; }
     
     /* Zeilenhöhe für Tabellen */
-    .row-container { border-bottom: 1px solid #1a202c; padding: 3px 0 !important; width: 100%; line-height: 1.1 !important; }
+    .row-container { border-bottom: 1px solid #1a202c; padding: 4px 0 !important; width: 100%; line-height: 1.2 !important; }
     
-    /* Monte-Carlo Boxen (Optimierte Lesbarkeit) */
+    /* Monte-Carlo Boxen (Maximale Lesbarkeit) */
     .mc-box { 
         background-color: #161b22; 
-        padding: 12px; 
-        border-radius: 8px; 
+        padding: 15px; 
+        border-radius: 10px; 
         border: 1px solid #30363d; 
-        margin-top: 10px; 
-        margin-bottom: 10px;
-        font-size: 0.88rem; 
+        margin-top: 12px; 
+        margin-bottom: 12px;
+        font-size: 0.92rem; 
         color: #ffffff !important; 
-        line-height: 1.5 !important;
+        line-height: 1.6 !important;
     }
-    .mc-label { color: #8b949e; font-size: 0.78rem; }
+    .mc-label { color: #8b949e; font-size: 0.82rem; }
     
-    small { font-size: 0.7rem; color: #888; }
-    b { font-size: 0.82rem; color: #eeeeee; }
+    small { font-size: 0.72rem; color: #999; }
+    b { font-size: 0.85rem; color: #ffffff; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- KLARNAMEN MAPPING ---
+# --- KLARNAMEN MAPPING (GARANTIERT BIST & NASDAQ) ---
 NAME_MAP = {
     "EURUSD=X": "EURO / US-DOLLAR", "^GDAXI": "DAX 40 INDEX", "^STOXX50E": "EUROSTOXX 50 INDEX", 
     "^IXIC": "NASDAQ COMPOSITE", "XU100.IS": "BIST 100 INDEX", "^NSEI": "NIFTY 50 INDEX",
     "THYAO.IS": "TURKISH AIRLINES", "AKBNK.IS": "AKBANK", "EREGL.IS": "ERDEMIR CELIK",
     "TUPRS.IS": "TUPRAS PETROL", "SISE.IS": "SISECAM", "KCHOL.IS": "KOC HOLDING",
     "AAPL": "APPLE INC.", "MSFT": "MICROSOFT CORP.", "NVDA": "NVIDIA CORP.", "TSLA": "TESLA INC.",
-    "ADS.DE": "ADIDAS AG", "SAP.DE": "SAP SE", "SIE.DE": "SIEMENS AG", "AIR.DE": "AIRBUS SE",
-    "ALV.DE": "ALLIANZ SE", "BAS.DE": "BASF SE", "BMW.DE": "BMW AG"
+    "ADS.DE": "ADIDAS AG", "SAP.DE": "SAP SE", "SIE.DE": "SIEMENS AG", "AIR.DE": "AIRBUS SE"
 }
 
 @st.cache_data(ttl=3600)
@@ -93,13 +92,13 @@ def sparkline_svg(series, color="#3fb950"):
     norm = [(v - min_v) / span for v in values]
     points = " ".join(f"{i},{1 - v}" for i, v in enumerate(norm))
     width = max(len(values) - 1, 1)
-    return f'<svg width="95" height="20" viewBox="0 0 {width} 1" xmlns="http://www.w3.org"><polyline fill="none" stroke="{color}" stroke-width="0.12" points="{points}" /></svg>'
+    return f'<svg width="100" height="22" viewBox="0 0 {width} 1" xmlns="http://www.w3.org"><polyline fill="none" stroke="{color}" stroke-width="0.12" points="{points}" /></svg>'
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_batch_data(tickers):
     if not tickers: return {}
     try:
-        data = yf.download(tickers=tickers, period="1y", interval="1d", auto_adjust=True, group_by='ticker', threads=False, timeout=10)
+        data = yf.download(tickers=tickers, period="1y", interval="1d", auto_adjust=True, group_by='ticker', threads=False, timeout=12)
         if data is None or data.empty: return {}
         result = {}
         if len(tickers) > 1 and isinstance(data.columns, pd.MultiIndex):
@@ -147,22 +146,24 @@ def monte_carlo_sim(df, sims=250):
     res = [np.prod(1 + np.random.choice(rets, 252, replace=True)) for _ in range(sims)]
     return {"median": np.median(res), "worst": np.min(res), "survival": np.mean(np.array(res) > 0.8) * 100}
 
-def render_row(res):
+def render_row(res, prefix="row"):
     fmt = "{:.6f}" if "=" in res['ticker'] else "{:.2f}"
-    st.markdown("<div class='row-container'>", unsafe_allow_html=True)
-    c1, c2, c3, c4, c5 = st.columns([2.0, 0.5, 0.8, 0.5, 0.8])
-    with c1: st.markdown(f"**{res['name']}**<br><small>{res['ticker']} | {fmt.format(res['price'])}</small>", unsafe_allow_html=True)
-    with c2: st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{'#3fb950' if res['delta']>=0 else '#007bff'}; font-size:0.75rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
-    with c3:
-        st.markdown(res["spark"], unsafe_allow_html=True)
-        st.markdown(f"<span class='indicator-label'>RSI {res['rsi']:.0f} ADX {res['adx']:.0f}</span>", unsafe_allow_html=True)
-    with c4:
-        if res['signal'] != "Wait":
-            cls = "sig-box-high" if res['prob'] >= 60 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
-            st.markdown(f"<div style='margin-top:4px;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
-    with c5:
-        if res['stop'] != 0: st.markdown(f"<small>SL {res['prob']:.0f}%</small><br><b>{fmt.format(res['stop'])}</b>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    # FIX: Eindeutige Keys für Spalten verhindern den 'removeChild' Fehler
+    with st.container(key=f"cont_{prefix}_{res['ticker']}"):
+        st.markdown("<div class='row-container'>", unsafe_allow_html=True)
+        c1, c2, c3, c4, c5 = st.columns([2.0, 0.5, 0.8, 0.5, 0.8])
+        with c1: st.markdown(f"**{res['name']}**<br><small>{res['ticker']} | {fmt.format(res['price'])}</small>", unsafe_allow_html=True)
+        with c2: st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{'#3fb950' if res['delta']>=0 else '#007bff'}; font-size:0.75rem;'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
+        with c3:
+            st.markdown(res["spark"], unsafe_allow_html=True)
+            st.markdown(f"<span class='indicator-label'>RSI {res['rsi']:.0f} ADX {res['adx']:.0f}</span>", unsafe_allow_html=True)
+        with c4:
+            if res['signal'] != "Wait":
+                cls = "sig-box-high" if res['prob'] >= 60 else ("sig-box-c" if res['signal'] == "C" else "sig-box-p")
+                st.markdown(f"<div style='margin-top:6px;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
+        with c5:
+            if res['stop'] != 0: st.markdown(f"<small>SL {res['prob']:.0f}%</small><br><b>{fmt.format(res['stop'])}</b>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # --- UI MAIN ---
 st.markdown("<div class='header-text'>📡 MOMENTUM STRATEGIE MONITOR</div>", unsafe_allow_html=True)
@@ -186,7 +187,7 @@ if m_data:
         df = m_data.get(t)
         if df is not None:
             res = compute_signal_from_df(t, df)
-            if res: render_row(res)
+            if res: render_row(res, prefix="macro")
 
 # --- SCREENER ---
 st.markdown("<br><div class='header-text'>🔭 MARKT SCREENER</div>", unsafe_allow_html=True)
@@ -202,17 +203,19 @@ if st.session_state.get('scan_active', False):
         "BIST 100": ["THYAO.IS", "AKBNK.IS", "EREGL.IS", "TUPRS.IS", "SISE.IS", "KCHOL.IS", "ASELS.IS", "BIMAS.IS", "GARAN.IS", "ISCTR.IS", "SAHOL.IS", "YKBNK.IS", "PGSUS.IS"]
     }
     tickers = t_lists.get(choice, ["AAPL"])
-    batch = fetch_batch_data(tickers)
-    results = []
-    for t in tickers:
-        df = batch.get(t)
-        if df is not None:
-            res = compute_signal_from_df(t, df)
-            if res: 
-                results.append(res)
-                render_row(res)
+    # Placeholder nutzen, um UI-Sprünge und JS-Fehler zu minimieren
+    with st.container():
+        batch = fetch_batch_data(tickers)
+        results = []
+        for t in tickers:
+            df = batch.get(t)
+            if df is not None:
+                res = compute_signal_from_df(t, df)
+                if res: 
+                    results.append(res)
+                    render_row(res, prefix="scan")
 
-    # --- TOP 3 RISK ANALYSIS ---
+    # --- TOP 3 RISK ANALYSIS (LESBARKEITSFOKUS) ---
     st.markdown("<br><div class='header-text'>📈 RISK ANALYSIS (MONTE-CARLO)</div>", unsafe_allow_html=True)
     top_3 = sorted([r for r in results if r['signal'] != "Wait"], key=lambda x: -x['prob'])[:3]
     if top_3:
@@ -221,7 +224,7 @@ if st.session_state.get('scan_active', False):
             if mc:
                 st.markdown(f"""
                 <div class='mc-box'>
-                    <span style='font-size: 0.95rem; font-weight: bold; color: #ffd700;'>{res['name']}</span><br>
+                    <span style='font-size: 1.0rem; font-weight: bold; color: #ffd700;'>{res['name']}</span><br>
                     <span class='mc-label'>Überlebens-Quote:</span> <span style='color:#3fb950; font-weight:bold;'>{mc['survival']:.0f}%</span> | 
                     <span class='mc-label'>Median:</span> <span style='color:#ffffff; font-weight:bold;'>{mc['median']:.2f}</span> | 
                     <span class='mc-label'>Schlechtester Verlauf:</span> <span style='color:#ff4b4b; font-weight:bold;'>{mc['worst']:.2f}</span>
