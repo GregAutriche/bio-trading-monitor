@@ -87,7 +87,7 @@ with st.expander("📘 Strategie-Leitfaden & Markt-Logik", expanded=False):
     """)
 
 # --- MACRO SECTION ---
-st.markdown("<div class='header-text'>🌍 GLOBAL MACRO + INDICES</div>", unsafe_allow_html=True)
+st.markdown("<div class='header-text'>🌍 GLOBAL MACRO + INDICES 🌍</div>", unsafe_allow_html=True)
 m_list = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 m_data = fetch_batch_data(m_list)
 
@@ -110,7 +110,7 @@ t_map = {
     "BIST 100": ["THYAO.IS", "AKBNK.IS", "TUPRS.IS", "KCHOL.IS"]
 }
 
-if st.button("🚀 SCAN STARTEN", use_container_width=True):
+if st.button("🚀 SCAN STARTEN 🚀", use_container_width=True):
     batch = fetch_batch_data(t_map[choice])
     results = []
     for t in t_map[choice]:
@@ -122,7 +122,7 @@ if st.button("🚀 SCAN STARTEN", use_container_width=True):
         except: continue
 
     # --- TOP SIGNALE SORTIERT NACH MC ---
-    st.markdown("<br><div class='header-text'>📈 TOP ANALYSE (SORTIERT NACH SICHERHEIT)</div>", unsafe_allow_html=True)
+    st.markdown("<br><div class='header-text'>📈 TOP ANALYSE (SORTIERT NACH SICHERHEIT) 📈</div>", unsafe_allow_html=True)
     top_sigs = sorted([r for r in results if r['sig'] != "Wait"], key=lambda x: x['mc'], reverse=True)[:3]
     
     for r in top_sigs:
@@ -136,3 +136,4 @@ if st.button("🚀 SCAN STARTEN", use_container_width=True):
             </div>
         </div>
         """, unsafe_allow_html=True)
+
