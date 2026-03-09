@@ -21,9 +21,9 @@ from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 
 # --- SETUP & REFRESH ---
-# Intervall auf 5 Minuten erhöht (300.000ms), um API-Sperren zu vermeiden
+# Intervall auf 5 Minuten (300.000ms), um API-Sperren durch Yahoo zu vermeiden
 st_autorefresh(interval=300000, key="datarefresh")
-st.set_page_config(layout="wide", page_title="Strategy", page_icon="📡")
+st.set_page_config(layout="wide", page_title="Momentum Strategy", page_icon="📡")
 
 # --- STYLING ---
 st.markdown("""
@@ -53,10 +53,10 @@ def sparkline_svg(series, color="#3fb950"):
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_batch_data(tickers):
-    """Stabilisierte Batch-Funktion mit Timeout und ohne Threads."""
     if not tickers: return {}
     if isinstance(tickers, str): tickers = [tickers]
     try:
+        # threads=False verhindert Deadlocks in Streamlit
         data = yf.download(tickers=tickers, period="1y", interval="1d", auto_adjust=True, group_by='ticker', threads=False, timeout=10)
         if data is None or data.empty: return {}
         
@@ -71,19 +71,19 @@ def fetch_batch_data(tickers):
                 t_key = tickers[0] if isinstance(tickers, list) else tickers
                 result[t_key] = data.dropna()
         return result
-    except:
-        return {}
+    except: return {}
 
 @st.cache_data(ttl=3600)
 def get_name_for_ticker(ticker):
     try:
-        return yf.Ticker(ticker).info.get('shortName') or ticker
+        t_obj = yf.Ticker(ticker)
+        # Bevorzugt den Klarnamen (shortName)
+        return t_obj.info.get('shortName') or t_obj.info.get('longName') or ticker
     except: return ticker
 
 def compute_signal_from_df(ticker, df):
     try:
         if df is None or df.empty or len(df) < 35: return None
-        # Indikatoren
         cp = df['Close']
         delta_p = cp.diff()
         gain = delta_p.where(delta_p > 0, 0).rolling(14).mean()
@@ -100,7 +100,7 @@ def compute_signal_from_df(ticker, df):
 
         signal = "C" if curr > prev > prev2 and curr > sma20 else ("P" if curr < prev < prev2 and curr < sma20 else "Wait")
         
-        # Win-Rate Backtest (vereinfacht)
+        # Win-Rate Check
         bt_df = df.tail(60).copy()
         bt_df['SMA20'] = bt_df['Close'].rolling(20).mean()
         hits, sigs = 0, 0
@@ -118,28 +118,6 @@ def compute_signal_from_df(ticker, df):
             "spark": sparkline_svg(cp.tail(20), "#3fb950" if curr>=prev else "#007bff")
         }
     except: return None
-
-# --- MONTE CARLO ---
-def hurst_exponent(ts):
-    lags = range(2, 20)
-    tau = [np.sqrt(np.std(np.subtract(ts[lag:], ts[:-lag]))) for lag in lags]
-    return np.polyfit(np.log(lags), np.log(tau), 1)[0] * 2.0
-
-def monte_carlo_regime_simulation(df, sims=200):
-    if df is None or len(df) < 50: return None
-    rets = df['Close'].pct_change().dropna()
-    hurst = hurst_exponent(df['Close'].dropna())
-    regime = "trend" if hurst > 0.55 else ("crash" if rets.tail(5).sum() < -0.05 else "neutral")
-    
-    final_equities = []
-    for _ in range(sims):
-        path = np.random.choice(rets, size=252, replace=True)
-        final_equities.append(np.prod(1 + path))
-    
-    return {
-        "regime": regime, "median_equity": np.median(final_equities), "worst_equity": np.min(final_equities),
-        "VaR_5": np.percentile(final_equities, 5), "maxdd_median": 0.15, "maxdd_worst": 0.35, "survival_prob": np.mean(np.array(final_equities) > 0.8)
-    }
 
 def render_row(res):
     fmt = "{:.6f}" if "=" in res['ticker'] else "{:.2f}"
@@ -162,13 +140,23 @@ def render_row(res):
 st.markdown("<div class='header-text'>📡 Momentum Strategie 📡</div>", unsafe_allow_html=True)
 st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 5m")
 
-# --- MACRO ---
+with st.expander("📘 Ausführlicher Strategie‑Leitfaden & Markt‑Logik 📘", expanded=False):
+    st.markdown("""
+    ## 🧭 Überblick des Momentum‑Monitors
+    Kombiniert technische Analyse, Trend‑Erkennung und statistische Risiko‑Modelle.
+    - **C (Call/Long)**: Starker Aufwärtstrend über SMA20.
+    - **P (Put/Short)**: Starker Abwärtstrend unter SMA20.
+    - **Wahrscheinlichkeit**: Historische Trefferquote der Signal-Konstellation über die letzten 60 Tage.
+    - **Risikomanagement**: Stop-Loss basiert auf der ATR (Average True Range).
+    """)
+
+# --- MACRO SECTION ---
 st.markdown("<div class='header-text'>🌍 Macro + Indices 🌍</div>", unsafe_allow_html=True)
 macro_list = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
 macro_data = fetch_batch_data(macro_list)
 
 if not macro_data:
-    st.warning("Warte auf API-Antwort...")
+    st.warning("Warte auf API-Antwort von Yahoo Finance...")
 else:
     for t in macro_list:
         df_t = macro_data.get(t)
@@ -180,31 +168,39 @@ else:
 st.markdown("<br><div class='header-text'>🔭 Markt Screener 🔭</div>", unsafe_allow_html=True)
 if 'scan_active' not in st.session_state: st.session_state.scan_active = False
 
-with st.expander("Index-Auswahl", expanded=True):
+with st.expander("Index-Auswahl & Scan Steuerung", expanded=True):
     choice = st.radio("Markt:", ["DAX 40", "EuroStoxx 50", "Nasdaq 100", "BIST 100", "NIFTY 50"], horizontal=True)
     if st.button("🚀 Scan Start/Stop", use_container_width=True): st.session_state.scan_active = not st.session_state.scan_active
 
-results = []
 if st.session_state.scan_active:
-    # Hier Ticker-Listen einfügen (gekürzt für Übersicht)
-    t_map = {"DAX 40": ["ADS.DE", "ALV.DE", "SAP.DE", "SIE.DE"], "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "TSLA"]} 
-    tickers = t_map.get(choice, ["AAPL"])
+    t_lists = {
+        "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DTE.DE", "DBK.DE", "DB1.DE", "DHL.DE", "EON.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PUM.DE", "PAH3.DE", "RWE.DE", "SAP.DE", "SIE.DE", "SHL.DE", "SY1.DE", "TKA.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "BEI.DE", "CBK.DE", "RHM.DE", "SRT3.DE", "ENR.DE", "QIA.DE"],
+        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL", "META", "AVGO", "COST", "NFLX", "ADBE", "AMD"], # Gekürzt für Code-Beispiel
+        "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA"],
+        "BIST 100": ["THYAO.IS", "AKBNK.IS", "EREGL.IS", "TUPRS.IS", "SISE.IS", "KCHOL.IS"],
+        "NIFTY 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS"]
+    }
+    tickers = t_lists.get(choice, ["AAPL"])
     batch = fetch_batch_data(tickers)
+    
+    results = []
     for t in tickers:
         df_t = batch.get(t)
         if df_t is not None:
             res = compute_signal_from_df(t, df_t)
-            if res: 
-                results.append(res)
-                render_row(res)
+            if res: results.append(res)
+    
+    hits = sorted([r for r in results if r['signal'] != "Wait"], key=lambda x: -x['prob'])
+    if hits:
+        for r in hits: render_row(r)
+    else:
+        st.info("Keine aktiven Signale in diesem Markt.")
 
 # --- TOP SIGNALE ---
-st.markdown("---")
-if st.session_state.scan_active and results:
-    top_results = sorted([r for r in results if r['signal'] != "Wait"], key=lambda x: -x['prob'])[:3]
-    with st.expander("📈 Top-Signale Monte-Carlo", expanded=True):
-        for res in top_results:
-            st.write(f"**{res['name']}** ({res['signal']}) - Wahrsch: {res['prob']:.1f}%")
-            mc = monte_carlo_regime_simulation(batch.get(res['ticker']))
-            if mc:
-                st.json(mc)
+if st.session_state.scan_active and 'results' in locals() and results:
+    st.markdown("---")
+    top_3 = sorted([r for r in results if r['signal'] != "Wait"], key=lambda x: (-x['prob'], -x['adx']))[:3]
+    with st.expander("📈 Top-Signale Detail-Analyse", expanded=True):
+        for res in top_3:
+            st.write(f"### {res['name']} ({res['ticker']})")
+            st.write(f"Signal: {res['signal']} | Wahrscheinlichkeit: {res['prob']:.1f}% | RSI: {res['rsi']:.1f}")
