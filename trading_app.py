@@ -100,7 +100,7 @@ if m_data is not None:
         except: continue
 
 # --- SCREENER SECTION ---
-st.markdown("<br><div class='header-text'>🔭 MARKT SCREENER</div>", unsafe_allow_html=True)
+st.markdown("<br><div class='header-text'>🔭 MARKT SCREENER 🔭</div>", unsafe_allow_html=True)
 choice = st.radio("Region wählen:", ["IBEX 35", "DAX 40", "US Tech", "BIST 100"], horizontal=True, label_visibility="collapsed")
 
 t_map = {
@@ -136,4 +136,5 @@ if st.button("🚀 SCAN STARTEN 🚀", use_container_width=True):
             </div>
         </div>
         """, unsafe_allow_html=True)
+
 
