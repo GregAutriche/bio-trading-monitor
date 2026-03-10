@@ -1,140 +1,233 @@
+import os
+import sys
+import math
+
+# --- 1. MATPLOTLIB FIX (Backend für Cloud-Stabilität) ---
+import matplotlib
+matplotlib.use('Agg') 
+import matplotlib.pyplot as plt
+
+# --- AUTO-INSTALLER (Fix für Fehlermeldung 2/2) ---
+def install_and_import(package):
+    try:
+        __import__(package.replace('-', '_'))
+    except ImportError:
+        os.system(f"{sys.executable} -m pip install {package}")
+
+install_and_import('streamlit-autorefresh')
+install_and_import('lxml') # Behebt 'Missing dependency lxml'
+install_and_import('html5lib')
+
 import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
+import base64
+import io
 from streamlit_autorefresh import st_autorefresh
 
-# --- SETUP & REFRESH ---
-# Intervall: 5 Minuten (300.000ms)
-st_autorefresh(interval=300000, key="datarefresh")
-st.set_page_config(layout="wide", page_title="Momentum Strategy", page_icon="📡")
+# --- 2. SETUP & REFRESH (60 Sek) ---
+st_autorefresh(interval=60000, key="datarefresh")
+st.set_page_config(layout="wide", page_title="Strategy", page_icon="📡")
 
 # --- STYLING ---
 st.markdown("""
     <style>
     .stApp { background-color: #050a0f; }
-    .header-text { font-size: 22px; font-weight: bold; margin-top: 20px; color: #ffd700 !important; }
-    .update-info { text-align: right; color: #666; font-size: 0.85rem; margin-top: -15px; margin-bottom: 10px; }
-    .row-container { border-bottom: 1px solid #1a202c; padding: 10px 0 !important; line-height: 1.3 !important; }
-    .sig-badge { padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; }
-    .sig-c { background-color: rgba(63, 185, 80, 0.2); color: #3fb950; border: 1px solid #3fb950; }
-    .sig-p { background-color: rgba(0, 123, 255, 0.2); color: #007bff; border: 1px solid #007bff; }
-    .mc-box { background-color: #161b22; padding: 15px; border-radius: 10px; border: 1px solid #ffd700; margin-bottom: 12px; }
+    h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
+    .header-text { font-size: 24px; font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
+    .sig-box-p { color: #007bff !important; border: 1px solid #007bff !important; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950 !important; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700 !important; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    .indicator-label { color: #888; font-size: 0.75rem; margin-top: 2px; }
+    .row-container { border-bottom: 1px solid #1a202c; padding: 12px 0; width: 100%; }
+    .scan-info { color: #ffd700; font-style: italic; font-size: 0.9rem; margin-bottom: 10px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- KLARNAMEN MAPPING ---
-NAME_MAP = {
-    "EURUSD=X": "EURO / US-DOLLAR", "^GDAXI": "DAX 40 INDEX", "^STOXX50E": "EUROSTOXX 50", 
-    "^IXIC": "NASDAQ COMPOSITE", "XU100.IS": "BIST 100 INDEX", "^NSEI": "NIFTY 50 INDEX",
-    "SAN.MC": "BANCO SANTANDER", "ITX.MC": "INDITEX (ZARA)", "BBVA.MC": "BANCO BILBAO VIZCAYA",
-    "SAP.DE": "SAP SE", "ADS.DE": "ADIDAS AG", "AAPL": "APPLE INC.", "NVDA": "NVIDIA CORP."
-}
+# --- 3. CORE FUNCTIONS ---
+def create_sparkline(data, color):
+    fig, ax = plt.subplots(figsize=(2.5, 0.6), dpi=70)
+    ax.plot(data.values, color=color, linewidth=2.5)
+    ax.axis('off')
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', transparent=True, bbox_inches='tight', pad_inches=0)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode()
 
-def get_name(t):
-    return NAME_MAP.get(t, t.upper())
-
-# --- CORE FUNCTIONS ---
 @st.cache_data(ttl=300)
-def fetch_batch_data(tickers):
+def fetch_data(ticker):
     try:
-        return yf.download(tickers, period="1y", interval="1d", auto_adjust=True, group_by='ticker', threads=False, timeout=10)
+        t_obj = yf.Ticker(ticker)
+        df = t_obj.history(period="1y", interval="1d", auto_adjust=True)
+        if df.empty or len(df) < 35: return None
+        
+        delta_p = df['Close'].diff()
+        gain = (delta_p.where(delta_p > 0, 0)).rolling(window=14).mean()
+        loss = (-delta_p.where(delta_p < 0, 0)).rolling(window=14).mean()
+        rs = gain / (loss + 1e-9)
+        rsi = 100 - (100 / (1 + rs))
+        
+        tr = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
+        atr = tr.rolling(window=14).mean().iloc[-1]
+        adx = (abs(df['High'].diff() - abs(df['Low'].diff())) / (tr + 1e-9)).rolling(window=14).mean().iloc[-1] * 100
+        
+        curr = float(df['Close'].iloc[-1])
+        prev, prev2 = df['Close'].iloc[-2], df['Close'].iloc[-3]
+        sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
+        daily_delta = ((curr - df['Open'].iloc[-1]) / df['Open'].iloc[-1]) * 100
+        
+        signal = "C" if (curr > prev > prev2 and curr > sma20) else "P" if (curr < prev < prev2 and curr < sma20) else "Wait"
+        
+        bt_df = df.tail(100).copy()
+        bt_df['SMA20'] = bt_df['Close'].rolling(window=20).mean()
+        hits, sigs = 0, 0
+        for i in range(20, len(bt_df)-3):
+            c_h, p_h, p2_h = bt_df['Close'].iloc[i], bt_df['Close'].iloc[i-1], bt_df['Close'].iloc[i-2]
+            if signal == "C" and (c_h > p_h > p2_h and c_h > bt_df['SMA20'].iloc[i]):
+                sigs += 1
+                if bt_df['Close'].iloc[i+3] > c_h: hits += 1
+            elif signal == "P" and (c_h < p_h < p2_h and c_h < bt_df['SMA20'].iloc[i]):
+                sigs += 1
+                if bt_df['Close'].iloc[i+3] < c_h: hits += 1
+        prob = (hits / sigs * 100) if sigs > 0 else 50.0
+
+        spark_img = create_sparkline(df['Close'].tail(20), "#3fb950" if curr >= df['Close'].iloc[-2] else "#007bff")
+        icon = "☀️" if (curr > sma20 and daily_delta > 0.3) else "⚖️" if abs(daily_delta) < 0.3 else "⛈️"
+        
+        return {
+            "name": t_obj.info.get('shortName') or ticker, "ticker": ticker, "price": curr, 
+            "delta": daily_delta, "signal": signal, "stop": curr - (atr*1.5) if signal=="C" else curr + (atr*1.5) if signal=="P" else 0,
+            "prob": prob, "rsi": rsi.iloc[-1], "adx": adx, "spark": spark_img, "icon": icon
+        }
     except: return None
 
-def process_signal(ticker, df):
-    if df is None or df.empty or len(df) < 30: return None
-    cp = df['Close']
-    curr, prev, prev2 = cp.iloc[-1], cp.iloc[-2], cp.iloc[-3]
-    sma20 = cp.rolling(20).mean().iloc[-1]
-    
-    delta = ((curr - df['Open'].iloc[-1]) / df['Open'].iloc[-1]) * 100
-    icon = "☀️" if (curr > sma20 and delta > 0.2) else "⚖️" if abs(delta) < 0.2 else "⛈️"
-    sig = "C" if curr > prev > prev2 and curr > sma20 else "P" if curr < prev < prev2 and curr < sma20 else "Wait"
-    
-    tr = (df['High']-df['Low']).rolling(14).mean().iloc[-1]
-    sl = curr - (tr * 1.5) if sig == "C" else curr + (tr * 1.5) if sig == "P" else 0
-    
-    # Monte Carlo (1-Jahr Überlebensrate > 80% Kapital)
-    rets = cp.pct_change().dropna()
-    mc_surv = np.mean([np.prod(1 + np.random.choice(rets, 252, replace=True)) > 0.8 for _ in range(200)]) * 100
-    
-    return {"name": get_name(ticker), "ticker": ticker, "price": curr, "sig": sig, "icon": icon, "sl": sl, "delta": delta, "mc": mc_surv}
-
 def render_row(res):
-    st.markdown(f"""
-    <div class="row-container">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div style="flex: 2;"><b>{res['name']}</b><br><small>{res['ticker']} | {res['price']:.2f}</small></div>
-            <div style="flex: 1; text-align: center;">{res['icon']}<br><span style="color:{'#3fb950' if res['delta']>0 else '#007bff'}; font-size:0.8rem;">{res['delta']:+.2f}%</span></div>
-            <div style="flex: 1; text-align: center;"><span class="sig-badge {'sig-c' if res['sig']=='C' else 'sig-p' if res['sig']=='P' else ''}">{res['sig']}</span></div>
-            <div style="flex: 1; text-align: right;"><small>STOP-LOSS</small><br><b>{res['sl']:.2f}</b></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    fmt = "{:.6f}" if "=" in res['ticker'] else "{:.2f}"
+    st.markdown("<div class='row-container'>", unsafe_allow_html=True)
+    c1, c2, c3, c4, c5 = st.columns([1.2, 0.6, 0.8, 0.5, 1.1])
+    with c1: st.markdown(f"**{res['name']}**<br><small>{fmt.format(res['price'])}</small>", unsafe_allow_html=True)
+    with c2: st.markdown(f"<div style='text-align:center;'>{res['icon']}<br><span style='color:{'#3fb950' if res['delta']>=0 else '#007bff'};'>{res['delta']:+.2f}%</span></div>", unsafe_allow_html=True)
+    with c3:
+        st.markdown(f'<img src="data:image/png;base64,{res["spark"]}" width="100">', unsafe_allow_html=True)
+        st.markdown(f"<span class='indicator-label'>RSI: {res['rsi']:.1f} | ADX: {res['adx']:.1f}</span>", unsafe_allow_html=True)
+    with c4:
+        if res['signal'] != "Wait":
+            cls = "sig-box-high" if res['prob'] >= 60 else ("sig-box-c" if res['signal']=="C" else "sig-box-p")
+            st.markdown(f"<br><span class='{cls}'>{res['signal']}</span>", unsafe_allow_html=True)
+    with c5:
+        if res['stop'] != 0:
+            st.markdown(f"<small>SL ({res['prob']:.1f}%)</small><br><b>{fmt.format(res['stop'])}</b>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# --- UI MAIN ---
-now = datetime.now()
-st.markdown(f"<div class='update-info'>Stand: {now.strftime('%d.%m.%Y | %H:%M:%S')} | Intervall: 5 Min.</div>", unsafe_allow_html=True)
-st.markdown("<div class='header-text'>📡 MOMENTUM MONITOR</div>", unsafe_allow_html=True)
+# --- 4. UI MAIN ---
+st.markdown("<div class='header-text'>📡 Momentum Strategie 📡</div>", unsafe_allow_html=True)
+st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 60s")
 
-with st.expander("📘 Strategie-Leitfaden & Markt-Logik", expanded=False):
+with st.expander("ℹ️ Ausführlicher Strategie-Leitfaden & Markt-Logik ℹ️", expanded=False):
     st.markdown("""
-    - **Trend-Erkennung**: Bestätigung durch 3-Tage-Preis-Action & SMA20-Filter.
-    - **Wetter-Indikator**: Zeigt die kurzfristige Marktqualität (☀️ = Bullisch, ⛈️ = Riskant).
-    - **Monte-Carlo (1J)**: Berechnet die statistische Überlebenswahrscheinlichkeit für ein Jahr.
-    - **Signal-Logik**: **C** (Call/Long) über SMA20, **P** (Put/Short) unter SMA20.
+    ### 📡 System-Logik Pro 2026
+    Dieser Monitor analysiert Märkte basierend auf Dr. Gregor Bauers Trend- und Momentum-Strategie.
     """)
 
-# --- MACRO SECTION ---
-st.markdown("<div class='header-text'>🌍 GLOBAL MACRO + INDICES 🌍</div>", unsafe_allow_html=True)
-m_list = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
-m_data = fetch_batch_data(m_list)
+# --- 5. MACRO SECTION ---
+st.markdown("<div class='header-text'>🌍 Macro + Indices 🌍</div>", unsafe_allow_html=True)
+macro_list = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
+with ThreadPoolExecutor(max_workers=10) as ex:
+    m_res = [r for r in ex.map(fetch_data, macro_list) if r]
+    for r in m_res: render_row(r)
 
-if m_data is not None:
-    for t in m_list:
-        try:
-            df = m_data[t] if len(m_list) > 1 else m_data
-            res = process_signal(t, df)
-            if res: render_row(res)
-        except: continue
+# --- 6. SCREENER (DAX, EuroStoxx, IBEX, NASDAQ, BIST, NIFTY) ---
+@st.cache_data(ttl=86400)
+def get_live_tickers(market_choice):
+    fallbacks = {
+        "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DTE.DE", "DBK.DE", "DB1.DE", "DHL.DE", "EON.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PUM.DE", "PAH3.DE", "RWE.DE", "SAP.DE", "SIE.DE", "SHL.DE", "SY1.DE", "TKA.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "BEI.DE", "CBK.DE", "RHM.DE", "SRT3.DE", "ENR.DE", "QIA.DE"],
+        "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC", "ITX.MC", "CS.PA", "BNP.PA", "IBE.MC", "SU.PA", "ADYEN.AS", "EL.PA", "BAS.DE", "RMS.PA", "ABI.BR", "ENI.MI", "BBVA.MC", "SAF.PA", "KER.PA", "MBG.DE", "BMW.DE", "CRH.IE", "VIV.PA", "AD.AS", "BN.PA", "DTE.DE", "BAYN.DE", "ISP.MI", "MUV2.DE", "ENEL.MI", "ALV.DE", "SAN.PA", "IFX.DE", "AI.PA", "DG.PA", "VOW3.DE", "STLAM.MI"],
+        "IBEX 35": ["ANA.MC", "ACX.MC", "ACS.MC", "AENA.MC", "AMS.MC", "MTS.MC", "SAB.MC", "SAN.MC", "BKT.MC", "BBVA.MC", "CABK.MC", "CLNX.MC", "COL.MC", "ENG.MC", "ELE.MC", "FER.MC", "FDR.MC", "GRF.MC", "IAG.MC", "IBE.MC", "IDR.MC", "ITX.MC", "LOG.MC", "MAP.MC", "MEL.MC", "MRL.MC", "NTGY.MC", "PUIG.MC", "RED.MC", "REP.MC", "ROVI.MC", "SCYR.MC", "SLR.MC", "TEF.MC", "UNI.MC"],
+        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "GOOGL", "META", "AVGO", "COST", "NFLX", "ADBE", "AMD", "PEP", "INTC", "CSCO", "TMUS", "TXN", "QCOM", "AMAT", "ISRG", "AMGN", "HON", "SBUX", "BKNG", "GILD", "INTU", "MDLZ", "VRTX", "ADI", "REGN", "PYPL", "PANW", "SNPS", "LRCX", "KLAC", "CDNS", "MELI", "CSX", "MAR", "ORLY", "CTAS", "ROP", "NXPI", "MNST", "KDP", "ADSK", "TEAM", "LULU", "AEP", "BKR", "CPRT", "DXCM", "EXC", "FAST", "FTNT", "KHC", "MCHP", "ODFL", "PAYX", "PCAR", "PDD", "WDAY", "XEL", "ZS", "ABNB", "ANSS", "ASML", "AZN", "BIIB", "CEG", "CHTR", "DDOG", "DLTR", "FANG", "GEHC", "IDXX", "ILMN", "LCID", "MDB", "MRVL", "ON", "ROST", "SIRI", "VRSK", "WBD", "CTSH", "CDW", "WBA", "ALGN", "EBAY", "ENPH", "JD"],
+        "BIST 100": ["AEFES.IS", "AGHOL.IS", "AKBNK.IS", "AKCNS.IS", "AKSA.IS", "AKSEN.IS", "ALARK.IS", "ALBRK.IS", "ALFAS.IS", "ARCLK.IS", "ASELS.IS", "ASTOR.IS", "ASUZU.IS", "AYDEM.IS", "BAGFS.IS", "BERA.IS", "BIENP.IS", "BIMAS.IS", "BRMEN.IS", "BRSAN.IS", "BRYAT.IS", "BUCIM.IS", "CANTE.IS", "CCOLA.IS", "CIMSA.IS", "CWENE.IS", "DOAS.IS", "DOHOL.IS", "EGEEN.IS", "EKGYO.IS", "ENJSA.IS", "ENKAI.IS", "EREGL.IS", "EUPWR.IS", "FROTO.IS", "GARAN.IS", "GENIL.IS", "GESAN.IS", "GUBRF.IS", "GWIND.IS", "HALKB.IS", "HEKTS.IS", "IPEKE.IS", "ISCTR.IS", "ISDMR.IS", "ISGYO.IS", "ISMEN.IS", "IZMDC.IS", "KARDM.IS", "KAYSE.IS", "KCHOL.IS", "KENT.IS", "KONTR.IS", "KORDS.IS", "KOZAA.IS", "KOZAL.IS", "KRDMD.IS", "MAVI.IS", "MGROS.IS", "MIATK.IS", "ODAS.IS", "OTKAR.IS", "OYAKC.IS", "PENTA.IS", "PETKM.IS", "PGSUS.IS", "QUAGR.IS", "SAHOL.IS", "SASA.IS", "SAYAS.IS", "SDTTR.IS", "SISE.IS", "SKBNK.IS", "SMRTG.IS", "SOKM.IS", "TARKN.IS", "TAVHL.IS", "TCELL.IS", "THYAO.IS", "TKFEN.IS", "TKNSA.IS", "TMSN.IS", "TOASO.IS", "TSKB.IS", "TTKOM.IS", "TTRAK.IS", "TUPRS.IS", "TURSG.IS", "ULKER.IS", "VAKBN.IS", "VESBE.IS", "VESTL.IS", "YEOTK.IS", "YKBNK.IS", "YYLGD.IS", "ZOREN.IS"],
+        "NIFTY 50": ["ADANIENT.NS", "ADANIPORTS.NS", "APOLLOHOSP.NS", "ASIANPAINT.NS", "AXISBANK.NS", "BAJAJ-AUTO.NS", "BAJFINANCE.NS", "BAJAJFINSV.NS", "BPCL.NS", "BHARTIARTL.NS", "BRITANNIA.NS", "CIPLA.NS", "COALINDIA.NS", "DIVISLAB.NS", "DRREDDY.NS", "EICHERMOT.NS", "GRASIM.NS", "HCLTECH.NS", "HDFCBANK.NS", "HDFCLIFE.NS", "HEROMOTOCO.NS", "HINDALCO.NS", "HINDUNILVR.NS", "ICICIBANK.NS", "ITC.NS", "INDUSINDBK.NS", "INFY.NS", "JSWSTEEL.NS", "KOTAKBANK.NS", "LT.NS", "LTIM.NS", "M&M.NS", "MARUTI.NS", "NESTLEIND.NS", "NTPC.NS", "ONGC.NS", "POWERGRID.NS", "RELIANCE.NS", "SBILIFE.NS", "SBIN.NS", "SUNPHARMA.NS", "TCS.NS", "TATACONSUM.NS", "TATAMOTORS.NS", "TATASTEEL.NS", "TECHM.NS", "TITAN.NS", "ULTRACEMCO.NS", "UPL.NS", "WIPRO.NS"]
+    }
+    try:
+        if market_choice == "Nasdaq 100":
+            df = pd.read_html('https://en.wikipedia.org')[4]
+            return sorted(df['Ticker'].unique().tolist())
+        elif market_choice == "DAX 40":
+            df = pd.read_html('https://en.wikipedia.org')[4]
+            return sorted(df['Ticker'].tolist())
+        elif market_choice == "IBEX 35":
+            df = pd.read_html('https://en.wikipedia.org')[1]
+            return [t + ".MC" for t in df['Ticker'].tolist()]
+        return fallbacks.get(market_choice, ["AAPL"])
+    except:
+        return fallbacks.get(market_choice, ["AAPL"])
 
-# --- SCREENER SECTION ---
-st.markdown("<br><div class='header-text'>🔭 MARKT SCREENER 🔭</div>", unsafe_allow_html=True)
-choice = st.radio("Region wählen:", ["IBEX 35", "DAX 40", "US Tech", "BIST 100"], horizontal=True, label_visibility="collapsed")
+st.markdown("<br><div class='header-text'>🔭 Markt Screener 🔭</div>", unsafe_allow_html=True)
+if 'scan_active' not in st.session_state: st.session_state.scan_active = False
 
-t_map = {
-    "IBEX 35": ["SAN.MC", "ITX.MC", "BBVA.MC", "IBE.MC", "TEF.MC"],
-    "DAX 40": ["SAP.DE", "ADS.DE", "ALV.DE", "SIE.DE", "BMW.DE"],
-    "US Tech": ["AAPL", "NVDA", "MSFT", "TSLA", "AMZN", "META"],
-    "BIST 100": ["THYAO.IS", "AKBNK.IS", "TUPRS.IS", "KCHOL.IS"]
-}
+with st.expander("Index-Auswahl & Scan Steuerung", expanded=True):
+    choice = st.radio("Markt:", ["DAX 40", "EuroStoxx 50", "IBEX 35", "Nasdaq 100", "BIST 100", "NIFTY 50"], horizontal=True)
+    if st.button("🚀 Scan Start/Stop", use_container_width=True):
+        st.session_state.scan_active = not st.session_state.scan_active
 
-if st.button("🚀 SCAN STARTEN 🚀", use_container_width=True):
-    batch = fetch_batch_data(t_map[choice])
-    results = []
-    for t in t_map[choice]:
-        try:
-            df = batch[t] if len(t_map[choice]) > 1 else batch
-            res = process_signal(t, df)
-            if res: results.append(res)
-            render_row(res)
-        except: continue
-
-    # --- TOP SIGNALE SORTIERT NACH MC ---
-    st.markdown("<br><div class='header-text'>📈 TOP ANALYSE (SORTIERT NACH SICHERHEIT) 📈</div>", unsafe_allow_html=True)
-    top_sigs = sorted([r for r in results if r['sig'] != "Wait"], key=lambda x: x['mc'], reverse=True)[:3]
+if st.session_state.scan_active:
+    tickers = get_live_tickers(choice)
+    tickers = list(dict.fromkeys(tickers)) 
     
-    for r in top_sigs:
-        st.markdown(f"""
-        <div class="mc-box">
-            <span class="sig-badge {'sig-c' if r['sig']=='C' else 'sig-p'}">{r['sig']}</span>
-            <b style="color:#ffd700; font-size:1.1rem;">{r['name']}</b>
-            <span style="color:#888; margin-left:15px;">Stop-Loss: {r['sl']:.2f}</span>
-            <div style="margin-top:10px; color:#eee; font-size:0.9rem;">
-                Überlebens-Rate (1J): <b style="color:#3fb950;">{r['mc']:.1f}%</b> | Wetter: {r['icon']}
+    with ThreadPoolExecutor(max_workers=30) as ex:
+        results = [r for r in ex.map(fetch_data, tickers) if r]
+    
+    all_sigs = [r for r in results if r['signal'] in ["C", "P"]]
+    sorted_sigs = sorted(all_sigs, key=lambda x: -x['prob'])
+    top_3_tickers = [r['ticker'] for r in sorted_sigs[:3]]
+    
+    # Hauptliste: Nur Signale (C/P) UND Prob >= 45% (außer Top 3)
+    hits = [r for r in sorted_sigs if r['prob'] >= 45 or r['ticker'] in top_3_tickers]
+
+    if hits:
+        st.info(f"Scan bereit: {len(results)} geprüft. {len(hits)} relevante Signale gefunden.")
+        for r in hits: render_row(r)
+    else:
+        st.warning("Keine relevanten Signale aktuell verfügbar.")
+
+# --- 7. DYNAMISCHES BACKTESTING (Top 3) ---
+st.markdown("---")
+top_results = []
+if st.session_state.scan_active and 'results' in locals() and results:
+    valid_hits = [r for r in results if r['signal'] in ["C", "P"]]
+    if valid_hits: 
+        top_results = sorted(valid_hits, key=lambda x: (-x['prob'], -x['adx']))[:3]
+
+with st.expander(f"📈 Top-Signale Analyse", expanded=True):
+    if top_results:
+        for i, res in enumerate(top_results):
+            sig_class = "sig-box-high" if res["prob"] >= 60 else ("sig-box-c" if res["signal"]=="C" else "sig-box-p")
+            
+            # Zeile 1: Signal | Name | Preis | SL
+            html_line = f"""
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 10px;">
+                <div class="{sig_class}" style="flex: 0 0 35px; text-align: center; font-size: 0.85rem; padding: 2px;">{res['signal']}</div>
+                <div style="flex: 1; font-size: 0.85rem; color: #eee; padding: 0 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{res['name']}</div>
+                <div style="flex: 0 0 180px; text-align: right; white-space: nowrap;">
+                    <span style="font-size: 1.4rem; font-weight: bold; color: #fff;">{res['price']:.2f}</span>
+                    <span style="font-size: 0.85rem; color: #ff4b4b; margin-left: 10px;">SL ({res['stop']:.2f})</span>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-
+            """
+            st.markdown(html_line, unsafe_allow_html=True)
+            
+            # Zeile 2: Metriken (Nach links unter den Namen geschoben)
+            prob_color = "#ffd700" if res['prob'] >= 60 else "#e0e0e0"
+            metrics_html = f"""
+            <div style="display: flex; gap: 30px; margin-left: 50px; margin-bottom: 10px; font-family: monospace; font-size: 0.7rem; color: #888;">
+                <div>Wahrsch: <span style="color: {prob_color}; font-weight: bold;">{res['prob']:.1f}%</span></div>
+                <div>Trend (ADX): <span style="color: #e0e0e0;">{res['adx']:.1f}</span></div>
+                <div>Momentum (RSI): <span style="color: #e0e0e0;">{res['rsi']:.1f}</span></div>
+            </div>
+            """
+            st.markdown(metrics_html, unsafe_allow_html=True)
+            if i < len(top_results) - 1: st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>", unsafe_allow_html=True)
+    else:
+        st.info("Warte auf Signale...")
