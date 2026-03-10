@@ -195,8 +195,7 @@ def render_row(res):
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 4. UI MAIN ---
-st.markdown("<div class='header-text'>📡 Momentum Strategie 📡</div>", unsafe_allow_html=True)
-st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 60s")
+
 
 with st.expander("ℹ️ Ausführlicher Strategie-Leitfaden & Markt-Logik ℹ️", expanded=False):
     st.markdown("""
@@ -303,6 +302,7 @@ with st.expander(f"📈 Top-Signale Analyse", expanded=True):
             if i < len(top_results) - 1: st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>", unsafe_allow_html=True)
     else:
         st.info("Warte auf Signale...")
+
 
 
 
