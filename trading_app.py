@@ -23,12 +23,15 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from concurrent.futures import ThreadPoolExecutor
 import base64
 import io
 from streamlit_autorefresh import st_autorefresh
 
 # --- 2. SETUP & REFRESH (60 Sek) ---
+now = datetime.now(ZoneInfo("Europe/Berlin"))
+st.write(f"Update: {now.strftime('%H:%M:%S')} | Auto-Refresh: 60s")
 st_autorefresh(interval=60000, key="datarefresh")
 st.set_page_config(layout="wide", page_title="Strategy", page_icon="📡")
 
@@ -300,6 +303,7 @@ with st.expander(f"📈 Top-Signale Analyse", expanded=True):
             if i < len(top_results) - 1: st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>", unsafe_allow_html=True)
     else:
         st.info("Warte auf Signale...")
+
 
 
 
