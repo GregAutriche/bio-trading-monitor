@@ -60,49 +60,118 @@ def create_sparkline(data, color):
 @st.cache_data(ttl=300)
 def fetch_data(ticker):
     try:
+        # --- Daten laden ---
         t_obj = yf.Ticker(ticker)
         df = t_obj.history(period="1y", interval="1d", auto_adjust=True)
-        if df.empty or len(df) < 35: return None
-        
-        delta_p = df['Close'].diff()
-        gain = (delta_p.where(delta_p > 0, 0)).rolling(window=14).mean()
-        loss = (-delta_p.where(delta_p < 0, 0)).rolling(window=14).mean()
+
+        if df.empty or len(df) < 40:
+            return None
+
+        # --- Indikatoren vorbereiten ---
+        close = df["Close"]
+        high = df["High"]
+        low = df["Low"]
+
+        # SMA20
+        sma20 = close.rolling(20).mean()
+
+        # RSI
+        delta = close.diff()
+        gain = delta.where(delta > 0, 0).rolling(14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
         rs = gain / (loss + 1e-9)
         rsi = 100 - (100 / (1 + rs))
-        
-        tr = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
-        atr = tr.rolling(window=14).mean().iloc[-1]
-        adx = (abs(df['High'].diff() - abs(df['Low'].diff())) / (tr + 1e-9)).rolling(window=14).mean().iloc[-1] * 100
-        
-        curr = float(df['Close'].iloc[-1])
-        prev, prev2 = df['Close'].iloc[-2], df['Close'].iloc[-3]
-        sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
-        daily_delta = ((curr - df['Open'].iloc[-1]) / df['Open'].iloc[-1]) * 100
-        
-        signal = "C" if (curr > prev > prev2 and curr > sma20) else "P" if (curr < prev < prev2 and curr < sma20) else "Wait"
-        
-        bt_df = df.tail(100).copy()
-        bt_df['SMA20'] = bt_df['Close'].rolling(window=20).mean()
-        hits, sigs = 0, 0
-        for i in range(20, len(bt_df)-3):
-            c_h, p_h, p2_h = bt_df['Close'].iloc[i], bt_df['Close'].iloc[i-1], bt_df['Close'].iloc[i-2]
-            if signal == "C" and (c_h > p_h > p2_h and c_h > bt_df['SMA20'].iloc[i]):
-                sigs += 1
-                if bt_df['Close'].iloc[i+3] > c_h: hits += 1
-            elif signal == "P" and (c_h < p_h < p2_h and c_h < bt_df['SMA20'].iloc[i]):
-                sigs += 1
-                if bt_df['Close'].iloc[i+3] < c_h: hits += 1
-        prob = (hits / sigs * 100) if sigs > 0 else 50.0
 
-        spark_img = create_sparkline(df['Close'].tail(20), "#3fb950" if curr >= df['Close'].iloc[-2] else "#007bff")
-        icon = "☀️" if (curr > sma20 and daily_delta > 0.3) else "⚖️" if abs(daily_delta) < 0.3 else "⛈️"
-        
+        # ATR
+        tr = pd.concat([
+            high - low,
+            (high - close.shift()).abs(),
+            (low - close.shift()).abs()
+        ], axis=1).max(axis=1)
+        atr = tr.rolling(14).mean()
+
+        # ADX
+        up_move = high.diff()
+        down_move = -low.diff()
+        plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
+        minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
+
+        atr_smooth = tr.rolling(14).mean()
+        plus_di = 100 * (pd.Series(plus_dm).rolling(14).sum() / atr_smooth)
+        minus_di = 100 * (pd.Series(minus_dm).rolling(14).sum() / atr_smooth)
+        dx = (abs(plus_di - minus_di) / (plus_di + minus_di + 1e-9)) * 100
+        adx = dx.rolling(14).mean()
+
+        # --- Aktuelle Werte ---
+        curr = float(close.iloc[-1])
+        prev = close.iloc[-2]
+        prev2 = close.iloc[-3]
+
+        sma_curr = sma20.iloc[-1]
+        rsi_curr = rsi.iloc[-1]
+        adx_curr = adx.iloc[-1]
+        atr_curr = atr.iloc[-1]
+
+        # Tagesveränderung
+        daily_delta = ((curr - df["Open"].iloc[-1]) / df["Open"].iloc[-1]) * 100
+
+        # --- Signal berechnen ---
+        signal = generate_signal(df)
+
+        # --- Stop-Loss ---
+        if signal == "C":
+            stop = curr - atr_curr * 1.5
+        elif signal == "P":
+            stop = curr + atr_curr * 1.5
+        else:
+            stop = 0
+
+        # --- Sparkline ---
+        spark_img = create_sparkline(
+            close.tail(20),
+            "#3fb950" if curr >= prev else "#007bff"
+        )
+
+        # --- Icon ---
+        icon = (
+            "☀️" if (curr > sma_curr and daily_delta > 0.3)
+            else "⚖️" if abs(daily_delta) < 0.3
+            else "⛈️"
+        )
+
+        # --- Backtest (Top 3) ---
+        # Nur wenn Signal existiert
+        prob = 50.0
+        if signal in ["C", "P"]:
+            signals = []
+            for i in range(40, len(df)):
+                sig = generate_signal(df.iloc[:i])
+                if sig in ["C", "P"]:
+                    signals.append((i, sig))
+
+            if len(signals) > 0:
+                stats = backtest_strategy(df, signals)
+                if stats:
+                    prob = max(10, min(90, stats["winrate"]))  # stabilisiert UI
+
+        # --- Output ---
         return {
-            "name": t_obj.info.get('shortName') or ticker, "ticker": ticker, "price": curr, 
-            "delta": daily_delta, "signal": signal, "stop": curr - (atr*1.5) if signal=="C" else curr + (atr*1.5) if signal=="P" else 0,
-            "prob": prob, "rsi": rsi.iloc[-1], "adx": adx, "spark": spark_img, "icon": icon
+            "name": t_obj.fast_info.get("shortName", ticker),
+            "ticker": ticker,
+            "price": curr,
+            "delta": daily_delta,
+            "signal": signal,
+            "stop": stop,
+            "prob": prob,
+            "rsi": rsi_curr,
+            "adx": adx_curr,
+            "spark": spark_img,
+            "icon": icon
         }
-    except: return None
+
+    except Exception as e:
+        print(f"Fehler bei {ticker}: {e}")
+        return None
 
 def render_row(res):
     fmt = "{:.6f}" if "=" in res['ticker'] else "{:.2f}"
@@ -231,3 +300,4 @@ with st.expander(f"📈 Top-Signale Analyse", expanded=True):
             if i < len(top_results) - 1: st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>", unsafe_allow_html=True)
     else:
         st.info("Warte auf Signale...")
+
