@@ -32,13 +32,6 @@ from streamlit_autorefresh import st_autorefresh
 st_autorefresh(interval=60000, key="datarefresh")
 st.set_page_config(layout="wide", page_title="Strategy", page_icon="📡")
 
-# --- 5. MACRO SECTION ---
-st.markdown("<div class='header-text'>🌍 Macro + Indices 🌍</div>", unsafe_allow_html=True)
-macro_list = ["EURUSD=X", "^GDAXI", "^STOXX50E", "^IXIC", "XU100.IS", "^NSEI"]
-with ThreadPoolExecutor(max_workers=10) as ex:
-    m_res = [r for r in ex.map(fetch_data, macro_list) if r]
-    for r in m_res: render_row(r)
-
 # --- STYLING ---
 st.markdown("""
     <style>
@@ -307,5 +300,6 @@ with st.expander(f"📈 Top-Signale Analyse", expanded=True):
             if i < len(top_results) - 1: st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>", unsafe_allow_html=True)
     else:
         st.info("Warte auf Signale...")
+
 
 
