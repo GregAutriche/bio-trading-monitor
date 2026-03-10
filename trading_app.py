@@ -14,7 +14,7 @@ import base64
 import io
 from streamlit_autorefresh import st_autorefresh
 
-# --- AUTO-INSTALLER ---
+# --- 1. AUTO-INSTALLER ---
 def install_and_import(package):
     try:
         __import__(package.replace('-', '_'))
@@ -25,49 +25,48 @@ install_and_import('streamlit-autorefresh')
 install_and_import('lxml')
 install_and_import('html5lib')
 
-# --- SETUP ---
+# --- 2. SETUP & STYLING ---
+st.set_page_config(layout="wide", page_title="Risk-Quant Pro", page_icon="🛡️")
 st_autorefresh(interval=60000, key="datarefresh")
-st.set_page_config(layout="wide", page_title="Risk-Quant Strategy", page_icon="🛡️")
 
-# --- STYLING ---
 st.markdown("""
     <style>
     .stApp { background-color: #050a0f; }
     h1, h2, h3, p, span, label, div { color: #e0e0e0 !important; font-family: 'Courier New', Courier, monospace; }
-    .header-text { font-size: 24px; font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+    .header-text { font-size: 22px; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 10px; margin-top: 20px; }
     .sig-box-p { color: #ff4b4b !important; border: 1px solid #ff4b4b; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
     .sig-box-c { color: #3fb950 !important; border: 1px solid #3fb950; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
     .sig-box-high { color: #ffd700 !important; border: 1px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
-    .indicator-label { color: #888; font-size: 0.7rem; margin-top: 2px; }
     .row-container { border-bottom: 1px solid #1a202c; padding: 15px 0; width: 100%; }
-    .var-text { color: #ff4b4b; font-weight: bold; font-size: 0.85rem; }
+    .var-text { color: #ff4b4b; font-weight: bold; font-size: 0.8rem; }
+    .indicator-label { color: #888; font-size: 0.7rem; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- CORE MATH FUNCTIONS ---
+# --- 3. CORE MATH FUNCTIONS ---
 
 def create_visuals(hist_data, mc_results, last_price, color):
-    # Sparkline (Vergangenheit)
-    fig, ax = plt.subplots(figsize=(2.5, 0.5), dpi=70)
-    ax.plot(hist_data.values, color=color, linewidth=2)
-    ax.axis('off')
+    # Sparkline (History)
+    fig1, ax1 = plt.subplots(figsize=(2.5, 0.5), dpi=70)
+    ax1.plot(hist_data.values, color=color, linewidth=2)
+    ax1.axis('off')
     buf_spark = io.BytesIO()
-    fig.savefig(buf_spark, format='png', transparent=True, bbox_inches='tight', pad_inches=0)
-    plt.close(fig)
+    fig1.savefig(buf_spark, format='png', transparent=True, bbox_inches='tight', pad_inches=0)
+    plt.close(fig1)
     
-    # MC-Cloud (Zukunft)
-    fig, ax = plt.subplots(figsize=(2.5, 0.5), dpi=70)
-    for i in range(min(40, len(mc_results))):
-        ax.plot(mc_results[i, :], color='#ffd700', alpha=0.1, linewidth=0.6)
-    ax.axhline(last_price, color='#555', linestyle='--', linewidth=0.8)
-    ax.axis('off')
+    # MC-Cloud (Projection)
+    fig2, ax2 = plt.subplots(figsize=(2.5, 0.5), dpi=70)
+    for i in range(min(30, len(mc_results))):
+        ax2.plot(mc_results[i, :], color='#ffd700', alpha=0.1, linewidth=0.5)
+    ax2.axhline(last_price, color='#555', linestyle='--', linewidth=0.8)
+    ax2.axis('off')
     buf_cloud = io.BytesIO()
-    fig.savefig(buf_cloud, format='png', transparent=True, bbox_inches='tight', pad_inches=0)
-    plt.close(fig)
+    fig2.savefig(buf_cloud, format='png', transparent=True, bbox_inches='tight', pad_inches=0)
+    plt.close(fig2)
     
     return base64.b64encode(buf_spark.getvalue()).decode(), base64.b64encode(buf_cloud.getvalue()).decode()
 
-def run_monte_carlo_var(data, days=10, simulations=300):
+def run_monte_carlo_var(data, days=10, simulations=250):
     returns = np.log(data / data.shift(1)).dropna()
     mu, sigma = returns.mean(), returns.std()
     last_price = data.iloc[-1]
@@ -79,13 +78,9 @@ def run_monte_carlo_var(data, days=10, simulations=300):
             prices.append(prices[-1] * np.exp((mu - 0.5 * sigma**2) + sigma * np.random.normal()))
         results[i, :] = prices[1:]
     
-    # Wahrscheinlichkeit für Kursanstieg
     prob_up = (results[:, -1] > last_price).sum() / simulations * 100
-    
-    # Value at Risk (VaR 95%): Das schlechteste 5% Perzentil
     final_returns = (results[:, -1] - last_price) / last_price
     var_95_pct = np.percentile(final_returns, 5) * 100
-    
     return prob_up, var_95_pct, results
 
 @st.cache_data(ttl=300)
@@ -99,11 +94,9 @@ def fetch_data(ticker):
         prev = df['Close'].iloc[-2]
         sma20 = df['Close'].rolling(window=20).mean().iloc[-1]
         
-        # ATR für technischen Stop
+        # ATR / RSI
         tr = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift()), abs(df['Low']-df['Close'].shift())], axis=1).max(axis=1)
         atr = tr.rolling(window=14).mean().iloc[-1]
-        
-        # RSI
         delta_p = df['Close'].diff()
         gain = (delta_p.where(delta_p > 0, 0)).rolling(window=14).mean()
         loss = (-delta_p.where(delta_p < 0, 0)).rolling(window=14).mean()
@@ -112,64 +105,69 @@ def fetch_data(ticker):
         # Monte Carlo & VaR
         prob_mc, var_95, mc_results = run_monte_carlo_var(df['Close'].tail(100))
         
-        # Signal & Stop
+        # Signals
         signal = "C" if (curr > prev and curr > sma20) else "P" if (curr < prev and curr < sma20) else "Wait"
         stop_price = curr - (atr*2) if signal=="C" else curr + (atr*2) if signal=="P" else 0
         
-        # Risk-Check: Ist der Stop-Loss enger als das 95% Rauschen?
+        # Risk Warning
         stop_pct = abs((stop_price - curr) / curr) * 100
         risk_warning = "🚩" if stop_pct < abs(var_95) else ""
 
-        spark_img, cloud_img = create_visuals(df['Close'].tail(20), mc_results, curr, "#3fb950" if curr >= prev else "#ff4b4b")
+        s_img, c_img = create_visuals(df['Close'].tail(20), mc_results, curr, "#3fb950" if curr >= prev else "#ff4b4b")
         
         return {
             "name": t_obj.info.get('shortName') or ticker, "ticker": ticker, "price": curr, 
             "delta": ((curr - df['Open'].iloc[-1])/df['Open'].iloc[-1])*100, "signal": signal, 
             "stop": stop_price, "prob": prob_mc, "var": var_95, "warning": risk_warning,
-            "rsi": rsi.iloc[-1], "spark": spark_img, "cloud": cloud_img
+            "rsi": rsi.iloc[-1], "spark": s_img, "cloud": c_img
         }
     except: return None
 
+# --- 4. RENDER FUNCTION ---
 def render_row(res):
-    fmt = "{:.4f}" if res['price'] < 5 else "{:.2f}"
+    fmt = "{:.4f}" if res['price'] < 2 else "{:.2f}"
     st.markdown("<div class='row-container'>", unsafe_allow_html=True)
     c1, c2, c3, c4, c5 = st.columns([1.2, 0.6, 1.2, 0.6, 1.2])
     
     with c1: st.markdown(f"**{res['name']}**<br><small>{res['ticker']}</small><br><b>{fmt.format(res['price'])}</b>", unsafe_allow_html=True)
     with c2: st.markdown(f"<div style='text-align:center; color:{'#3fb950' if res['delta']>=0 else '#ff4b4b'}; font-weight:bold;'>{res['delta']:+.2f}%</div>", unsafe_allow_html=True)
-    
     with c3:
-        st.markdown(f'<img src="data:image/png;base64,{res["spark"]}" width="110" title="Vergangenheit">', unsafe_allow_html=True)
-        st.markdown(f'<img src="data:image/png;base64,{res["cloud"]}" width="110" style="opacity:0.6;" title="MC-Simulation">', unsafe_allow_html=True)
+        st.markdown(f'<img src="data:image/png;base64,{res["spark"]}" width="110" title="Trend 20d">', unsafe_allow_html=True)
+        st.markdown(f'<img src="data:image/png;base64,{res["cloud"]}" width="110" style="opacity:0.6;" title="Monte Carlo 10d">', unsafe_allow_html=True)
         st.markdown(f"<div class='indicator-label'>RSI: {res['rsi']:.1f}</div>", unsafe_allow_html=True)
-        
     with c4:
         if res['signal'] != "Wait":
             cls = "sig-box-high" if res['prob'] >= 60 else ("sig-box-c" if res['signal']=="C" else "sig-box-p")
             st.markdown(f"<div style='margin-top:8px;'><span class='{cls}'>{res['signal']}</span></div>", unsafe_allow_html=True)
-
     with c5:
         if res['stop'] != 0:
             st.markdown(f"<span class='var-text'>VaR(95%): {res['var']:.2f}%</span> {res['warning']}", unsafe_allow_html=True)
-            st.markdown(f"<small>SL-Level:</small> <b>{fmt.format(res['stop'])}</b><br><small>Prob: {res['prob']:.1f}%</small>", unsafe_allow_html=True)
+            st.markdown(f"<small>SL:</small> <b>{fmt.format(res['stop'])}</b><br><small>MC-Prob: {res['prob']:.1f}%</small>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- UI MAIN ---
+# --- 5. MAIN UI ---
 st.markdown("<div class='header-text'>📡 Risk-Quant Momentum Monitor 2026</div>", unsafe_allow_html=True)
 
-# Quick Macro
-m_list = ["EURUSD=X", "^GDAXI", "^IXIC", "BTC-USD"]
+# Macro Overview
+m_list = ["EURUSD=X", "^GDAXI", "^IXIC", "BTC-USD", "GC=F"]
 with ThreadPoolExecutor(max_workers=5) as ex:
-    for r in [res for res in ex.map(fetch_data, m_list) if res]: render_row(r)
+    m_results = [r for r in ex.map(fetch_data, m_list) if r]
+    for r in m_results: render_row(r)
 
-st.markdown("<br><div class='header-text'>🔭 Screener Engine</div>", unsafe_allow_html=True)
-choice = st.selectbox("Markt wählen:", ["DAX 40", "Nasdaq 100", "BIST 100"])
+st.markdown("<div class='header-text'>🔭 Markt Screener & Risk-Check</div>", unsafe_allow_html=True)
+m_choice = st.radio("Markt:", ["DAX 40", "Nasdaq 100", "Crypto"], horizontal=True)
 
-if st.button("🚀 Markt-Scan starten"):
-    # Vereinfachte Ticker-Listen für Demo (kannst du mit deiner get_live_tickers erweitern)
-    tickers = ["AAPL", "MSFT", "NVDA", "TSLA", "SAP.DE", "ALV.DE", "BMW.DE", "RHM.DE", "AMZN", "META"]
-    with ThreadPoolExecutor(max_workers=10) as ex:
-        results = [r for r in ex.map(fetch_data, tickers) if r]
+if st.button("🚀 Scan starten", use_container_width=True):
+    # Dynamische Ticker-Listen
+    lists = {
+        "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DTE.DE", "DBK.DE", "DB1.DE", "DHL.DE", "EON.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PUM.DE", "PAH3.DE", "RWE.DE", "SAP.DE", "SIE.DE", "SHL.DE", "SY1.DE", "TKA.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "BEI.DE", "CBK.DE", "RHM.DE", "SRT3.DE", "ENR.DE", "QIA.DE"],
+        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "AVGO", "COST", "NFLX", "AMD", "ADBE"],
+        "Crypto": ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD", "ADA-USD"]
+    }
+    
+    with ThreadPoolExecutor(max_workers=20) as ex:
+        results = [r for r in ex.map(fetch_data, lists[m_choice]) if r]
+        # Sortiert nach der höchsten Monte-Carlo Wahrscheinlichkeit
         for r in sorted(results, key=lambda x: -x['prob']): render_row(r)
 
-st.caption("ℹ️ VaR(95%): Statistisches Risiko für 10 Tage. 🚩 Warnung: Stop-Loss liegt im normalen Rauschbereich.")
+st.info("ℹ️ VaR(95%): Statistisches 10-Tages-Risiko. 🚩: Stop-Loss liegt innerhalb des statistischen Rauschens.")
