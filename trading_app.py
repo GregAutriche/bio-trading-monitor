@@ -57,6 +57,29 @@ def create_sparkline(data, color):
     plt.close(fig)
     return base64.b64encode(buf.getvalue()).decode()
 
+def run_monte_carlo(data, days=10, simulations=1000):
+    # Log-Returns berechnen für Drift und Volatilität
+    returns = np.log(data / data.shift(1))
+    mu = returns.mean()
+    sigma = returns.std()
+    
+    last_price = data.iloc[-1]
+    
+    # Simulation: Zufällige Kursverläufe generieren
+    # Formel: S_t = S_{t-1} * exp((mu - 0.5*sigma^2) + sigma * Z)
+    results = np.zeros((simulations, days))
+    for i in range(simulations):
+        prices = [last_price]
+        for _ in range(days):
+            prices.append(prices[-1] * np.exp((mu - 0.5 * sigma**2) + sigma * np.random.normal()))
+        results[i, :] = prices[1:]
+    
+    # Wahrscheinlichkeit berechnen, dass der Preis am Ende über dem aktuellen liegt
+    final_prices = results[:, -1]
+    success_rate = (final_prices > last_price).sum() / simulations * 100
+    return success_rate
+
+
 @st.cache_data(ttl=300)
 def fetch_data(ticker):
     try:
@@ -231,3 +254,4 @@ with st.expander(f"📈 Top-Signale Analyse", expanded=True):
             if i < len(top_results) - 1: st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>", unsafe_allow_html=True)
     else:
         st.info("Warte auf Signale...")
+
