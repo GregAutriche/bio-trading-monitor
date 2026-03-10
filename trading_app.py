@@ -1,6 +1,5 @@
 import os
 import sys
-import math
 import matplotlib
 matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
@@ -26,7 +25,7 @@ install_and_import('lxml')
 install_and_import('html5lib')
 
 # --- 2. SETUP & STYLING ---
-st.set_page_config(layout="wide", page_title="Risk-Quant Pro", page_icon="🛡️")
+st.set_page_config(layout="wide", page_title="Risk-Quant Strategy", page_icon="🛡️")
 st_autorefresh(interval=60000, key="datarefresh")
 
 st.markdown("""
@@ -43,7 +42,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. CORE MATH FUNCTIONS ---
+# --- 3. CORE FUNCTIONS ---
 
 def create_visuals(hist_data, mc_results, last_price, color):
     # Sparkline (History)
@@ -109,8 +108,8 @@ def fetch_data(ticker):
         signal = "C" if (curr > prev and curr > sma20) else "P" if (curr < prev and curr < sma20) else "Wait"
         stop_price = curr - (atr*2) if signal=="C" else curr + (atr*2) if signal=="P" else 0
         
-        # Risk Warning
-        stop_pct = abs((stop_price - curr) / curr) * 100
+        # Risk Check
+        stop_pct = abs((stop_price - curr) / (curr + 1e-9)) * 100
         risk_warning = "🚩" if stop_pct < abs(var_95) else ""
 
         s_img, c_img = create_visuals(df['Close'].tail(20), mc_results, curr, "#3fb950" if curr >= prev else "#ff4b4b")
@@ -123,9 +122,8 @@ def fetch_data(ticker):
         }
     except: return None
 
-# --- 4. RENDER FUNCTION ---
 def render_row(res):
-    fmt = "{:.4f}" if res['price'] < 2 else "{:.2f}"
+    fmt = "{:.2f}"
     st.markdown("<div class='row-container'>", unsafe_allow_html=True)
     c1, c2, c3, c4, c5 = st.columns([1.2, 0.6, 1.2, 0.6, 1.2])
     
@@ -142,32 +140,30 @@ def render_row(res):
     with c5:
         if res['stop'] != 0:
             st.markdown(f"<span class='var-text'>VaR(95%): {res['var']:.2f}%</span> {res['warning']}", unsafe_allow_html=True)
-            st.markdown(f"<small>SL:</small> <b>{fmt.format(res['stop'])}</b><br><small>MC-Prob: {res['prob']:.1f}%</small>", unsafe_allow_html=True)
+            st.markdown(f"<small>Stop-Loss:</small> <b>{fmt.format(res['stop'])}</b><br><small>MC-Prob: {res['prob']:.1f}%</small>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 5. MAIN UI ---
+# --- 4. MAIN UI ---
 st.markdown("<div class='header-text'>📡 Risk-Quant Momentum Monitor 2026</div>", unsafe_allow_html=True)
 
-# Macro Overview
-m_list = ["EURUSD=X", "^GDAXI", "^IXIC", "BTC-USD", "GC=F"]
+# Macro Overview (Nur Indizes & Forex)
+m_list = ["EURUSD=X", "^GDAXI", "^IXIC", "^STOXX50E", "GC=F"]
 with ThreadPoolExecutor(max_workers=5) as ex:
     m_results = [r for r in ex.map(fetch_data, m_list) if r]
     for r in m_results: render_row(r)
 
-st.markdown("<div class='header-text'>🔭 Markt Screener & Risk-Check</div>", unsafe_allow_html=True)
-m_choice = st.radio("Markt:", ["DAX 40", "Nasdaq 100", "Crypto"], horizontal=True)
+st.markdown("<div class='header-text'>🔭 Markt Screener</div>", unsafe_allow_html=True)
+m_choice = st.radio("Markt wählen:", ["DAX 40", "Nasdaq 100", "EuroStoxx 50"], horizontal=True)
 
 if st.button("🚀 Scan starten", use_container_width=True):
-    # Dynamische Ticker-Listen
     lists = {
         "DAX 40": ["ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "CON.DE", "1COV.DE", "DTG.DE", "DTE.DE", "DBK.DE", "DB1.DE", "DHL.DE", "EON.DE", "FRE.DE", "FME.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PUM.DE", "PAH3.DE", "RWE.DE", "SAP.DE", "SIE.DE", "SHL.DE", "SY1.DE", "TKA.DE", "VOW3.DE", "VNA.DE", "ZAL.DE", "BEI.DE", "CBK.DE", "RHM.DE", "SRT3.DE", "ENR.DE", "QIA.DE"],
-        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "AVGO", "COST", "NFLX", "AMD", "ADBE"],
-        "Crypto": ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD", "ADA-USD"]
+        "Nasdaq 100": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "AVGO", "COST", "NFLX", "AMD", "ADBE", "INTC", "PEP", "CSCO", "QCOM", "TMUS", "TXN", "AMAT", "ISRG"],
+        "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "TTE.PA", "SIE.DE", "AIR.PA", "SAN.MC", "ITX.MC", "CS.PA", "BNP.PA", "IBE.MC", "SU.PA"]
     }
     
     with ThreadPoolExecutor(max_workers=20) as ex:
         results = [r for r in ex.map(fetch_data, lists[m_choice]) if r]
-        # Sortiert nach der höchsten Monte-Carlo Wahrscheinlichkeit
         for r in sorted(results, key=lambda x: -x['prob']): render_row(r)
 
-st.info("ℹ️ VaR(95%): Statistisches 10-Tages-Risiko. 🚩: Stop-Loss liegt innerhalb des statistischen Rauschens.")
+st.info("ℹ️ VaR(95%): Statistisches Risiko (10d). 🚩 zeigt an, wenn der technische Stop-Loss zu eng am statistischen Rauschen liegt.")
