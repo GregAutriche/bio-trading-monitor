@@ -60,20 +60,29 @@ def create_sparkline(data, color):
     plt.close(fig)
     return base64.b64encode(buf.getvalue()).decode()
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=60) # Kürzere TTL für schnellere Updates der Indizes
 def fetch_data(ticker):
     try:
-        # --- Daten laden ---
         t_obj = yf.Ticker(ticker)
-        df = t_obj.history(period="1y", interval="1d", auto_adjust=True)
+        # Indizes brauchen oft '1mo' statt '1y' für den schnellen Initial-Load
+        df = t_obj.history(period="1mo", interval="1d", auto_adjust=True)
 
-        if df.empty or len(df) < 40:
+        if df.empty or len(df) < 20:
             return None
 
-        # --- Indikatoren vorbereiten ---
-        close = df["Close"]
-        high = df["High"]
-        low = df["Low"]
+        # --- FIX: Namensabruf für Indizes (vermeidet Absturz) ---
+        names_map = {
+            "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50", 
+            "^IXIC": "NASDAQ", "EURUSD=X": "EUR/USD", 
+            "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50"
+        }
+        name = names_map.get(ticker)
+        if not name:
+            try:
+                # Fallback für Aktien
+                name = t_obj.info.get("shortName", ticker)
+            except:
+                name = ticker
 
         # SMA20
         sma20 = close.rolling(20).mean()
@@ -302,6 +311,7 @@ with st.expander(f"📈 Top-Signale Analyse", expanded=True):
             if i < len(top_results) - 1: st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>", unsafe_allow_html=True)
     else:
         st.info("Warte auf Signale...")
+
 
 
 
