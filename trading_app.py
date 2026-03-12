@@ -30,6 +30,13 @@ from streamlit_autorefresh import st_autorefresh
 
 # --- 2. SETUP & REFRESH (60 Sek) ---
 st_autorefresh(interval=60000, key="datarefresh")
+try:
+    now = datetime.now(ZoneInfo("Europe/Berlin"))
+except Exception:
+    # Fallback, falls ZoneInfo auf dem Server Probleme macht (UTC + 1 oder 2)
+    from datetime import timedelta
+    now = datetime.utcnow() + timedelta(hours=1) # Standard-Winterzeit
+    
 st.set_page_config(layout="wide", page_title="Strategy", page_icon="📡")
 
 # --- STYLING ---
@@ -124,7 +131,7 @@ def render_row(res):
 
 # --- 4. UI MAIN ---
 st.markdown("<div class='header-text'>📡 Momentum Strategie 📡</div>", unsafe_allow_html=True)
-st.write(f"Update: {datetime.now().strftime('%H:%M:%S')} | Auto-Refresh: 60s")
+st.write(f"🕒 Letztes Update: **{now.strftime('%H:%M:%S')}** (Berlin Time) | Auto-Refresh: 60s")
 
 with st.expander("ℹ️ Ausführlicher Strategie-Leitfaden & Markt-Logik ℹ️", expanded=False):
     st.markdown("""
@@ -231,3 +238,4 @@ with st.expander(f"📈 Top-Signale Analyse", expanded=True):
             if i < len(top_results) - 1: st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>", unsafe_allow_html=True)
     else:
         st.info("Warte auf Signale...")
+
