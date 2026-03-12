@@ -71,7 +71,7 @@ def fetch_data(ticker):
             return {
             "name": name,
             "ticker": ticker,
-
+            }
         # --- FIX: Namensabruf für Indizes (vermeidet Absturz) ---
         names_map = {
             "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50", 
@@ -313,6 +313,7 @@ with st.expander(f"📈 Top-Signale Analyse", expanded=True):
             if i < len(top_results) - 1: st.markdown("<hr style='margin: 5px 0; border: 0; border-top: 1px solid #333; opacity: 0.2;'>", unsafe_allow_html=True)
     else:
         st.info("Warte auf Signale...")
+
 
 
 
