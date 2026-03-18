@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import smtplib
-import base64
 from email.message import EmailMessage
 from streamlit_autorefresh import st_autorefresh
 
@@ -12,23 +11,9 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live ULTIMATE", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. ALERT-FUNKTIONEN (E-Mail & Sound) ---
-def send_alert_email(subject, body):
-    """Versendet eine E-Mail bei starken Signalen (Optional)."""
-    msg = EmailMessage()
-    msg.set_content(body)
-    msg['Subject'] = subject
-    msg['From'] = "DEINE_EMAIL@gmail.com" # <--- HIER DEINE EMAIL
-    msg['To'] = "EMPFÄNGER_EMAIL@gmail.com" # <--- HIER ZIEL-EMAIL
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login("DEINE_EMAIL@gmail.com", "DEIN_APP_PASSWORT") # <--- HIER APP-PASSWORT
-            server.send_message(msg)
-    except: pass
-
+# --- 2. ALERT-FUNKTIONEN ---
 def play_alert_sound():
-    """Spielt ein kurzes akustisches Signal im Browser ab."""
-    # Ein kurzer 'Ping'-Sound als Base64
+    """Spielt ein akustisches Signal ab."""
     audio_html = """
         <audio autoplay>
             <source src="https://www.soundjay.com" type="audio/mpeg">
@@ -51,7 +36,7 @@ TICKER_NAMES = {
     "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "TSLA": "Tesla", "AMZN": "Amazon", "META": "Meta"
 }
 
-# --- 4. DESIGN CSS ---
+# --- 4. DESIGN ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; background-image: linear-gradient(180deg, #0e1525 0%, #050a14 100%); color: #E0E0E0; }
@@ -83,7 +68,7 @@ def get_news_fb(ticker):
         return news[:10]
     except: return []
 
-# --- 6. MARKT-WETTER & ANALYSE ---
+# --- 6. LAYOUT ---
 st.title("🚀 Bio-Trading Monitor Live ULTIMATE")
 SYMBOLS_GEN = ["EURUSD=X", "EURRUB=X", "^GDAXI", "^STOXX50E"]
 cols = st.columns(len(SYMBOLS_GEN))
@@ -98,7 +83,7 @@ for i, t in enumerate(SYMBOLS_GEN):
                         f'<div style="color:{"#00FFA3" if chg>0 else "#FF4B4B"};">{chg:+.2f}%</div></div>', unsafe_allow_html=True)
 
 st.divider()
-c1, c2 = st.columns([2,1])
+c1, c2 = st.columns()
 with c1:
     st.subheader("📊 Chart-Analyse")
     ca, cb = st.columns(2)
@@ -124,15 +109,23 @@ with c1:
 with c2:
     n_list = get_news_fb(s_tkr)
     st.subheader("🗞️ News Ticker")
-    h = "".join(}..</a></div>' for i in n_list])
-    st.markdown(f'<div class="news-container"><div class="news-scroll">{h}{h}</div></div>', unsafe_allow_html=True)
+    if n_list:
+        news_html = ""
+        for i in n_list:
+            link = i.get("link", "#")
+            title = i.get("title", "Kein Titel")
+            disp_title = (title[:75] + '..') if len(title) > 75 else title
+            news_html += f'<div class="news-item"><a href="{link}" target="_blank" style="color:#1E90FF; text-decoration:none;">{disp_title}</a></div>'
+        st.markdown(f'<div class="news-container"><div class="news-scroll">{news_html}{news_html}</div></div>', unsafe_allow_html=True)
+    else:
+        st.info("Keine News verfügbar.")
 
-# --- 7. HIGH-PROB SCANNER MIT SOUND & POPUP ---
+# --- 7. SCANNER ---
 st.divider()
 st.subheader("⚡ High-Prob Options Scanner (>75%)")
-if st.button("🚀 Markt-Scan & Alerts auslösen"):
-    results = []; found_alerts = []
-    with st.spinner('Scanne Marktteilnehmer...'):
+if st.button("🚀 Markt-Scan & Alerts"):
+    results = []; alerts = []
+    with st.spinner('Analyse...'):
         for tkr in DAX_ALL + NASDAQ_TOP:
             df_sc = get_data(tkr, period="60d")
             if not df_sc.empty:
@@ -140,19 +133,18 @@ if st.button("🚀 Markt-Scan & Alerts auslösen"):
                 sims = cp * np.exp(np.random.normal(0, df_sc['Close'].pct_change().std(), 100) * np.sqrt(30))
                 p_up = (sims > cp).mean() * 100
                 results.append({"Name": TICKER_NAMES.get(tkr, tkr), "Up": p_up})
-                if p_up >= 78: found_alerts.append(f"🟢 CALL: {TICKER_NAMES.get(tkr,tkr)} ({p_up:.1f}%)")
-                elif p_up <= 22: found_alerts.append(f"🔴 PUT: {TICKER_NAMES.get(tkr,tkr)} ({100-p_up:.1f}%)")
+                if p_up >= 78: alerts.append(f"🟢 CALL: {TICKER_NAMES.get(tkr,tkr)}")
+                elif p_up <= 22: alerts.append(f"🔴 PUT: {TICKER_NAMES.get(tkr,tkr)}")
     
-    if found_alerts:
+    if alerts:
         play_alert_sound()
-        for alert in found_alerts: st.toast(alert, icon='⚡')
-        # send_alert_email("Trading Alert!", "\n".join(found_alerts)) # <--- Bei Bedarf entkommentieren
+        for a in alerts: st.toast(a, icon='⚡')
     
     df_res = pd.DataFrame(results)
     rc, rp = st.columns(2)
     with rc:
-        st.success("📈 Call Kandidaten (>70%)")
-        st.table(df_res[df_res['Up']>=70].sort_values(by="Up", ascending=False).head(5))
+        st.success("📈 Call Kandidaten")
+        st.dataframe(df_res[df_res['Up']>=70].sort_values(by="Up", ascending=False), hide_index=True)
     with rp:
-        st.error("📉 Put Kandidaten (<30%)")
-        st.table(df_res[df_res['Up']<=30].sort_values(by="Up", ascending=True).head(5))
+        st.error("📉 Put Kandidaten")
+        st.dataframe(df_res[df_res['Up']<=30].sort_values(by="Up", ascending=True), hide_index=True)
