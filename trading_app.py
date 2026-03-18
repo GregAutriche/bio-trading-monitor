@@ -108,7 +108,7 @@ with c1:
     if not d_s.empty:
         cp = float(d_s['Close'].iloc[-1])
         plt.style.use('dark_background')
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [2, 1]})
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [3, 1]})
         fig.patch.set_facecolor('#0E1117')
         
         ax1.set_facecolor('#0E1117')
@@ -143,9 +143,9 @@ with c2:
         st.markdown(f'<div class="news-container"><div class="news-scroll">{"".join(h_list)*2}</div></div>', unsafe_allow_html=True)
     else: st.info("Keine News verfügbar.")
 
-# --- 7. SCANNER (Mit Stop-Loss Logik) ---
+# --- 7. SCANNER (Mit SL & Take Profit) ---
 st.divider()
-st.subheader("🎯 High-Prob Scanner (1.000 Sims)")
+st.subheader("🎯 High-Prob Scanner (Stop-Loss & Kursziel)")
 
 def run_full_scan():
     all_results = []
@@ -160,16 +160,18 @@ def run_full_scan():
             v = returns.std()
             sims = cp_sc * np.exp(np.random.normal(0, v, 1000) * np.sqrt(30))
             
-            # SL Berechnung (1 Sigma Abweichung)
+            # SL & TP Berechnung
             sl_call = cp_sc * (1 - v)
+            tp_call = cp_sc * (1 + 1.5 * v) # Call Ziel: +1.5 Sigma
             sl_put = cp_sc * (1 + v)
+            tp_put = cp_sc * (1 - 1.5 * v)  # Put Ziel: -1.5 Sigma
             
             all_results.append({
                 "Name": TICKER_NAMES.get(tkr, tkr), 
                 "Up_Prob": (sims > cp_sc).mean() * 100,
                 "Price": cp_sc,
-                "SL_Call": sl_call,
-                "SL_Put": sl_put
+                "SL_Call": sl_call, "TP_Call": tp_call,
+                "SL_Put": sl_put, "TP_Put": tp_put
             })
     return pd.DataFrame(all_results)
 
@@ -180,15 +182,24 @@ if 'scan_data' not in st.session_state or st.button("🚀 Markt manuell aktualis
 df_res = st.session_state.scan_data
 rc, rp = st.columns(2)
 
+# Robustheits-Check: Nur Spalten formatieren, wenn sie existieren
 with rc:
     st.success("📈 Top 5 Call-Kandidaten")
     calls = df_res.sort_values(by="Up_Prob", ascending=False).head(5).copy()
-    calls['SL (Stop-Loss)'] = calls['SL_Call'].map('{:,.2f}'.format)
-    st.dataframe(calls[['Name', 'Up_Prob', 'SL (Stop-Loss)']], hide_index=True)
+    if 'SL_Call' in calls.columns:
+        calls['SL'] = calls['SL_Call'].map('{:,.2f}'.format)
+        calls['Kursziel'] = calls['TP_Call'].map('{:,.2f}'.format)
+        st.dataframe(calls[['Name', 'Up_Prob', 'SL', 'Kursziel']], hide_index=True)
+    else:
+        st.warning("Bitte Scanner aktualisieren.")
 
 with rp:
     st.error("📉 Top 5 Put-Kandidaten")
     puts = df_res.sort_values(by="Up_Prob", ascending=True).head(5).copy()
-    puts['Down_Prob'] = 100 - puts['Up_Prob']
-    puts['SL (Stop-Loss)'] = puts['SL_Put'].map('{:,.2f}'.format)
-    st.dataframe(puts[['Name', 'Down_Prob', 'SL (Stop-Loss)']], hide_index=True)
+    if 'SL_Put' in puts.columns:
+        puts['Down_Prob'] = 100 - puts['Up_Prob']
+        puts['SL'] = puts['SL_Put'].map('{:,.2f}'.format)
+        puts['Kursziel'] = puts['TP_Put'].map('{:,.2f}'.format)
+        st.dataframe(puts[['Name', 'Down_Prob', 'SL', 'Kursziel']], hide_index=True)
+    else:
+        st.warning("Bitte Scanner aktualisieren.")
