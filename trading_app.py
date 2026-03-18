@@ -9,17 +9,14 @@ st.set_page_config(page_title="Bio-Trading Monitor Pro", layout="wide")
 
 # --- 2. NAMENS-MAPPING & TICKER ---
 TICKER_NAMES = {
-    "EURUSD=X": "Euro / US-Dollar",
-    "EURRUB=X": "Euro / Russischer Rubel",
+    "EURUSD=X": "EUR/USD",
+    "EURRUB=X": "EUR/RUB",
     "^GDAXI": "DAX Index",
-    "^GSPC": "S&P 500",
-    "BTC-USD": "Bitcoin",
-    "SAP.DE": "SAP SE",
-    "SIE.DE": "Siemens AG",
-    "ALV.DE": "Allianz SE",
-    "AAPL": "Apple Inc.",
-    "MSFT": "Microsoft Corp.",
-    "NVDA": "Nvidia Corp."
+    "^STOXX50E": "EuroStoxx 50",
+    "^NSEI": "Nifty 50",
+    "XU100.IS": "BIST 100",
+    "SAP.DE": "SAP SE", "SIE.DE": "Siemens AG", "ALV.DE": "Allianz SE", "DTE.DE": "Telekom",
+    "AAPL": "Apple Inc.", "MSFT": "Microsoft", "NVDA": "Nvidia", "TSLA": "Tesla"
 }
 
 # --- 3. DESIGN & CSS ---
@@ -31,7 +28,7 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); transition: transform 0.2s;
     }
     .market-card:hover { transform: translateY(-3px); border: 1px solid rgba(30, 144, 255, 0.4); }
-    .metric-value { font-size: 1.25rem; font-weight: bold; color: #FFFFFF; font-family: 'Courier New', monospace; }
+    .metric-value { font-size: 1.2rem; font-weight: bold; color: #FFFFFF; font-family: 'Courier New', monospace; }
     .news-container { height: 350px; overflow: hidden; position: relative; border-left: 2px solid #1E90FF; padding-left: 10px; }
     .news-scroll { animation: scroll-up 35s linear infinite; }
     .news-scroll:hover { animation-play-state: paused; }
@@ -57,41 +54,43 @@ def get_stock_news(ticker):
         return stock.news[:8]
     except: return []
 
-# --- 5. DATENSTRUKTUR ---
-# Jetzt inklusive EUR/RUB
-SYMBOLS_GENERAL = ["EURUSD=X", "EURRUB=X", "^GDAXI", "BTC-USD"]
+# --- 5. DATENSTRUKTUR (Wiederhergestellte Indices) ---
+SYMBOLS_GENERAL = ["EURUSD=X", "EURRUB=X", "^GDAXI", "^STOXX50E", "^NSEI", "XU100.IS"]
+
 STOCKS_BY_INDEX = {
-    "DAX": ["SAP.DE", "SIE.DE", "ALV.DE"],
-    "NASDAQ": ["AAPL", "MSFT", "NVDA"],
+    "DAX": ["SAP.DE", "SIE.DE", "ALV.DE", "DTE.DE"],
+    "NASDAQ": ["AAPL", "MSFT", "NVDA", "TSLA"],
+    "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE"],
+    "BIST 100": ["THYAO.IS", "ASELS.IS", "KCHOL.IS"],
+    "Nifty 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS"]
 }
 
 # --- 6. DASHBOARD ---
 st.title("🚀 Bio-Trading Monitor Pro")
 
-# SEKTION 1: MARKT-WETTER (Mit 5 Nachkommastellen für FX)
-st.subheader("1. Markt-Wetter")
+# SEKTION 1: MARKT-WETTER
+st.subheader("1. Globales Markt-Framework")
 cols = st.columns(len(SYMBOLS_GENERAL))
 
 for i, ticker in enumerate(SYMBOLS_GENERAL):
     df = get_market_data(ticker, period="5d")
-    if not df.empty:
+    if not df.empty and len(df) >= 2:
         last_price = float(df['Close'].iloc[-1])
         change = ((last_price / df['Close'].iloc[-2]) - 1) * 100
         weather = "☀️" if change > 0 else "🌧️"
         color = "#00FFA3" if change > 0 else "#FF4B4B"
         full_name = TICKER_NAMES.get(ticker, ticker)
         
-        # LOGIK FÜR NACHKOMMASTELLEN:
-        # Wenn "=X" im Ticker (Währungen), dann 5 Stellen, sonst 2.
+        # Präzision: 5 Stellen für Währungen, 2 für Indizes
         format_str = "{:,.5f}" if "=X" in ticker else "{:,.2f}"
         val_display = format_str.format(last_price)
 
         with cols[i]:
             st.markdown(f"""
                 <div class="market-card">
-                    <div style="font-size:0.85rem; color:#8892b0; margin-bottom:5px;">{weather} {full_name}</div>
+                    <div style="font-size:0.8rem; color:#8892b0; margin-bottom:5px;">{weather} {full_name}</div>
                     <div class="metric-value">{val_display}</div>
-                    <div style="color:{color}; font-size:0.9rem; margin-top:5px;">{change:+.2f}%</div>
+                    <div style="color:{color}; font-size:0.85rem; margin-top:5px;">{change:+.2f}%</div>
                 </div>
             """, unsafe_allow_html=True)
 
@@ -100,7 +99,7 @@ st.divider()
 c_main, c_news = st.columns([2, 1]) 
 
 with c_main:
-    st.subheader("2. Deep-Dive Analyse")
+    st.subheader("2. Deep-Dive & Signale")
     idx_col, stock_col = st.columns(2)
     selected_idx = idx_col.selectbox("Index wählen:", list(STOCKS_BY_INDEX.keys()))
     selected_stock = stock_col.selectbox(
@@ -114,7 +113,7 @@ with c_main:
         curr_p = float(data['Close'].iloc[-1])
         mom = data['Close'].iloc[-1] - data['Close'].iloc[-14]
         
-        # Monte Carlo Simulation Plot
+        # Monte Carlo Simulation
         plt.style.use('dark_background')
         fig, ax = plt.subplots(figsize=(10, 4))
         fig.patch.set_facecolor('#0E1117')
@@ -130,14 +129,14 @@ with c_main:
 
         # AKTIONSSYMBOLE
         prob_up = (np.array(sim_ends) > curr_p).mean() * 100
-        stock_display_name = TICKER_NAMES.get(selected_stock, selected_stock)
+        stock_name = TICKER_NAMES.get(selected_stock, selected_stock)
         
         if mom > 0 and prob_up > 55:
-            st.success(f"🟢 **AKTION: KAUFEN** ({stock_display_name} mit positivem Trend)")
+            st.success(f"🟢 **AKTION: KAUFEN** ({stock_name} mit Aufwärts-Momentum)")
         elif mom < 0 and prob_up < 45:
-            st.error(f"🔴 **AKTION: VERKAUFEN** ({stock_display_name} mit negativem Trend)")
+            st.error(f"🔴 **AKTION: VERKAUFEN** ({stock_name} mit Abwärts-Trend)")
         else:
-            st.warning(f"🟡 **AKTION: HALTEN** (Neutrales Signal für {stock_display_name})")
+            st.warning(f"🟡 **AKTION: HALTEN** (Neutrales Umfeld)")
 
 with c_news:
     st.subheader(f"🗞️ {TICKER_NAMES.get(selected_stock, selected_stock)} News")
@@ -146,6 +145,6 @@ with c_news:
         html = ""
         for n in news_items:
             link = n.get('link') or n.get('resolvedUrl') or "#"
-            title = n.get('title', 'Kein Titel')
+            title = n.get('title', 'Nachricht')
             html += f'<div class="news-item"><a href="{link}" target="_blank" style="color:#1E90FF; text-decoration:none;">{title}</a></div>'
         st.markdown(f'<div class="news-container"><div class="news-scroll">{html}{html}</div></div>', unsafe_allow_html=True)
