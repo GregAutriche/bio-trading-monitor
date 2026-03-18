@@ -7,6 +7,8 @@ from streamlit_autorefresh import st_autorefresh
 
 # --- 1. SEITEN-KONFIGURATION ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
+
+# AUTO-REFRESH: Aktualisiert die gesamte App alle 60 Sekunden
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
 # --- 2. NAMENS-MAPPING (DAX 40 & NASDAQ) ---
@@ -24,7 +26,7 @@ TICKER_NAMES = {
     "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "TSLA": "Tesla", "AMZN": "Amazon", "META": "Meta"
 }
 
-# --- 3. DESIGN ---
+# --- 3. DESIGN: DUNKELBLAU & GLASSMORPHISM ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; background-image: linear-gradient(180deg, #0e1525 0%, #050a14 100%); color: #E0E0E0; }
@@ -54,8 +56,11 @@ def calculate_rsi(prices, window=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-# --- 5. MARKT-WETTER ---
+# --- 5. MARKT-WETTER (Top Bar) ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
+# ZEITSTEMPEL HINZUGEFÜGT:
+st.caption(f"Letztes Daten-Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Auto-Refresh: 60s")
+
 SYMBOLS_GEN = ["EURUSD=X", "EURRUB=X", "^GDAXI", "^STOXX50E"]
 cols = st.columns(len(SYMBOLS_GEN))
 for i, t in enumerate(SYMBOLS_GEN):
@@ -83,7 +88,7 @@ with c1:
     if not d_s.empty:
         cp = float(d_s['Close'].iloc[-1])
         plt.style.use('dark_background')
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [2, 1]})
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [3, 1]})
         fig.patch.set_facecolor('#0E1117')
         
         ax1.set_facecolor('#0E1117')
@@ -123,9 +128,8 @@ with c2:
 
 # --- 7. SCANNER (Standardmäßig geladen & hohe Präzision) ---
 st.divider()
-st.subheader("🎯 High-Prob Scanner (>75%)")
+st.subheader("🎯 High-Prob Scanner (Deep Analysis 1.000 Sims)")
 
-# Funktion für den Scan (1.000 Simulationen für hohe Präzision)
 def run_full_scan():
     all_results = []
     tickers_to_scan = DAX_ALL + NASDAQ_TOP
@@ -139,9 +143,9 @@ def run_full_scan():
             all_results.append({"Name": TICKER_NAMES.get(tkr, tkr), "Up_Prob": (sims > cp_sc).mean() * 100})
     return pd.DataFrame(all_results)
 
-# Initialer Scan oder Refresh
+# Initialer Scan beim Start oder per Button
 if 'scan_data' not in st.session_state or st.button("🚀 Markt manuell aktualisieren"):
-    with st.spinner('Präzisions-Analyse läuft (1.000 Simulationen pro Aktie)...'):
+    with st.spinner('Präzisions-Analyse läuft...'):
         st.session_state.scan_data = run_full_scan()
 
 df_res = st.session_state.scan_data
@@ -151,7 +155,6 @@ with rc:
     st.dataframe(df_res.sort_values(by="Up_Prob", ascending=False).head(5), hide_index=True)
 with rp:
     st.error("📉 Top 5 Put-Kandidaten")
-    # Berechnung der Down-Prob für die Anzeige
     puts = df_res.sort_values(by="Up_Prob", ascending=True).head(5).copy()
     puts['Down_Prob'] = 100 - puts['Up_Prob']
     st.dataframe(puts[['Name', 'Down_Prob']], hide_index=True)
