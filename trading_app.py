@@ -7,6 +7,8 @@ from streamlit_autorefresh import st_autorefresh
 
 # --- 1. SEITEN-KONFIGURATION ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
+
+# AUTO-REFRESH: Läuft im Hintergrund (ohne Anzeige)
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
 # --- 2. NAMENS-MAPPING ---
@@ -55,6 +57,7 @@ def calculate_rsi(prices, window=14):
 
 # --- 5. LAYOUT ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
+
 SYMBOLS_GEN = ["EURUSD=X", "EURRUB=X", "^GDAXI", "^STOXX50E"]
 cols = st.columns(len(SYMBOLS_GEN))
 for i, t in enumerate(SYMBOLS_GEN):
@@ -80,12 +83,10 @@ with c1:
     d_s = get_data(s_tkr, interval="4h")
     if not d_s.empty:
         cp = float(d_s['Close'].iloc[-1])
-        # Kombiniertes Chart-Layout
         plt.style.use('dark_background')
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [2, 1]})
         fig.patch.set_facecolor('#0E1117')
         
-        # Monte Carlo Prognose
         ax1.set_facecolor('#0E1117')
         ends = []
         for _ in range(50):
@@ -96,7 +97,6 @@ with c1:
         ax1.axhline(y=cp, color='white', linestyle='--', alpha=0.3)
         ax1.set_title("Monte Carlo Prognose (30 Tage)")
 
-        # RSI Indikator
         ax2.set_facecolor('#0E1117')
         rsi_series = calculate_rsi(d_s['Close'])
         current_rsi = float(rsi_series.iloc[-1])
@@ -109,22 +109,19 @@ with c1:
         plt.tight_layout()
         st.pyplot(fig)
         
-        # KOMBINIERTE LOGIK FÜR SIGNALE
         prob_up = (np.array(ends) > cp).mean() * 100
-        
         if prob_up > 60 and current_rsi < 40:
             st.success(f"🟢 **SIGNAL: KAUFEN** (Monte Carlo {prob_up:.1f}% & RSI {current_rsi:.1f} günstig)")
         elif prob_up < 40 and current_rsi > 60:
             st.error(f"🔴 **SIGNAL: VERKAUFEN** (Monte Carlo niedrig & RSI {current_rsi:.1f} überkauft)")
         else:
-            st.warning(f"🟡 **SIGNAL: NEUTRAL** (Keine klare Übereinstimmung)")
+            st.warning(f"🟡 **SIGNAL: NEUTRAL**")
 
 with c2:
     st.subheader("🗞️ News Ticker")
     s_obj = yf.Ticker(s_tkr)
     n_list = [n for n in s_obj.news if n.get('title')]
     if n_list:
-        # KORREKTUR: News-HTML-Bau ohne Syntax-Fehler
         news_items_list = []
         for n in n_list:
             t = n.get('title', '')
