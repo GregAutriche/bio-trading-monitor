@@ -9,7 +9,7 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. NAMENS-MAPPING MIT LÄNDER-KÜRZELN ---
+# --- 2. NAMENS-MAPPING ---
 TICKER_NAMES = {
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", 
     "^GDAXI": "DAX Index (DE)", "^STOXX50E": "EuroStoxx 50 (EU)", 
@@ -61,7 +61,7 @@ def calculate_rsi(prices, window=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-# --- 5. MARKT-FRAMEWORK (Reihenweise getrennt) ---
+# --- 5. MARKT-FRAMEWORK ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 st.caption(f"Letztes Daten-Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Auto-Refresh: 60s")
 
@@ -108,11 +108,9 @@ with c1:
     if not d_s.empty:
         cp = float(d_s['Close'].iloc[-1])
         plt.style.use('dark_background')
-        # FIX: height_ratios mit Werten befüllt
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [2, 1]})
         fig.patch.set_facecolor('#0E1117')
         
-        # Monte Carlo
         ax1.set_facecolor('#0E1117')
         log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1))
         vol = log_returns.std()
@@ -124,7 +122,6 @@ with c1:
             ends.append(p[-1])
         ax1.axhline(y=cp, color='white', linestyle='--', alpha=0.3); ax1.set_title("Monte Carlo Prognose")
 
-        # RSI
         ax2.set_facecolor('#0E1117')
         rsi_series = calculate_rsi(d_s['Close'])
         ax2.plot(rsi_series.values, color='#1E90FF', linewidth=1.5)
@@ -146,30 +143,52 @@ with c2:
         st.markdown(f'<div class="news-container"><div class="news-scroll">{"".join(h_list)*2}</div></div>', unsafe_allow_html=True)
     else: st.info("Keine News verfügbar.")
 
-# --- 7. SCANNER ---
+# --- 7. SCANNER (Mit Stop-Loss Logik) ---
 st.divider()
 st.subheader("🎯 High-Prob Scanner (1.000 Sims)")
+
+def run_full_scan():
+    all_results = []
+    scan_list = []
+    for l in STOCKS_DICT.values(): scan_list.extend(l)
+    
+    for tkr in scan_list:
+        df_sc = get_data(tkr, period="60d")
+        if not df_sc.empty:
+            cp_sc = float(df_sc['Close'].iloc[-1])
+            returns = df_sc['Close'].pct_change().dropna()
+            v = returns.std()
+            sims = cp_sc * np.exp(np.random.normal(0, v, 1000) * np.sqrt(30))
+            
+            # SL Berechnung (1 Sigma Abweichung)
+            sl_call = cp_sc * (1 - v)
+            sl_put = cp_sc * (1 + v)
+            
+            all_results.append({
+                "Name": TICKER_NAMES.get(tkr, tkr), 
+                "Up_Prob": (sims > cp_sc).mean() * 100,
+                "Price": cp_sc,
+                "SL_Call": sl_call,
+                "SL_Put": sl_put
+            })
+    return pd.DataFrame(all_results)
+
 if 'scan_data' not in st.session_state or st.button("🚀 Markt manuell aktualisieren"):
     with st.spinner('Präzisions-Analyse läuft...'):
-        all_results = []
-        scan_list = []
-        for l in STOCKS_DICT.values(): scan_list.extend(l)
-        for tkr in scan_list:
-            df_sc = get_data(tkr, period="60d")
-            if not df_sc.empty:
-                cp_sc = float(df_sc['Close'].iloc[-1])
-                v = np.log(df_sc['Close'] / df_sc['Close'].shift(1)).std()
-                sims = cp_sc * np.exp(np.random.normal(0, v, 1000) * np.sqrt(30))
-                all_results.append({"Name": TICKER_NAMES.get(tkr, tkr), "Up_Prob": (sims > cp_sc).mean() * 100})
-        st.session_state.scan_data = pd.DataFrame(all_results)
+        st.session_state.scan_data = run_full_scan()
 
 df_res = st.session_state.scan_data
 rc, rp = st.columns(2)
+
 with rc:
     st.success("📈 Top 5 Call-Kandidaten")
-    st.dataframe(df_res.sort_values(by="Up_Prob", ascending=False).head(5), hide_index=True)
+    calls = df_res.sort_values(by="Up_Prob", ascending=False).head(5).copy()
+    calls['SL (Stop-Loss)'] = calls['SL_Call'].map('{:,.2f}'.format)
+    st.dataframe(calls[['Name', 'Up_Prob', 'SL (Stop-Loss)']], hide_index=True)
+
 with rp:
     st.error("📉 Top 5 Put-Kandidaten")
     puts = df_res.sort_values(by="Up_Prob", ascending=True).head(5).copy()
     puts['Down_Prob'] = 100 - puts['Up_Prob']
-    st.dataframe(puts[['Name', 'Down_Prob']], hide_index=True)
+    puts['SL (Stop-Loss)'] = puts['SL_Put'].map('{:,.2f}'.format)
+    st.dataframe(puts[['Name', 'Down_Prob', 'SL (Stop-Loss)']], hide_index=True)
