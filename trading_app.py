@@ -50,6 +50,17 @@ if len(df) >= 2:
     
     # Anzeige mit eckigen Klammern bei iloc
     cols[i].metric(name, f"{last_price:.2f}", f"{change:.2f}%")
+if not df.empty and len(df) >= 2:
+    # .iloc[-1] gibt den letzten Wert als Zahl zurück (Wichtig: eckige Klammern!)
+    last_price = float(df['Close'].iloc[-1])
+    prev_price = float(df['Close'].iloc[-2])
+    change = ((last_price / prev_price) - 1) * 100
+    
+    # Anzeige in der Spalte
+    cols[i].metric(name, f"{last_price:.2f}", f"{change:.2f}%")
+else:
+    # Falls keine Daten kommen (z.B. Wochenende oder falsches Kürzel)
+    cols[i].metric(name, "N/A", "Keine Daten")
 else:
     cols[i].metric(name, "N/A")
 
