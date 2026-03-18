@@ -8,7 +8,7 @@ from streamlit_autorefresh import st_autorefresh
 # --- 1. SEITEN-KONFIGURATION ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 
-# AUTO-REFRESH: Läuft im Hintergrund (ohne Anzeige)
+# AUTO-REFRESH: Aktiv im Hintergrund (60s), aber ohne UI-Anzeige
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
 # --- 2. NAMENS-MAPPING ---
@@ -36,6 +36,7 @@ st.markdown("""
     .news-scroll { animation: scroll-up 45s linear infinite; }
     .news-item { margin-bottom: 12px; font-size: 0.85rem; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; }
     @keyframes scroll-up { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
+    h1, h2, h3 { color: #FFFFFF !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -58,12 +59,14 @@ def calculate_rsi(prices, window=14):
 # --- 5. LAYOUT ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
+# Sektion 1: Markt-Framework
 SYMBOLS_GEN = ["EURUSD=X", "EURRUB=X", "^GDAXI", "^STOXX50E"]
 cols = st.columns(len(SYMBOLS_GEN))
 for i, t in enumerate(SYMBOLS_GEN):
     df = get_data(t, period="5d")
     if not df.empty:
-        last = float(df['Close'].iloc[-1]); chg = ((last / df['Close'].iloc[-2]) - 1) * 100
+        last = float(df['Close'].iloc[-1])
+        chg = ((last / df['Close'].iloc[-2]) - 1) * 100
         fmt = "{:,.5f}" if "=X" in t else "{:,.2f}"
         with cols[i]:
             st.markdown(f'<div class="market-card"><div style="font-size:0.75rem; color:#8892b0;">{TICKER_NAMES.get(t,t)}</div>'
@@ -84,9 +87,10 @@ with c1:
     if not d_s.empty:
         cp = float(d_s['Close'].iloc[-1])
         plt.style.use('dark_background')
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [2, 1]})
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [3, 1]})
         fig.patch.set_facecolor('#0E1117')
         
+        # Monte Carlo
         ax1.set_facecolor('#0E1117')
         ends = []
         for _ in range(50):
@@ -97,6 +101,7 @@ with c1:
         ax1.axhline(y=cp, color='white', linestyle='--', alpha=0.3)
         ax1.set_title("Monte Carlo Prognose (30 Tage)")
 
+        # RSI
         ax2.set_facecolor('#0E1117')
         rsi_series = calculate_rsi(d_s['Close'])
         current_rsi = float(rsi_series.iloc[-1])
@@ -109,11 +114,12 @@ with c1:
         plt.tight_layout()
         st.pyplot(fig)
         
+        # Kombiniertes Signal
         prob_up = (np.array(ends) > cp).mean() * 100
         if prob_up > 60 and current_rsi < 40:
-            st.success(f"🟢 **SIGNAL: KAUFEN** (Monte Carlo {prob_up:.1f}% & RSI {current_rsi:.1f} günstig)")
+            st.success(f"🟢 **SIGNAL: KAUFEN** (Monte Carlo {prob_up:.1f}% | RSI {current_rsi:.1f})")
         elif prob_up < 40 and current_rsi > 60:
-            st.error(f"🔴 **SIGNAL: VERKAUFEN** (Monte Carlo niedrig & RSI {current_rsi:.1f} überkauft)")
+            st.error(f"🔴 **SIGNAL: VERKAUFEN** (Monte Carlo niedrig | RSI {current_rsi:.1f})")
         else:
             st.warning(f"🟡 **SIGNAL: NEUTRAL**")
 
