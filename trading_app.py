@@ -134,6 +134,16 @@ with c2:
     st.subheader(f"🗞️ {TICKER_NAMES.get(s_tkr, s_tkr)} News")
     n_list = get_news(s_tkr)
     if n_list:
-        h = "".join(}..</a></div>' for i in n_list])
-        st.markdown(f'<div class="news-container"><div class="news-scroll">{h}{h}</div></div>', unsafe_allow_html=True)
-    else: st.info("Keine News.")
+        # Sauber formatierte News-Liste ohne Syntax-Fehler
+        news_items_html = ""
+        for i in n_list:
+            link = i.get("link", "#")
+            title = i.get("title", "Kein Titel")
+            # Titel kürzen für den Ticker
+            display_title = (title[:85] + '..') if len(title) > 85 else title
+            news_items_html += f'<div class="news-item"><a href="{link}" target="_blank" style="color:#1E90FF; text-decoration:none;">{display_title}</a></div>'
+        
+        # HTML für den Ticker-Loop zusammenbauen
+        st.markdown(f'<div class="news-container"><div class="news-scroll">{news_items_html}{news_items_html}</div></div>', unsafe_allow_html=True)
+    else:
+        st.info("Keine News für diesen Wert gefunden.")
