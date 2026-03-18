@@ -11,8 +11,8 @@ st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
 # --- 2. NAMENS-MAPPING ---
 TICKER_NAMES = {
-    "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX Index", 
-    "^STOXX50E": "EuroStoxx 50", "^NSEI": "Nifty 50", "XU100.IS": "BIST 100",
+    "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", 
+    "^GDAXI": "DAX Index", "^STOXX50E": "EuroStoxx 50", "^NSEI": "Nifty 50", "XU100.IS": "BIST 100",
     "ADS.DE": "Adidas", "AIR.DE": "Airbus", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer",
     "BMW.DE": "BMW", "CON.DE": "Continental", "1COV.DE": "Covestro", "DTG.DE": "Daimler Truck",
     "DBK.DE": "Deutsche Bank", "DB1.DE": "Deutsche Börse", "LHA.DE": "Lufthansa", "DTE.DE": "Telekom",
@@ -31,7 +31,7 @@ TICKER_NAMES = {
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; background-image: linear-gradient(180deg, #0e1525 0%, #050a14 100%); color: #E0E0E0; }
-    .market-card { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(8px); }
+    .market-card { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(8px); margin-bottom: 10px; }
     .metric-value { font-size: 1.1rem; font-weight: bold; color: #FFFFFF; font-family: 'Courier New', monospace; }
     .news-container { height: 350px; overflow: hidden; position: relative; border-left: 2px solid #1E90FF; padding-left: 12px; }
     .news-scroll { animation: scroll-up 45s linear infinite; }
@@ -57,31 +57,43 @@ def calculate_rsi(prices, window=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-# --- 5. MARKT-WETTER (Inkl. BIST & NIFTY) ---
+# --- 5. MARKT-FRAMEWORK (REIHE 1: FX | REIHE 2: INDIZES) ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 st.caption(f"Letztes Daten-Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Auto-Refresh: 60s")
 
-SYMBOLS_GEN = ["EURUSD=X", "EURRUB=X", "^GDAXI", "^STOXX50E", "^NSEI", "XU100.IS"]
-cols = st.columns(len(SYMBOLS_GEN))
-for i, t in enumerate(SYMBOLS_GEN):
+# REIHE 1: WÄHRUNGEN
+st.subheader("💱 Währungen (Forex)")
+SYMBOLS_FX = ["EURUSD=X", "EURRUB=X"]
+cols_fx = st.columns(len(SYMBOLS_FX))
+for i, t in enumerate(SYMBOLS_FX):
     df = get_data(t, period="5d")
     if not df.empty:
         last = float(df['Close'].iloc[-1]); chg = ((last / df['Close'].iloc[-2]) - 1) * 100
-        fmt = "{:,.5f}" if "=X" in t else "{:,.2f}"
-        with cols[i]:
+        with cols_fx[i]:
             st.markdown(f'<div class="market-card"><div style="font-size:0.75rem; color:#8892b0;">{TICKER_NAMES.get(t,t)}</div>'
-                        f'<div class="metric-value">{fmt.format(last)}</div>'
+                        f'<div class="metric-value">{last:,.5f}</div>'
+                        f'<div style="color:{"#00FFA3" if chg>0 else "#FF4B4B"}; font-size:0.85rem;">{chg:+.2f}%</div></div>', unsafe_allow_html=True)
+
+# REIHE 2: INDIZES
+st.subheader("📈 Markt-Indizes")
+SYMBOLS_INDICES = ["^GDAXI", "^STOXX50E", "^NSEI", "XU100.IS"]
+cols_ind = st.columns(len(SYMBOLS_INDICES))
+for i, t in enumerate(SYMBOLS_INDICES):
+    df = get_data(t, period="5d")
+    if not df.empty:
+        last = float(df['Close'].iloc[-1]); chg = ((last / df['Close'].iloc[-2]) - 1) * 100
+        with cols_ind[i]:
+            st.markdown(f'<div class="market-card"><div style="font-size:0.75rem; color:#8892b0;">{TICKER_NAMES.get(t,t)}</div>'
+                        f'<div class="metric-value">{last:,.2f}</div>'
                         f'<div style="color:{"#00FFA3" if chg>0 else "#FF4B4B"}; font-size:0.85rem;">{chg:+.2f}%</div></div>', unsafe_allow_html=True)
 
 # --- 6. DEEP-DIVE ANALYSE ---
 st.divider()
 c1, c2 = st.columns(2)
 with c1:
-    st.subheader("📊 Chart & Indikatoren")
+    st.subheader("📊 Deep-Dive Chart")
     ca, cb = st.columns(2)
     s_idx = ca.selectbox("Markt:", ["DAX 40", "NASDAQ Tech", "BIST 100", "Nifty 50"])
-    
-    # Dynamische Ticker-Listen
     STOCKS_DICT = {
         "DAX 40": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
         "NASDAQ Tech": ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "META"],
@@ -107,7 +119,7 @@ with c1:
             for _ in range(30): p.append(p[-1] * np.exp(np.random.normal(0, vol)))
             ax1.plot(p, color='#00FFA3' if p[-1] > cp else '#FF4B4B', alpha=0.1)
             ends.append(p[-1])
-        ax1.axhline(y=cp, color='white', linestyle='--', alpha=0.3); ax1.set_title("Monte Carlo Prognose")
+        ax1.axhline(y=cp, color='white', linestyle='--', alpha=0.3); ax1.set_title("Prognose")
 
         # RSI
         ax2.set_facecolor('#0E1117')
@@ -131,7 +143,7 @@ with c2:
         st.markdown(f'<div class="news-container"><div class="news-scroll">{"".join(h_list)*2}</div></div>', unsafe_allow_html=True)
     else: st.info("Keine News verfügbar.")
 
-# --- 7. SCANNER (Standardmäßig geladen) ---
+# --- 7. SCANNER (Vollständig geladen) ---
 st.divider()
 st.subheader("🎯 High-Prob Scanner (Deep Analysis 1.000 Sims)")
 
