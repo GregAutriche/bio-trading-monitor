@@ -3,141 +3,137 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from streamlit_autorefresh import st_autorefresh # NEU: Für die Automatisierung
+from streamlit_autorefresh import st_autorefresh
 
 # --- 1. SEITEN-KONFIGURATION ---
-st.set_page_config(page_title="Bio-Trading Monitor Live", layout="wide")
+st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 
-# AUTO-REFRESH: Die Seite lädt sich alle 60 Sekunden (60000ms) von selbst neu
-count = st_autorefresh(interval=60000, limit=1000, key="fscounter")
+# AUTO-REFRESH: Alle 60 Sekunden
+st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. NAMENS-MAPPING (Ticker -> Klarname) ---
+# --- 2. VOLLSTÄNDIGES NAMENS-MAPPING (DAX 40 & NASDAQ Top) ---
 TICKER_NAMES = {
+    # Forex & Indices
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB",
     "^GDAXI": "DAX Index", "^STOXX50E": "EuroStoxx 50",
     "^NSEI": "Nifty 50", "XU100.IS": "BIST 100",
-    "SAP.DE": "SAP SE", "SIE.DE": "Siemens AG", "ALV.DE": "Allianz SE", "DTE.DE": "Deutsche Telekom",
-    "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp.", "NVDA": "Nvidia Corp.", "TSLA": "Tesla Inc.", "AMZN": "Amazon.com"
+    
+    # DAX 40 (Auswahl der wichtigsten & neuen Werte 2026)
+    "ADS.DE": "Adidas", "AIR.DE": "Airbus", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer",
+    "BMW.DE": "BMW", "CON.DE": "Continental", "1COV.DE": "Covestro", "DTG.DE": "Daimler Truck",
+    "DBK.DE": "Deutsche Bank", "DB1.DE": "Deutsche Börse", "LHA.DE": "Lufthansa", "DTE.DE": "Telekom",
+    "EON.DE": "E.ON", "FME.DE": "Fresenius Med.", "FRE.DE": "Fresenius SE", "HLAG.DE": "Hapag-Lloyd",
+    "HNR1.DE": "Hannover Rück", "HEI.DE": "Heidelberg Materials", "HFG.DE": "HelloFresh", "HEN3.DE": "Henkel",
+    "IFX.DE": "Infineon", "MBG.DE": "Mercedes-Benz", "MRK.DE": "Merck KGaA", "MTX.DE": "MTU Aero",
+    "MUV2.DE": "Münchener Rück", "PUM.DE": "Puma", "RHM.DE": "Rheinmetall", "RWE.DE": "RWE",
+    "SAP.DE": "SAP SE", "SIE.DE": "Siemens AG", "SRT3.DE": "Sartorius", "SHL.DE": "Siemens Health",
+    "SY1.DE": "Symrise", "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia", "ZAL.DE": "Zalando",
+
+    # NASDAQ 100 Top-Werte
+    "AAPL": "Apple Inc.", "MSFT": "Microsoft", "NVDA": "Nvidia", "TSLA": "Tesla", "AMZN": "Amazon",
+    "GOOGL": "Alphabet (Google)", "META": "Meta Platforms", "AVGO": "Broadcom", "COST": "Costco",
+    "NFLX": "Netflix", "AMD": "AMD", "INTC": "Intel", "PYPL": "PayPal"
 }
 
-# --- 3. DESIGN: DUNKELBLAU & GLASSMORPHISM ---
+# --- 3. DESIGN ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; background-image: linear-gradient(180deg, #0e1525 0%, #050a14 100%); color: #E0E0E0; }
     .market-card {
-        background: rgba(255, 255, 255, 0.03); border-radius: 12px; padding: 15px; margin-bottom: 15px;
-        border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); transition: transform 0.2s;
+        background: rgba(255, 255, 255, 0.03); border-radius: 12px; padding: 15px; margin-bottom: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(8px); transition: 0.2s;
     }
-    .market-card:hover { transform: translateY(-3px); border: 1px solid rgba(30, 144, 255, 0.4); }
-    .metric-value { font-size: 1.2rem; font-weight: bold; color: #FFFFFF; font-family: 'Courier New', monospace; }
-    .news-container { height: 380px; overflow: hidden; position: relative; border-left: 2px solid #1E90FF; padding-left: 12px; }
-    .news-scroll { animation: scroll-up 35s linear infinite; }
+    .metric-value { font-size: 1.15rem; font-weight: bold; color: #FFFFFF; font-family: 'Courier New', monospace; }
+    .news-container { height: 400px; overflow: hidden; border-left: 2px solid #1E90FF; padding-left: 12px; }
+    .news-scroll { animation: scroll-up 40s linear infinite; }
     .news-scroll:hover { animation-play-state: paused; }
-    .news-item { margin-bottom: 18px; font-size: 0.85rem; background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 8px; }
+    .news-item { margin-bottom: 15px; font-size: 0.85rem; background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 8px; }
     @keyframes scroll-up { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
-    h1, h2, h3 { color: #FFFFFF !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. FUNKTIONEN (Cache auf 60 Sek reduziert für Live-Gefühl) ---
-@st.cache_data(ttl=60) 
-def get_market_data(ticker, interval="1d", period="60d"):
+# --- 4. FUNKTIONEN ---
+@st.cache_data(ttl=60)
+def get_data(ticker, period="60d", interval="1d"):
     try:
-        data = yf.download(ticker, period=period, interval=interval, progress=False)
-        if isinstance(data.columns, pd.MultiIndex): data.columns = data.columns.get_level_values(0)
-        return data
+        d = yf.download(ticker, period=period, interval=interval, progress=False)
+        if isinstance(d.columns, pd.MultiIndex): d.columns = d.columns.get_level_values(0)
+        return d
     except: return pd.DataFrame()
 
 @st.cache_data(ttl=600)
-def get_stock_news(ticker):
+def get_news(ticker):
     try:
-        stock = yf.Ticker(ticker)
-        valid = [n for n in stock.news if n.get('title') or n.get('summary')]
-        return valid[:10]
+        s = yf.Ticker(ticker)
+        return [n for n in s.news if n.get('title')][:12]
     except: return []
 
-# --- 5. DATENSTRUKTUR (Indices wie vereinbart) ---
+# --- 5. STRUKTUR ---
 SYMBOLS_GENERAL = ["EURUSD=X", "EURRUB=X", "^GDAXI", "^STOXX50E", "^NSEI", "XU100.IS"]
 STOCKS_BY_INDEX = {
-    "DAX": ["SAP.DE", "SIE.DE", "ALV.DE", "DTE.DE"],
-    "NASDAQ": ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN"],
-    "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE"],
+    "DAX (Alle 40)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
+    "NASDAQ (Top Tech)": ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "GOOGL", "META", "AVGO", "NFLX", "AMD"],
+    "EuroStoxx 50": ["ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "SIE.DE"],
     "BIST 100": ["THYAO.IS", "ASELS.IS", "KCHOL.IS"],
     "Nifty 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS"]
 }
 
-# --- 6. DASHBOARD LAYOUT ---
-st.title("🚀 Bio-Trading Monitor Live")
-st.caption(f"Letztes Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Automatische Aktualisierung aktiv")
+# --- 6. LAYOUT ---
+st.title("🚀 Bio-Trading Monitor Live PRO")
+st.caption(f"Status: Live | Letztes Daten-Update: {pd.Timestamp.now().strftime('%H:%M:%S')}")
 
-# SEKTION 1: GLOBALER MARKT-FRAMEWORK
+# SEKTION 1: MARKT-WETTER
 cols = st.columns(len(SYMBOLS_GENERAL))
-for i, ticker in enumerate(SYMBOLS_GENERAL):
-    df = get_market_data(ticker, period="5d")
-    if not df.empty and len(df) >= 2:
-        last_p = float(df['Close'].iloc[-1])
-        change = ((last_p / df['Close'].iloc[-2]) - 1) * 100
-        weather = "☀️" if change > 0 else "🌧️"
-        color = "#00FFA3" if change > 0 else "#FF4B4B"
-        fmt = "{:,.5f}" if "=X" in ticker else "{:,.2f}"
-        
+for i, t in enumerate(SYMBOLS_GENERAL):
+    df = get_data(t, period="5d")
+    if not df.empty:
+        last = float(df['Close'].iloc[-1])
+        chg = ((last / df['Close'].iloc[-2]) - 1) * 100
+        fmt = "{:,.5f}" if "=X" in t else "{:,.2f}"
         with cols[i]:
-            st.markdown(f"""
-                <div class="market-card">
-                    <div style="font-size:0.8rem; color:#8892b0;">{weather} {TICKER_NAMES.get(ticker, ticker)}</div>
-                    <div class="metric-value">{fmt.format(last_p)}</div>
-                    <div style="color:{color}; font-size:0.85rem;">{change:+.2f}%</div>
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div class="market-card"><div style="font-size:0.75rem; color:#8892b0;">{"☀️" if chg>0 else "🌧️"} {TICKER_NAMES.get(t,t)}</div>'
+                        f'<div class="metric-value">{fmt.format(last)}</div>'
+                        f'<div style="color:{"#00FFA3" if chg>0 else "#FF4B4B"}; font-size:0.8rem;">{chg:+.2f}%</div></div>', unsafe_allow_html=True)
 
-# SEKTION 2: ANALYSE & NEWS
+# SEKTION 2: ANALYSE
 st.divider()
-c_main, c_news = st.columns([2, 1]) 
+c1, c2 = st.columns([2, 1])
 
-with c_main:
-    st.subheader("2. Deep-Dive Analyse")
-    col_a, col_b = st.columns(2)
-    sel_idx = col_a.selectbox("Index:", list(STOCKS_BY_INDEX.keys()))
-    sel_stock = col_b.selectbox("Aktie:", STOCKS_BY_INDEX[sel_idx], format_func=lambda x: TICKER_NAMES.get(x, x))
+with c1:
+    st.subheader("📊 Deep-Dive Analyse")
+    ca, cb = st.columns(2)
+    s_idx = ca.selectbox("Index wählen:", list(STOCKS_BY_INDEX.keys()))
+    s_tkr = cb.selectbox("Aktie wählen:", STOCKS_BY_INDEX[s_idx], format_func=lambda x: TICKER_NAMES.get(x, x))
     
-    data = get_market_data(sel_stock, interval="4h")
-    if not data.empty:
-        curr_p = float(data['Close'].iloc[-1])
-        mom = data['Close'].iloc[-1] - data['Close'].iloc[-14]
+    d_stock = get_data(s_tkr, interval="4h")
+    if not d_stock.empty:
+        cp = float(d_stock['Close'].iloc[-1])
+        mom = d_stock['Close'].iloc[-1] - d_stock['Close'].iloc[-14]
         
-        # Monte Carlo Plot
+        # Monte Carlo
         plt.style.use('dark_background')
         fig, ax = plt.subplots(figsize=(10, 4))
         fig.patch.set_facecolor('#0E1117')
         ax.set_facecolor('#0E1117')
-        sim_ends = []
-        for _ in range(60):
-            p = [curr_p]
-            for _ in range(30): p.append(p[-1] * (1 + np.random.normal(0, data['Close'].pct_change().std())))
-            ax.plot(p, color='#00FFA3' if p[-1] > curr_p else '#FF4B4B', alpha=0.15)
-            sim_ends.append(p[-1])
-        ax.axhline(y=curr_p, color='white', linestyle='--', alpha=0.3)
+        ends = []
+        for _ in range(70):
+            p = [cp]
+            for _ in range(30): p.append(p[-1] * (1 + np.random.normal(0, d_stock['Close'].pct_change().std())))
+            ax.plot(p, color='#00FFA3' if p[-1] > cp else '#FF4B4B', alpha=0.12)
+            ends.append(p[-1])
+        ax.axhline(y=cp, color='white', linestyle='--', alpha=0.3)
         st.pyplot(fig)
 
-        # Aktions-Empfehlung
-        prob_up = (np.array(sim_ends) > curr_p).mean() * 100
-        s_name = TICKER_NAMES.get(sel_stock, sel_stock)
-        if mom > 0 and prob_up > 55:
-            st.success(f"🟢 **AKTION: KAUFEN** ({s_name} zeigt Aufwärts-Momentum)")
-        elif mom < 0 and prob_up < 45:
-            st.error(f"🔴 **AKTION: VERKAUFEN** ({s_name} im Abwärtstrend)")
-        else:
-            st.warning(f"🟡 **AKTION: HALTEN** (Neutrales Umfeld)")
+        prob_up = (np.array(ends) > cp).mean() * 100
+        n = TICKER_NAMES.get(s_tkr, s_tkr)
+        if mom > 0 and prob_up > 55: st.success(f"🟢 **KAUFEN:** {n} (Starker Trend)")
+        elif mom < 0 and prob_up < 45: st.error(f"🔴 **VERKAUFEN:** {n} (Abwärtstrend)")
+        else: st.warning(f"🟡 **HALTEN:** {n} (Seitwärts)")
 
-with c_news:
-    st.subheader(f"🗞️ {TICKER_NAMES.get(sel_stock, sel_stock)} News")
-    news_list = get_stock_news(sel_stock)
-    if news_list:
-        html_news = ""
-        for n in news_list:
-            link = n.get('link') or n.get('resolvedUrl') or "#"
-            title = n.get('title') or n.get('summary') or "Link zum Artikel"
-            html_news += f'<div class="news-item"><a href="{link}" target="_blank" style="color:#1E90FF; text-decoration:none;">{title[:80]}..</a></div>'
-        st.markdown(f'<div class="news-container"><div class="news-scroll">{html_news}{html_news}</div></div>', unsafe_allow_html=True)
-    else:
-        st.info("Keine News verfügbar.")
+with c2:
+    st.subheader(f"🗞️ {TICKER_NAMES.get(s_tkr, s_tkr)} News")
+    n_list = get_news(s_tkr)
+    if n_list:
+        h = "".join(}..</a></div>' for i in n_list])
+        st.markdown(f'<div class="news-container"><div class="news-scroll">{h}{h}</div></div>', unsafe_allow_html=True)
+    else: st.info("Keine News.")
