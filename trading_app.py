@@ -43,8 +43,15 @@ st.header("1. Markt-Framework (Allgemein)")
 cols = st.columns(len(SYMBOLS_GENERAL))
 for i, (name, ticker) in enumerate(SYMBOLS_GENERAL.items()):
     df = get_data(ticker, interval="1d", period="1mo")
-    change = ((df['Close'].iloc[-1] / df['Close'].iloc[0]) - 1) * 100
-    cols[i].metric(name, f"{df['Close'].iloc[-1]:.2f}", f"{change:.2f}%")
+if len(df) >= 2:
+    last_price = df['Close'].iloc[-1]
+    prev_price = df['Close'].iloc[-2]
+    change = ((last_price / prev_price) - 1) * 100
+    
+    # Anzeige mit eckigen Klammern bei iloc
+    cols[i].metric(name, f"{last_price:.2f}", f"{change:.2f}%")
+else:
+    cols[i].metric(name, "N/A")
 
 # SCHRITT 2: Deep Dive Einzelaktien
 st.header("2. Aktien-Analyse (H4 Momentum)")
