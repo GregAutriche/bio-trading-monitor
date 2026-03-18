@@ -9,22 +9,35 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. NAMENS-MAPPING ---
+# --- 2. NAMENS-MAPPING MIT LÄNDER-KÜRZELN ---
 TICKER_NAMES = {
+    # Forex & Indices
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", 
-    "^GDAXI": "DAX Index", "^STOXX50E": "EuroStoxx 50", "^NSEI": "Nifty 50", "XU100.IS": "BIST 100",
-    "ADS.DE": "Adidas", "AIR.DE": "Airbus", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer",
-    "BMW.DE": "BMW", "CON.DE": "Continental", "1COV.DE": "Covestro", "DTG.DE": "Daimler Truck",
-    "DBK.DE": "Deutsche Bank", "DB1.DE": "Deutsche Börse", "LHA.DE": "Lufthansa", "DTE.DE": "Telekom",
-    "EON.DE": "E.ON", "FME.DE": "Fresenius Med.", "FRE.DE": "Fresenius SE", "HLAG.DE": "Hapag-Lloyd",
-    "HNR1.DE": "Hannover Rück", "HEI.DE": "Heidelberg Materials", "HFG.DE": "HelloFresh", "HEN3.DE": "Henkel",
-    "IFX.DE": "Infineon", "MBG.DE": "Mercedes-Benz", "MRK.DE": "Merck KGaA", "MTX.DE": "MTU Aero",
-    "MUV2.DE": "Münchener Rück", "PUM.DE": "Puma", "RHM.DE": "Rheinmetall", "RWE.DE": "RWE",
-    "SAP.DE": "SAP SE", "SIE.DE": "Siemens AG", "SRT3.DE": "Sartorius", "SHL.DE": "Siemens Health",
-    "SY1.DE": "Symrise", "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia", "ZAL.DE": "Zalando",
-    "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "TSLA": "Tesla", "AMZN": "Amazon", "META": "Meta",
-    "THYAO.IS": "Turkish Airlines", "ASELS.IS": "Aselsan", "KCHOL.IS": "Koc Holding",
-    "RELIANCE.NS": "Reliance Ind.", "TCS.NS": "TCS", "HDFCBANK.NS": "HDFC Bank"
+    "^GDAXI": "DAX Index (DE)", "^STOXX50E": "EuroStoxx 50 (EU)", 
+    "^NSEI": "Nifty 50 (IN)", "XU100.IS": "BIST 100 (TR)",
+    
+    # DAX 40 (DE)
+    "ADS.DE": "Adidas (DE)", "AIR.DE": "Airbus (EU)", "ALV.DE": "Allianz (DE)", "BAS.DE": "BASF (DE)", 
+    "BAYN.DE": "Bayer (DE)", "BMW.DE": "BMW (DE)", "CON.DE": "Continental (DE)", "1COV.DE": "Covestro (DE)", 
+    "DTG.DE": "Daimler Truck (DE)", "DBK.DE": "Deutsche Bank (DE)", "DB1.DE": "Deutsche Börse (DE)", 
+    "LHA.DE": "Lufthansa (DE)", "DTE.DE": "Telekom (DE)", "EON.DE": "E.ON (DE)", 
+    "FME.DE": "Fresenius Med. (DE)", "FRE.DE": "Fresenius SE (DE)", "HLAG.DE": "Hapag-Lloyd (DE)",
+    "HNR1.DE": "Hannover Rück (DE)", "HEI.DE": "Heidelberg Materials (DE)", "HFG.DE": "HelloFresh (DE)", 
+    "HEN3.DE": "Henkel (DE)", "IFX.DE": "Infineon (DE)", "MBG.DE": "Mercedes-Benz (DE)", 
+    "MRK.DE": "Merck KGaA (DE)", "MTX.DE": "MTU Aero (DE)", "MUV2.DE": "Münchener Rück (DE)", 
+    "PUM.DE": "Puma (DE)", "RHM.DE": "Rheinmetall (DE)", "RWE.DE": "RWE (DE)", "SAP.DE": "SAP SE (DE)", 
+    "SIE.DE": "Siemens AG (DE)", "SRT3.DE": "Sartorius (DE)", "SHL.DE": "Siemens Health (DE)",
+    "SY1.DE": "Symrise (DE)", "VOW3.DE": "Volkswagen (DE)", "VNA.DE": "Vonovia (DE)", "ZAL.DE": "Zalando (DE)",
+    
+    # NASDAQ (US)
+    "AAPL": "Apple (US)", "MSFT": "Microsoft (US)", "NVDA": "Nvidia (US)", 
+    "TSLA": "Tesla (US)", "AMZN": "Amazon (US)", "META": "Meta (US)",
+    
+    # BIST 100 (TR)
+    "THYAO.IS": "Turkish Airlines (TR)", "ASELS.IS": "Aselsan (TR)", "KCHOL.IS": "Koc Holding (TR)",
+    
+    # Nifty 50 (IN)
+    "RELIANCE.NS": "Reliance Ind. (IN)", "TCS.NS": "TCS (IN)", "HDFCBANK.NS": "HDFC Bank (IN)"
 }
 
 # --- 3. DESIGN ---
@@ -57,11 +70,10 @@ def calculate_rsi(prices, window=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-# --- 5. MARKT-FRAMEWORK (REIHE 1: FX | REIHE 2: INDIZES) ---
+# --- 5. MARKT-FRAMEWORK (Reihenweise getrennt) ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 st.caption(f"Letztes Daten-Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Auto-Refresh: 60s")
 
-# REIHE 1: WÄHRUNGEN
 st.subheader("💱 Währungen (Forex)")
 SYMBOLS_FX = ["EURUSD=X", "EURRUB=X"]
 cols_fx = st.columns(len(SYMBOLS_FX))
@@ -74,7 +86,6 @@ for i, t in enumerate(SYMBOLS_FX):
                         f'<div class="metric-value">{last:,.5f}</div>'
                         f'<div style="color:{"#00FFA3" if chg>0 else "#FF4B4B"}; font-size:0.85rem;">{chg:+.2f}%</div></div>', unsafe_allow_html=True)
 
-# REIHE 2: INDIZES
 st.subheader("📈 Markt-Indizes")
 SYMBOLS_INDICES = ["^GDAXI", "^STOXX50E", "^NSEI", "XU100.IS"]
 cols_ind = st.columns(len(SYMBOLS_INDICES))
@@ -93,12 +104,13 @@ c1, c2 = st.columns(2)
 with c1:
     st.subheader("📊 Deep-Dive Chart")
     ca, cb = st.columns(2)
-    s_idx = ca.selectbox("Markt:", ["DAX 40", "NASDAQ Tech", "BIST 100", "Nifty 50"])
+    s_idx = ca.selectbox("Markt:", ["DAX 40 (DE)", "NASDAQ Tech (US)", "BIST 100 (TR)", "Nifty 50 (IN)"])
+    
     STOCKS_DICT = {
-        "DAX 40": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
-        "NASDAQ Tech": ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "META"],
-        "BIST 100": ["THYAO.IS", "ASELS.IS", "KCHOL.IS"],
-        "Nifty 50": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS"]
+        "DAX 40 (DE)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
+        "NASDAQ Tech (US)": ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "META"],
+        "BIST 100 (TR)": ["THYAO.IS", "ASELS.IS", "KCHOL.IS"],
+        "Nifty 50 (IN)": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS"]
     }
     s_tkr = cb.selectbox("Wert:", STOCKS_DICT[s_idx], format_func=lambda x: TICKER_NAMES.get(x,x))
     
@@ -106,7 +118,7 @@ with c1:
     if not d_s.empty:
         cp = float(d_s['Close'].iloc[-1])
         plt.style.use('dark_background')
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [3, 1]})
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios':})
         fig.patch.set_facecolor('#0E1117')
         
         # Monte Carlo
@@ -119,7 +131,7 @@ with c1:
             for _ in range(30): p.append(p[-1] * np.exp(np.random.normal(0, vol)))
             ax1.plot(p, color='#00FFA3' if p[-1] > cp else '#FF4B4B', alpha=0.1)
             ends.append(p[-1])
-        ax1.axhline(y=cp, color='white', linestyle='--', alpha=0.3); ax1.set_title("Prognose")
+        ax1.axhline(y=cp, color='white', linestyle='--', alpha=0.3); ax1.set_title("Monte Carlo Prognose")
 
         # RSI
         ax2.set_facecolor('#0E1117')
@@ -143,13 +155,15 @@ with c2:
         st.markdown(f'<div class="news-container"><div class="news-scroll">{"".join(h_list)*2}</div></div>', unsafe_allow_html=True)
     else: st.info("Keine News verfügbar.")
 
-# --- 7. SCANNER (Vollständig geladen) ---
+# --- 7. SCANNER ---
 st.divider()
-st.subheader("🎯 High-Prob Scanner (Deep Analysis 1.000 Sims)")
+st.subheader("🎯 High-Prob Scanner (1.000 Sims)")
 
 def run_full_scan():
     all_results = []
-    scan_list = STOCKS_DICT["DAX 40"] + STOCKS_DICT["NASDAQ Tech"] + STOCKS_DICT["BIST 100"] + STOCKS_DICT["Nifty 50"]
+    scan_list = []
+    for l in STOCKS_DICT.values(): scan_list.extend(l)
+    
     for tkr in scan_list:
         df_sc = get_data(tkr, period="60d")
         if not df_sc.empty:
