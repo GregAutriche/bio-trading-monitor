@@ -37,7 +37,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. FUNKTIONEN (Inkl. technischer Indikatoren) ---
+# --- 4. FUNKTIONEN ---
 @st.cache_data(ttl=60)
 def get_data(ticker, period="60d", interval="1d"):
     try:
@@ -46,8 +46,8 @@ def get_data(ticker, period="60d", interval="1d"):
         return d
     except: return pd.DataFrame()
 
-def calculate_rsi(data, window=14):
-    delta = data.diff()
+def calculate_rsi(prices, window=14):
+    delta = prices.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
     rs = gain / loss
@@ -80,12 +80,12 @@ with c1:
     d_s = get_data(s_tkr, interval="4h")
     if not d_s.empty:
         cp = float(d_s['Close'].iloc[-1])
-        # Monte Carlo Simulation
+        # Kombiniertes Chart-Layout
         plt.style.use('dark_background')
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [2, 1]})
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [3, 1]})
         fig.patch.set_facecolor('#0E1117')
         
-        # Oben: Monte Carlo Pfade
+        # Monte Carlo Prognose
         ax1.set_facecolor('#0E1117')
         ends = []
         for _ in range(50):
@@ -96,42 +96,59 @@ with c1:
         ax1.axhline(y=cp, color='white', linestyle='--', alpha=0.3)
         ax1.set_title("Monte Carlo Prognose (30 Tage)")
 
-        # Unten: RSI Indikator
+        # RSI Indikator
         ax2.set_facecolor('#0E1117')
-        rsi = calculate_rsi(d_s['Close'])
-        ax2.plot(rsi, color='#1E90FF', linewidth=1.5)
+        rsi_series = calculate_rsi(d_s['Close'])
+        current_rsi = float(rsi_series.iloc[-1])
+        ax2.plot(rsi_series.values, color='#1E90FF', linewidth=1.5)
         ax2.axhline(y=70, color='#FF4B4B', linestyle='--', alpha=0.5)
         ax2.axhline(y=30, color='#00FFA3', linestyle='--', alpha=0.5)
         ax2.set_ylim(0, 100)
-        ax2.set_title(f"RSI: {rsi.iloc[-1]:.1f}")
+        ax2.set_title(f"RSI: {current_rsi:.1f}")
         
         plt.tight_layout()
         st.pyplot(fig)
         
-        prob_up = (np.array(ends) > cp).mean()*100
-        st.info(f"Aufwärts-Wahrscheinlichkeit: {prob_up:.1f}%")
+        # KOMBINIERTE LOGIK FÜR SIGNALE
+        prob_up = (np.array(ends) > cp).mean() * 100
+        
+        if prob_up > 60 and current_rsi < 40:
+            st.success(f"🟢 **SIGNAL: KAUFEN** (Monte Carlo {prob_up:.1f}% & RSI {current_rsi:.1f} günstig)")
+        elif prob_up < 40 and current_rsi > 60:
+            st.error(f"🔴 **SIGNAL: VERKAUFEN** (Monte Carlo niedrig & RSI {current_rsi:.1f} überkauft)")
+        else:
+            st.warning(f"🟡 **SIGNAL: NEUTRAL** (Keine klare Übereinstimmung)")
 
 with c2:
     st.subheader("🗞️ News Ticker")
-    s = yf.Ticker(s_tkr)
-    n_list = [n for n in s.news if n.get('title')]
+    s_obj = yf.Ticker(s_tkr)
+    n_list = [n for n in s_obj.news if n.get('title')]
     if n_list:
-        news_html = "".join(}..</a></div>' for i in n_list])
-        st.markdown(f'<div class="news-container"><div class="news-scroll">{news_html}{news_html}</div></div>', unsafe_allow_html=True)
-    else: st.info("Keine News verfügbar.")
+        # KORREKTUR: News-HTML-Bau ohne Syntax-Fehler
+        news_items_list = []
+        for n in n_list:
+            t = n.get('title', '')
+            l = n.get('link', '#')
+            disp_t = (t[:75] + '..') if len(t) > 75 else t
+            news_items_list.append(f'<div class="news-item"><a href="{l}" target="_blank" style="color:#1E90FF; text-decoration:none;">{disp_t}</a></div>')
+        
+        full_news_html = "".join(news_items_list)
+        st.markdown(f'<div class="news-container"><div class="news-scroll">{full_news_html}{full_news_html}</div></div>', unsafe_allow_html=True)
+    else:
+        st.info("Keine News verfügbar.")
 
 # --- 6. SCANNER ---
 st.divider()
-st.subheader("🎯 High-Prob Options Scanner (>75%)")
-if st.button("🚀 Markt-Scan"):
+st.subheader("🎯 High-Prob Scanner (>75%)")
+if st.button("🚀 Markt scannen"):
     results = []
-    with st.spinner('Statistik wird berechnet...'):
+    with st.spinner('Analyse läuft...'):
         for tkr in DAX_ALL + NASDAQ_TOP:
             df_sc = get_data(tkr, period="60d")
             if not df_sc.empty:
-                cp = float(df_sc['Close'].iloc[-1])
-                sims = cp * np.exp(np.random.normal(0, df_sc['Close'].pct_change().std(), 100) * np.sqrt(30))
-                results.append({"Name": TICKER_NAMES.get(tkr, tkr), "Up_Prob": (sims > cp).mean() * 100})
+                cp_sc = float(df_sc['Close'].iloc[-1])
+                sims = cp_sc * np.exp(np.random.normal(0, df_sc['Close'].pct_change().std(), 100) * np.sqrt(30))
+                results.append({"Name": TICKER_NAMES.get(tkr, tkr), "Up_Prob": (sims > cp_sc).mean() * 100})
     
     df_res = pd.DataFrame(results)
     rc, rp = st.columns(2)
