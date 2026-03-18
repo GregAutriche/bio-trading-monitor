@@ -9,29 +9,41 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. NAMENS-MAPPING ---
+# --- 2. KOMPLETTES NAMENS-MAPPING (DAX 40 & NASDAQ TOP) ---
 TICKER_NAMES = {
+    # Forex & Indices
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", 
     "^GDAXI": "DAX Index (DE)", "^STOXX50E": "EuroStoxx 50 (EU)", 
     "^NSEI": "Nifty 50 (IN)", "XU100.IS": "BIST 100 (TR)",
+    
+    # DAX 40 (DE)
     "ADS.DE": "Adidas (DE)", "AIR.DE": "Airbus (EU)", "ALV.DE": "Allianz (DE)", "BAS.DE": "BASF (DE)", 
-    "BAYN.DE": "Bayer (DE)", "BMW.DE": "BMW (DE)", "CON.DE": "Continental (DE)", "1COV.DE": "Covestro (DE)", 
+    "BAYN.DE": "Bayer (DE)", "BEI.DE": "Beiersdorf (DE)", "BMW.DE": "BMW (DE)", "BNR.DE": "Brenntag (DE)", 
+    "CBK.DE": "Commerzbank (DE)", "CON.DE": "Continental (DE)", "1COV.DE": "Covestro (DE)", 
     "DTG.DE": "Daimler Truck (DE)", "DBK.DE": "Deutsche Bank (DE)", "DB1.DE": "Deutsche Börse (DE)", 
-    "LHA.DE": "Lufthansa (DE)", "DTE.DE": "Telekom (DE)", "EON.DE": "E.ON (DE)", 
-    "FME.DE": "Fresenius Med. (DE)", "FRE.DE": "Fresenius SE (DE)", "HLAG.DE": "Hapag-Lloyd (DE)",
-    "HNR1.DE": "Hannover Rück (DE)", "HEI.DE": "Heidelberg Materials (DE)", "HFG.DE": "HelloFresh (DE)", 
-    "HEN3.DE": "Henkel (DE)", "IFX.DE": "Infineon (DE)", "MBG.DE": "Mercedes-Benz (DE)", 
-    "MRK.DE": "Merck KGaA (DE)", "MTX.DE": "MTU Aero (DE)", "MUV2.DE": "Münchener Rück (DE)", 
-    "PUM.DE": "Puma (DE)", "RHM.DE": "Rheinmetall (DE)", "RWE.DE": "RWE (DE)", "SAP.DE": "SAP SE (DE)", 
-    "SIE.DE": "Siemens AG (DE)", "SRT3.DE": "Sartorius (DE)", "SHL.DE": "Siemens Health (DE)",
-    "SY1.DE": "Symrise (DE)", "VOW3.DE": "Volkswagen (DE)", "VNA.DE": "Vonovia (DE)", "ZAL.DE": "Zalando (DE)",
-    "AAPL": "Apple (US)", "MSFT": "Microsoft (US)", "NVDA": "Nvidia (US)", 
-    "TSLA": "Tesla (US)", "AMZN": "Amazon (US)", "META": "Meta (US)",
+    "DHL.DE": "DHL Group (DE)", "DTE.DE": "Telekom (DE)", "EON.DE": "E.ON (DE)", 
+    "FME.DE": "Fresenius Med. (DE)", "FRE.DE": "Fresenius SE (DE)", "GEA.DE": "GEA Group (DE)", 
+    "HNR1.DE": "Hannover Rück (DE)", "HEI.DE": "Heidelberg Mat. (DE)", "HEN3.DE": "Henkel (DE)", 
+    "IFX.DE": "Infineon (DE)", "MBG.DE": "Mercedes-Benz (DE)", "MRK.DE": "Merck (DE)", 
+    "MTX.DE": "MTU Aero (DE)", "MUV2.DE": "Münchener Rück (DE)", "PAH3.DE": "Porsche SE (DE)", 
+    "PUM.DE": "Puma (DE)", "QIA.DE": "Qiagen (NL/DE)", "RHM.DE": "Rheinmetall (DE)", 
+    "RWE.DE": "RWE (DE)", "SAP.DE": "SAP (DE)", "SIE.DE": "Siemens (DE)", 
+    "ENR.DE": "Siemens Energy (DE)", "SHL.DE": "Siemens Health. (DE)", "SY1.DE": "Symrise (DE)", 
+    "VOW3.DE": "Volkswagen (DE)", "VNA.DE": "Vonovia (DE)", "ZAL.DE": "Zalando (DE)",
+    
+    # NASDAQ (US) - Top Werte
+    "AAPL": "Apple (US)", "MSFT": "Microsoft (US)", "NVDA": "Nvidia (US)", "AMZN": "Amazon (US)", 
+    "GOOGL": "Alphabet (US)", "META": "Meta (US)", "TSLA": "Tesla (US)", "AVGO": "Broadcom (US)", 
+    "COST": "Costco (US)", "NFLX": "Netflix (US)", "AMD": "AMD (US)", "ADBE": "Adobe (US)", 
+    "PEP": "PepsiCo (US)", "CSCO": "Cisco (US)", "INTC": "Intel (US)", "TMUS": "T-Mobile US (US)", 
+    "INTU": "Intuit (US)", "AMGN": "Amgen (US)", "QCOM": "Qualcomm (US)", "ISRG": "Intuitive Surg. (US)",
+    
+    # BIST 100 (TR) & NIFTY 50 (IN)
     "THYAO.IS": "Turkish Airlines (TR)", "ASELS.IS": "Aselsan (TR)", "KCHOL.IS": "Koc Holding (TR)",
     "RELIANCE.NS": "Reliance Ind. (IN)", "TCS.NS": "TCS (IN)", "HDFCBANK.NS": "HDFC Bank (IN)"
 }
 
-# --- 3. DESIGN ---
+# --- 3. DESIGN CSS ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; background-image: linear-gradient(180deg, #0e1525 0%, #050a14 100%); color: #E0E0E0; }
@@ -95,10 +107,10 @@ c1, c2 = st.columns(2)
 with c1:
     st.subheader("📊 Deep-Dive Chart")
     ca, cb = st.columns(2)
-    s_idx = ca.selectbox("Markt:", ["DAX 40 (DE)", "NASDAQ Tech (US)", "BIST 100 (TR)", "Nifty 50 (IN)"])
+    s_idx = ca.selectbox("Markt:", ["DAX 40 (DE)", "NASDAQ 100 (US)", "BIST 100 (TR)", "Nifty 50 (IN)"])
     STOCKS_DICT = {
         "DAX 40 (DE)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
-        "NASDAQ Tech (US)": ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "META"],
+        "NASDAQ 100 (US)": [k for k in TICKER_NAMES.keys() if not k.endswith(".DE") and not k.endswith(".IS") and not k.endswith(".NS") and not "=" in k and not "^" in k],
         "BIST 100 (TR)": ["THYAO.IS", "ASELS.IS", "KCHOL.IS"],
         "Nifty 50 (IN)": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS"]
     }
@@ -111,6 +123,7 @@ with c1:
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [3, 1]})
         fig.patch.set_facecolor('#0E1117')
         
+        # Monte Carlo
         ax1.set_facecolor('#0E1117')
         log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1))
         vol = log_returns.std()
@@ -122,6 +135,7 @@ with c1:
             ends.append(p[-1])
         ax1.axhline(y=cp, color='white', linestyle='--', alpha=0.3); ax1.set_title("Monte Carlo Prognose")
 
+        # RSI
         ax2.set_facecolor('#0E1117')
         rsi_series = calculate_rsi(d_s['Close'])
         ax2.plot(rsi_series.values, color='#1E90FF', linewidth=1.5)
@@ -136,22 +150,18 @@ with c2:
     s_obj = yf.Ticker(s_tkr)
     n_list = [n for n in s_obj.news if n.get('title')]
     if n_list:
-        h_list = []
-        for n in n_list:
-            t = n.get('title', ''); l = n.get('link', '#'); disp_t = (t[:75] + '..') if len(t) > 75 else t
-            h_list.append(f'<div class="news-item"><a href="{l}" target="_blank" style="color:#1E90FF; text-decoration:none;">{disp_t}</a></div>')
+        h_list =}..</a></div>' for n in n_list]
         st.markdown(f'<div class="news-container"><div class="news-scroll">{"".join(h_list)*2}</div></div>', unsafe_allow_html=True)
     else: st.info("Keine News verfügbar.")
 
 # --- 7. SCANNER (Mit SL & Take Profit) ---
 st.divider()
-st.subheader("🎯 High-Prob Scanner (Stop-Loss & Kursziel)")
+st.subheader("🎯 High-Prob Scanner (1.000 Sims)")
 
 def run_full_scan():
     all_results = []
     scan_list = []
     for l in STOCKS_DICT.values(): scan_list.extend(l)
-    
     for tkr in scan_list:
         df_sc = get_data(tkr, period="60d")
         if not df_sc.empty:
@@ -159,47 +169,33 @@ def run_full_scan():
             returns = df_sc['Close'].pct_change().dropna()
             v = returns.std()
             sims = cp_sc * np.exp(np.random.normal(0, v, 1000) * np.sqrt(30))
-            
-            # SL & TP Berechnung
-            sl_call = cp_sc * (1 - v)
-            tp_call = cp_sc * (1 + 1.5 * v) # Call Ziel: +1.5 Sigma
-            sl_put = cp_sc * (1 + v)
-            tp_put = cp_sc * (1 - 1.5 * v)  # Put Ziel: -1.5 Sigma
-            
             all_results.append({
                 "Name": TICKER_NAMES.get(tkr, tkr), 
                 "Up_Prob": (sims > cp_sc).mean() * 100,
                 "Price": cp_sc,
-                "SL_Call": sl_call, "TP_Call": tp_call,
-                "SL_Put": sl_put, "TP_Put": tp_put
+                "SL_Call": cp_sc * (1 - v), "TP_Call": cp_sc * (1 + 1.5 * v),
+                "SL_Put": cp_sc * (1 + v), "TP_Put": cp_sc * (1 - 1.5 * v)
             })
     return pd.DataFrame(all_results)
 
 if 'scan_data' not in st.session_state or st.button("🚀 Markt manuell aktualisieren"):
-    with st.spinner('Präzisions-Analyse läuft...'):
+    with st.spinner('Analyse läuft...'):
         st.session_state.scan_data = run_full_scan()
 
 df_res = st.session_state.scan_data
 rc, rp = st.columns(2)
 
-# Robustheits-Check: Nur Spalten formatieren, wenn sie existieren
 with rc:
     st.success("📈 Top 5 Call-Kandidaten")
     calls = df_res.sort_values(by="Up_Prob", ascending=False).head(5).copy()
-    if 'SL_Call' in calls.columns:
-        calls['SL'] = calls['SL_Call'].map('{:,.2f}'.format)
-        calls['Kursziel'] = calls['TP_Call'].map('{:,.2f}'.format)
-        st.dataframe(calls[['Name', 'Up_Prob', 'SL', 'Kursziel']], hide_index=True)
-    else:
-        st.warning("Bitte Scanner aktualisieren.")
+    calls['SL'] = calls['SL_Call'].map('{:,.2f}'.format)
+    calls['Kursziel'] = calls['TP_Call'].map('{:,.2f}'.format)
+    st.dataframe(calls[['Name', 'Up_Prob', 'SL', 'Kursziel']], hide_index=True)
 
 with rp:
     st.error("📉 Top 5 Put-Kandidaten")
     puts = df_res.sort_values(by="Up_Prob", ascending=True).head(5).copy()
-    if 'SL_Put' in puts.columns:
-        puts['Down_Prob'] = 100 - puts['Up_Prob']
-        puts['SL'] = puts['SL_Put'].map('{:,.2f}'.format)
-        puts['Kursziel'] = puts['TP_Put'].map('{:,.2f}'.format)
-        st.dataframe(puts[['Name', 'Down_Prob', 'SL', 'Kursziel']], hide_index=True)
-    else:
-        st.warning("Bitte Scanner aktualisieren.")
+    puts['Down_Prob'] = 100 - puts['Up_Prob']
+    puts['SL'] = puts['SL_Put'].map('{:,.2f}'.format)
+    puts['Kursziel'] = puts['TP_Put'].map('{:,.2f}'.format)
+    st.dataframe(puts[['Name', 'Down_Prob', 'SL', 'Kursziel']], hide_index=True)
