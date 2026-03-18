@@ -11,12 +11,9 @@ st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
 # --- 2. NAMENS-MAPPING MIT LÄNDER-KÜRZELN ---
 TICKER_NAMES = {
-    # Forex & Indices
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", 
     "^GDAXI": "DAX Index (DE)", "^STOXX50E": "EuroStoxx 50 (EU)", 
     "^NSEI": "Nifty 50 (IN)", "XU100.IS": "BIST 100 (TR)",
-    
-    # DAX 40 (DE)
     "ADS.DE": "Adidas (DE)", "AIR.DE": "Airbus (EU)", "ALV.DE": "Allianz (DE)", "BAS.DE": "BASF (DE)", 
     "BAYN.DE": "Bayer (DE)", "BMW.DE": "BMW (DE)", "CON.DE": "Continental (DE)", "1COV.DE": "Covestro (DE)", 
     "DTG.DE": "Daimler Truck (DE)", "DBK.DE": "Deutsche Bank (DE)", "DB1.DE": "Deutsche Börse (DE)", 
@@ -28,15 +25,9 @@ TICKER_NAMES = {
     "PUM.DE": "Puma (DE)", "RHM.DE": "Rheinmetall (DE)", "RWE.DE": "RWE (DE)", "SAP.DE": "SAP SE (DE)", 
     "SIE.DE": "Siemens AG (DE)", "SRT3.DE": "Sartorius (DE)", "SHL.DE": "Siemens Health (DE)",
     "SY1.DE": "Symrise (DE)", "VOW3.DE": "Volkswagen (DE)", "VNA.DE": "Vonovia (DE)", "ZAL.DE": "Zalando (DE)",
-    
-    # NASDAQ (US)
     "AAPL": "Apple (US)", "MSFT": "Microsoft (US)", "NVDA": "Nvidia (US)", 
     "TSLA": "Tesla (US)", "AMZN": "Amazon (US)", "META": "Meta (US)",
-    
-    # BIST 100 (TR)
     "THYAO.IS": "Turkish Airlines (TR)", "ASELS.IS": "Aselsan (TR)", "KCHOL.IS": "Koc Holding (TR)",
-    
-    # Nifty 50 (IN)
     "RELIANCE.NS": "Reliance Ind. (IN)", "TCS.NS": "TCS (IN)", "HDFCBANK.NS": "HDFC Bank (IN)"
 }
 
@@ -105,7 +96,6 @@ with c1:
     st.subheader("📊 Deep-Dive Chart")
     ca, cb = st.columns(2)
     s_idx = ca.selectbox("Markt:", ["DAX 40 (DE)", "NASDAQ Tech (US)", "BIST 100 (TR)", "Nifty 50 (IN)"])
-    
     STOCKS_DICT = {
         "DAX 40 (DE)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
         "NASDAQ Tech (US)": ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "META"],
@@ -118,7 +108,8 @@ with c1:
     if not d_s.empty:
         cp = float(d_s['Close'].iloc[-1])
         plt.style.use('dark_background')
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios':})
+        # FIX: height_ratios mit Werten befüllt
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [2, 1]})
         fig.patch.set_facecolor('#0E1117')
         
         # Monte Carlo
@@ -158,24 +149,19 @@ with c2:
 # --- 7. SCANNER ---
 st.divider()
 st.subheader("🎯 High-Prob Scanner (1.000 Sims)")
-
-def run_full_scan():
-    all_results = []
-    scan_list = []
-    for l in STOCKS_DICT.values(): scan_list.extend(l)
-    
-    for tkr in scan_list:
-        df_sc = get_data(tkr, period="60d")
-        if not df_sc.empty:
-            cp_sc = float(df_sc['Close'].iloc[-1])
-            vol = np.log(df_sc['Close'] / df_sc['Close'].shift(1)).std()
-            sims = cp_sc * np.exp(np.random.normal(0, vol, 1000) * np.sqrt(30))
-            all_results.append({"Name": TICKER_NAMES.get(tkr, tkr), "Up_Prob": (sims > cp_sc).mean() * 100})
-    return pd.DataFrame(all_results)
-
 if 'scan_data' not in st.session_state or st.button("🚀 Markt manuell aktualisieren"):
     with st.spinner('Präzisions-Analyse läuft...'):
-        st.session_state.scan_data = run_full_scan()
+        all_results = []
+        scan_list = []
+        for l in STOCKS_DICT.values(): scan_list.extend(l)
+        for tkr in scan_list:
+            df_sc = get_data(tkr, period="60d")
+            if not df_sc.empty:
+                cp_sc = float(df_sc['Close'].iloc[-1])
+                v = np.log(df_sc['Close'] / df_sc['Close'].shift(1)).std()
+                sims = cp_sc * np.exp(np.random.normal(0, v, 1000) * np.sqrt(30))
+                all_results.append({"Name": TICKER_NAMES.get(tkr, tkr), "Up_Prob": (sims > cp_sc).mean() * 100})
+        st.session_state.scan_data = pd.DataFrame(all_results)
 
 df_res = st.session_state.scan_data
 rc, rp = st.columns(2)
