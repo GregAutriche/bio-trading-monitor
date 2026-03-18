@@ -70,7 +70,7 @@ def calculate_rsi(prices, window=14):
 st.title("🚀 Bio-Trading Monitor Live PRO")
 st.caption(f"Letztes Daten-Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Auto-Refresh: 60s")
 
-st.subheader("💱 Währungen (Forex)")
+st.subheader("💱 Währungen (Forex) 💱")
 SYMBOLS_FX = ["EURUSD=X", "EURRUB=X"]
 cols_fx = st.columns(len(SYMBOLS_FX))
 for i, t in enumerate(SYMBOLS_FX):
@@ -82,7 +82,7 @@ for i, t in enumerate(SYMBOLS_FX):
                         f'<div class="metric-value">{last:,.5f}</div>'
                         f'<div style="color:{"#00FFA3" if chg>0 else "#FF4B4B"}; font-size:0.85rem;">{chg:+.2f}%</div></div>', unsafe_allow_html=True)
 
-st.subheader("📈 Markt-Indizes")
+st.subheader("📈 Markt-Indizes 📈")
 SYMBOLS_INDICES = ["^GDAXI", "^STOXX50E", "^NSEI", "XU100.IS"]
 cols_ind = st.columns(len(SYMBOLS_INDICES))
 for i, t in enumerate(SYMBOLS_INDICES):
@@ -98,7 +98,7 @@ for i, t in enumerate(SYMBOLS_INDICES):
 st.divider()
 c1, c2 = st.columns(2)
 with c1:
-    st.subheader("📊 Deep-Dive Chart")
+    st.subheader("📊 Deep-Dive Chart 📊")
     ca, cb = st.columns(2)
     s_idx = ca.selectbox("Markt:", ["DAX 40 (DE)", "NASDAQ 100 (US)", "BIST 100 (TR)", "Nifty 50 (IN)"])
     STOCKS_DICT = {
