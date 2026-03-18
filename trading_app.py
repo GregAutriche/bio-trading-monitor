@@ -7,25 +7,22 @@ import matplotlib.pyplot as plt
 # --- 1. SEITEN-KONFIGURATION ---
 st.set_page_config(page_title="Bio-Trading Monitor Pro", layout="wide")
 
-# --- 2. NAMENS-MAPPING (Ticker -> Voller Name) ---
-# Hier kannst du beliebig weitere Namen ergänzen
+# --- 2. NAMENS-MAPPING & TICKER ---
 TICKER_NAMES = {
     "EURUSD=X": "Euro / US-Dollar",
+    "EURRUB=X": "Euro / Russischer Rubel",
     "^GDAXI": "DAX Index",
     "^GSPC": "S&P 500",
     "BTC-USD": "Bitcoin",
     "SAP.DE": "SAP SE",
     "SIE.DE": "Siemens AG",
     "ALV.DE": "Allianz SE",
-    "DTE.DE": "Deutsche Telekom",
     "AAPL": "Apple Inc.",
     "MSFT": "Microsoft Corp.",
-    "NVDA": "Nvidia Corp.",
-    "TSLA": "Tesla Inc.",
-    "AMZN": "Amazon.com"
+    "NVDA": "Nvidia Corp."
 }
 
-# --- 3. DESIGN & GLASSMORPHISM CSS ---
+# --- 3. DESIGN & CSS ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; background-image: linear-gradient(180deg, #0e1525 0%, #050a14 100%); color: #E0E0E0; }
@@ -34,9 +31,9 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); transition: transform 0.2s;
     }
     .market-card:hover { transform: translateY(-3px); border: 1px solid rgba(30, 144, 255, 0.4); }
-    .metric-value { font-size: 1.4rem; font-weight: bold; color: #FFFFFF; }
+    .metric-value { font-size: 1.25rem; font-weight: bold; color: #FFFFFF; font-family: 'Courier New', monospace; }
     .news-container { height: 350px; overflow: hidden; position: relative; border-left: 2px solid #1E90FF; padding-left: 10px; }
-    .news-scroll { animation: scroll-up 30s linear infinite; }
+    .news-scroll { animation: scroll-up 35s linear infinite; }
     .news-scroll:hover { animation-play-state: paused; }
     .news-item { margin-bottom: 15px; font-size: 0.8rem; background: rgba(255, 255, 255, 0.05); padding: 8px; border-radius: 8px; }
     @keyframes scroll-up { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
@@ -61,40 +58,51 @@ def get_stock_news(ticker):
     except: return []
 
 # --- 5. DATENSTRUKTUR ---
-SYMBOLS_GENERAL = ["EURUSD=X", "^GDAXI", "^GSPC", "BTC-USD"]
+# Jetzt inklusive EUR/RUB
+SYMBOLS_GENERAL = ["EURUSD=X", "EURRUB=X", "^GDAXI", "BTC-USD"]
 STOCKS_BY_INDEX = {
-    "DAX": ["SAP.DE", "SIE.DE", "ALV.DE", "DTE.DE"],
-    "NASDAQ": ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN"],
+    "DAX": ["SAP.DE", "SIE.DE", "ALV.DE"],
+    "NASDAQ": ["AAPL", "MSFT", "NVDA"],
 }
 
 # --- 6. DASHBOARD ---
 st.title("🚀 Bio-Trading Monitor Pro")
 
-# SEKTION 1: MARKT-WETTER (Mit Namen statt Symbolen)
+# SEKTION 1: MARKT-WETTER (Mit 5 Nachkommastellen für FX)
 st.subheader("1. Markt-Wetter")
 cols = st.columns(len(SYMBOLS_GENERAL))
+
 for i, ticker in enumerate(SYMBOLS_GENERAL):
     df = get_market_data(ticker, period="5d")
     if not df.empty:
-        change = ((df['Close'].iloc[-1] / df['Close'].iloc[-2]) - 1) * 100
+        last_price = float(df['Close'].iloc[-1])
+        change = ((last_price / df['Close'].iloc[-2]) - 1) * 100
         weather = "☀️" if change > 0 else "🌧️"
         color = "#00FFA3" if change > 0 else "#FF4B4B"
-        full_name = TICKER_NAMES.get(ticker, ticker) # Hol den Namen aus dem Mapping
-        with cols[i]:
-            st.markdown(f'<div class="market-card"><div style="font-size:0.9rem; color:#8892b0;">{weather} {full_name}</div>'
-                        f'<div class="metric-value">{df["Close"].iloc[-1]:,.2f}</div>'
-                        f'<div style="color:{color};">{change:+.2f}%</div></div>', unsafe_allow_html=True)
+        full_name = TICKER_NAMES.get(ticker, ticker)
+        
+        # LOGIK FÜR NACHKOMMASTELLEN:
+        # Wenn "=X" im Ticker (Währungen), dann 5 Stellen, sonst 2.
+        format_str = "{:,.5f}" if "=X" in ticker else "{:,.2f}"
+        val_display = format_str.format(last_price)
 
-# SEKTION 2: ANALYSE & SIGNALE
+        with cols[i]:
+            st.markdown(f"""
+                <div class="market-card">
+                    <div style="font-size:0.85rem; color:#8892b0; margin-bottom:5px;">{weather} {full_name}</div>
+                    <div class="metric-value">{val_display}</div>
+                    <div style="color:{color}; font-size:0.9rem; margin-top:5px;">{change:+.2f}%</div>
+                </div>
+            """, unsafe_allow_html=True)
+
+# SEKTION 2: ANALYSE
 st.divider()
-c_main, c_news = st.columns([2, 1]) # Hauptbereich breiter als News
+c_main, c_news = st.columns([2, 1]) 
 
 with c_main:
     st.subheader("2. Deep-Dive Analyse")
     idx_col, stock_col = st.columns(2)
     selected_idx = idx_col.selectbox("Index wählen:", list(STOCKS_BY_INDEX.keys()))
-    
-    # Selectbox zeigt Namen an, gibt aber Ticker zurück
     selected_stock = stock_col.selectbox(
         "Aktie wählen:", 
         STOCKS_BY_INDEX[selected_idx],
@@ -120,14 +128,16 @@ with c_main:
         ax.axhline(y=curr_p, color='white', linestyle='--', alpha=0.3)
         st.pyplot(fig)
 
-        # AKTIONSSYMBOLE & EMPFEHLUNG
+        # AKTIONSSYMBOLE
         prob_up = (np.array(sim_ends) > curr_p).mean() * 100
+        stock_display_name = TICKER_NAMES.get(selected_stock, selected_stock)
+        
         if mom > 0 and prob_up > 55:
-            st.success(f"🟢 **AKTION: KAUFEN** ({TICKER_NAMES.get(selected_stock, selected_stock)} zeigt starkes Momentum)")
+            st.success(f"🟢 **AKTION: KAUFEN** ({stock_display_name} mit positivem Trend)")
         elif mom < 0 and prob_up < 45:
-            st.error(f"🔴 **AKTION: VERKAUFEN** ({TICKER_NAMES.get(selected_stock, selected_stock)} im Abwärtstrend)")
+            st.error(f"🔴 **AKTION: VERKAUFEN** ({stock_display_name} mit negativem Trend)")
         else:
-            st.warning(f"🟡 **AKTION: HALTEN** (Neutrales Umfeld für {TICKER_NAMES.get(selected_stock, selected_stock)})")
+            st.warning(f"🟡 **AKTION: HALTEN** (Neutrales Signal für {stock_display_name})")
 
 with c_news:
     st.subheader(f"🗞️ {TICKER_NAMES.get(selected_stock, selected_stock)} News")
@@ -136,8 +146,6 @@ with c_news:
         html = ""
         for n in news_items:
             link = n.get('link') or n.get('resolvedUrl') or "#"
-            title = n.get('title', 'Nachricht ohne Titel')
+            title = n.get('title', 'Kein Titel')
             html += f'<div class="news-item"><a href="{link}" target="_blank" style="color:#1E90FF; text-decoration:none;">{title}</a></div>'
         st.markdown(f'<div class="news-container"><div class="news-scroll">{html}{html}</div></div>', unsafe_allow_html=True)
-    else:
-        st.info("Keine aktuellen Nachrichten gefunden.")
