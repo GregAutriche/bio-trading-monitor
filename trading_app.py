@@ -9,14 +9,11 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. KOMPLETTES NAMENS-MAPPING (DAX 40 & NASDAQ TOP) ---
+# --- 2. NAMENS-MAPPING MIT LÄNDER-KÜRZELN ---
 TICKER_NAMES = {
-    # Forex & Indices
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", 
     "^GDAXI": "DAX Index (DE)", "^STOXX50E": "EuroStoxx 50 (EU)", 
     "^NSEI": "Nifty 50 (IN)", "XU100.IS": "BIST 100 (TR)",
-    
-    # DAX 40 (DE)
     "ADS.DE": "Adidas (DE)", "AIR.DE": "Airbus (EU)", "ALV.DE": "Allianz (DE)", "BAS.DE": "BASF (DE)", 
     "BAYN.DE": "Bayer (DE)", "BEI.DE": "Beiersdorf (DE)", "BMW.DE": "BMW (DE)", "BNR.DE": "Brenntag (DE)", 
     "CBK.DE": "Commerzbank (DE)", "CON.DE": "Continental (DE)", "1COV.DE": "Covestro (DE)", 
@@ -30,20 +27,16 @@ TICKER_NAMES = {
     "RWE.DE": "RWE (DE)", "SAP.DE": "SAP (DE)", "SIE.DE": "Siemens (DE)", 
     "ENR.DE": "Siemens Energy (DE)", "SHL.DE": "Siemens Health. (DE)", "SY1.DE": "Symrise (DE)", 
     "VOW3.DE": "Volkswagen (DE)", "VNA.DE": "Vonovia (DE)", "ZAL.DE": "Zalando (DE)",
-    
-    # NASDAQ (US) - Top Werte
     "AAPL": "Apple (US)", "MSFT": "Microsoft (US)", "NVDA": "Nvidia (US)", "AMZN": "Amazon (US)", 
     "GOOGL": "Alphabet (US)", "META": "Meta (US)", "TSLA": "Tesla (US)", "AVGO": "Broadcom (US)", 
     "COST": "Costco (US)", "NFLX": "Netflix (US)", "AMD": "AMD (US)", "ADBE": "Adobe (US)", 
     "PEP": "PepsiCo (US)", "CSCO": "Cisco (US)", "INTC": "Intel (US)", "TMUS": "T-Mobile US (US)", 
     "INTU": "Intuit (US)", "AMGN": "Amgen (US)", "QCOM": "Qualcomm (US)", "ISRG": "Intuitive Surg. (US)",
-    
-    # BIST 100 (TR) & NIFTY 50 (IN)
     "THYAO.IS": "Turkish Airlines (TR)", "ASELS.IS": "Aselsan (TR)", "KCHOL.IS": "Koc Holding (TR)",
     "RELIANCE.NS": "Reliance Ind. (IN)", "TCS.NS": "TCS (IN)", "HDFCBANK.NS": "HDFC Bank (IN)"
 }
 
-# --- 3. DESIGN CSS ---
+# --- 3. DESIGN ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; background-image: linear-gradient(180deg, #0e1525 0%, #050a14 100%); color: #E0E0E0; }
@@ -123,7 +116,6 @@ with c1:
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [3, 1]})
         fig.patch.set_facecolor('#0E1117')
         
-        # Monte Carlo
         ax1.set_facecolor('#0E1117')
         log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1))
         vol = log_returns.std()
@@ -135,7 +127,6 @@ with c1:
             ends.append(p[-1])
         ax1.axhline(y=cp, color='white', linestyle='--', alpha=0.3); ax1.set_title("Monte Carlo Prognose")
 
-        # RSI
         ax2.set_facecolor('#0E1117')
         rsi_series = calculate_rsi(d_s['Close'])
         ax2.plot(rsi_series.values, color='#1E90FF', linewidth=1.5)
@@ -150,11 +141,18 @@ with c2:
     s_obj = yf.Ticker(s_tkr)
     n_list = [n for n in s_obj.news if n.get('title')]
     if n_list:
-        h_list =}..</a></div>' for n in n_list]
-        st.markdown(f'<div class="news-container"><div class="news-scroll">{"".join(h_list)*2}</div></div>', unsafe_allow_html=True)
+        # FIX: News HTML mit robuster For-Schleife statt fehlerhafter List-Comprehension
+        news_html_body = ""
+        for n in n_list:
+            title = n.get('title', '')
+            link = n.get('link', '#')
+            display_title = (title[:75] + '..') if len(title) > 75 else title
+            news_html_body += f'<div class="news-item"><a href="{link}" target="_blank" style="color:#1E90FF; text-decoration:none;">{display_title}</a></div>'
+        
+        st.markdown(f'<div class="news-container"><div class="news-scroll">{news_html_body}{news_html_body}</div></div>', unsafe_allow_html=True)
     else: st.info("Keine News verfügbar.")
 
-# --- 7. SCANNER (Mit SL & Take Profit) ---
+# --- 7. SCANNER ---
 st.divider()
 st.subheader("🎯 High-Prob Scanner (1.000 Sims)")
 
