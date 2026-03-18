@@ -2,93 +2,67 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
-import numpy as np
-from datetime import datetime, timedelta
+import os
 
-# Konfiguration der Seite
-st.set_page_config(page_title="Bio-Trading Monitor", layout="wide")
-
+# --- KLASSE ---
 class DataAnalyzer:
-    def __init__(self, data_source=None):
-        """Initialisiert den Analyzer mit Datei oder Testdaten."""
+    def __init__(self, file_path): # Korrigiert: __init__ statt init
+        self.file_path = file_path
         self.df = None
         self.report_data = {}
-        
-        if data_source is not None:
-            self.load_from_file(data_source)
-        else:
-            self.generate_demo_data()
 
-    def generate_demo_data(self):
-        """Erstellt fiktive Daten für Testzwecke."""
-        st.info("💡 Nutze Demo-Daten, da keine Datei hochgeladen wurde.")
-        dates = pd.date_range(start='2023-01-01', periods=100, freq='D')
-        data = {
-            'datum': dates,
-            'wert': np.random.randint(10, 100, size=len(dates)),
-            'kategorie': np.random.choice(['Bio', 'Konventionell'], size=len(dates))
-        }
-        self.df = pd.DataFrame(data)
-        self.df.columns = [c.strip().lower() for c in self.df.columns]
-
-    def load_from_file(self, file_path):
-        """Lädt eine echte Excel-Datei."""
+    def load_and_clean(self):
+        """Lädt die Excel-Datei und führt Basis-Bereinigungen durch."""
         try:
-            self.df = pd.read_excel(file_path)
+            self.df = pd.read_excel(self.file_path)
             self.df.columns = [c.strip().lower() for c in self.df.columns]
             if 'datum' in self.df.columns:
                 self.df['datum'] = pd.to_datetime(self.df['datum'])
+            return True
         except Exception as e:
             st.error(f"Fehler beim Laden: {e}")
+            return False
 
     def analyze_trends(self):
         """Berechnet monatliche Trends."""
         if self.df is not None and 'datum' in self.df.columns:
-            self.df = self.df.sort_values('datum')
             self.df['monat'] = self.df['datum'].dt.to_period('M').astype(str)
-            # Wir nehmen hier die Summe der 'wert' Spalte oder zählen einfach Zeilen
-            target_col = 'wert' if 'wert' in self.df.columns else self.df.columns[0]
-            self.report_data['monthly_trend'] = self.df.groupby('monat')[target_col].count()
+            # Metrik: Anzahl Einträge pro Monat
+            self.report_data['monthly_trend'] = self.df.groupby('monat').size()
         
     def create_visualizations(self):
-        """Erstellt das Diagramm."""
+        """Generiert Diagramme für das Dashboard."""
         if 'monthly_trend' in self.report_data:
-            st.subheader("📈 Visualisierung: Monatlicher Trend")
-            fig, ax = plt.subplots(figsize=(10, 5))
-            
-            # Das eigentliche Diagramm
-            self.report_data['monthly_trend'].plot(kind='line', marker='o', ax=ax, color='#2a9d8f', linewidth=2)
-            
-            ax.set_title('Aktivität über die Zeit', fontsize=12)
+            fig, ax = plt.subplots(figsize=(10, 6))
+            self.report_data['monthly_trend'].plot(kind='line', marker='o', ax=ax)
+            ax.set_title('Monatlicher Trend')
+            plt.grid(True)
             plt.xticks(rotation=45)
-            plt.grid(True, alpha=0.3)
+            # In Streamlit anzeigen statt speichern
             st.pyplot(fig)
 
-# --- Hauptprogramm ---
-def main():
-    st.title("📊 Bio-Trading Monitor")
-    
-    # Sidebar für den Upload
-    st.sidebar.header("Datenquelle")
-    uploaded_file = st.sidebar.file_uploader("Excel hochladen", type=['xlsx'])
+    def generate_summary_report(self):
+        """Erstellt eine Zusammenfassung."""
+        if self.df is not None:
+            return self.df.describe()
 
-    # Analyzer starten (entweder mit Datei oder automatisch mit Demo-Daten)
+# --- STREAMLIT OBERFLÄCHE ---
+st.title("Bio-Trading Monitor")
+
+# Der Uploader verhindert den Absturz, wenn keine Datei da ist
+uploaded_file = st.file_uploader("Bitte Excel-Datei (.xlsx) hochladen", type=['xlsx'])
+
+if uploaded_file is not None:
+    # Nur wenn eine Datei hochgeladen wurde, wird der Code ausgeführt
     analyzer = DataAnalyzer(uploaded_file)
     
-    analyzer.analyze_trends()
-    
-    # Layout
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
+    if analyzer.load_and_clean():
+        analyzer.analyze_trends()
+        
+        st.subheader("Analyse der Trends")
         analyzer.create_visualizations()
-    
-    with col2:
-        st.subheader("Details")
-        st.write(analyzer.df.describe())
-
-    with st.expander("Vorschau der Datentabelle"):
-        st.dataframe(analyzer.df.head(20), use_container_width=True)
-
-if __name__ == "__main__":
-    main()
+        
+        st.subheader("Statistische Zusammenfassung")
+        st.write(analyzer.generate_summary_report())
+else:
+    st.info("Warte auf Datei-Upload...")
