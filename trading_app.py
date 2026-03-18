@@ -47,10 +47,7 @@ for name, ticker in SYMBOLS_GENERAL.items():
         prev_c = float(df_gen['Close'].iloc[-2])
         change = ((last_c / prev_c) - 1) * 100
         
-        # Wetter-Logik für Marktübersicht
         weather = "☀️" if change > 0 else "🌧️"
-        
-        # NACHKOMMASTELLEN: Währungen 5, Indizes 2
         is_fx = "/" in name or "X" in ticker
         val_str = f"{last_c:.5f}" if is_fx else f"{last_c:,.2f}"
 
@@ -58,7 +55,7 @@ for name, ticker in SYMBOLS_GENERAL.items():
         st.write(f"Kurs: {val_str} | Änderung: {change:+.2f}%")
         st.divider()
 
-# --- 4. SEKTION 2: AKTIEN-ANALYSE (H4 MOMENTUM & MONTE CARLO) ---
+# --- 4. SEKTION 2: AKTIEN-ANALYSE (H4 & MONTE CARLO) ---
 
 st.header("2. Aktien-Analyse (H4 Momentum)")
 
@@ -69,24 +66,19 @@ if selected_stock:
     stock_data = get_market_data(selected_stock, interval="4h", period="60d")
     
     if not stock_data.empty and len(stock_data) > 14:
-        # Momentum H4 Berechnung
         stock_data['Momentum'] = stock_data['Close'] - stock_data['Close'].shift(14)
         current_p = float(stock_data['Close'].iloc[-1])
         current_m = float(stock_data['Momentum'].iloc[-1])
         
-        # Wetter-Logik basierend auf H4 Momentum
-        mom_weather = "☀️ (Bullish)" if current_m > 0 else "🌧️ (Bearish)"
-        
-        st.write(f"**Analyse für {selected_stock} {mom_weather}**")
+        st.write(f"**Analyse für {selected_stock}**")
         st.write(f"Aktueller Kurs: {current_p:.2f}")
-        st.write(f"H4 Momentum (14 Kerzen): {current_m:+.2f}")
+        st.write(f"H4 Momentum: {current_m:+.2f}")
         
         st.line_chart(stock_data['Close'])
         st.area_chart(stock_data['Momentum'])
 
-        # --- Monte Carlo Ausarbeitung ---
-        st.subheader("Monte Carlo Ausarbeitung (30 Tage Outlook)")
-        
+        # --- Monte Carlo Simulation ---
+        st.subheader("Monte Carlo Ausarbeitung (30 Tage)")
         returns = stock_data['Close'].pct_change().dropna()
         daily_vol = returns.std()
         
@@ -99,21 +91,23 @@ if selected_stock:
             plt.plot(prices, color='gray', alpha=0.1)
             sim_ends.append(prices[-1])
         
-        plt.title(f"Simulationspfade für {selected_stock}")
         plt.grid(True, alpha=0.2)
         st.pyplot(plt)
         
-        # Statistische Auswertung mit Volatilitäts-Ziel (+5%)
+        # --- BLAU - GELB - GRÜN LOGIK ---
         sim_ends_arr = np.array(sim_ends)
-        target_5pct = current_p * 1.05
-        prob_5pct = (sim_ends_arr > target_5pct).mean() * 100
+        prob_5pct = (sim_ends_arr > (current_p * 1.05)).mean() * 100
         
-        st.write(f"Erwarteter Kurs nach 30 Tagen (Mittelwert): {np.mean(sim_ends):.2f}")
         st.write(f"Wahrscheinlichkeit für Kursziel (+5%): {prob_5pct:.1f}%")
         
-        # Finale Wetter-Prognose
-        final_weather = "☀️" if prob_5pct > 20 else "🌥️" if prob_5pct > 10 else "🌧️"
-        st.write(f"**Prognose-Trend: {final_weather}**")
+        # Empfehlungs-Logik
+        if current_m > 0 and prob_5pct > 25:
+            st.success("🟢 EMPFEHLUNG: KAUF (Starkes Momentum & hohe Ziel-Chance)")
+        elif current_m < 0 and prob_5pct < 15:
+            st.info("🔵 EMPFEHLUNG: VERKAUF (Negatives Momentum & geringe Chance)")
+        else:
+            st.warning("🟡 EMPFEHLUNG: NEUTRAL (Kein eindeutiger Trend)")
+            
         st.divider()
 
 # Footer / Versionen
