@@ -4,7 +4,7 @@ import seaborn as sns
 import os
 
 class DataAnalyzer:
-    def init(self, file_path):
+    def __init__(self, file_path):
         self.file_path = file_path
         self.df = None
         self.report_data = {}
