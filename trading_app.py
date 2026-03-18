@@ -82,7 +82,7 @@ with c1:
         cp = float(d_s['Close'].iloc[-1])
         # Kombiniertes Chart-Layout
         plt.style.use('dark_background')
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [3, 1]})
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [2, 1]})
         fig.patch.set_facecolor('#0E1117')
         
         # Monte Carlo Prognose
