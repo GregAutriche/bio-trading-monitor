@@ -26,8 +26,10 @@ TICKER_NAMES = {
 }
 
 TICKER_GROUPS = {
-    "DAX 40 (DE)": ["SAP.DE", "SIE.DE", "ALV.DE", "DTE.DE", "ADS.DE", "BMW.DE", "BAYN.DE", "BAS.DE", "DBK.DE", "RHM.DE"],
-    "EuroStoxx 50 (EU)": ["AIR.PA", "MC.PA", "OR.PA", "ASML.AS", "SAN.PA", "BNP.PA", "TTE.PA", "ITX.MC"],
+    "DAX 40 (DE)": ["ADS.DE": "Adidas", "AIR.DE": "Airbus", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer",
+    "BMW.DE": "BMW", "DBK.DE": "Deutsche Bank", "DTE.DE": "Telekom", "SAP.DE": "SAP", "SIE.DE": "Siemens"],
+    "EuroStoxx 50 (EU)": ["AIR.PA": "Airbus (FR)", "MC.PA": "LVMH", "OR.PA": "L'Oréal", "ASML.AS": "ASML", "SAN.PA": "Sanofi",
+    "TTE.PA": "TotalEnergies", "BNP.PA": "BNP Paribas", "ITX.MC": "Inditex"],
     "NASDAQ 100 (US)": ["AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "AMZN": "Amazon", "GOOGL": "Alphabet A", "GOOG": "Alphabet C", "META": "Meta (FB)", "TSLA": "Tesla", "AVGO": "Broadcom", "COST": "Costco", "NFLX": "Netflix", "AMD": "AMD", 
     "ADBE": "Adobe", "PEP": "PepsiCo", "CSCO": "Cisco", "TMUS": "T-Mobile US", "AVGO": "Broadcom", "QCOM": "Qualcomm", "INTC": "Intel", "INTU": "Intuit", 
     "AMGN": "Amgen", "ISRG": "Intuitive Surg.", "TXN": "Texas Instr.", "HON": "Honeywell", "AMAT": "Applied Mat.", "BKNG": "Booking Holdings", "VRTX": "Vertex Pharm.", "SBUX": "Starbucks", "PANW": "Palo Alto Networks", "GILD": "Gilead Sciences", "SNPS": "Synopsys", "REGN": "Regeneron", "MDLZ": "Mondelez", "PYPL": "PayPal", "ADI": "Analog Devices", "MU": "Micron Tech", "KLAC": "KLA Corp", "LRCX": "Lam Research"],
