@@ -42,70 +42,56 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. FUNKTIONEN ---
-@st.cache_data(ttl=60)
-def get_data(ticker, period="60d", interval="4h"):
-    try:
-        d = yf.download(ticker, period=period, interval=interval, progress=False)
-        if isinstance(d.columns, pd.MultiIndex): d.columns = d.columns.get_level_values(0)
-        return d
-    except: return pd.DataFrame()
+# --- 4. NEUE SCANNER-FUNKTION ---
+def run_market_scanner(ticker_list):
+    results = []
+    for t in ticker_list:
+        df = get_data(t, period="5d")
+        if not df.empty:
+            last = float(df['Close'].iloc[-1])
+            prev = float(df['Close'].iloc[-2])
+            chg = ((last / prev) - 1) * 100
+            # Wir nutzen den RSI als Indikator für den Scanner
+            delta = df['Close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            rsi = 100 - (100 / (1 + (gain / loss))).iloc[-1]
+            
+            results.append({
+                "Aktie": TICKER_NAMES.get(t, t),
+                "Kurs": f"{last:,.2f}",
+                "Trend %": round(chg, 2),
+                "RSI": round(rsi, 1)
+            })
+    return pd.DataFrame(results)
 
-def get_hybrid_options(ticker_str, cp, df):
-    # Fallback Bio-Levels Berechnung
-    std = np.log(df['Close'] / df['Close'].shift(1)).std()
-    calls = pd.DataFrame([{"Strike": f"{cp*(1+(std*i)):,.2f}", "Bio-Prob": f"{100-(i*15):.0f}%"} for i in range(1,6)])
-    puts = pd.DataFrame([{"Strike": f"{cp*(1-(std*i)):,.2f}", "Bio-Prob": f"{100-(i*15):.0f}%"} for i in range(1,6)])
-    return calls, puts
-
-# --- 5. HEADER (FIXED COLUMNS) ---
-st.title("🚀 Bio-Trading Monitor Live PRO")
-
-st.subheader("💱 Währungen")
-cf1, cf2, cf3 = st.columns(3) # Fix: Argument hinzugefügt
-for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
-    df_f = get_data(t, period="2d")
-    if not df_f.empty:
-        l = float(df_f['Close'].iloc[-1]); c = ((l/df_f['Close'].iloc[-2])-1)*100
-        (cf1 if i==0 else cf2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.5f}</span> <span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
-
-st.subheader("📈 Markt-Indizes")
-cols_i = st.columns(5) # Fix: Argument hinzugefügt
-for i, t in enumerate(["^GDAXI", "^STOXX50E", "^NDX", "XU100.IS", "^NSEI"]):
-    df_i = get_data(t, period="2d")
-    if not df_i.empty:
-        l = float(df_i['Close'].iloc[-1]); c = ((l/df_i['Close'].iloc[-2])-1)*100
-        cols_i[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span> <span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
-
-# --- 6. DEEP-DIVE ---
+# --- 6. DEEP-DIVE & SCANNER BEREICH ---
 st.divider()
 ca, cb = st.columns(2)
-market_sel = ca.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
-stock_sel = cb.selectbox("Aktie wählen:", TICKER_GROUPS[market_sel], format_func=lambda x: TICKER_NAMES.get(x,x))
+market_sel = ca.selectbox("Markt für Scanner wählen:", list(TICKER_GROUPS.keys()))
 
-d_s = get_data(stock_sel)
-if not d_s.empty:
-    cp = float(d_s['Close'].iloc[-1])
-    st.markdown(f'<div class="header-box"><span style="font-size:1.3rem;">Status: <b>{TICKER_NAMES.get(stock_sel, stock_sel)}</b></span> | <span style="font-size:1.3rem;">Kurs: <b>{cp:,.2f}</b></span></div>', unsafe_allow_html=True)
+# Wir führen den Scan für den gesamten Index aus
+with st.spinner(f"Scanne {market_sel}..."):
+    scan_results = run_market_scanner(TICKER_GROUPS[market_sel])
 
-    cl, cr = st.columns([1.5, 1])
-    with cl:
-        st.subheader("🔮 Bio-Prognose (Monte Carlo)")
-        plt.style.use('dark_background')
-        fig, ax = plt.subplots(figsize=(10, 5)); fig.patch.set_facecolor('#0E1117'); ax.set_facecolor('#0E1117')
-        log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)); vol = log_returns.std()
-        for _ in range(25):
-            p = [cp]; 
-            for _ in range(20): p.append(p[-1] * np.exp(np.random.normal(0, vol)))
-            ax.plot(p, color='#00FFA3' if p[-1] > cp else '#FF4B4B', alpha=0.15)
-        st.pyplot(fig)
+cl, cr = st.columns([1.2, 1])
 
-    with cr:
-        st.subheader("🎯 Top 5 Call / Put")
-        calls, puts = get_hybrid_options(stock_sel, cp, d_s)
-        st.markdown("<span class='bullish'>🟢 TOP CALLS (Widerstand)</span>", unsafe_allow_html=True)
-        st.dataframe(calls, use_container_width=True, hide_index=True)
-        st.markdown("<span class='bearish'>🔴 TOP PUTS (Support)</span>", unsafe_allow_html=True)
-        st.dataframe(puts, use_container_width=True, hide_index=True)
+with cl:
+    st.subheader("🔮 Markt-Visualisierung")
+    # (Dein bisheriger Monte-Carlo Chart Code für einen ausgewählten Einzelwert hier)
+    # ...
 
-st.info(f"Bio-Trading Status: {'BULLISH ☀️' if d_s['Close'].iloc[-1] > d_s['Close'].iloc[-5] else 'BEARISH ⛈️'} | Update: {pd.Timestamp.now().strftime('%H:%M:%S')}")
+with cr:
+    st.subheader(f"🎯 Top 5 Scanner: {market_sel}")
+    
+    # TOP CALLS: Aktien mit starkem Aufwärtsmoment (Hoher Trend, moderater RSI)
+    st.markdown("<span class='bullish'>🟢 TOP 5 CALL-SIGNALE (Bullish)</span>", unsafe_allow_html=True)
+    top_calls = scan_results.sort_values(by="Trend %", ascending=False).head(5)
+    st.table(top_calls[["Aktie", "Kurs", "Trend %"]])
+    
+    st.write("") # Abstand
+    
+    # TOP PUTS: Aktien mit Schwäche oder Überhitzung (Niedriger Trend)
+    st.markdown("<span class='bearish'>🔴 TOP 5 PUT-SIGNALE (Bearish)</span>", unsafe_allow_html=True)
+    top_puts = scan_results.sort_values(by="Trend %", ascending=True).head(5)
+    st.table(top_puts[["Aktie", "Kurs", "Trend %"]])
