@@ -152,3 +152,6 @@ if not d_s.empty:
         for _ in range(20): p.append(p[-1] * np.exp(np.random.normal(0, vol)))
         ax.plot(p, color='#00FFA3' if p[-1] > cp else '#FF4B4B', alpha=0.15)
     st.pyplot(fig)
+
+# --- Ganz unten in deinem Code (Abschnitt 8 / Footer) ---
+st.info(f"Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Status: {TICKER_NAMES.get(sel_stock, sel_stock)}")
