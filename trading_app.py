@@ -76,15 +76,24 @@ for i, t in enumerate(["^GDAXI", "^STOXX50E", "^NDX", "XU100.IS", "^NSEI"]):
         l = float(df_i['Close'].iloc[-1]); c = ((l/df_i['Close'].iloc[-2])-1)*100
         cols_i[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span> <span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
 
-# --- 6. DEEP-DIVE ---
+# --- 6. DEEP-DIVE (MIT KLARTEXT-NAMEN) ---
 st.divider()
 ca, cb = st.columns(2)
-market_sel = ca.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
-stock_sel = cb.selectbox("Aktie wählen:", TICKER_GROUPS[market_sel])
 
-d_s = get_data(stock_sel)
-if not d_s.empty:
-    cp = float(d_s['Close'].iloc[-1])
+# Markt-Auswahl
+market_sel = ca.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
+
+# Aktie-Auswahl mit Namen statt Ticker
+# Wir nutzen 'format_func', um den Ticker im Hintergrund zu behalten, 
+# aber den Namen aus unserem Mapping anzuzeigen.
+stock_sel = cb.selectbox(
+    "Aktie wählen:", 
+    TICKER_GROUPS[market_sel], 
+    format_func=lambda x: TICKER_NAMES.get(x, x)
+)
+
+# Der Rest des Codes (get_data, Chart, etc.) nutzt weiterhin 'stock_sel' im Hintergrund.
+
     
     # Wetter-Logik Header
     st.markdown(f"""<div class="header-box">
