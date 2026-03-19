@@ -87,39 +87,53 @@ for i, t in enumerate(market_symbols):
                 <span style="color:{"#00FFA3" if c>0 else "#FF4B4B"}">{c:+.2f}%</span>
             </div>''', unsafe_allow_html=True)
 
+# --- 6. DEEP-DIVE ANALYSE (OPTIMIERT) ---
 st.divider()
-
-
-# --- 6. ANALYSE BEREICH ---
 c1, c2 = st.columns(2)
 
-# Ticker Auswahl
-s_tkr = st.selectbox("Symbol für Analyse:", list(TICKER_NAMES.keys()), format_func=lambda x: TICKER_NAMES.get(x,x))
-d_s = get_data(s_tkr, interval="4h")
+# Marktauswahl -> Aktienauswahl (wie am Anfang)
+ca, cb = st.columns(2)
+s_idx = ca.selectbox("Markt wählen:", ["DAX 40 (DE)", "NASDAQ 100 (US)", "BIST 100 (TR)", "Nifty 50 (IN)"])
+STOCKS_DICT = {
+    "DAX 40 (DE)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
+    "NASDAQ 100 (US)": [k for k in TICKER_NAMES.keys() if not k.endswith(".DE") and not k.endswith(".IS") and not k.endswith(".NS") and not "=" in k and not "^" in k],
+    "BIST 100 (TR)": ["THYAO.IS", "ASELS.IS", "KCHOL.IS"],
+    "Nifty 50 (IN)": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS"]
+}
+s_tkr = cb.selectbox("Wert wählen:", STOCKS_DICT[s_idx], format_func=lambda x: TICKER_NAMES.get(x,x))
 
+d_s = get_data(s_tkr, interval="4h")
 if not d_s.empty:
     cp = float(d_s['Close'].iloc[-1])
-    
-    # Formatierung für das ausgewählte Symbol bestimmen
     is_forex = "=X" in s_tkr
-    main_fmt = ":,.5f" if is_forex else ":,.2f"
-
-    # Inputs für Kursziel & SL
-    inp1, inp2 = st.columns(2)
-    # Schrittweite bei Forex kleiner (0.0001)
-    step_val = 0.0001 if is_forex else 0.1
-    target_val = inp1.number_input("Kursziel:", value=float(cp*1.02 if is_forex else cp*1.05), step=step_val, format="%.5f" if is_forex else "%.2f")
-    sl_val = inp2.number_input("Stop-Loss (SL):", value=float(cp*0.99 if is_forex else cp*0.97), step=step_val, format="%.5f" if is_forex else "%.2f")
+    
+    # --- SLIDER STATT NUMBER INPUT ---
+    # Wir setzen die Slider-Range auf +/- 20% vom aktuellen Kurs
+    col_sl1, col_sl2 = st.columns(2)
+    target_val = col_sl1.slider("🎯 Kursziel anpassen:", 
+                               min_value=float(cp * 0.8), 
+                               max_value=float(cp * 1.5), 
+                               value=float(cp * 1.10),
+                               format="%.5f" if is_forex else "%.2f")
+    
+    sl_val = col_sl2.slider("🛡️ Stop-Loss (SL) anpassen:", 
+                            min_value=float(cp * 0.5), 
+                            max_value=float(cp * 1.0), 
+                            value=float(cp * 0.95),
+                            format="%.5f" if is_forex else "%.2f")
+    
     sl_dist = ((sl_val/cp)-1)*100
 
-    # Aktueller Status Header (Zentralisiert)
+    # Status Header
     st.markdown(f"""
         <div style="background: rgba(30,144,255,0.1); padding: 15px; border-radius: 10px; border: 1px solid #1E90FF; margin-bottom: 20px; text-align: center;">
-            <span style="font-size:1.3rem;">Aktueller Kurs: <b>{format(cp, main_fmt.replace(":",""))}</b></span> | 
-            <span style="font-size:1.3rem; color:#1E90FF;">Ziel: <b>{format(target_val, main_fmt.replace(":",""))}</b> 
-            <span style="color:#FF4B4B; font-size:1rem;">({sl_dist:+.2f}% SL-Abstand)</span></span>
+            <span style="font-size:1.3rem;">Aktuell: <b>{cp:,.5f if is_forex else cp:,.2f}</b></span> | 
+            <span style="font-size:1.3rem; color:#1E90FF;">Ziel: <b>{target_val:,.5f if is_forex else target_val:,.2f}</b> 
+            <span style="color:#FF4B4B; font-size:1rem;">({sl_dist:+.2f}% SL)</span></span>
         </div>
     """, unsafe_allow_html=True)
+
+    # ... hier folgen dann die Charts in c1 und c2 ...
 
     with c1:
         st.subheader("🔮 Monte-Carlo Prognose")
