@@ -76,7 +76,7 @@ def run_market_scanner(ticker_list):
 
 # 1. WÄHRUNGEN
 st.title("🚀 Bio-Trading Monitor Live PRO")
-st.subheader("💱 Währungen")
+st.subheader("💱 Fokus/ Währungen 💱")
 cf1, cf2, _ = st.columns(3)
 for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
     df_f = get_data(t, period="2d")
@@ -85,7 +85,7 @@ for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
         (cf1 if i==0 else cf2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.5f}</span></div>', unsafe_allow_html=True)
 
 # 2. INDIZES
-st.subheader("📈 Indizes")
+st.subheader("📈 Fokus/ Indizes📈")
 cols_i = st.columns(5)
 for i, t in enumerate(["^GDAXI", "^STOXX50E", "^NDX", "XU100.IS", "^NSEI"]):
     df_i = get_data(t, period="2d")
@@ -96,7 +96,7 @@ for i, t in enumerate(["^GDAXI", "^STOXX50E", "^NDX", "XU100.IS", "^NSEI"]):
 st.divider()
 
 # 3. STEUERUNG
-st.subheader("⚙️ Steuerung")
+st.subheader("⚙️ Fokus/ Steuerung ⚙️")
 cs1, cs2 = st.columns(2)
 sel_market = cs1.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
 sel_stock = cs2.selectbox("Aktie wählen:", TICKER_GROUPS[sel_market], format_func=lambda x: TICKER_NAMES.get(x, x))
