@@ -101,6 +101,29 @@ with c2:
     st.subheader("🗞️ Live News")
     s_obj = yf.Ticker(s_tkr)
     n_list = s_obj.news
+    
     if n_list:
-        news_items = "".join([f'<div style="margin-bottom:10px;"><a href="{n["link"]}" target="_blank" style="color:#1E90FF; text-decoration:none; font-size:0.85rem;">{n["title"][:80]}...</a></div>' for n in n_list[:10]])
-        st.markdown(f'<div class="news-container"><div class="news-scroll">{news_items}{news_items}</div></div>', unsafe_allow_html=True)
+        news_items = ""
+        for n in n_list[:10]:
+            # .get() verhindert den KeyError, falls 'link' oder 'title' fehlen
+            title = n.get('title', 'Kein Titel verfügbar')
+            link = n.get('link', '#')
+            
+            news_items += f'''
+                <div style="margin-bottom:10px;">
+                    <a href="{link}" target="_blank" style="color:#1E90FF; text-decoration:none; font-size:0.85rem;">
+                        {title[:80]}...
+                    </a>
+                </div>'''
+        
+        # News-Ticker mit Scroll-Effekt
+        st.markdown(f'''
+            <div class="news-container">
+                <div class="news-scroll">
+                    {news_items}
+                    {news_items}
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
+    else:
+        st.info("Keine aktuellen News gefunden.")
