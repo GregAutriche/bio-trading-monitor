@@ -89,7 +89,7 @@ if 'sel_stock' not in st.session_state: st.session_state.sel_stock = "SAP.DE"
 
 d_s = get_data(st.session_state.sel_stock)
 if not d_s.empty:
-    # Daten sicher extrahieren
+    # Daten sicher als Float laden
     cp = float(d_s['Close'].iloc[-1].values) if hasattr(d_s['Close'].iloc[-1], 'values') else float(d_s['Close'].iloc[-1])
     
     # --- BERECHNUNG WETTER & AKTION (C/P) ---
@@ -98,29 +98,29 @@ if not d_s.empty:
     sl_val = cp * 0.97
     sl_dist = ((sl_val / cp) - 1) * 100
 
-    # Logik-Zuweisung: (C)all bei Sonne, (P)ut bei Regen
+    # Logik: Call (C) bei Sonne/Grün, Put (P) bei Regen/Rot
     if trend_5d > 0:
-        aktion_label = "(C)"
+        aktion = "(C) Ziel:"
         wetter_icon = "☀️"
-        status_color = "#00FFA3" # Bullish Green
+        color_hex = "#00FFA3" # Bullish Green
     else:
-        aktion_label = "(P)"
+        aktion = "(P) Ziel:"
         wetter_icon = "⛈️"
-        status_color = "#FF4B4B" # Bearish Red
+        color_hex = "#FF4B4B" # Bearish Red
 
-    # DER FINALE FOKUS-BALKEN
+    # DER FINALE FOKUS-BALKEN (Wie im Screenshot)
     st.markdown(f"""
-        <div style="background: rgba(30,144,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid #1E90FF; text-align: center; margin-bottom: 25px;">
+        <div style="background: rgba(30,144,255,0.05); padding: 15px; border-radius: 10px; border: 1px solid #1E90FF; text-align: center; margin-bottom: 25px;">
             <span style="color:#8892b0; font-size:0.9rem;">Fokus:</span> 
-            <b style="font-size:1.2rem; color:white;">{TICKER_NAMES.get(st.session_state.sel_stock, st.session_state.sel_stock)}</b> 
-            <span style="color:#1E90FF; margin: 0 15px;">|</span>
+            <b style="font-size:1.2rem; color:white; margin-left:5px;">{TICKER_NAMES.get(st.session_state.sel_stock, st.session_state.sel_stock)}</b> 
+            <span style="color:#1E90FF; margin: 0 20px;">|</span>
             <span style="color:#8892b0; font-size:0.9rem;">Kurs:</span> 
-            <b style="font-size:1.2rem; color:white;">{cp:,.2f}</b> 
-            <span style="color:#1E90FF; margin: 0 15px;">|</span>
-            <span style="color:{status_color}; font-weight:bold; font-size:1.2rem;">
-                {aktion_label} Ziel: {target_val:,.2f} 
-                <span style="font-size:0.9rem; color:#FF4B4B; opacity:0.8;">({sl_dist:+.2f}% SL)</span> 
-                <span style="margin-left:5px;">{wetter_icon}</span>
+            <b style="font-size:1.2rem; color:white; margin-left:5px;">{cp:,.2f}</b> 
+            <span style="color:#1E90FF; margin: 0 20px;">|</span>
+            <span style="color:{color_hex}; font-weight:bold; font-size:1.2rem;">
+                {aktion} {target_val:,.2f} 
+                <span style="font-size:0.9rem; color:#8892b0; font-weight:normal; margin-left:5px;">({sl_dist:+.2f}% SL)</span> 
+                <span style="margin-left:8px;">{wetter_icon}</span>
             </span>
         </div>
     """, unsafe_allow_html=True)
