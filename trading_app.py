@@ -11,39 +11,23 @@ st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
 # --- 2. VOLLSTÄNDIGES NAMENS-MAPPING (KLARTEXT) ---
 TICKER_NAMES = {
-    # Forex & Indizes
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
     "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
-    # DAX 40 (Auszug)
     "ADS.DE": "Adidas", "AIR.DE": "Airbus", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer",
     "BMW.DE": "BMW", "DBK.DE": "Deutsche Bank", "DTE.DE": "Telekom", "SAP.DE": "SAP", "SIE.DE": "Siemens",
-    "RHM.DE": "Rheinmetall", "VOW3.DE": "Volkswagen", "IFX.DE": "Infineon", "MBG.DE": "Mercedes-Benz",
-    # EuroStoxx 50 (Auszug)
-    "AIR.PA": "Airbus (FR)", "MC.PA": "LVMH", "OR.PA": "L'Oréal", "ASML.AS": "ASML", "SAN.PA": "Sanofi",
-    "TTE.PA": "TotalEnergies", "BNP.PA": "BNP Paribas", "ITX.MC": "Inditex", "ADYEN.AS": "Adyen",
-    # NASDAQ 100 (Massiv erweitert)
-    "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "AMZN": "Amazon", "GOOGL": "Alphabet A",
-    "META": "Meta (FB)", "TSLA": "Tesla", "AVGO": "Broadcom", "COST": "Costco", "NFLX": "Netflix",
-    "AMD": "AMD", "ADBE": "Adobe", "PEP": "PepsiCo", "CSCO": "Cisco", "TMUS": "T-Mobile US",
-    "QCOM": "Qualcomm", "INTC": "Intel", "INTU": "Intuit", "AMGN": "Amgen", "ISRG": "Intuitive Surg.",
-    "TXN": "Texas Instr.", "HON": "Honeywell", "AMAT": "Applied Mat.", "BKNG": "Booking Holdings",
-    "VRTX": "Vertex Pharm.", "SBUX": "Starbucks", "PANW": "Palo Alto Networks", "GILD": "Gilead Sciences",
-    "SNPS": "Synopsys", "REGN": "Regeneron", "MDLZ": "Mondelez", "PYPL": "PayPal", "ADI": "Analog Devices",
-    "MU": "Micron Tech", "KLAC": "KLA Corp", "LRCX": "Lam Research", "ABNB": "Airbnb", "MAR": "Marriott",
-    # BIST / Nifty
-    "THYAO.IS": "Turkish Airlines", "ASELS.IS": "Aselsan", "KCHOL.IS": "Koc Holding",
-    "RELIANCE.NS": "Reliance Ind.", "TCS.NS": "TCS", "HDFCBANK.NS": "HDFC Bank"
+    "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "TSLA": "Tesla", "AMZN": "Amazon", "META": "Meta",
+    "THYAO.IS": "Turkish Airlines", "RELIANCE.NS": "Reliance Ind.", "TCS.NS": "TCS"
 }
 
 TICKER_GROUPS = {
-    "DAX 40 (DE)": ["SAP.DE", "SIE.DE", "ALV.DE", "DTE.DE", "ADS.DE", "BMW.DE", "BAYN.DE", "BAS.DE", "DBK.DE", "RHM.DE", "IFX.DE", "MBG.DE"],
-    "EuroStoxx 50 (EU)": ["AIR.PA", "MC.PA", "OR.PA", "ASML.AS", "SAN.PA", "BNP.PA", "TTE.PA", "ITX.MC", "ADYEN.AS"],
-    "NASDAQ 100 (US)": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "COST", "NFLX", "AMD", "ADBE", "PEP", "CSCO", "TMUS", "QCOM", "INTC", "INTU", "AMGN", "ISRG", "TXN", "HON", "AMAT", "BKNG", "VRTX", "SBUX", "PANW", "GILD", "SNPS", "REGN", "MDLZ", "PYPL", "ADI", "MU", "KLAC", "LRCX", "ABNB", "MAR"],
+    "DAX 40 (DE)": ["SAP.DE", "SIE.DE", "ALV.DE", "DTE.DE", "ADS.DE", "BMW.DE", "BAYN.DE", "BAS.DE", "DBK.DE", "RHM.DE"],
+    "EuroStoxx 50 (EU)": ["AIR.PA", "MC.PA", "OR.PA", "ASML.AS", "SAN.PA", "BNP.PA", "TTE.PA", "ITX.MC"],
+    "NASDAQ 100 (US)": ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "META", "GOOGL", "AMD", "NFLX", "AVGO", "COST"],
     "BIST 100 (TR)": ["THYAO.IS", "ASELS.IS", "KCHOL.IS"],
     "Nifty 50 (IN)": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS"]
 }
 
-# --- 3. DESIGN (DARK MODE & AKTIIONSFARBEN) ---
+# --- 3. DESIGN ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: #E0E0E0; }
@@ -55,11 +39,13 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. FUNKTIONEN (DATEN & SCANNER) ---
+# --- 4. FUNKTIONEN (FIXED DATA FETCHING) ---
 @st.cache_data(ttl=60)
 def get_data(ticker, period="60d", interval="4h"):
     try:
         d = yf.download(ticker, period=period, interval=interval, progress=False)
+        if d.empty: return pd.DataFrame()
+        # Fix für Multi-Index Spalten (verhindert den TypeError)
         if isinstance(d.columns, pd.MultiIndex): d.columns = d.columns.get_level_values(0)
         return d
     except: return pd.DataFrame()
@@ -68,73 +54,47 @@ def run_market_scanner(ticker_list):
     results = []
     for t in ticker_list:
         df = get_data(t, period="5d")
-        if not df.empty:
-            cp = float(df['Close'].iloc[-1])
-            prev = float(df['Close'].iloc[-2])
+        if not df.empty and len(df) >= 2:
+            # FIX: Sicherere Konvertierung zu Float
+            cp = float(df['Close'].iloc[-1].iloc[0]) if isinstance(df['Close'].iloc[-1], pd.Series) else float(df['Close'].iloc[-1])
+            prev = float(df['Close'].iloc[-2].iloc[0]) if isinstance(df['Close'].iloc[-2], pd.Series) else float(df['Close'].iloc[-2])
             trend = ((cp / prev) - 1) * 100
             results.append({"Aktie": TICKER_NAMES.get(t, t), "Kurs": round(cp, 2), "Trend %": round(trend, 2)})
     return pd.DataFrame(results)
 
-# --- 5. HEADER: ZEILE 1 (FOREX) & ZEILE 2 (INDIZES) ---
+# --- 5. HEADER ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
-
 st.subheader("💱 Währungen")
-cf1, cf2, _ = st.columns([1,1,4])
+cf1, cf2, _ = st.columns(3)
 for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
     df_f = get_data(t, period="2d")
     if not df_f.empty:
-        l = float(df_f['Close'].iloc[-1]); c = ((l/df_f['Close'].iloc[-2])-1)*100
-        (cf1 if i==0 else cf2).markdown(f'<div class="market-card"><small>{TICKER_NAMES[t]}</small><br><span class="metric-value">{l:,.5f}</span> <span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
+        l = float(df_f['Close'].iloc[-1].iloc[0]) if isinstance(df_f['Close'].iloc[-1], pd.Series) else float(df_f['Close'].iloc[-1])
+        c = ((l / (float(df_f['Close'].iloc[-2].iloc[0]) if isinstance(df_f['Close'].iloc[-2], pd.Series) else float(df_f['Close'].iloc[-2]))) - 1) * 100
+        (cf1 if i==0 else cf2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.5f}</span> <span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
 
 st.subheader("📈 Markt-Indizes")
 cols_i = st.columns(5)
 for i, t in enumerate(["^GDAXI", "^STOXX50E", "^NDX", "XU100.IS", "^NSEI"]):
     df_i = get_data(t, period="2d")
     if not df_i.empty:
-        l = float(df_i['Close'].iloc[-1]); c = ((l/df_i['Close'].iloc[-2])-1)*100
-        cols_i[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span> <span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
+        l = float(df_i['Close'].iloc[-1].iloc[0]) if isinstance(df_i['Close'].iloc[-1], pd.Series) else float(df_i['Close'].iloc[-1])
+        cols_i[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span></div>', unsafe_allow_html=True)
 
-# --- 6. HAUPTBEREICH: DEEP-DIVE & SCANNER ---
+# --- 6. SCANNER BEREICH ---
 st.divider()
-ca, cb = st.columns(2)
-market_sel = ca.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
-stock_sel = cb.selectbox("Detail-Analyse Aktie:", TICKER_GROUPS[market_sel], format_func=lambda x: TICKER_NAMES.get(x,x))
+market_sel = st.selectbox("Markt für Top 5 Scanner wählen:", list(TICKER_GROUPS.keys()))
 
-d_s = get_data(stock_sel)
-if not d_s.empty:
-    cp = float(d_s['Close'].iloc[-1])
-    st.markdown(f'<div class="header-box"><span style="font-size:1.3rem;">Fokus: <b>{TICKER_NAMES.get(stock_sel, stock_sel)}</b></span> | <span style="font-size:1.3rem;">Kurs: <b>{cp:,.2f}</b></span> | <span style="color:#00FFA3;">Bio-Ziel: {cp*1.05:,.2f}</span></div>', unsafe_allow_html=True)
-
-    cl, cr = st.columns([1.5, 1])
-
+with st.spinner(f"Scanne {market_sel}..."):
+    scan_results = run_market_scanner(TICKER_GROUPS[market_sel])
+    
+cl, cr = st.columns(2)
+if not scan_results.empty:
     with cl:
-        st.subheader("🔮 Prognose-Wetter (Monte Carlo)")
-        plt.style.use('dark_background')
-        fig, ax = plt.subplots(figsize=(10, 5.5)); fig.patch.set_facecolor('#0E1117'); ax.set_facecolor('#0E1117')
-        log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)); vol = log_returns.std()
-        for _ in range(30):
-            p = [cp]
-            for _ in range(25): p.append(p[-1] * np.exp(np.random.normal(0, vol)))
-            ax.plot(p, color='#00FFA3' if p[-1] > cp else '#FF4B4B', alpha=0.15)
-        ax.axhline(y=cp, color='white', linestyle='--', alpha=0.3)
-        st.pyplot(fig)
-
+        st.markdown("<span class='bullish'>🟢 TOP 5 CALL-SIGNALE</span>", unsafe_allow_html=True)
+        st.dataframe(scan_results.sort_values(by="Trend %", ascending=False).head(5), use_container_width=True, hide_index=True)
     with cr:
-        st.subheader(f"🎯 Top 5 Scanner: {market_sel}")
-        with st.spinner("Analysiere Markt-Signale..."):
-            scan_results = run_market_scanner(TICKER_GROUPS[market_sel])
-            
-            # TOP 5 CALLS
-            st.markdown("<span class='bullish'>🟢 TOP 5 CALL-SIGNALE</span>", unsafe_allow_html=True)
-            top_calls = scan_results.sort_values(by="Trend %", ascending=False).head(5)
-            st.dataframe(top_calls, use_container_width=True, hide_index=True)
-            
-            st.write("") # Abstand
-            
-            # TOP 5 PUTS
-            st.markdown("<span class='bearish'>🔴 TOP 5 PUT-SIGNALE</span>", unsafe_allow_html=True)
-            top_puts = scan_results.sort_values(by="Trend %", ascending=True).head(5)
-            st.dataframe(top_puts, use_container_width=True, hide_index=True)
+        st.markdown("<span class='bearish'>🔴 TOP 5 PUT-SIGNALE</span>", unsafe_allow_html=True)
+        st.dataframe(scan_results.sort_values(by="Trend %", ascending=True).head(5), use_container_width=True, hide_index=True)
 
-# --- 7. FOOTER ---
-st.info(f"Bio-Trading Status: {'☀️ BULLISH' if d_s['Close'].iloc[-1] > d_s['Close'].iloc[-5] else '⛈️ BEARISH'} | Letztes Update: {pd.Timestamp.now().strftime('%H:%M:%S')}")
+st.info(f"Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Alle Daten basieren auf 4h Intervallen.")
