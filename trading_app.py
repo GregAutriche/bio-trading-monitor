@@ -160,14 +160,26 @@ if not d_s.empty:
         ax2.grid(alpha=0.1)
         st.pyplot(fig2)
 
-    # Options Scanner (nur bei US-Werten)
-    if not is_forex and not s_tkr.endswith(".DE"):
-        st.divider()
-        st.subheader("🎯 Options Scanner (Top 5 Open Interest)")
-        calls, puts = get_options_data(s_tkr)
-        if calls is not None:
-            oc1, oc2 = st.columns(2)
-            oc1.write("🟢 **Top Calls**")
-            oc1.dataframe(calls[['strike', 'lastPrice', 'openInterest']], use_container_width=True)
-            oc2.write("🔴 **Top Puts**")
-            oc2.dataframe(puts[['strike', 'lastPrice', 'openInterest']], use_container_width=True)
+    # # --- OPTIONS SCANNER MIT TITEL-FIX ---
+st.divider()
+
+# Wir rufen hier die Expiration-Daten ab, um sie im Titel zu zeigen
+tk_obj = yf.Ticker(s_tkr)
+next_expiry = tk_obj.options[0] if tk_obj.options else "N/A"
+
+st.subheader(f"🎯 Options Scanner: {TICKER_NAMES.get(s_tkr, s_tkr)}")
+st.caption(f"Top 5 nach Open Interest | Nächstes Verfallsdatum: {next_expiry}")
+
+calls, puts = get_options_data(s_tkr)
+
+if calls is not None:
+    oc1, oc2 = st.columns(2)
+    with oc1:
+        st.markdown("### 🟢 Top Calls")
+        # Wir blenden den Index (0,1,2..) aus für eine sauberere Ansicht
+        st.dataframe(calls[['strike', 'lastPrice', 'openInterest']].reset_index(drop=True), use_container_width=True)
+    with oc2:
+        st.markdown("### 🔴 Top Puts")
+        st.dataframe(puts[['strike', 'lastPrice', 'openInterest']].reset_index(drop=True), use_container_width=True)
+else:
+    st.info(f"Für {TICKER_NAMES.get(s_tkr, s_tkr)} sind aktuell keine Optionsdaten verfügbar.")
