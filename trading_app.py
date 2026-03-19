@@ -9,22 +9,42 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. TICKER-GRUPPEN (VOLLSTÄNDIG) ---
-TICKER_GROUPS = {
-    "DAX 40 (DE)": ["SAP.DE", "SIE.DE", "ALV.DE", "DTE.DE", "AIR.DE", "MBG.DE", "BMW.DE", "BAS.DE", "BAYN.DE", "ADS.DE", "RHM.DE", "DBK.DE"],
-    "EuroStoxx 50 (EU)": ["ASML.AS", "MC.PA", "OR.PA", "TTE.PA", "SAN.PA", "SAP.DE", "SIE.DE", "AIR.PA", "BNP.PA"],
-    "NASDAQ 100 (US)": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "COST", "NFLX", "AMD"],
-    "BIST 100 (TR)": ["THYAO.IS", "ASELS.IS", "KCHOL.IS", "TUPRS.IS", "BIMAS.IS", "AKBNK.IS"],
-    "Nifty 50 (IN)": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS", "INFY.NS"]
+# --- 2. TICKER-NAMEN MAPPING (KLARTEXT) ---
+TICKER_NAMES = {
+    "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
+    "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
+    # DAX
+    "ADS.DE": "Adidas", "AIR.DE": "Airbus", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer",
+    "BEI.DE": "Beiersdorf", "BMW.DE": "BMW", "BNR.DE": "Brenntag", "CBK.DE": "Commerzbank",
+    "CON.DE": "Continental", "1COV.DE": "Covestro", "DTG.DE": "Daimler Truck", "DBK.DE": "Deutsche Bank",
+    "DB1.DE": "Deutsche Börse", "DHL.DE": "DHL Group", "DTE.DE": "Telekom", "EON.DE": "E.ON",
+    "FME.DE": "Fresenius Med.", "FRE.DE": "Fresenius SE", "GEA.DE": "GEA Group", "HNR1.DE": "Hannover Rück",
+    "HEI.DE": "Heidelberg Mat.", "HEN3.DE": "Henkel", "IFX.DE": "Infineon", "MBG.DE": "Mercedes-Benz",
+    "MRK.DE": "Merck", "MTX.DE": "MTU Aero", "MUV2.DE": "Münchener Rück", "PAH3.DE": "Porsche SE",
+    "PUM.DE": "Puma", "QIA.DE": "Qiagen", "RHM.DE": "Rheinmetall", "RWE.DE": "RWE", "SAP.DE": "SAP",
+    "SIE.DE": "Siemens", "ENR.DE": "Siemens Energy", "SHL.DE": "Siemens Health.", "SY1.DE": "Symrise",
+    "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia", "ZAL.DE": "Zalando",
+    # NASDAQ
+    "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "AMZN": "Amazon", "GOOGL": "Alphabet",
+    "META": "Meta", "TSLA": "Tesla", "AVGO": "Broadcom", "COST": "Costco", "NFLX": "Netflix",
+    # BIST / NIFTY
+    "THYAO.IS": "Turkish Airlines", "ASELS.IS": "Aselsan", "KCHOL.IS": "Koc Holding",
+    "RELIANCE.NS": "Reliance Ind.", "TCS.NS": "TCS", "HDFCBANK.NS": "HDFC Bank"
 }
 
-TICKER_NAMES = {"EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50", "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50"}
+TICKER_GROUPS = {
+    "DAX 40 (DE)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
+    "EuroStoxx 50 (EU)": ["AIR.PA", "ASML.AS", "MC.PA", "OR.PA", "SAP.DE", "SIE.DE"],
+    "NASDAQ 100 (US)": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "COST", "NFLX"],
+    "BIST 100 (TR)": ["THYAO.IS", "ASELS.IS", "KCHOL.IS"],
+    "Nifty 50 (IN)": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS"]
+}
 
 # --- 3. DESIGN ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: #E0E0E0; }
-    .market-card { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); }
+    .market-card { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px; }
     .metric-value { font-size: 1.1rem; font-weight: bold; font-family: 'Courier New', monospace; color: white; }
     .bullish { color: #00FFA3; font-weight: bold; }
     .bearish { color: #FF4B4B; font-weight: bold; }
@@ -32,7 +52,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. FUNKTIONEN (WETTER-LOGIK) ---
+# --- 4. FUNKTIONEN ---
 @st.cache_data(ttl=60)
 def get_data(ticker, period="60d", interval="4h"):
     try:
@@ -42,23 +62,14 @@ def get_data(ticker, period="60d", interval="4h"):
     except: return pd.DataFrame()
 
 def calculate_bio_options(current_price, df):
-    """Berechnet synthetische Call/Put Levels basierend auf Volatilität (funktioniert global)"""
     returns = np.log(df['Close'] / df['Close'].shift(1))
     std = returns.std()
-    
-    calls = []
-    puts = []
-    # Wir erstellen 5 Levels basierend auf Standardabweichungen (Wetter-Logik)
-    for i in range(1, 6):
-        calls.append({"Strike": current_price * (1 + (std * i)), "Prob.": f"{100-(i*10):.0f}%"})
-        puts.append({"Strike": current_price * (1 - (std * i)), "Prob.": f"{100-(i*10):.0f}%"})
-        
+    calls = [{"Strike": f"{current_price*(1+(std*i)):,.2f}", "Prob.": f"{100-(i*15):.0f}%"} for i in range(1,6)]
+    puts = [{"Strike": f"{current_price*(1-(std*i)):,.2f}", "Prob.": f"{100-(i*15):.0f}%"} for i in range(1,6)]
     return pd.DataFrame(calls), pd.DataFrame(puts)
 
-# --- 5. HEADER ---
+# --- 5. HEADER (WÄHRUNGEN & INDIZES) ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
-
-# Zeile 1: Währungen
 st.subheader("💱 Währungen")
 cf1, cf2, _ = st.columns([1,1,4])
 for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
@@ -67,7 +78,6 @@ for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
         l = float(df_f['Close'].iloc[-1]); c = ((l/df_f['Close'].iloc[-2])-1)*100
         (cf1 if i==0 else cf2).markdown(f'<div class="market-card"><small>{TICKER_NAMES[t]}</small><br><span class="metric-value">{l:,.5f}</span> <span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
 
-# Zeile 2: Indizes
 st.subheader("📈 Markt-Indizes")
 cols_i = st.columns(5)
 for i, t in enumerate(["^GDAXI", "^STOXX50E", "^NDX", "XU100.IS", "^NSEI"]):
@@ -76,55 +86,36 @@ for i, t in enumerate(["^GDAXI", "^STOXX50E", "^NDX", "XU100.IS", "^NSEI"]):
         l = float(df_i['Close'].iloc[-1]); c = ((l/df_i['Close'].iloc[-2])-1)*100
         cols_i[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span> <span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
 
-# --- 6. DEEP-DIVE (MIT KLARTEXT-NAMEN) ---
+# --- 6. DEEP-DIVE ---
 st.divider()
 ca, cb = st.columns(2)
-
-# Markt-Auswahl
 market_sel = ca.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
+stock_sel = cb.selectbox("Aktie wählen:", TICKER_GROUPS[market_sel], format_func=lambda x: TICKER_NAMES.get(x,x))
 
-# Aktie-Auswahl mit Namen statt Ticker
-# Wir nutzen 'format_func', um den Ticker im Hintergrund zu behalten, 
-# aber den Namen aus unserem Mapping anzuzeigen.
-stock_sel = cb.selectbox(
-    "Aktie wählen:", 
-    TICKER_GROUPS[market_sel], 
-    format_func=lambda x: TICKER_NAMES.get(x, x)
-)
-
-# Der Rest des Codes (get_data, Chart, etc.) nutzt weiterhin 'stock_sel' im Hintergrund.
-
-    
-    # Wetter-Logik Header
-    st.markdown(f"""<div class="header-box">
-        <span style="font-size:1.3rem;">Status: <b>{stock_sel}</b></span> | 
-        <span style="font-size:1.3rem;">Kurs: <b>{cp:,.2f}</b></span> | 
-        <span style="color:#00FFA3;">Ziel (Bio): {cp*1.05:,.2f}</span>
-    </div>""", unsafe_allow_html=True)
+d_s = get_data(stock_sel)
+if not d_s.empty:
+    cp = float(d_s['Close'].iloc[-1])
+    # Hier war der Einrückungsfehler im Bild behoben:
+    st.markdown(f'<div class="header-box"><span style="font-size:1.3rem;">Status: <b>{TICKER_NAMES.get(stock_sel, stock_sel)}</b></span> | <span style="font-size:1.3rem;">Kurs: <b>{cp:,.2f}</b></span> | <span style="color:#00FFA3;">Ziel (Bio): {cp*1.05:,.2f}</span></div>', unsafe_allow_html=True)
 
     c_left, c_right = st.columns([1.5, 1])
-
     with c_left:
         st.subheader("🔮 Bio-Prognose (Monte Carlo)")
         plt.style.use('dark_background')
         fig, ax = plt.subplots(figsize=(10, 5)); fig.patch.set_facecolor('#0E1117'); ax.set_facecolor('#0E1117')
         log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)); vol = log_returns.std()
-        for _ in range(30):
+        for _ in range(25):
             p = [cp]
-            for _ in range(25): p.append(p[-1] * np.exp(np.random.normal(0, vol)))
+            for _ in range(20): p.append(p[-1] * np.exp(np.random.normal(0, vol)))
             ax.plot(p, color='#00FFA3' if p[-1] > cp else '#FF4B4B', alpha=0.15)
-        ax.axhline(y=cp, color='white', linestyle='--', alpha=0.3)
         st.pyplot(fig)
 
     with c_right:
         st.subheader("🎯 Top 5 Call / Put (Bio-Levels)")
         calls, puts = calculate_bio_options(cp, d_s)
-        
         st.markdown("<span class='bullish'>🟢 TOP CALLS (Widerstand)</span>", unsafe_allow_html=True)
         st.dataframe(calls, use_container_width=True, hide_index=True)
-        
         st.markdown("<span class='bearish'>🔴 TOP PUTS (Support)</span>", unsafe_allow_html=True)
         st.dataframe(puts, use_container_width=True, hide_index=True)
 
-# --- 7. FOOTER ---
-st.info(f"Bio-Trading Algorithmus aktiv | Markt: {market_sel} | Letzter Check: {pd.Timestamp.now().strftime('%H:%M:%S')}")
+st.info(f"Bio-Trading Status: {'BULLISH ☀️' if d_s['Close'].iloc[-1] > d_s['Close'].iloc[-5] else 'BEARISH ⛈️'} | Update: {pd.Timestamp.now().strftime('%H:%M:%S')}")
