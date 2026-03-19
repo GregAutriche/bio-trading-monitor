@@ -9,25 +9,24 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. TICKER-MAPPING (Vollständige Klarnamen) ---
+# --- 2. TICKER-MAPPING ---
 TICKER_NAMES = {
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
     "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
     "ADS.DE": "Adidas", "AIR.DE": "Airbus", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer",
     "BMW.DE": "BMW", "DBK.DE": "Deutsche Bank", "DTE.DE": "Telekom", "SAP.DE": "SAP", "SIE.DE": "Siemens",
-    "IFX.DE": "Infineon", "MBG.DE": "Mercedes-Benz", "AAPL": "Apple", "NVDA": "Nvidia", "TSLA": "Tesla",
-    "AIR.PA": "Airbus (FR)", "MC.PA": "LVMH", "OR.PA": "L'Oreal", "ASML.AS": "ASML", "SAN.PA": "Sanofi"
+    "AAPL": "Apple", "NVDA": "Nvidia", "TSLA": "Tesla", "MSFT": "Microsoft", "AMZN": "Amazon"
 }
 
 TICKER_GROUPS = {
-    "DAX 40 (DE)": ["SAP.DE", "SIE.DE", "ALV.DE", "DTE.DE", "ADS.DE", "BMW.DE", "BAYN.DE", "BAS.DE", "DBK.DE", "IFX.DE", "MBG.DE"],
-    "EuroStoxx 50 (EU)": ["AIR.PA", "MC.PA", "OR.PA", "ASML.AS", "SAN.PA", "SAP.DE", "SIE.DE", "ALV.DE"],
-    "NASDAQ 100 (US)": ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "META", "GOOGL"],
+    "DAX 40 (DE)": ["SAP.DE", "SIE.DE", "ALV.DE", "DTE.DE", "ADS.DE", "BMW.DE", "BAYN.DE", "BAS.DE", "DBK.DE"],
+    "EuroStoxx 50 (EU)": ["AIR.PA", "MC.PA", "OR.PA", "ASML.AS", "SAN.PA", "BNP.PA"],
+    "NASDAQ 100 (US)": ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN"],
     "BIST 100 (TR)": ["THYAO.IS", "ASELS.IS", "KCHOL.IS"],
     "Nifty 50 (IN)": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS"]
 }
 
-# --- 3. CSS DESIGN (BIO-TRADING COLORS) ---
+# --- 3. CSS DESIGN ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: #E0E0E0; }
@@ -67,8 +66,8 @@ cf1, cf2, _ = st.columns(3)
 for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
     df_f = get_data(t)
     if not df_f.empty:
-        l = float(df_f['Close'].iloc[-1]); c = ((l/df_h['Close'].iloc[-2])-1)*100 if 'df_h' in locals() else 0 # Dummy fix
-        (cf1 if i==0 else cf2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.5f}</span></div>', unsafe_allow_html=True)
+        l = float(df_f['Close'].iloc[-1]); c = ((l/df_f['Close'].iloc[-2])-1)*100
+        (cf1 if i==0 else cf2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.5f}</span> <span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
 
 # 2. INDIZES
 st.subheader("📈 Indizes")
@@ -84,61 +83,64 @@ st.divider()
 # 3. STEUERUNG
 st.subheader("⚙️ Steuerung")
 cs1, cs2 = st.columns(2)
-sel_market = cs1.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()), key="m_sel")
-sel_stock = cs2.selectbox("Aktie wählen:", TICKER_GROUPS[sel_market], format_func=lambda x: TICKER_NAMES.get(x, x), key="s_sel")
+sel_market = cs1.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
+sel_stock = cs2.selectbox("Aktie wählen:", TICKER_GROUPS[sel_market], format_func=lambda x: TICKER_NAMES.get(x, x))
 
 st.divider()
 
 # 4. SCANNER
 st.subheader(f"🎯 Scanner: {sel_market}")
-scan_results = run_market_scanner(TICKER_GROUPS[sel_market])
-if not scan_results.empty:
-    col_c, col_p = st.columns(2)
-    with col_c:
-        st.markdown("<span class='bullish'>🟢 TOP 5 CALLS</span>", unsafe_allow_html=True)
-        st.dataframe(scan_results.sort_values(by="Trend %", ascending=False).head(5), use_container_width=True, hide_index=True)
-    with col_p:
-        st.markdown("<span class='bearish'>🔴 TOP 5 PUTS</span>", unsafe_allow_html=True)
-        st.dataframe(scan_results.sort_values(by="Trend %", ascending=True).head(5), use_container_width=True, hide_index=True)
+with st.spinner("Scanne Signale..."):
+    scan_results = run_market_scanner(TICKER_GROUPS[sel_market])
+    if not scan_results.empty:
+        col_c, col_p = st.columns(2)
+        with col_c:
+            st.markdown("<span class='bullish'>🟢 TOP 5 CALLS</span>", unsafe_allow_html=True)
+            st.dataframe(scan_results.sort_values(by="Trend %", ascending=False).head(5), use_container_width=True, hide_index=True)
+        with col_p:
+            st.markdown("<span class='bearish'>🔴 TOP 5 PUTS</span>", unsafe_allow_html=True)
+            st.dataframe(scan_results.sort_values(by="Trend %", ascending=True).head(5), use_container_width=True, hide_index=True)
 
 st.divider()
 
-# 5. FOKUS: MONTE CARLO & WETTER-LOGIK
+# 5. FOKUS & MONTE CARLO
 d_s = get_data(sel_stock, period="60d")
 if not d_s.empty:
     cp = float(d_s['Close'].iloc[-1])
     trend_5d = ((cp / d_s['Close'].iloc[-5]) - 1) * 100
     
-    # --- LOGIK: Call (C) / Put (P) ---
-    label, icon, color = ("(C)", "☀️", "#00FFA3") if trend_5d > 0 else ("(P)", "⛈️", "#FF4B4B")
-    target = cp * 1.05 if trend_5d > 0 else cp * 0.95
+    # --- LOGIK: (C)all für Green/Bullish, (P)ut für Red/Bearish ---
+    if trend_5d > 0:
+        label, color, icon = "(C) Ziel:", "#00FFA3", "☀️"
+        target = cp * 1.05
+    else:
+        label, color, icon = "(P) Ziel:", "#FF4B4B", "⛈️"
+        target = cp * 0.95
+    
     sl_dist = -3.00
 
-    # Fokus-Balken mit Aktionsfarben
+    # Fokus-Balken (wie im Bild)
     st.markdown(f"""
         <div class="header-box">
-            <span style="color:#8892b0;">Fokus:</span> <b style="color:white; font-size:1.2rem; margin-right:15px;">{TICKER_NAMES.get(sel_stock, sel_stock)}</b> 
-            <span style="color:#1E90FF;">|</span>
-            <span style="color:#8892b0; margin-left:15px;">Kurs:</span> <b style="color:white; font-size:1.2rem; margin-right:15px;">{cp:,.2f}</b> 
-            <span style="color:#1E90FF;">|</span>
-            <span style="color:{color}; font-weight:bold; font-size:1.2rem; margin-left:15px;">
-                {label} Ziel: {target:,.2f} 
-                <span style="font-size:0.9rem; color:#8892b0; font-weight:normal;">({sl_dist:+.2f}% SL)</span> 
-                <span style="margin-left:5px;">{icon}</span>
+            <span style="color:#8892b0; font-size:0.9rem;">Fokus:</span> <b style="color:white; font-size:1.1rem; margin-right:5px;">{TICKER_NAMES.get(sel_stock, sel_stock)}</b> 
+            <span style="color:#1E90FF; margin: 0 15px;">|</span>
+            <span style="color:#8892b0; font-size:0.9rem;">Kurs:</span> <b style="color:white; font-size:1.1rem; margin-right:5px;">{cp:,.2f}</b> 
+            <span style="color:#1E90FF; margin: 0 15px;">|</span>
+            <span style="color:{color}; font-weight:bold; font-size:1.2rem;">
+                {label} {target:,.2f} 
+                <span style="font-size:0.85rem; color:#8892b0; font-weight:normal; margin-left:5px;">({sl_dist:+.2f}% SL)</span> 
+                <span style="margin-left:8px;">{icon}</span>
             </span>
         </div>
     """, unsafe_allow_html=True)
 
     # Plot
     plt.style.use('dark_background')
-    fig, ax = plt.subplots(figsize=(12, 4))
+    fig, ax = plt.subplots(figsize=(12, 4.5))
     fig.patch.set_facecolor('#0E1117'); ax.set_facecolor('#0E1117')
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)); vol = log_returns.std()
     for _ in range(25):
         p = [cp]
         for _ in range(20): p.append(p[-1] * np.exp(np.random.normal(0, vol)))
         ax.plot(p, color='#00FFA3' if p[-1] > cp else '#FF4B4B', alpha=0.15)
-    ax.axhline(y=cp, color='white', linestyle='--', alpha=0.3)
     st.pyplot(fig)
-
-st.info(f"Bio-Trading Status: {icon} | Letztes Update: {pd.Timestamp.now().strftime('%H:%M:%S')}")
