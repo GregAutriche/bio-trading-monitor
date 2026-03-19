@@ -28,8 +28,9 @@ TICKER_NAMES = {
 TICKER_GROUPS = {
     "DAX 40 (DE)": ["SAP.DE", "SIE.DE", "ALV.DE", "DTE.DE", "ADS.DE", "BMW.DE", "BAYN.DE", "BAS.DE", "DBK.DE", "RHM.DE"],
     "EuroStoxx 50 (EU)": ["AIR.PA", "MC.PA", "OR.PA", "ASML.AS", "SAN.PA", "BNP.PA", "TTE.PA", "ITX.MC"],
-    "NASDAQ 100 (US)": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "COST", "NFLX", "AMD", "ADBE", "PEP", "CSCO", "TMUS", "QCOM", "INTC", "INTU", "AMGN", "ISRG", 
-    "TXN", "HON", "AMAT", "BKNG", "VRTX", "SBUX", "PANW", "GILD", "SNPS", "REGN", "MDLZ", "PYPL", "ADI", "MU", "KLAC", "LRCX"],
+    "NASDAQ 100 (US)": ["AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "AMZN": "Amazon", "GOOGL": "Alphabet A", "GOOG": "Alphabet C", "META": "Meta (FB)", "TSLA": "Tesla", "AVGO": "Broadcom", "COST": "Costco", "NFLX": "Netflix", "AMD": "AMD", 
+    "ADBE": "Adobe", "PEP": "PepsiCo", "CSCO": "Cisco", "TMUS": "T-Mobile US", "AVGO": "Broadcom", "QCOM": "Qualcomm", "INTC": "Intel", "INTU": "Intuit", 
+    "AMGN": "Amgen", "ISRG": "Intuitive Surg.", "TXN": "Texas Instr.", "HON": "Honeywell", "AMAT": "Applied Mat.", "BKNG": "Booking Holdings", "VRTX": "Vertex Pharm.", "SBUX": "Starbucks", "PANW": "Palo Alto Networks", "GILD": "Gilead Sciences", "SNPS": "Synopsys", "REGN": "Regeneron", "MDLZ": "Mondelez", "PYPL": "PayPal", "ADI": "Analog Devices", "MU": "Micron Tech", "KLAC": "KLA Corp", "LRCX": "Lam Research"],
     "BIST 100 (TR)": ["THYAO.IS", "ASELS.IS", "KCHOL.IS", "TUPRS.IS"],
     "Nifty 50 (IN)": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS"]
 }
