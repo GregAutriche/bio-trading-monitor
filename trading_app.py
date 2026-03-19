@@ -9,16 +9,15 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. TICKER-GRUPPEN (Indizes und zugehörige Aktien) ---
+# --- 2. TICKER-GRUPPEN & NAMENS-MAPPING ---
 TICKER_GROUPS = {
-    "DAX 40 (DE)": ["SAP.DE", "SIE.DE", "ALV.DE", "DTE.DE", "ADS.DE", "BMW.DE", "BAYN.DE", "BAS.DE", "DBK.DE", "RHM.DE"],
+    "DAX 40 (DE)": ["SAP.DE", "SIE.DE", "ALV.DE", "DTE.DE", "ADS.DE", "BMW.DE", "BAYN.DE", "BAS.DE", "DBK.DE", "RHM.DE", "IFX.DE", "MBG.DE"],
     "EuroStoxx 50 (EU)": ["AIR.PA", "MC.PA", "OR.PA", "ASML.AS", "SAN.PA", "BNP.PA", "TTE.PA", "ITX.MC", "ADYEN.AS"],
-    "NASDAQ 100 (US)": ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "META", "GOOGL", "AMD", "NFLX", "AVGO", "COST", "QCOM"],
+    "NASDAQ 100 (US)": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "COST", "NFLX", "AMD", "ADBE", "QCOM", "INTC", "PYPL"],
     "BIST 100 (TR)": ["THYAO.IS", "ASELS.IS", "KCHOL.IS", "TUPRS.IS", "BIMAS.IS", "AKBNK.IS"],
     "Nifty 50 (IN)": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS", "INFY.NS"]
 }
 
-# Mapping für Klarnamen
 TICKER_NAMES = {
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
     "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
@@ -54,45 +53,76 @@ def run_market_scanner(ticker_list):
     results = []
     for t in ticker_list:
         df = get_data(t, period="5d")
-        if not df.empty:
-            cp = float(df['Close'].iloc[-1].iloc) if isinstance(df['Close'].iloc[-1], pd.Series) else float(df['Close'].iloc[-1])
-            prev = float(df['Close'].iloc[-2].iloc) if isinstance(df['Close'].iloc[-2], pd.Series) else float(df['Close'].iloc[-2])
+        if not df.empty and len(df) >= 2:
+            cp = float(df['Close'].iloc[-1].values[0]) if hasattr(df['Close'].iloc[-1], 'values') else float(df['Close'].iloc[-1])
+            prev = float(df['Close'].iloc[-2].values[0]) if hasattr(df['Close'].iloc[-2], 'values') else float(df['Close'].iloc[-2])
             trend = ((cp / prev) - 1) * 100
             results.append({"Aktie": TICKER_NAMES.get(t, t), "Kurs": round(cp, 2), "Trend %": round(trend, 2)})
     return pd.DataFrame(results)
 
-# --- 5. HEADER (Währungen & Indizes) ---
+# --- 5. HEADER (FOREX & INDIZES) ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
-st.subheader("💱 Währungen & Indizes")
-c1, c2, c3, c4, c5 = st.columns(5)
-# ... (Anzeige-Logik für Währungen/Indizes wie bisher) ...
 
-# --- 6. DEEP-DIVE & AUSWAHL ---
+st.subheader("💱 Währungen")
+cf1, cf2, _ = st.columns(3)
+for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
+    df_f = get_data(t, period="2d")
+    if not df_f.empty:
+        l = float(df_f['Close'].iloc[-1].values[0]) if hasattr(df_f['Close'].iloc[-1], 'values') else float(df_f['Close'].iloc[-1])
+        c = ((l / (float(df_f['Close'].iloc[-2].values[0]) if hasattr(df_f['Close'].iloc[-2], 'values') else float(df_f['Close'].iloc[-2]))) - 1) * 100
+        (cf1 if i==0 else cf2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.5f}</span> <span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
+
+st.subheader("📈 Markt-Indizes")
+cols_i = st.columns(5)
+for i, t in enumerate(["^GDAXI", "^STOXX50E", "^NDX", "XU100.IS", "^NSEI"]):
+    df_i = get_data(t, period="2d")
+    if not df_i.empty:
+        l = float(df_i['Close'].iloc[-1].values[0]) if hasattr(df_i['Close'].iloc[-1], 'values') else float(df_i['Close'].iloc[-1])
+        c = ((l / (float(df_i['Close'].iloc[-2].values[0]) if hasattr(df_i['Close'].iloc[-2], 'values') else float(df_i['Close'].iloc[-2]))) - 1) * 100
+        cols_i[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span> <span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
+
 st.divider()
-st.subheader("🔍 Marktanalyse & Auswahl")
 
-# Hier ist die gewünschte Auswahl: Index wählen -> Aktie wählen
-selected_index = st.selectbox("1. Aktienindex wählen:", list(TICKER_GROUPS.keys()))
-selected_stock = st.selectbox("2. Aktie aus diesem Index wählen:", TICKER_GROUPS[selected_index], format_func=lambda x: TICKER_NAMES.get(x, x))
+# --- 6. HAUPTBEREICH: CHART & SCANNER ---
+# Initialisierung der Auswahl (wird unten definiert, aber hier genutzt)
+if 'selected_market' not in st.session_state: st.session_state.selected_market = "DAX 40 (DE)"
+if 'selected_stock' not in st.session_state: st.session_state.selected_stock = "SAP.DE"
 
-d_s = get_data(selected_stock)
+d_s = get_data(st.session_state.selected_stock)
 if not d_s.empty:
-    cp = float(d_s['Close'].iloc[-1].iloc) if isinstance(d_s['Close'].iloc[-1], pd.Series) else float(d_s['Close'].iloc[-1])
-    st.markdown(f'<div class="header-box"><span style="font-size:1.3rem;">Fokus: <b>{TICKER_NAMES.get(selected_stock, selected_stock)}</b></span> | <span style="font-size:1.3rem;">Kurs: <b>{cp:,.2f}</b></span></div>', unsafe_allow_html=True)
+    cp = float(d_s['Close'].iloc[-1].values[0]) if hasattr(d_s['Close'].iloc[-1], 'values') else float(d_s['Close'].iloc[-1])
+    st.markdown(f'<div class="header-box"><span style="font-size:1.3rem;">Fokus: <b>{TICKER_NAMES.get(st.session_state.selected_stock, st.session_state.selected_stock)}</b></span> | <span style="font-size:1.3rem;">Kurs: <b>{cp:,.2f}</b></span> | <span style="color:#00FFA3;">Ziel (Bio): {cp*1.05:,.2f}</span></div>', unsafe_allow_html=True)
 
     cl, cr = st.columns([1.5, 1])
     with cl:
-        st.subheader("🔮 Bio-Prognose (Monte Carlo)")
-        # ... (Monte Carlo Plot wie bisher) ...
+        st.subheader("🔮 Prognose-Wetter (Monte Carlo)")
+        plt.style.use('dark_background')
+        fig, ax = plt.subplots(figsize=(10, 5)); fig.patch.set_facecolor('#0E1117'); ax.set_facecolor('#0E1117')
+        log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)); vol = log_returns.std()
+        for _ in range(25):
+            p = [cp]
+            for _ in range(20): p.append(p[-1] * np.exp(np.random.normal(0, vol)))
+            ax.plot(p, color='#00FFA3' if p[-1] > cp else '#FF4B4B', alpha=0.15)
+        ax.axhline(y=cp, color='white', linestyle='--', alpha=0.4)
+        st.pyplot(fig)
 
     with cr:
-        st.subheader(f"🎯 Top 5 Scanner: {selected_index}")
+        st.subheader(f"🎯 Scanner: {st.session_state.selected_market}")
         with st.spinner("Scanne Signale..."):
-            scan_results = run_market_scanner(TICKER_GROUPS[selected_index])
+            scan_results = run_market_scanner(TICKER_GROUPS[st.session_state.selected_market])
             if not scan_results.empty:
-                st.markdown("<span class='bullish'>🟢 TOP CALLS</span>", unsafe_allow_html=True)
-                st.dataframe(scan_results.sort_values(by="Trend %", ascending=False).head(5), hide_index=True)
-                st.markdown("<span class='bearish'>🔴 TOP PUTS</span>", unsafe_allow_html=True)
-                st.dataframe(scan_results.sort_values(by="Trend %", ascending=True).head(5), hide_index=True)
+                st.markdown("<span class='bullish'>🟢 TOP 5 CALLS</span>", unsafe_allow_html=True)
+                st.dataframe(scan_results.sort_values(by="Trend %", ascending=False).head(5), use_container_width=True, hide_index=True)
+                st.markdown("<span class='bearish'>🔴 TOP 5 PUTS</span>", unsafe_allow_html=True)
+                st.dataframe(scan_results.sort_values(by="Trend %", ascending=True).head(5), use_container_width=True, hide_index=True)
 
-st.info(f"Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Status: {selected_stock}")
+# --- 7. AUSWAHL-BEREICH (JETZT GANZ UNTEN) ---
+st.divider()
+st.subheader("⚙️ Analyse-Steuerung")
+c_sel1, c_sel2 = st.columns(2)
+with c_sel1:
+    st.session_state.selected_market = st.selectbox("Index wählen:", list(TICKER_GROUPS.keys()))
+with c_sel2:
+    st.session_state.selected_stock = st.selectbox("Aktie wählen:", TICKER_GROUPS[st.session_state.selected_market], format_func=lambda x: TICKER_NAMES.get(x, x))
+
+st.info(f"Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Status: {st.session_state.selected_stock}")
