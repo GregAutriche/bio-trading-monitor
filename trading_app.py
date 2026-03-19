@@ -84,24 +84,54 @@ for i, t in enumerate(["^GDAXI", "^STOXX50E", "^NDX", "XU100.IS", "^NSEI"]):
 st.divider()
 
 # --- 6. MONTE CARLO PROGNOSE ---
+# --- 6. MONTE CARLO PROGNOSE & WETTER-LOGIK ---
 if 'sel_market' not in st.session_state: st.session_state.sel_market = "DAX 40 (DE)"
 if 'sel_stock' not in st.session_state: st.session_state.sel_stock = "SAP.DE"
 
 d_s = get_data(st.session_state.sel_stock)
 if not d_s.empty:
+    # Daten sicher als Float holen
     cp = float(d_s['Close'].iloc[-1].values) if hasattr(d_s['Close'].iloc[-1], 'values') else float(d_s['Close'].iloc[-1])
-    st.markdown(f'<div class="header-box"><span style="font-size:1.3rem;">Fokus: <b>{TICKER_NAMES.get(st.session_state.sel_stock, st.session_state.sel_stock)}</b></span> | <span style="font-size:1.3rem;">Kurs: <b>{cp:,.2f}</b></span></div>', unsafe_allow_html=True)
     
-    st.subheader("🔮 Prognose (Monte Carlo)")
+    # --- WETTER & FARBEN LOGIK BERECHNUNG ---
+    target_val = cp * 1.05
+    sl_val = cp * 0.97
+    sl_dist = ((sl_val / cp) - 1) * 100
+    
+    # Dynamische Wetter-Farbe basierend auf Trend (z.B. letzte 5 Kerzen)
+    trend_5d = ((cp / d_s['Close'].iloc[-5]) - 1) * 100
+    wetter_icon = "☀️" if trend_5d > 0 else "⛈️"
+    status_color = "#00FFA3" if trend_5d > 0 else "#FF4B4B"
+
+    # DER NEUE FOKUS-BALKEN (Wie im Bild, aber mit deiner Logik)
+    st.markdown(f"""
+        <div style="background: rgba(30,144,255,0.1); padding: 15px; border-radius: 12px; border: 1px solid #1E90FF; text-align: center; margin-bottom: 20px;">
+            <span style="color:#8892b0; font-size:0.9rem;">Fokus:</span> 
+            <b style="font-size:1.2rem; color:white;">{TICKER_NAMES.get(st.session_state.sel_stock, st.session_state.sel_stock)}</b> 
+            <span style="color:#1E90FF; margin: 0 10px;">|</span>
+            <span style="color:#8892b0; font-size:0.9rem;">Kurs:</span> 
+            <b style="font-size:1.2rem; color:white;">{cp:,.2f}</b> 
+            <span style="color:#1E90FF; margin: 0 10px;">|</span>
+            <span style="color:{status_color}; font-weight:bold; font-size:1.1rem;">
+                Ziel: {target_val:,.2f} <span style="font-size:0.9rem; color:#FF4B4B;">({sl_dist:+.2f}% SL)</span> {wetter_icon}
+            </span>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # --- MONTE CARLO CHART ---
+    st.subheader(f"🔮 Prognose-Wetter: {TICKER_NAMES.get(st.session_state.sel_stock, st.session_state.sel_stock)}")
     plt.style.use('dark_background')
     fig, ax = plt.subplots(figsize=(12, 4.5))
     fig.patch.set_facecolor('#0E1117'); ax.set_facecolor('#0E1117')
+    
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)); vol = log_returns.std()
     for _ in range(25):
         p = [cp]
         for _ in range(20): p.append(p[-1] * np.exp(np.random.normal(0, vol)))
         ax.plot(p, color='#00FFA3' if p[-1] > cp else '#FF4B4B', alpha=0.15)
+    
     ax.axhline(y=cp, color='white', linestyle='--', alpha=0.3)
+    ax.axhline(y=target_val, color='#1E90FF', linestyle=':', alpha=0.6)
     st.pyplot(fig)
 
 # --- 7. SCANNER (DARUNTER) ---
