@@ -9,7 +9,7 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. TICKER-NAMEN MAPPING (JETZT VOLLSTÄNDIG FÜR EUROSTOXX) ---
+# --- 2. TICKER-NAMEN MAPPING (VOLLSTÄNDIG FÜR EUROSTOXX & CO) ---
 TICKER_NAMES = {
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
     "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
@@ -17,14 +17,14 @@ TICKER_NAMES = {
     "AIR.PA": "Airbus", "MC.PA": "LVMH", "OR.PA": "L'Oréal", "ASML.AS": "ASML", 
     "SAP.DE": "SAP", "SIE.DE": "Siemens", "ALV.DE": "Allianz", "DTE.DE": "Telekom",
     "ADS.DE": "Adidas", "BMW.DE": "BMW", "BAYN.DE": "Bayer", "BAS.DE": "BASF",
-    "SAN.PA": "Sanofi", "BNP.PA": "BNP Paribas", "TTE.PA": "TotalEnergies",
+    "SAN.PA": "Sanofi", "BNP.PA": "BNP Paribas", "TTE.PA": "TotalEnergies", "ITX.MC": "Inditex",
     "AAPL": "Apple", "NVDA": "Nvidia", "TSLA": "Tesla", "MSFT": "Microsoft",
     "THYAO.IS": "Turkish Airlines", "RELIANCE.NS": "Reliance Ind."
 }
 
 TICKER_GROUPS = {
     "DAX 40 (DE)": ["SAP.DE", "SIE.DE", "ALV.DE", "DTE.DE", "ADS.DE", "BMW.DE", "BAYN.DE", "BAS.DE"],
-    "EuroStoxx 50 (EU)": ["AIR.PA", "MC.PA", "OR.PA", "ASML.AS", "SAN.PA", "BNP.PA", "TTE.PA"],
+    "EuroStoxx 50 (EU)": ["AIR.PA", "MC.PA", "OR.PA", "ASML.AS", "SAN.PA", "BNP.PA", "TTE.PA", "ITX.MC"],
     "NASDAQ 100 (US)": ["AAPL", "NVDA", "TSLA", "MSFT"],
     "BIST 100 (TR)": ["THYAO.IS"],
     "Nifty 50 (IN)": ["RELIANCE.NS"]
@@ -52,26 +52,17 @@ def get_data(ticker, period="60d", interval="4h"):
     except: return pd.DataFrame()
 
 def get_hybrid_options(ticker_str, cp, df):
-    """Versucht echte Optionsdaten zu laden, sonst Bio-Levels (Wetter-Logik)"""
-    try:
-        tk = yf.Ticker(ticker_str)
-        if tk.options:
-            opt = tk.option_chain(tk.options[0])
-            calls = opt.calls.sort_values("openInterest", ascending=False).head(5)[['strike', 'openInterest']]
-            puts = opt.puts.sort_values("openInterest", ascending=False).head(5)[['strike', 'openInterest']]
-            return calls, puts
-    except: pass
-    
-    # Fallback: Bio-Levels (Wetter-Logik)
+    # Fallback Bio-Levels Berechnung
     std = np.log(df['Close'] / df['Close'].shift(1)).std()
     calls = pd.DataFrame([{"Strike": f"{cp*(1+(std*i)):,.2f}", "Bio-Prob": f"{100-(i*15):.0f}%"} for i in range(1,6)])
     puts = pd.DataFrame([{"Strike": f"{cp*(1-(std*i)):,.2f}", "Bio-Prob": f"{100-(i*15):.0f}%"} for i in range(1,6)])
     return calls, puts
 
-# --- 5. HEADER (WÄHRUNGEN & INDIZES) ---
+# --- 5. HEADER (FIXED COLUMNS) ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
+
 st.subheader("💱 Währungen")
-cf1, cf2, _ = st.columns()
+cf1, cf2, cf3 = st.columns(3) # Fix: Argument hinzugefügt
 for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
     df_f = get_data(t, period="2d")
     if not df_f.empty:
@@ -79,7 +70,7 @@ for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
         (cf1 if i==0 else cf2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.5f}</span> <span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
 
 st.subheader("📈 Markt-Indizes")
-cols_i = st.columns(5)
+cols_i = st.columns(5) # Fix: Argument hinzugefügt
 for i, t in enumerate(["^GDAXI", "^STOXX50E", "^NDX", "XU100.IS", "^NSEI"]):
     df_i = get_data(t, period="2d")
     if not df_i.empty:
