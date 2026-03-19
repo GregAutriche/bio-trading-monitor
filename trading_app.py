@@ -9,7 +9,7 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. NAMENS-MAPPING MIT LÄNDER-KÜRZELN ---
+# --- 2. NAMENS-MAPPING ---
 TICKER_NAMES = {
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", 
     "^GDAXI": "DAX Index (DE)", "^STOXX50E": "EuroStoxx 50 (EU)", 
@@ -68,132 +68,103 @@ def calculate_rsi(prices, window=14):
 
 # --- 5. MARKT-FRAMEWORK ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
-st.caption(f"Letztes Daten-Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Auto-Refresh: 60s")
+st.caption(f"Letztes Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Auto-Refresh: 60s")
 
-st.subheader("💱 Währungen (Forex) 💱")
-SYMBOLS_FX = ["EURUSD=X", "EURRUB=X"]
-cols_fx = st.columns(len(SYMBOLS_FX))
-for i, t in enumerate(SYMBOLS_FX):
-    df = get_data(t, period="5d")
-    if not df.empty:
-        last = float(df['Close'].iloc[-1]); chg = ((last / df['Close'].iloc[-2]) - 1) * 100
-        with cols_fx[i]:
-            st.markdown(f'<div class="market-card"><div style="font-size:0.75rem; color:#8892b0;">{TICKER_NAMES.get(t,t)}</div>'
-                        f'<div class="metric-value">{last:,.5f}</div>'
-                        f'<div style="color:{"#00FFA3" if chg>0 else "#FF4B4B"}; font-size:0.85rem;">{chg:+.2f}%</div></div>', unsafe_allow_html=True)
+# Währungen & Indizes (wie gehabt)
+st.subheader("💱 Währungen & 📈 Indizes")
+c_m1, c_m2, c_m3, c_m4, c_m5, c_m6 = st.columns(6)
+m_symbols = ["EURUSD=X", "EURRUB=X", "^GDAXI", "^STOXX50E", "^NSEI", "XU100.IS"]
+cols = [c_m1, c_m2, c_m3, c_m4, c_m5, c_m6]
 
-st.subheader("📈 Markt-Indizes 📈")
-SYMBOLS_INDICES = ["^GDAXI", "^STOXX50E", "^NSEI", "XU100.IS"]
-cols_ind = st.columns(len(SYMBOLS_INDICES))
-for i, t in enumerate(SYMBOLS_INDICES):
-    df = get_data(t, period="5d")
-    if not df.empty:
-        last = float(df['Close'].iloc[-1]); chg = ((last / df['Close'].iloc[-2]) - 1) * 100
-        with cols_ind[i]:
-            st.markdown(f'<div class="market-card"><div style="font-size:0.75rem; color:#8892b0;">{TICKER_NAMES.get(t,t)}</div>'
-                        f'<div class="metric-value">{last:,.2f}</div>'
-                        f'<div style="color:{"#00FFA3" if chg>0 else "#FF4B4B"}; font-size:0.85rem;">{chg:+.2f}%</div></div>', unsafe_allow_html=True)
+for i, t in enumerate(m_symbols):
+    df_m = get_data(t, period="5d")
+    if not df_m.empty:
+        l = float(df_m['Close'].iloc[-1])
+        c = ((l / df_m['Close'].iloc[-2]) - 1) * 100
+        cols[i].markdown(f'<div class="market-card"><div style="font-size:0.7rem; color:#8892b0;">{TICKER_NAMES.get(t,t)}</div>'
+                        f'<div class="metric-value">{l:,.2f}</div>'
+                        f'<div style="color:{"#00FFA3" if c>0 else "#FF4B4B"}; font-size:0.8rem;">{c:+.2f}%</div></div>', unsafe_allow_html=True)
 
 # --- 6. DEEP-DIVE ANALYSE ---
 st.divider()
-c1, c2 = st.columns(2)
+c1, c2 = st.columns([2, 1])
+
 with c1:
-    st.subheader("📊 Deep-Dive Chart 📊")
+    st.subheader("📊 Deep-Dive Chart & Analyse")
     ca, cb = st.columns(2)
-    s_idx = ca.selectbox("Markt:", ["DAX 40 (DE)", "NASDAQ 100 (US)", "BIST 100 (TR)", "Nifty 50 (IN)"])
+    s_idx = ca.selectbox("Markt wählen:", ["DAX 40 (DE)", "NASDAQ 100 (US)", "BIST 100 (TR)", "Nifty 50 (IN)"])
     STOCKS_DICT = {
         "DAX 40 (DE)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
         "NASDAQ 100 (US)": [k for k in TICKER_NAMES.keys() if not k.endswith(".DE") and not k.endswith(".IS") and not k.endswith(".NS") and not "=" in k and not "^" in k],
         "BIST 100 (TR)": ["THYAO.IS", "ASELS.IS", "KCHOL.IS"],
         "Nifty 50 (IN)": ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS"]
     }
-    s_tkr = cb.selectbox("Wert:", STOCKS_DICT[s_idx], format_func=lambda x: TICKER_NAMES.get(x,x))
+    s_tkr = cb.selectbox("Aktie wählen:", STOCKS_DICT[s_idx], format_func=lambda x: TICKER_NAMES.get(x,x))
     
     d_s = get_data(s_tkr, interval="4h")
     if not d_s.empty:
         cp = float(d_s['Close'].iloc[-1])
-        plt.style.use('dark_background')
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [3, 1]})
-        fig.patch.set_facecolor('#0E1117')
+        pcp = float(d_s['Close'].iloc[-2])
         
+        # --- NEU: EINGABE FÜR TARGET & SL ---
+        cc1, cc2 = st.columns(2)
+        target_input = cc1.number_input("Dein Kursziel:", value=float(cp * 1.10), step=0.1)
+        sl_input = cc2.number_input("Dein Stop-Loss (SL):", value=float(cp * 0.95), step=0.1)
+        
+        sl_dist = ((sl_input / cp) - 1) * 100
+        
+        # --- NEU: AKTUELLE WERTE ANZEIGE ---
+        st.markdown(f"""
+            <div style="display: flex; justify-content: space-between; background: rgba(30,144,255,0.1); padding: 15px; border-radius: 10px; border: 1px solid #1E90FF; margin-bottom: 20px;">
+                <div>
+                    <small style="color:#8892b0;">Aktueller Kurs</small><br>
+                    <span style="font-size:1.8rem; font-weight:bold; color:white;">{cp:,.2f}</span>
+                    <span style="color:{"#00FFA3" if cp>pcp else "#FF4B4B"}; margin-left:10px;">{((cp/pcp)-1)*100:+.2f}%</span>
+                </div>
+                <div style="text-align: right;">
+                    <small style="color:#8892b0;">Ziel (Abstand zum SL)</small><br>
+                    <span style="font-size:1.8rem; font-weight:bold; color:#1E90FF;">{target_input:,.2f}</span>
+                    <span style="color:#FF4B4B; margin-left:10px; font-size:1.1rem;">({sl_dist:+.1f}% SL)</span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+        # Monte Carlo & Plot
+        plt.style.use('dark_background')
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), gridspec_kw={'height_ratios': [3, 1]})
+        fig.patch.set_facecolor('#0E1117')
         ax1.set_facecolor('#0E1117')
+        
         log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1))
         vol = log_returns.std()
         ends = []
-        for _ in range(50):
+        for _ in range(40):
             p = [cp]
             for _ in range(30): p.append(p[-1] * np.exp(np.random.normal(0, vol)))
-            ax1.plot(p, color='#00FFA3' if p[-1] > cp else '#FF4B4B', alpha=0.1)
+            ax1.plot(p, color='#00FFA3' if p[-1] > cp else '#FF4B4B', alpha=0.15)
             ends.append(p[-1])
-        ax1.axhline(y=cp, color='white', linestyle='--', alpha=0.3); ax1.set_title("Monte Carlo Prognose")
+        
+        ax1.axhline(y=cp, color='white', linestyle='--', alpha=0.3)
+        ax1.axhline(y=target_input, color='#1E90FF', linestyle=':', label="Target")
+        ax1.axhline(y=sl_input, color='#FF4B4B', linestyle=':', label="SL")
+        ax1.set_title(f"Simulation: {TICKER_NAMES.get(s_tkr, s_tkr)}")
 
         ax2.set_facecolor('#0E1117')
-        rsi_series = calculate_rsi(d_s['Close'])
-        ax2.plot(rsi_series.values, color='#1E90FF', linewidth=1.5)
-        ax2.axhline(y=70, color='#FF4B4B', linestyle='--', alpha=0.5); ax2.axhline(y=30, color='#00FFA3', linestyle='--', alpha=0.5)
-        ax2.set_ylim(0, 100); plt.tight_layout(); st.pyplot(fig)
-        
-        prob_up = (np.array(ends) > cp).mean() * 100
-        st.info(f"Aufwärts-Wahrscheinlichkeit: {prob_up:.1f}%")
+        rsi = calculate_rsi(d_s['Close'])
+        ax2.plot(rsi.values, color='#1E90FF')
+        ax2.axhline(y=70, color='#FF4B4B', alpha=0.3); ax2.axhline(y=30, color='#00FFA3', alpha=0.3)
+        plt.tight_layout()
+        st.pyplot(fig)
 
 with c2:
-    st.subheader("🗞️ News Ticker")
+    st.subheader("🗞️ Live News")
     s_obj = yf.Ticker(s_tkr)
-    n_list = [n for n in s_obj.news if n.get('title')]
+    n_list = s_obj.news
     if n_list:
-        # FIX: News HTML mit robuster For-Schleife statt fehlerhafter List-Comprehension
-        news_html_body = ""
-        for n in n_list:
+        news_items = ""
+        for n in n_list[:8]:
             title = n.get('title', '')
             link = n.get('link', '#')
-            display_title = (title[:75] + '..') if len(title) > 75 else title
-            news_html_body += f'<div class="news-item"><a href="{link}" target="_blank" style="color:#1E90FF; text-decoration:none;">{display_title}</a></div>'
+            news_items += f'<div class="news-item"><a href="{link}" target="_blank" style="color:#1E90FF; text-decoration:none;">{title[:80]}...</a></div>'
         
-        st.markdown(f'<div class="news-container"><div class="news-scroll">{news_html_body}{news_html_body}</div></div>', unsafe_allow_html=True)
-    else: st.info("Keine News verfügbar.")
-
-# --- 7. SCANNER ---
-st.divider()
-st.subheader("🎯 High-Prob Scanner (1.000 Sims)")
-
-def run_full_scan():
-    all_results = []
-    scan_list = []
-    for l in STOCKS_DICT.values(): scan_list.extend(l)
-    for tkr in scan_list:
-        df_sc = get_data(tkr, period="60d")
-        if not df_sc.empty:
-            cp_sc = float(df_sc['Close'].iloc[-1])
-            returns = df_sc['Close'].pct_change().dropna()
-            v = returns.std()
-            sims = cp_sc * np.exp(np.random.normal(0, v, 1000) * np.sqrt(30))
-            all_results.append({
-                "Name": TICKER_NAMES.get(tkr, tkr), 
-                "Up_Prob": (sims > cp_sc).mean() * 100,
-                "Price": cp_sc,
-                "SL_Call": cp_sc * (1 - v), "TP_Call": cp_sc * (1 + 1.5 * v),
-                "SL_Put": cp_sc * (1 + v), "TP_Put": cp_sc * (1 - 1.5 * v)
-            })
-    return pd.DataFrame(all_results)
-
-if 'scan_data' not in st.session_state or st.button("🚀 Markt manuell aktualisieren"):
-    with st.spinner('Analyse läuft...'):
-        st.session_state.scan_data = run_full_scan()
-
-df_res = st.session_state.scan_data
-rc, rp = st.columns(2)
-
-with rc:
-    st.success("📈 Top 5 Call-Kandidaten")
-    calls = df_res.sort_values(by="Up_Prob", ascending=False).head(5).copy()
-    calls['SL'] = calls['SL_Call'].map('{:,.2f}'.format)
-    calls['Kursziel'] = calls['TP_Call'].map('{:,.2f}'.format)
-    st.dataframe(calls[['Name', 'Up_Prob', 'SL', 'Kursziel']], hide_index=True)
-
-with rp:
-    st.error("📉 Top 5 Put-Kandidaten")
-    puts = df_res.sort_values(by="Up_Prob", ascending=True).head(5).copy()
-    puts['Down_Prob'] = 100 - puts['Up_Prob']
-    puts['SL'] = puts['SL_Put'].map('{:,.2f}'.format)
-    puts['Kursziel'] = puts['TP_Put'].map('{:,.2f}'.format)
-    st.dataframe(puts[['Name', 'Down_Prob', 'SL', 'Kursziel']], hide_index=True)
+        st.markdown(f'<div class="news-container"><div class="news-scroll">{news_items}{news_items}</div></div>', unsafe_allow_html=True)
