@@ -53,28 +53,42 @@ def get_options_data(ticker_str):
 
 # --- 5. DASHBOARD HEADER (QUICKVIEW) ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
+# ZEILE 1: WÄHRUNGEN (FOREX)
+st.subheader("💱 Währungen")
+forex_symbols = ["EURUSD=X", "EURRUB=X"]
+cols_f = st.columns(len(forex_symbols) + 4) # +4 leere Spalten, damit sie links bündig bleiben
 
-# Währungen & Indizes in der Top-Bar
-m_symbols = ["EURUSD=X", "EURRUB=X", "^GDAXI", "^STOXX50E", "AAPL", "SAP.DE"]
-cols_m = st.columns(len(m_symbols))
-
-for i, t in enumerate(m_symbols):
+for i, t in enumerate(forex_symbols):
     df_m = get_data(t, period="5d")
     if not df_m.empty:
         l = float(df_m['Close'].iloc[-1])
         c = ((l / df_m['Close'].iloc[-2]) - 1) * 100
-        
-        # Logik für Nachkommastellen: Forex = 5 Stellen, Rest = 2 Stellen
-        fmt = ":,.5f" if "=X" in t else ":,.2f"
-        
+        cols_f[i].markdown(f'''
+            <div class="market-card">
+                <small>{TICKER_NAMES.get(t,t)}</small><br>
+                <div class="metric-value">{l:,.5f}</div>
+                <span style="color:{"#00FFA3" if c>0 else "#FF4B4B"}">{c:+.2f}%</span>
+            </div>''', unsafe_allow_html=True)
+
+# ZEILE 2: INDIZES & AKTIEN
+st.subheader("📈 Märkte & Aktien")
+market_symbols = ["^GDAXI", "^STOXX50E", "AAPL", "SAP.DE"]
+cols_m = st.columns(len(market_symbols) + 2) # +2 leere Spalten für die Optik
+
+for i, t in enumerate(market_symbols):
+    df_m = get_data(t, period="5d")
+    if not df_m.empty:
+        l = float(df_m['Close'].iloc[-1])
+        c = ((l / df_m['Close'].iloc[-2]) - 1) * 100
         cols_m[i].markdown(f'''
             <div class="market-card">
                 <small>{TICKER_NAMES.get(t,t)}</small><br>
-                <div class="metric-value">{format(l, fmt.replace(":",""))}</div>
+                <div class="metric-value">{l:,.2f}</div>
                 <span style="color:{"#00FFA3" if c>0 else "#FF4B4B"}">{c:+.2f}%</span>
             </div>''', unsafe_allow_html=True)
 
 st.divider()
+
 
 # --- 6. ANALYSE BEREICH ---
 c1, c2 = st.columns(2)
