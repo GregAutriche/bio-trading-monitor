@@ -88,10 +88,7 @@ for i, t in enumerate(market_symbols):
             </div>''', unsafe_allow_html=True)
 
 # --- 6. DEEP-DIVE ANALYSE (OPTIMIERT) ---
-st.divider()
-c1, c2 = st.columns(2)
-
-# Marktauswahl -> Aktienauswahl (wie am Anfang)
+# Marktauswahl -> Aktienauswahl
 ca, cb = st.columns(2)
 s_idx = ca.selectbox("Markt wählen:", ["DAX 40 (DE)", "NASDAQ 100 (US)", "BIST 100 (TR)", "Nifty 50 (IN)"])
 STOCKS_DICT = {
@@ -107,31 +104,32 @@ if not d_s.empty:
     cp = float(d_s['Close'].iloc[-1])
     is_forex = "=X" in s_tkr
     
-    # --- SLIDER STATT NUMBER INPUT ---
-    # Wir setzen die Slider-Range auf +/- 20% vom aktuellen Kurs
-    col_sl1, col_sl2 = st.columns(2)
-    target_val = col_sl1.slider("🎯 Kursziel anpassen:", 
-                               min_value=float(cp * 0.8), 
-                               max_value=float(cp * 1.5), 
-                               value=float(cp * 1.10),
-                               format="%.5f" if is_forex else "%.2f")
-    
-    sl_val = col_sl2.slider("🛡️ Stop-Loss (SL) anpassen:", 
-                            min_value=float(cp * 0.5), 
-                            max_value=float(cp * 1.0), 
-                            value=float(cp * 0.95),
-                            format="%.5f" if is_forex else "%.2f")
-    
+    # --- LOGIK FÜR FESTE WERTE (KEINE REGLER) ---
+    # Wir berechnen das Ziel (z.B. +5%) und den SL (z.B. -3%) automatisch
+    target_val = cp * 1.05
+    sl_val = cp * 0.97
     sl_dist = ((sl_val/cp)-1)*100
 
-    # Status Header
+    # Formatierung vorab festlegen, um den f-String Fehler zu vermeiden
+    fmt = ",.5f" if is_forex else ",.2f"
+    cp_str = format(cp, fmt)
+    target_str = format(target_val, fmt)
+
+    # Status Header ohne Eingabefelder
     st.markdown(f"""
-        <div style="background: rgba(30,144,255,0.1); padding: 15px; border-radius: 10px; border: 1px solid #1E90FF; margin-bottom: 20px; text-align: center;">
-            <span style="font-size:1.3rem;">Aktuell: <b>{cp:,.5f if is_forex else cp:,.2f}</b></span> | 
-            <span style="font-size:1.3rem; color:#1E90FF;">Ziel: <b>{target_val:,.5f if is_forex else target_val:,.2f}</b> 
-            <span style="color:#FF4B4B; font-size:1rem;">({sl_dist:+.2f}% SL)</span></span>
+        <div style="background: rgba(30,144,255,0.1); padding: 20px; border-radius: 12px; border: 1px solid #1E90FF; text-align: center;">
+            <div style="color:#8892b0; font-size:0.9rem; margin-bottom:5px;">{TICKER_NAMES.get(s_tkr, s_tkr)} Status</div>
+            <span style="font-size:1.6rem; font-weight:bold;">Aktuell: {cp_str}</span>
+            <span style="margin: 0 20px; color:#1E90FF; font-size:1.4rem;">|</span>
+            <span style="font-size:1.6rem; font-weight:bold; color:#1E90FF;">Ziel: {target_str}</span>
+            <div style="color:#FF4B4B; font-size:1rem; margin-top:5px;">🛡️ Stop-Loss Abstand: {sl_dist:+.2f}%</div>
         </div>
     """, unsafe_allow_html=True)
+
+    # Charts in zwei Spalten darunter
+    c1, c2 = st.columns(2)
+    # ... hier dein Plot-Code für c1 (Monte Carlo) und c2 (Historisch) ...
+
 
     # ... hier folgen dann die Charts in c1 und c2 ...
 
