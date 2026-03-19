@@ -15,7 +15,8 @@ TICKER_NAMES = {
     "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
     "ADS.DE": "Adidas", "AIR.DE": "Airbus", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer",
     "BMW.DE": "BMW", "DBK.DE": "Deutsche Bank", "DTE.DE": "Telekom", "SAP.DE": "SAP", "SIE.DE": "Siemens",
-    "AAPL": "Apple", "NVDA": "Nvidia", "TSLA": "Tesla", "MSFT": "Microsoft", "AMZN": "Amazon"
+    "AIR.PA": "Airbus (FR)", "MC.PA": "LVMH", "OR.PA": "L'Oréal", "ASML.AS": "ASML", "SAN.PA": "Sanofi",
+    "BNP.PA": "BNP Paribas", "AAPL": "Apple", "NVDA": "Nvidia", "TSLA": "Tesla"
 }
 
 TICKER_GROUPS = {
@@ -54,7 +55,7 @@ def run_market_scanner(ticker_list):
         if not df.empty and len(df) >= 2:
             cp = float(df['Close'].iloc[-1]); prev = float(df['Close'].iloc[-2])
             trend = ((cp / prev) - 1) * 100
-            results.append({"Aktie": TICKER_NAMES.get(t, t), "Kurs": round(cp, 2), "Trend %": round(trend, 2)})
+            results.append({"Aktie": TICKER_NAMES.get(t, t), "Kurs": round(cp, 2), "Trend %": round(trend, 2), "Raw_Ticker": t})
     return pd.DataFrame(results)
 
 # --- 5. AUFBAU REIHENFOLGE ---
@@ -66,8 +67,8 @@ cf1, cf2, _ = st.columns(3)
 for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
     df_f = get_data(t)
     if not df_f.empty:
-        l = float(df_f['Close'].iloc[-1]); c = ((l/df_f['Close'].iloc[-2])-1)*100
-        (cf1 if i==0 else cf2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.5f}</span> <span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
+        l = float(df_f['Close'].iloc[-1])
+        (cf1 if i==0 else cf2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.5f}</span></div>', unsafe_allow_html=True)
 
 # 2. INDIZES
 st.subheader("📈 Indizes")
@@ -96,21 +97,22 @@ with st.spinner("Scanne Signale..."):
         col_c, col_p = st.columns(2)
         with col_c:
             st.markdown("<span class='bullish'>🟢 TOP 5 CALLS</span>", unsafe_allow_html=True)
-            st.dataframe(scan_results.sort_values(by="Trend %", ascending=False).head(5), use_container_width=True, hide_index=True)
+            st.dataframe(scan_results.sort_values(by="Trend %", ascending=False).head(5)[["Aktie", "Kurs", "Trend %"]], use_container_width=True, hide_index=True)
         with col_p:
             st.markdown("<span class='bearish'>🔴 TOP 5 PUTS</span>", unsafe_allow_html=True)
-            st.dataframe(scan_results.sort_values(by="Trend %", ascending=True).head(5), use_container_width=True, hide_index=True)
+            st.dataframe(scan_results.sort_values(by="Trend %", ascending=True).head(5)[["Aktie", "Kurs", "Trend %"]], use_container_width=True, hide_index=True)
 
 st.divider()
 
-# 5. FOKUS & MONTE CARLO
+# 5. FOKUS: MONTE CARLO & KORREKTE WETTER-LOGIK
 d_s = get_data(sel_stock, period="60d")
 if not d_s.empty:
     cp = float(d_s['Close'].iloc[-1])
-    trend_5d = ((cp / d_s['Close'].iloc[-5]) - 1) * 100
+    # Korrektur: Wir nehmen den gleichen Trend wie im Scanner (letzte 2 Perioden)
+    trend_now = ((cp / d_s['Close'].iloc[-2]) - 1) * 100
     
-    # --- LOGIK: (C)all für Green/Bullish, (P)ut für Red/Bearish ---
-    if trend_5d > 0:
+    # --- SYNCHRONISIERTE LOGIK ---
+    if trend_now >= 0:
         label, color, icon = "(C) Ziel:", "#00FFA3", "☀️"
         target = cp * 1.05
     else:
@@ -119,7 +121,6 @@ if not d_s.empty:
     
     sl_dist = -3.00
 
-    # Fokus-Balken (wie im Bild)
     st.markdown(f"""
         <div class="header-box">
             <span style="color:#8892b0; font-size:0.9rem;">Fokus:</span> <b style="color:white; font-size:1.1rem; margin-right:5px;">{TICKER_NAMES.get(sel_stock, sel_stock)}</b> 
@@ -134,7 +135,6 @@ if not d_s.empty:
         </div>
     """, unsafe_allow_html=True)
 
-    # Plot
     plt.style.use('dark_background')
     fig, ax = plt.subplots(figsize=(12, 4.5))
     fig.patch.set_facecolor('#0E1117'); ax.set_facecolor('#0E1117')
