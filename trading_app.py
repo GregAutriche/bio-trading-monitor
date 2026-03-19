@@ -9,7 +9,7 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. ERWEITERTES NAMENS-MAPPING ---
+# --- 2. VOLLSTÄNDIGES NAMENS-MAPPING ---
 TICKER_NAMES = {
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
     "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
@@ -53,34 +53,49 @@ def run_market_scanner(ticker_list):
     results = []
     for t in ticker_list:
         df = get_data(t, period="5d")
-        if not df.empty:
-            cp = float(df['Close'].iloc[-1].iloc[0]) if hasattr(df['Close'].iloc[-1], 'iloc') else float(df['Close'].iloc[-1])
-            prev = float(df['Close'].iloc[-2].iloc[0]) if hasattr(df['Close'].iloc[-2], 'iloc') else float(df['Close'].iloc[-2])
+        if not df.empty and len(df) >= 2:
+            cp = float(df['Close'].iloc[-1].values) if hasattr(df['Close'].iloc[-1], 'values') else float(df['Close'].iloc[-1])
+            prev = float(df['Close'].iloc[-2].values) if hasattr(df['Close'].iloc[-2], 'values') else float(df['Close'].iloc[-2])
             trend = ((cp / prev) - 1) * 100
             results.append({"Aktie": TICKER_NAMES.get(t, t), "Kurs": round(cp, 2), "Trend %": round(trend, 2)})
     return pd.DataFrame(results)
 
-# --- 5. HEADER ---
+# --- 5. HEADER: ZEILE 1 (WÄHRUNGEN) ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
-st.subheader("💱 Währungen & Indizes")
-c1, c2, c3, c4, c5 = st.columns(5)
-# (Hier die Anzeige-Logik für die Quickview-Karten wie im vorherigen Code)
+st.subheader("💱 Währungen")
+cf1, cf2, _ = st.columns(3)
+for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
+    df_f = get_data(t, period="2d")
+    if not df_f.empty:
+        l = float(df_f['Close'].iloc[-1].values) if hasattr(df_f['Close'].iloc[-1], 'values') else float(df_f['Close'].iloc[-1])
+        c = ((l / (float(df_f['Close'].iloc[-2].values) if hasattr(df_f['Close'].iloc[-2], 'values') else float(df_f['Close'].iloc[-2]))) - 1) * 100
+        (cf1 if i==0 else cf2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.5f}</span> <span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
+
+# --- ZEILE 2 (INDIZES) ---
+st.subheader("📈 Markt-Indizes")
+cols_i = st.columns(5)
+for i, t in enumerate(["^GDAXI", "^STOXX50E", "^NDX", "XU100.IS", "^NSEI"]):
+    df_i = get_data(t, period="2d")
+    if not df_i.empty:
+        l = float(df_i['Close'].iloc[-1].values) if hasattr(df_i['Close'].iloc[-1], 'values') else float(df_i['Close'].iloc[-1])
+        c = ((l / (float(df_i['Close'].iloc[-2].values) if hasattr(df_i['Close'].iloc[-2], 'values') else float(df_i['Close'].iloc[-2]))) - 1) * 100
+        cols_i[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span> <span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
 
 st.divider()
 
-# --- 6. MONTE CARLO (OBEN) ---
-# Session State für Auswahl
+# --- 6. MONTE CARLO PROGNOSE ---
 if 'sel_market' not in st.session_state: st.session_state.sel_market = "DAX 40 (DE)"
 if 'sel_stock' not in st.session_state: st.session_state.sel_stock = "SAP.DE"
 
 d_s = get_data(st.session_state.sel_stock)
 if not d_s.empty:
-    cp = float(d_s['Close'].iloc[-1].iloc[0]) if hasattr(d_s['Close'].iloc[-1], 'iloc') else float(d_s['Close'].iloc[-1])
+    cp = float(d_s['Close'].iloc[-1].values) if hasattr(d_s['Close'].iloc[-1], 'values') else float(d_s['Close'].iloc[-1])
     st.markdown(f'<div class="header-box"><span style="font-size:1.3rem;">Fokus: <b>{TICKER_NAMES.get(st.session_state.sel_stock, st.session_state.sel_stock)}</b></span> | <span style="font-size:1.3rem;">Kurs: <b>{cp:,.2f}</b></span></div>', unsafe_allow_html=True)
     
     st.subheader("🔮 Prognose (Monte Carlo)")
     plt.style.use('dark_background')
-    fig, ax = plt.subplots(figsize=(12, 4)); fig.patch.set_facecolor('#0E1117'); ax.set_facecolor('#0E1117')
+    fig, ax = plt.subplots(figsize=(12, 4.5))
+    fig.patch.set_facecolor('#0E1117'); ax.set_facecolor('#0E1117')
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)); vol = log_returns.std()
     for _ in range(25):
         p = [cp]
@@ -106,5 +121,9 @@ with st.spinner("Scanne Markt-Signale..."):
 st.divider()
 st.subheader("⚙️ Auswahl & Steuerung")
 cs1, cs2 = st.columns(2)
-st.session_state.sel_market = cs1.selectbox("1. Index wählen:", list(TICKER_GROUPS.keys()))
-st.session_state.sel_stock = cs2.selectbox("2. Aktie wählen:", TICKER_GROUPS[st.session_state.sel_market], format_func=lambda x: TICKER_NAMES.get(x, x))
+# Speichern der Auswahl direkt in den Session State
+st.session_state.sel_market = cs1.selectbox("1. Index wählen:", list(TICKER_GROUPS.keys()), index=list(TICKER_GROUPS.keys()).index(st.session_state.sel_market))
+# Sicherstellen, dass der gewählte Stock auch im gewählten Markt existiert
+valid_stocks = TICKER_GROUPS[st.session_state.sel_market]
+default_stock_index = valid_stocks.index(st.session_state.sel_stock) if st.session_state.sel_stock in valid_stocks else 0
+st.session_state.sel_stock = cs2.selectbox("2. Aktie wählen:", valid_stocks, index=default_stock_index, format_func=lambda x: TICKER_NAMES.get(x, x))
