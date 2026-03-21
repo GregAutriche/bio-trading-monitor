@@ -29,6 +29,11 @@ TICKER_NAMES = {
 TICKER_GROUPS = {
     "DAX 40 (DE)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
     "NASDAQ 100 (US)": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "AVGO", "COST", "NFLX", "AMD"]
+
+# Wir fügen sorted() hinzu, um die Liste der Ticker alphabetisch nach ihren Klarnamen zu sortieren
+    sorted_stocks = sorted(TICKER_GROUPS[sel_market], key=lambda x: TICKER_NAMES.get(x, x))
+    sel_stock = cs2.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
+
 }
 
 # --- 3. DESIGN ---
