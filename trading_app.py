@@ -154,26 +154,26 @@ if not d_s.empty:
     ax.axhline(t_up, color='#00FFA3', ls='--', alpha=0.3); ax.axhline(t_down, color='#FF4B4B', ls='--', alpha=0.3)
     st.pyplot(fig)
 
-    # E. HANDELS-SETUP (CALL/PUT) MIT SIGNAL
-    is_long = trend >= 0
+    # E. KORRIGIERTE LOGIK: SIMULATION ENTSCHEIDET DIE RICHTUNG
+    # Wir berechnen den Median der Simulation, um die wahre Richtung zu sehen
+    sim_median = np.median(sim_results)
+    is_long = sim_median >= cp
+    
     dir_label = "[ CALL ]" if is_long else "[ PUT ]"
     dir_col = "#00FFA3" if is_long else "#FF4B4B"
-    
+
+    # Signal-Text an die Simulations-Richtung anpassen
+    if is_long and ann_vol < 35: sig_t, sig_i, sig_c = "LONG EINSTIEG", "🟢", "#00FFA3"
+    elif not is_long and ann_vol < 35: sig_t, sig_i, sig_c = "SHORT CHANCE", "🔴", "#FF4B4B"
+    else: sig_t, sig_i, sig_c = "ABWARTEN (VOLA HOCH)", "⚪", "#8892b0"
+
     st.markdown(f"""
         ### 📝 Handels-Setup: <span style='color:{dir_col};'>{dir_label}</span> 
         <span style='float:right; font-size:1rem; color:{sig_c};'>{sig_i} {sig_t}</span>
     """, unsafe_allow_html=True)
+
+
     
-    entry = cp; target_price = t_up if is_long else t_down; stop_loss = cp * 0.97 if is_long else cp * 1.03
-    risk = abs(entry - stop_loss); reward = abs(target_price - entry); crv = reward / risk if risk > 0 else 0
-
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("EINSTIEG", f"{entry:,.2f}")
-    c2.metric("ZIEL (TP)", f"{target_price:,.2f}", f"{(target_price/entry-1)*100:+.2f}%", delta_color="normal" if is_long else "inverse")
-    c3.metric("STOP LOSS", f"{stop_loss:,.2f}", f"{(stop_loss/entry-1)*100:+.2f}%", delta_color="inverse" if is_long else "normal")
-    crv_c = "#00FFA3" if crv >= 2 else "#FFD700" if crv >= 1.5 else "#FF4B4B"
-    c4.markdown(f'<div style="text-align:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border: 1px solid {crv_c};"><small>CRV</small><br><span style="font-size:1.5rem; font-weight:bold; color:{crv_c};">{crv:.2f}</span></div>', unsafe_allow_html=True)
-
     # F. STRATEGIE-CHECK & HANDLUNG
     st.markdown("---")
     st.subheader("🎯 Strategie-Check & Handlung")
