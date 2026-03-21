@@ -13,6 +13,7 @@ st_autorefresh(interval=60000, limit=1000, key="fscounter")
 TICKER_NAMES = {
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
     "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
+    # DAX 40
     "ADS.DE": "Adidas", "AIR.DE": "Airbus", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer",
     "BEI.DE": "Beiersdorf", "BMW.DE": "BMW", "BNR.DE": "Brenntag", "CBK.DE": "Commerzbank", "CON.DE": "Continental",
     "1COV.DE": "Covestro", "DTG.DE": "Daimler Truck", "DBK.DE": "Deutsche Bank", "DB1.DE": "Deutsche Börse",
@@ -22,6 +23,7 @@ TICKER_NAMES = {
     "PAH3.DE": "Porsche SE", "PUM.DE": "Puma", "QIA.DE": "Qiagen", "RHM.DE": "Rheinmetall", "RWE.DE": "RWE",
     "SAP.DE": "SAP", "SIE.DE": "Siemens", "ENR.DE": "Siemens Energy", "SHL.DE": "Siemens Health.", "SY1.DE": "Symrise",
     "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia", "ZAL.DE": "Zalando",
+    # NASDAQ
     "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "AMZN": "Amazon", "META": "Meta", "TSLA": "Tesla",
     "GOOGL": "Alphabet", "AVGO": "Broadcom", "COST": "Costco", "NFLX": "Netflix", "AMD": "AMD"
 }
@@ -39,6 +41,7 @@ st.markdown("""
     .metric-value { font-size: 1.1rem; font-weight: bold; font-family: 'Courier New', monospace; color: white; }
     .bullish { color: #00FFA3 !important; font-weight: bold; }
     .bearish { color: #FF4B4B !important; font-weight: bold; }
+    .header-box { padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 25px; border: 1px solid #1E90FF; background: rgba(30,144,255,0.05); }
     </style>
     """, unsafe_allow_html=True)
 
@@ -53,14 +56,32 @@ def get_data(ticker, period="60d", interval="4h"):
 
 def extract_price(df, idx):
     try:
+        if df.empty: return 0.0
         val = df['Close'].iloc[idx]
         return float(val.iloc[0]) if isinstance(val, pd.Series) else float(val)
     except: return 0.0
 
+def run_market_scanner(ticker_list):
+    results = []
+    # Batch download für Geschwindigkeit
+    data = yf.download(ticker_list, period="5d", interval="4h", progress=False)
+    if isinstance(data.columns, pd.MultiIndex): close_prices = data['Close']
+    else: close_prices = data[['Close']]
+    
+    for t in ticker_list:
+        try:
+            series = close_prices[t].dropna()
+            if len(series) >= 2:
+                cp = series.iloc[-1]; prev = series.iloc[-2]
+                trend = ((cp / prev) - 1) * 100
+                results.append({"Aktie": TICKER_NAMES.get(t, t), "Kurs": round(cp, 2), "Trend %": round(trend, 2)})
+        except: continue
+    return pd.DataFrame(results)
+
 # --- 5. AUFBAU ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
-# 1. WÄHRUNGEN MIT SIGNAL
+# 1. WÄHRUNGEN
 st.subheader("💱 Fokus/ Währungen 💱")
 cf1, cf2, _ = st.columns(3)
 for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
@@ -72,24 +93,48 @@ for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
         sig_clr = "#00FFA3" if diff > 0.1 else "#FF4B4B" if diff < -0.1 else "#8892b0"
         (cf1 if i==0 else cf2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.4f}</span> <span style="color:{sig_clr}; font-size:0.8rem; float:right;">{sig} ({diff:+.2f}%)</span></div>', unsafe_allow_html=True)
 
+# 2. INDIZES
+st.subheader("📈 Fokus/ Indizes 📈")
+cols_i = st.columns(5)
+for i, t in enumerate(["^GDAXI", "^STOXX50E", "^NDX", "XU100.IS", "^NSEI"]):
+    df_i = get_data(t, period="2d")
+    if not df_i.empty:
+        l = extract_price(df_i, -1); p = extract_price(df_i, -2); c = ((l/p)-1)*100
+        cols_i[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span><br><span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
+
 st.divider()
 
-# 2. STEUERUNG
+# 3. STEUERUNG & SCANNER
 cs1, cs2 = st.columns(2)
 sel_market = cs1.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
 sel_stock = cs2.selectbox("Aktie wählen:", TICKER_GROUPS[sel_market], format_func=lambda x: TICKER_NAMES.get(x, x))
 
-# 3. ANALYSE & MONTE CARLO
+st.subheader(f"🎯 Scanner: {sel_market}")
+scan_results = run_market_scanner(TICKER_GROUPS[sel_market])
+if not scan_results.empty:
+    col_c, col_p = st.columns(2)
+    with col_c:
+        st.markdown("<span class='bullish'>🟢 TOP 5 CALLS</span>", unsafe_allow_html=True)
+        st.dataframe(scan_results.sort_values(by="Trend %", ascending=False).head(5), use_container_width=True, hide_index=True)
+    with col_p:
+        st.markdown("<span class='bearish'>🔴 TOP 5 PUTS</span>", unsafe_allow_html=True)
+        st.dataframe(scan_results.sort_values(by="Trend %", ascending=True).head(5), use_container_width=True, hide_index=True)
+
+st.divider()
+
+# 4. FOKUS ANALYSE
 d_s = get_data(sel_stock, period="60d")
 if not d_s.empty:
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
     vol = log_returns.std(); ann_vol = vol * np.sqrt(252) * 100
     cp = extract_price(d_s, -1); trend = ((cp / extract_price(d_s, -2)) - 1) * 100
 
-    # Signal-Logik
+    # Signal-Logik für Header
     if trend > 0.5 and ann_vol < 25: sig_t, sig_i, sig_c = "LONG EINSTIEG", "🟢", "#00FFA3"
     elif trend < -0.5: sig_t, sig_i, sig_c = "SHORT CHANCE", "🔴", "#FF4B4B"
     else: sig_t, sig_i, sig_c = "ABWARTEN", "⚪", "#8892b0"
+
+    st.markdown(f'<div class="header-box" style="border-color:{sig_c};"><b>{TICKER_NAMES.get(sel_stock, sel_stock)}</b> | Signal: <span style="color:{sig_c};">{sig_i} {sig_t}</span> | Vola: {ann_vol:.1f}%</div>', unsafe_allow_html=True)
 
     # Monte Carlo (15 Tage)
     n_sims = 40; sim_results = []
@@ -102,9 +147,10 @@ if not d_s.empty:
         sim_results.append(prices[-1]); ax.plot(prices, color=sig_c, alpha=0.1)
     
     t_up, t_down = np.percentile(sim_results, 95), np.percentile(sim_results, 5)
+    ax.axhline(t_up, color='#00FFA3', ls='--', alpha=0.3); ax.axhline(t_down, color='#FF4B4B', ls='--', alpha=0.3)
     st.pyplot(fig)
 
-    # --- 6. ORDER-BOARD (CALL/PUT) ---
+    # --- 6. ORDER-BOARD ---
     is_long = trend >= 0
     dir_label = "[ CALL / LONG ]" if is_long else "[ PUT / SHORT ]"
     dir_col = "#00FFA3" if is_long else "#FF4B4B"
