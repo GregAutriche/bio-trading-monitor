@@ -39,16 +39,15 @@ TICKER_GROUPS = {
 }
 
 # --- 3. DESIGN ---
-st.markdown("""
-    <style>
-    .stApp { background-color: #0E1117; color: #E0E0E0; }
-    .market-card { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px; }
-    .metric-value { font-size: 1.1rem; font-weight: bold; font-family: 'Courier New', monospace; color: white; }
-    .bullish { color: #00FFA3 !important; }
-    .bearish { color: #FF4B4B !important; }
-    .header-box { padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 25px; border: 1px solid #1E90FF; background: rgba(30,144,255,0.05); }
-    </style>
+    # Neuer, schlanker Header ohne Signal-Text
+    st.markdown(f"""
+        <div class="header-box" style="border-color:{sig_c};">
+            <b style="font-size:1.2rem;">{TICKER_NAMES.get(sel_stock, sel_stock)}</b> 
+            <span style="color:#1E90FF; margin: 0 15px;">|</span>
+            Vola: <b>{ann_vol:.1f}%</b>
+        </div>
     """, unsafe_allow_html=True)
+
 
 # --- 4. FUNKTIONEN ---
 @st.cache_data(ttl=60)
