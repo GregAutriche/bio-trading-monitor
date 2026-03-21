@@ -61,9 +61,9 @@ def draw_info_card(col, t, is_currency=False):
         
         # DEFINITIVE LOGIK FÜR FARBEN & ICONS
         if diff > 0.15: 
-            sig, icon, clr = "CALL (STARK)", "☀️", "#00FFA3" # GRÜN
+            sig, icon, clr = "CALL", "☀️", "#00FFA3" # GRÜN
         elif diff < -0.15: 
-            sig, icon, clr = "PUT (BEARISH)", "⛈️", "#FF4B4B" # ROT
+            sig, icon, clr = "PUT", "⛈️", "#FF4B4B" # ROT
         else: 
             sig, icon, clr = "NEUTRAL", "⛅", "#8892b0" # GRAU
             
