@@ -10,11 +10,8 @@ st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
 # --- 8. HEADER / STATUS ---
-# Wir holen uns das Datum, die Uhrzeit und die Konfiguration aus deinem get_data Aufruf
 aktuelle_zeit = pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')
-intervall_info = "4h-Intervall" # Da dies dein Standard in get_data ist
-
-st.info(f"🕒 Stand: {aktuelle_zeit} | 📊 Analyse-Basis: {intervall_info} (60 Tage Historie)")
+st.info(f"🕒 Stand: {aktuelle_zeit} | 📊 Analyse-Basis: 4h-Intervall (60 Tage Historie)")
 
 # --- 2. TICKER-MAPPING ---
 TICKER_NAMES = {
@@ -39,15 +36,16 @@ TICKER_GROUPS = {
 }
 
 # --- 3. DESIGN ---
-    # Neuer, schlanker Header ohne Signal-Text
-    st.markdown(f"""
-        <div class="header-box" style="border-color:{sig_c};">
-            <b style="font-size:1.2rem;">{TICKER_NAMES.get(sel_stock, sel_stock)}</b> 
-            <span style="color:#1E90FF; margin: 0 15px;">|</span>
-            Vola: <b>{ann_vol:.1f}%</b>
-        </div>
+st.markdown("""
+    <style>
+    .stApp { background-color: #0E1117; color: #E0E0E0; }
+    .market-card { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px; }
+    .metric-value { font-size: 1.1rem; font-weight: bold; font-family: 'Courier New', monospace; color: white; }
+    .bullish { color: #00FFA3 !important; }
+    .bearish { color: #FF4B4B !important; }
+    .header-box { padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 25px; border: 1px solid #1E90FF; background: rgba(30,144,255,0.05); }
+    </style>
     """, unsafe_allow_html=True)
-
 
 # --- 4. FUNKTIONEN ---
 @st.cache_data(ttl=60)
@@ -129,11 +127,19 @@ if not d_s.empty:
     vol = log_returns.std(); ann_vol = vol * np.sqrt(252) * 100
     cp = extract_price(d_s, -1); trend = ((cp / extract_price(d_s, -2)) - 1) * 100
 
+    # Signal-Logik (Bereitstellung für später)
     if trend > 0.5 and ann_vol < 25: sig_t, sig_i, sig_c = "LONG EINSTIEG", "🟢", "#00FFA3"
     elif trend < -0.5: sig_t, sig_i, sig_c = "SHORT CHANCE", "🔴", "#FF4B4B"
     else: sig_t, sig_i, sig_c = "ABWARTEN", "⚪", "#8892b0"
 
-    st.markdown(f'<div class="header-box" style="border-color:{sig_c};"><b>{TICKER_NAMES.get(sel_stock, sel_stock)}</b> | Signal: <span style="color:{sig_c};">{sig_i} {sig_t}</span> | Vola: {ann_vol:.1f}%</div>', unsafe_allow_html=True)
+    # Schlanker Header
+    st.markdown(f"""
+        <div class="header-box" style="border-color:{sig_c};">
+            <b style="font-size:1.2rem;">{TICKER_NAMES.get(sel_stock, sel_stock)}</b> 
+            <span style="color:#1E90FF; margin: 0 15px;">|</span>
+            Vola: <b>{ann_vol:.1f}%</b>
+        </div>
+    """, unsafe_allow_html=True)
 
     n_sims = 40; sim_results = []
     plt.style.use('dark_background')
@@ -148,17 +154,17 @@ if not d_s.empty:
     ax.axhline(t_up, color='#00FFA3', ls='--', alpha=0.3); ax.axhline(t_down, color='#FF4B4B', ls='--', alpha=0.3)
     st.pyplot(fig)
 
-    # E. HANDELS-SETUP (CALL/PUT)
+    # E. HANDELS-SETUP (CALL/PUT) MIT SIGNAL
     is_long = trend >= 0
-    # Reduziert auf die Kernbegriffe
     dir_label = "[ CALL ]" if is_long else "[ PUT ]"
     dir_col = "#00FFA3" if is_long else "#FF4B4B"
-
-    st.markdown(f"### 📝 Handels-Setup: <span style='color:{dir_col};'>{dir_label}</span>", unsafe_allow_html=True)
     
-    # Der restliche Logik-Teil (entry, target, stop) bleibt gleich...
+    st.markdown(f"""
+        ### 📝 Handels-Setup: <span style='color:{dir_col};'>{dir_label}</span> 
+        <span style='float:right; font-size:1rem; color:{sig_c};'>{sig_i} {sig_t}</span>
+    """, unsafe_allow_html=True)
+    
     entry = cp; target_price = t_up if is_long else t_down; stop_loss = cp * 0.97 if is_long else cp * 1.03
-
     risk = abs(entry - stop_loss); reward = abs(target_price - entry); crv = reward / risk if risk > 0 else 0
 
     c1, c2, c3, c4 = st.columns(4)
@@ -168,13 +174,13 @@ if not d_s.empty:
     crv_c = "#00FFA3" if crv >= 2 else "#FFD700" if crv >= 1.5 else "#FF4B4B"
     c4.markdown(f'<div style="text-align:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border: 1px solid {crv_c};"><small>CRV</small><br><span style="font-size:1.5rem; font-weight:bold; color:{crv_c};">{crv:.2f}</span></div>', unsafe_allow_html=True)
 
-    # F. NEU: STRATEGIE-CHECK & HANDLUNG
+    # F. STRATEGIE-CHECK & HANDLUNG
     st.markdown("---")
     st.subheader("🎯 Strategie-Check & Handlung")
     is_attractive = crv >= 2.0 and ann_vol < 30
     is_risky = ann_vol > 40
     
-    col_str1, col_str2 = st.columns([1, 2])
+    col_str1, col_str2 = st.columns()
     with col_str1:
         score_color = "#00FFA3" if crv >= 2 else "#FFD700" if crv >= 1.5 else "#FF4B4B"
         st.markdown(f"""
@@ -198,7 +204,7 @@ if not d_s.empty:
             </div>
         """, unsafe_allow_html=True)
 
-    # G. RISIKO-RADAR (TERMIN & NEWS)
+    # G. RISIKO-RADAR
     st.divider()
     st.subheader("🚨 Risiko-Radar: Termine & News")
     t_obj = yf.Ticker(sel_stock)
@@ -207,7 +213,7 @@ if not d_s.empty:
         try:
             cal = t_obj.calendar
             if isinstance(cal, pd.DataFrame) and not cal.empty:
-                e_date = cal.iloc[0, 0] if 'Earnings Date' in cal.index else cal.iloc[0, 0]
+                e_date = cal.iloc[0] if 'Earnings Date' in cal.index else cal.iloc[0,0]
                 days = (pd.to_datetime(e_date).replace(tzinfo=None) - pd.Timestamp.now()).days
                 st.warning(f"Earnings in {days} Tagen ({pd.to_datetime(e_date).strftime('%d.%m.%Y')})")
             else: st.info("Keine anstehenden Earnings-Termine.")
@@ -216,4 +222,3 @@ if not d_s.empty:
         try:
             for n in t_obj.news[:3]: st.markdown(f"🔹 **{n['title']}** ({n['publisher']})")
         except: st.info("News-Feed aktuell nicht erreichbar.")
-
