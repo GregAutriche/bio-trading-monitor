@@ -130,53 +130,65 @@ if not scan_results.empty:
 
 st.divider()
 
-# --- 5. FOKUS: MONTE CARLO & MARKT-WETTER ---
+# --- 5. FOKUS: TRADE-SIGNALE & MONTE CARLO ---
 d_s = get_data(sel_stock, period="60d")
 if not d_s.empty:
-    # 1. Berechnung der Volatilität (Das "Wetter")
+    # 1. Analyse-Metriken
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
-    vol = log_returns.std() # Tägliche Standardabweichung
-    ann_vol = vol * np.sqrt(252) * 100 # Annualisierte Volatilität in %
-    
+    vol = log_returns.std()
+    ann_vol = vol * np.sqrt(252) * 100
     cp = extract_price(d_s, -1)
-    
-    # Wetter-Logik basierend auf Volatilität
-    if ann_vol < 15: weather_icon, weather_desc, color = "☀️", "Ruhig", "#00FFA3"
-    elif ann_vol < 30: weather_icon, weather_desc, color = "⛅", "Moderat", "#FFD700"
-    else: weather_icon, weather_desc, color = "⛈️", "Stürmisch", "#FF4B4B"
+    prev_p = extract_price(d_s, -2)
+    trend = ((cp / prev_p) - 1) * 100
 
-    # 2. Monte Carlo Simulation (20 Tage Vorschau)
-    n_sims = 50
-    n_days = 20
+    # 2. Smart-Signal Logik (Trend + Risiko)
+    if trend > 0.5 and ann_vol < 25:
+        sig_text, sig_icon, sig_col = "LONG EINSTIEG", "🟢", "#00FFA3"
+        action_hint = "Stabiler Aufwärtstrend bei niedriger Vola."
+    elif trend < -0.5 and ann_vol > 30:
+        sig_text, sig_icon, sig_col = "STOP-LOSS ENGER", "⚠️", "#FF4B4B"
+        action_hint = "Hohe Volatilität im Abwärtstrend! Risiko minimieren."
+    elif trend < -0.5:
+        sig_text, sig_icon, sig_col = "SHORT CHANCE", "🔴", "#FF4B4B"
+        action_hint = "Bärisches Momentum bestätigt."
+    else:
+        sig_text, sig_icon, sig_col = "ABWARTEN / NEUTRAL", "⚪", "#8892b0"
+        action_hint = "Kein klares Signal. Markt beobachtet Seitwärtsphase."
+
+    # 3. Monte Carlo Simulation (95% Korridor)
+    n_sims = 40
     sim_results = []
-    
     plt.style.use('dark_background')
-    fig, ax = plt.subplots(figsize=(12, 4.5))
+    fig, ax = plt.subplots(figsize=(12, 4))
     fig.patch.set_facecolor('#0E1117'); ax.set_facecolor('#0E1117')
     
     for _ in range(n_sims):
         prices = [cp]
-        for _ in range(n_days):
-            prices.append(prices[-1] * np.exp(np.random.normal(0, vol)))
+        for _ in range(15): prices.append(prices[-1] * np.exp(np.random.normal(0, vol)))
         sim_results.append(prices[-1])
-        ax.plot(prices, color=color, alpha=0.1)
+        ax.plot(prices, color=sig_col, alpha=0.1)
 
-    # Statistisches Kursziel (95% Konfidenzbereich)
-    target_up = np.percentile(sim_results, 95)
-    target_down = np.percentile(sim_results, 5)
+    t_up, t_down = np.percentile(sim_results, 95), np.percentile(sim_results, 5)
 
-    # 3. Aktions-Info Bar
+    # 4. Aktions-Info Bar (Modernes Design)
     st.markdown(f"""
-        <div class="header-box" style="border-color:{color};">
-            <span style="color:#8892b0;">Status:</span> <b style="color:white;">{weather_icon} {weather_desc} (Vol: {ann_vol:.1f}%)</b> 
-            <span style="color:#1E90FF; margin: 0 15px;">|</span>
-            <span style="color:#8892b0;">Erwartung (20d):</span> 
-            <b style="color:#00FFA3;">↑ {target_up:,.2f}</b> bis <b style="color:#FF4B4B;">↓ {target_down:,.2f}</b>
+        <div style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 15px; border-left: 5px solid {sig_col}; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span style="color:{sig_col}; font-size: 1.4rem; font-weight: bold;">{sig_icon} {sig_text}</span><br>
+                    <small style="color: #8892b0;">{action_hint}</small>
+                </div>
+                <div style="text-align: right;">
+                    <span style="color: #8892b0; font-size: 0.8rem;">ZIELBEREICH (15D)</span><br>
+                    <b style="color: white; font-size: 1.1rem;">{t_down:,.2f} — {t_up:,.2f}</b>
+                </div>
+            </div>
         </div>
     """, unsafe_allow_html=True)
     
-    ax.axhline(target_down, color='#FF4B4B', linestyle='--', alpha=0.5)
+    ax.axhline(t_down, color='#FF4B4B', linestyle='--', alpha=0.3)
     st.pyplot(fig)
+
 
 
 # --- Ganz unten in deinem Code (Abschnitt 8 / Footer) ---
