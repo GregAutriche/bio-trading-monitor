@@ -76,13 +76,26 @@ def run_market_scanner(ticker_list):
 
 # 1. WÄHRUNGEN
 st.title("🚀 Bio-Trading Monitor Live PRO")
+# 1. WÄHRUNGEN MIT SIGNAL
 st.subheader("💱 Fokus/ Währungen 💱")
 cf1, cf2, _ = st.columns(3)
 for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
-    df_f = get_data(t, period="2d")
+    df_f = get_data(t, period="5d")
     if not df_f.empty:
         l = extract_price(df_f, -1)
-        (cf1 if i==0 else cf2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.5f}</span></div>', unsafe_allow_html=True)
+        p = extract_price(df_f, -2)
+        diff = ((l/p)-1)*100
+        # Signal-Logik
+        sig = "STARK" if diff > 0.1 else "SCHWACH" if diff < -0.1 else "NEUTRAL"
+        sig_clr = "#00FFA3" if diff > 0.1 else "#FF4B4B" if diff < -0.1 else "#8892b0"
+        
+        (cf1 if i==0 else cf2).markdown(f"""
+            <div class="market-card">
+                <small>{TICKER_NAMES.get(t,t)}</small><br>
+                <span class="metric-value">{l:,.4f}</span> 
+                <span style="color:{sig_clr}; font-size:0.8rem; float:right;">{sig} ({diff:+.2f}%)</span>
+            </div>
+        """, unsafe_allow_html=True)
 
 # 2. INDIZES
 st.subheader("📈 Fokus/ Indizes📈")
