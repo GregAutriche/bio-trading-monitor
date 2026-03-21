@@ -144,11 +144,15 @@ if not d_s.empty:
 
     # E. HANDELS-SETUP (CALL/PUT)
     is_long = trend >= 0
-    dir_label = "[ CALL / LONG ]" if is_long else "[ PUT / SHORT ]"
+    # Reduziert auf die Kernbegriffe
+    dir_label = "[ CALL ]" if is_long else "[ PUT ]"
     dir_col = "#00FFA3" if is_long else "#FF4B4B"
+
     st.markdown(f"### 📝 Handels-Setup: <span style='color:{dir_col};'>{dir_label}</span>", unsafe_allow_html=True)
     
+    # Der restliche Logik-Teil (entry, target, stop) bleibt gleich...
     entry = cp; target_price = t_up if is_long else t_down; stop_loss = cp * 0.97 if is_long else cp * 1.03
+
     risk = abs(entry - stop_loss); reward = abs(target_price - entry); crv = reward / risk if risk > 0 else 0
 
     c1, c2, c3, c4 = st.columns(4)
