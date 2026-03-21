@@ -61,11 +61,11 @@ def draw_info_card(col, t, is_currency=False):
         
         # DEFINITIVE LOGIK FÜR FARBEN & ICONS
         if diff > 0.15: 
-            sig, icon, clr = "CALL", "☀️", "#00FFA3" # GRÜN
+            sig, icon, clr = "🟢", "#00FFA3" # GRÜN
         elif diff < -0.15: 
-            sig, icon, clr = "PUT", "⛈️", "#FF4B4B" # ROT
+            sig, icon, clr = "🔴", "#FF4B4B" # ROT
         else: 
-            sig, icon, clr = "NEUTRAL", "⛅", "#8892b0" # GRAU
+            sig, icon, clr = "NEUTRAL", "⚪", "#8892b0" # GRAU
             
         col.markdown(f"""
             <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px;">
