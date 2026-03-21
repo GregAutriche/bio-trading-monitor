@@ -80,16 +80,28 @@ def run_market_scanner(ticker_list):
 # --- 5. AUFBAU ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
-# 1. WÄHRUNGEN MIT SIGNAL-INFO
+# 1. WÄHRUNGEN MIT WETTER & AKTION
 st.subheader("💱 Fokus/ Währungen")
 cw1, cw2, _ = st.columns(3)
 for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
     df_f = get_data(t, period="5d")
     if not df_f.empty:
         l = extract_price(df_f, -1); p = extract_price(df_f, -2); diff = ((l/p)-1)*100
-        sig = "STARK" if diff > 0.1 else "SCHWACH" if diff < -0.1 else "NEUTRAL"
-        sig_clr = "#00FFA3" if diff > 0.1 else "#FF4B4B" if diff < -0.1 else "#8892b0"
-        (cw1 if i==0 else cw2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.4f}</span> <span style="color:{sig_clr}; font-size:0.8rem; float:right;">{sig} ({diff:+.2f}%)</span></div>', unsafe_allow_html=True)
+        
+        # Wetter & Aktions-Logik
+        if diff > 0.15: sig, icon, clr = "CALL (STARK)", "☀️", "#00FFA3"
+        elif diff < -0.15: sig, icon, clr = "PUT (SCHWACH)", "⛈️", "#FF4B4B"
+        else: sig, icon, clr = "NEUTRAL", "⛅", "#8892b0"
+        
+        (cw1 if i==0 else cw2).markdown(f"""
+            <div class="market-card">
+                <small>{TICKER_NAMES.get(t,t)}</small>
+                <span style="float:right; font-size:1.2rem;">{icon}</span><br>
+                <span class="metric-value">{l:,.4f}</span><br>
+                <span style="color:{clr}; font-size:0.85rem; font-weight:bold;">{sig} ({diff:+.2f}%)</span>
+            </div>
+        """, unsafe_allow_html=True)
+
 
 # 2. INDIZES (GELÖST: WIEDER DA)
 st.subheader("📈 Fokus/ Indizes")
