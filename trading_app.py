@@ -168,7 +168,48 @@ if not scan_results.empty:
         st.markdown("<span class='bearish'>🔴 TOP 5 PUTS</span>", unsafe_allow_html=True)
         st.dataframe(scan_results.sort_values(by="Trend %", ascending=True).head(5), use_container_width=True, hide_index=True)
 
-st.divider()
+    # --- 8. RISIKO-RADAR (POSITIONSMIGRATION) ---
+st.divider() # Trennung zum Rest
+    st.subheader("🚨 Risiko-Radar: Termine & News")
+    
+    col_e1, col_e2 = st.columns(2)
+    
+    # Sicherstellen, dass das Ticker-Objekt existiert
+    t_obj = yf.Ticker(sel_stock)
+
+    with col_e1:
+        try:
+            # Versuch, den Kalender zu laden
+            cal = t_obj.calendar
+            # Check: Ist es ein DataFrame und hat Daten?
+            if isinstance(cal, pd.DataFrame) and not cal.empty:
+                # Wir nehmen das erste Datum (Earnings Date)
+                # Manche Versionen von yfinance geben Spaltennamen anders aus
+                e_date = cal.iloc[0, 0] if 'Earnings Date' in cal.index else cal.iloc[0]
+                
+                # Datum bereinigen für den Vergleich
+                if isinstance(e_date, list): e_date = e_date[0]
+                days_to = (e_date.replace(tzinfo=None) - pd.Timestamp.now()).days
+                
+                color = "#FF4B4B" if days_to <= 7 else "#00FFA3"
+                st.info(f"Nächste Zahlen am: **{e_date.strftime('%d.%m.%Y')}** (in {days_to} Tagen)")
+            else:
+                st.write("Keine Termin-Daten (Earnings) gefunden.")
+        except Exception as e:
+            st.write("Earnings-Check übersprungen.")
+
+    with col_e2:
+        try:
+            # News abrufen
+            stock_news = t_obj.news[:3]
+            if stock_news:
+                for n in stock_news:
+                    st.markdown(f"🔹 **{n['title']}** ({n['publisher']})")
+            else:
+                st.write("Aktuell keine News verfügbar.")
+        except:
+            st.write("News-Feed temporär nicht erreichbar.")
+
 
 # 4. FOKUS ANALYSE
 d_s = get_data(sel_stock, period="60d")
