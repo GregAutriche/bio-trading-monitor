@@ -39,17 +39,7 @@ st.markdown("""
     .metric-value { font-size: 1.1rem; font-weight: bold; font-family: 'Courier New', monospace; color: white; }
     .bullish { color: #00FFA3 !important; }
     .bearish { color: #FF4B4B !important; }
-    # Sicherheitsabfrage für Signalfarben und Texte
-    display_name = TICKER_NAMES.get(sel_stock, sel_stock)
-    s_t = sig_t if 'sig_t' in locals() else "ANALYSE..."
-    s_i = sig_i if 'sig_i' in locals() else "⏳"
-    s_c = sig_c if 'sig_c' in locals() else "#8892b0"
-
-    # Stabiler Header-Box Aufruf
-# Ersetze die fehlerhafte Zeile durch diese hier:
-st.markdown(f'<div class="header-box" style="border-color:{sig_c};"><b>{TICKER_NAMES.get(sel_stock, sel_stock)}</b> | Signal: <span style="color:{sig_c};">{sig_i} {sig_t}</span> | Vola: {ann_vol:.1f}%</div>', unsafe_allow_html=True)
-
- 
+    .header-box { padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 25px; border: 1px solid #1E90FF; background: rgba(30,144,255,0.05); }
     </style>
     """, unsafe_allow_html=True)
 
@@ -126,7 +116,7 @@ if not scan_results.empty:
 
 st.divider()
 
-# D. FOKUS ANALYSE (MONTE CARLO & SIGNALE)
+# D. FOKUS ANALYSE
 d_s = get_data(sel_stock, period="60d")
 if not d_s.empty:
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
@@ -152,7 +142,7 @@ if not d_s.empty:
     ax.axhline(t_up, color='#00FFA3', ls='--', alpha=0.3); ax.axhline(t_down, color='#FF4B4B', ls='--', alpha=0.3)
     st.pyplot(fig)
 
-    # E. ORDER-BOARD & CHECKLISTE
+    # E. HANDELS-SETUP (CALL/PUT)
     is_long = trend >= 0
     dir_label = "[ CALL / LONG ]" if is_long else "[ PUT / SHORT ]"
     dir_col = "#00FFA3" if is_long else "#FF4B4B"
@@ -168,21 +158,35 @@ if not d_s.empty:
     crv_c = "#00FFA3" if crv >= 2 else "#FFD700" if crv >= 1.5 else "#FF4B4B"
     c4.markdown(f'<div style="text-align:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border: 1px solid {crv_c};"><small>CRV</small><br><span style="font-size:1.5rem; font-weight:bold; color:{crv_c};">{crv:.2f}</span></div>', unsafe_allow_html=True)
 
-    # F. POSITIONSRECHNER & CHECKLISTE
+    # F. NEU: STRATEGIE-CHECK & HANDLUNG
     st.markdown("---")
-    cp1, cp2 = st.columns(2)
-    risk_sum = cp1.number_input("Max. Risiko in €:", min_value=10, value=100, step=10)
-    risk_per_share = abs(entry - stop_loss)
-    if risk_per_share > 0:
-        shares = int(risk_sum / risk_per_share)
-        cp2.markdown(f'<div style="background:rgba(30,144,255,0.1); padding:15px; border-radius:10px; border:1px solid #1E90FF;"><small>STÜCKZAHL</small><br><span style="font-size:1.4rem; font-weight:bold; color:white;">{shares} Stück</span></div>', unsafe_allow_html=True)
+    st.subheader("🎯 Strategie-Check & Handlung")
+    is_attractive = crv >= 2.0 and ann_vol < 30
+    is_risky = ann_vol > 40
+    
+    col_str1, col_str2 = st.columns([1, 2])
+    with col_str1:
+        score_color = "#00FFA3" if crv >= 2 else "#FFD700" if crv >= 1.5 else "#FF4B4B"
+        st.markdown(f"""
+            <div style="text-align:center; padding:20px; border:2px solid {score_color}; border-radius:15px; background:rgba(255,255,255,0.03);">
+                <small style="color:#8892b0;">CHANCE-RISIKO-SCORE</small><br>
+                <span style="font-size:2.5rem; font-weight:bold; color:{score_color};">{crv:.2f}</span><br>
+                <small style="color:{score_color};">{'Attraktiv' if crv >= 2 else 'Grenzwertig' if crv >= 1.5 else 'Zu riskant'}</small>
+            </div>
+        """, unsafe_allow_html=True)
 
-    chk_crv = crv >= 1.5; chk_vola = ann_vol < 35; chk_trend = abs(trend) > 0.3
-    col_ch1, col_ch2, col_ch3 = st.columns(3)
-    def draw_c(col, label, cond):
-        ic, clr = ("✅", "#00FFA3") if cond else ("❌", "#FF4B4B")
-        col.markdown(f'<div style="background:rgba(255,255,255,0.03); padding:10px; border-radius:8px; border-left: 4px solid {clr};">{ic} {label}</div>', unsafe_allow_html=True)
-    draw_c(col_ch1, "CRV > 1.5", chk_crv); draw_c(col_ch2, "VOLA < 35%", chk_vola); draw_c(col_ch3, "TREND", chk_trend)
+    with col_str2:
+        if is_attractive: msg, b_clr = "🔥 **STARKE CHANCE:** Hohes Potenzial. Setup ist statistisch im Vorteil.", "#00FFA3"
+        elif is_risky: msg, b_clr = "⚠️ **HOHE GEFAHR:** Markt zu nervös (Vola!). Ausstoppen wahrscheinlich.", "#FFD700"
+        elif crv < 1.5: msg, b_clr = "🛑 **KEIN TRADE:** Risiko zu groß. Warte auf besseren Einstieg.", "#FF4B4B"
+        else: msg, b_clr = "⚖️ **NEUTRAL:** Setup okay, aber kein 'Must-Have'. Kleine Position wählen.", "#8892b0"
+
+        st.markdown(f"""
+            <div style="background:rgba(255,255,255,0.05); padding:20px; border-radius:15px; border-left: 8px solid {b_clr}; height: 100%;">
+                <span style="font-size:1.1rem; color:white;">{msg}</span><br><br>
+                <small style="color:#8892b0;">INFO: Ein CRV von {crv:.2f} bedeutet, du gewinnst im Erfolgsfall das {crv:.2f}-fache deines Einsatzes.</small>
+            </div>
+        """, unsafe_allow_html=True)
 
     # G. RISIKO-RADAR (TERMIN & NEWS)
     st.divider()
@@ -193,7 +197,7 @@ if not d_s.empty:
         try:
             cal = t_obj.calendar
             if isinstance(cal, pd.DataFrame) and not cal.empty:
-                e_date = cal.iloc[0] if 'Earnings Date' in cal.index else cal.iloc[0,0]
+                e_date = cal.iloc[0, 0] if 'Earnings Date' in cal.index else cal.iloc[0, 0]
                 days = (pd.to_datetime(e_date).replace(tzinfo=None) - pd.Timestamp.now()).days
                 st.warning(f"Earnings in {days} Tagen ({pd.to_datetime(e_date).strftime('%d.%m.%Y')})")
             else: st.info("Keine anstehenden Earnings-Termine.")
