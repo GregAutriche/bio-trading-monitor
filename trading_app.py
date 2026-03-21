@@ -9,41 +9,28 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# FOOTER
-st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 Analyse: 4h-Intervall")
-
-# --- 2. TICKER-MAPPING ---
-# --- 2. TICKER-MAPPING (VOLLSTÄNDIG: EUROSTOXX 50 HINZUGEFÜGT) ---
+# --- 2. TICKER-MAPPING (VOLLSTÄNDIG) ---
 TICKER_NAMES = {
-    # Währungen & Indizes
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
     "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
-    
-    # EURO STOXX 50 (Blue-Chips Europa)
+    # EURO STOXX 50
     "AD.AS": "Ahold Delhaize", "ADS.DE": "Adidas", "AI.PA": "Air Liquide", "AIR.PA": "Airbus", "ALV.DE": "Allianz",
     "ASML.AS": "ASML", "BAS.DE": "BASF", "BAYN.DE": "Bayer", "BBVA.MC": "BBVA", "BNP.PA": "BNP Paribas",
-    "BMW.DE": "BMW", "CRH.L": "CRH", "CS.PA": "AXA", "DG.PA": "Vinci", "DHL.DE": "DHL Group",
-    "DTE.DE": "Telekom", "ENEL.MI": "Enel", "ENI.MI": "Eni", "EL.PA": "EssilorLuxottica", "FLTR.L": "Flutter Ent.",
-    "HER.PA": "Hermès", "IBE.MC": "Iberdrola", "ITX.MC": "Inditex", "IFX.DE": "Infineon", "INGA.AS": "ING Group",
-    "ISP.MI": "Intesa Sanpaolo", "KER.PA": "Kering", "OR.PA": "L'Oréal", "MC.PA": "LVMH", "MBG.DE": "Mercedes-Benz",
-    "MRK.DE": "Merck", "MUV2.DE": "Münchener Rück", "NOKIA.HE": "Nokia", "ORANGE.PA": "Orange", "PRX.AS": "Prosus",
-    "RHM.DE": "Rheinmetall", "RI.PA": "Pernod Ricard", "RMS.PA": "Hermès", "SAF.PA": "Safran", "SAN.MC": "Santander",
-    "SAP.DE": "SAP", "SGO.PA": "Saint-Gobain", "SIE.DE": "Siemens", "ENR.DE": "Siemens Energy", "STLAM.MI": "Stellantis",
-    "STMPA.PA": "STMicroelectronics", "TTE.PA": "TotalEnergies", "UCG.MI": "UniCredit", "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia",
-    
-    # NASDAQ (US)
+    "BMW.DE": "BMW", "CS.PA": "AXA", "DG.PA": "Vinci", "DHL.DE": "DHL Group", "DTE.DE": "Telekom",
+    "ENEL.MI": "Enel", "ENI.MI": "Eni", "EL.PA": "EssilorLuxottica", "FLTR.L": "Flutter Ent.", "HER.PA": "Hermès",
+    "IBE.MC": "Iberdrola", "ITX.MC": "Inditex", "IFX.DE": "Infineon", "INGA.AS": "ING Group", "ISP.MI": "Intesa Sanpaolo",
+    "KER.PA": "Kering", "OR.PA": "L'Oréal", "MC.PA": "LVMH", "MBG.DE": "Mercedes-Benz", "MRK.DE": "Merck",
+    "MUV2.DE": "Münchener Rück", "NOKIA.HE": "Nokia", "ORANGE.PA": "Orange", "PRX.AS": "Prosus", "RHM.DE": "Rheinmetall",
+    "RI.PA": "Pernod Ricard", "SAF.PA": "Safran", "SAN.MC": "Santander", "SAP.DE": "SAP", "SGO.PA": "Saint-Gobain",
+    "SIE.DE": "Siemens", "ENR.DE": "Siemens Energy", "STLAM.MI": "Stellantis", "STMPA.PA": "STMicroelectronics",
+    "TTE.PA": "TotalEnergies", "UCG.MI": "UniCredit", "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia",
+    # NASDAQ & DAX Rest
     "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "AMZN": "Amazon", "META": "Meta", "TSLA": "Tesla",
-    "GOOGL": "Alphabet", "AVGO": "Broadcom", "COST": "Costco", "NFLX": "Netflix", "AMD": "AMD"
+    "GOOGL": "Alphabet", "AVGO": "Broadcom", "COST": "Costco", "NFLX": "Netflix", "AMD": "AMD", "CBK.DE": "Commerzbank"
 }
 
 TICKER_GROUPS = {
-    "EuroStoxx 50 (EU)": [
-        "AD.AS", "ADS.DE", "AI.PA", "AIR.PA", "ALV.DE", "ASML.AS", "BAS.DE", "BAYN.DE", "BBVA.MC", "BNP.PA",
-        "BMW.DE", "CS.PA", "DG.PA", "DHL.DE", "DTE.DE", "ENEL.MI", "ENI.MI", "EL.PA", "FLTR.L", "IBE.MC",
-        "ITX.MC", "IFX.DE", "INGA.AS", "ISP.MI", "KER.PA", "OR.PA", "MC.PA", "MBG.DE", "MRK.DE", "MUV2.DE",
-        "NOKIA.HE", "ORANGE.PA", "PRX.AS", "RHM.DE", "RI.PA", "SAF.PA", "SAN.MC", "SAP.DE", "SGO.PA", "SIE.DE",
-        "ENR.DE", "STLAM.MI", "STMPA.PA", "TTE.PA", "UCG.MI", "VOW3.DE", "VNA.DE"
-    ],
+    "EuroStoxx 50 (EU)": ["AD.AS", "ADS.DE", "AI.PA", "AIR.PA", "ALV.DE", "ASML.AS", "BAS.DE", "BAYN.DE", "BBVA.MC", "BNP.PA", "BMW.DE", "CS.PA", "DG.PA", "DHL.DE", "DTE.DE", "ENEL.MI", "ENI.MI", "EL.PA", "FLTR.L", "IBE.MC", "ITX.MC", "IFX.DE", "INGA.AS", "ISP.MI", "KER.PA", "OR.PA", "MC.PA", "MBG.DE", "MRK.DE", "MUV2.DE", "NOKIA.HE", "ORANGE.PA", "PRX.AS", "RHM.DE", "RI.PA", "SAF.PA", "SAN.MC", "SAP.DE", "SGO.PA", "SIE.DE", "ENR.DE", "STLAM.MI", "STMPA.PA", "TTE.PA", "UCG.MI", "VOW3.DE", "VNA.DE"],
     "DAX 40 (DE)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
     "NASDAQ 100 (US)": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "AVGO", "COST", "NFLX", "AMD"]
 }
@@ -78,51 +65,34 @@ def extract_price(df, idx):
 
 def run_market_scanner(ticker_list):
     results = []
-    # 60 Tage laden für korrekte Vola-Berechnung
     data = yf.download(ticker_list, period="60d", interval="4h", progress=False)
     if isinstance(data.columns, pd.MultiIndex): close_p = data['Close']
     else: close_p = data[['Close']]
-    
     for t in ticker_list:
         try:
             series = close_p[t].dropna()
             if len(series) > 10:
                 cp = series.iloc[-1]
                 log_r = np.log(series / series.shift(1)).dropna()
-                vol = log_r.std()
-                ann_vol = vol * np.sqrt(252) * 100
-                
-                # Mini-Simulation
+                vol = log_r.std(); ann_vol = vol * np.sqrt(252) * 100
                 sim_move = np.mean([np.exp(np.random.normal(0, vol)) for _ in range(50)])
                 trend_sim = (sim_move - 1) * 100
-                
-                # Aktions-Logik (Synchron zum Handels-Setup)
-                if trend_sim > 0.3 and ann_vol < 35: aktion = "🟢 LONG"
-                elif trend_sim < -0.3 and ann_vol < 35: aktion = "🔴 SHORT"
-                else: aktion = "⚪ ABWARTEN"
-                
-                results.append({
-                    "Aktie": TICKER_NAMES.get(t, t), 
-                    "Kurs": round(cp, 2), 
-                    "Prognose %": round(trend_sim, 2),
-                    "Aktion": aktion
-                })
+                aktion = "🟢 LONG" if trend_sim > 0.15 and ann_vol < 35 else "🔴 SHORT" if trend_sim < -0.15 and ann_vol < 35 else "⚪ ABWARTEN"
+                results.append({"Aktie": TICKER_NAMES.get(t, t), "Kurs": round(cp, 2), "Prognose %": round(trend_sim, 2), "Aktion": aktion})
         except: continue
     return pd.DataFrame(results)
 
 # --- 5. AUFBAU ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
-# A. WÄHRUNGEN MIT WETTER & AKTION
+# A. WÄHRUNGEN (WETTER & AKTION)
 st.subheader("💱 Fokus/ Währungen")
 cw1, cw2, _ = st.columns(3)
 for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
     df_f = get_data(t, period="5d")
     if not df_f.empty:
         l = extract_price(df_f, -1); p = extract_price(df_f, -2); diff = ((l/p)-1)*100
-        if diff > 0.15: sig, icon, clr = "CALL (STARK)", "☀️", "#00FFA3"
-        elif diff < -0.15: sig, icon, clr = "PUT (SCHWACH)", "⛈️", "#FF4B4B"
-        else: sig, icon, clr = "NEUTRAL", "⛅", "#8892b0"
+        sig, icon, clr = ("CALL (STARK)", "☀️", "#00FFA3") if diff > 0.15 else ("PUT (SCHWACH)", "⛈️", "#FF4B4B") if diff < -0.15 else ("NEUTRAL", "⛅", "#8892b0")
         (cw1 if i==0 else cw2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><span style="float:right;">{icon}</span><br><span class="metric-value">{l:,.4f}</span><br><span style="color:{clr}; font-size:0.85rem; font-weight:bold;">{sig} ({diff:+.2f}%)</span></div>', unsafe_allow_html=True)
 
 # B. INDIZES (2 ZEILEN)
@@ -149,7 +119,7 @@ sel_market = cs1.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
 sorted_stocks = sorted(TICKER_GROUPS[sel_market], key=lambda x: TICKER_NAMES.get(x, x))
 sel_stock = cs2.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
 
-# D. SCANNER
+# D. SCANNER (MIT AKTION)
 st.subheader(f"🎯 Prognose-Scanner: {sel_market}")
 scan_res = run_market_scanner(TICKER_GROUPS[sel_market])
 if not scan_res.empty:
@@ -169,38 +139,23 @@ if not d_s.empty:
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
     vol = log_returns.std(); ann_vol = vol * np.sqrt(252) * 100
     cp = extract_price(d_s, -1)
-
-    n_sims = 40; sim_results = []
-    for _ in range(n_sims):
-        prices = [cp]
-        for _ in range(15): prices.append(prices[-1] * np.exp(np.random.normal(0, vol)))
-        sim_results.append(prices[-1])
-    
-    sim_median = float(np.median(sim_results))
-    is_long = bool(sim_median >= cp)
+    sim_results = [cp * np.exp(np.random.normal(0, vol * np.sqrt(15))) for _ in range(100)]
+    is_long = bool(np.median(sim_results) >= cp)
     t_up, t_down = np.percentile(sim_results, 95), np.percentile(sim_results, 5)
-    sig_t, sig_i, sig_c = ("LONG EINSTIEG", "🟢", "#00FFA3") if is_long and ann_vol < 35 else \
-                          ("SHORT CHANCE", "🔴", "#FF4B4B") if not is_long and ann_vol < 35 else \
-                          ("ABWARTEN", "⚪", "#8892b0")
-
+    sig_t, sig_i, sig_c = ("LONG EINSTIEG", "🟢", "#00FFA3") if is_long and ann_vol < 35 else ("SHORT CHANCE", "🔴", "#FF4B4B") if not is_long and ann_vol < 35 else ("ABWARTEN", "⚪", "#8892b0")
+    
     st.markdown(f'<div class="header-box" style="border-color:{sig_c};"><b>{TICKER_NAMES.get(sel_stock, sel_stock)}</b> | Vola: <b>{ann_vol:.1f}%</b></div>', unsafe_allow_html=True)
     
-    plt.style.use('dark_background')
-    fig, ax = plt.subplots(figsize=(12, 4))
-    fig.patch.set_facecolor('#0E1117'); ax.set_facecolor('#0E1117')
-    for res in sim_results: ax.plot([cp, res], color=sig_c, alpha=0.1)
-    ax.axhline(t_up, color='#00FFA3', ls='--', alpha=0.3); ax.axhline(t_down, color='#FF4B4B', ls='--', alpha=0.3)
-    st.pyplot(fig)
-
-    dir_label, dir_col = ("[ CALL ]", "#00FFA3") if is_long else ("[ PUT ]", "#FF4B4B")
-    st.markdown(f"### 📝 Handels-Setup: <span style='color:{dir_col};'>{dir_label}</span> <span style='float:right; font-size:1rem; color:{sig_c};'>{sig_i} {sig_t}</span>", unsafe_allow_html=True)
+    dir_l, dir_col = ("[ CALL ]", "#00FFA3") if is_long else ("[ PUT ]", "#FF4B4B")
+    st.markdown(f"### 📝 Handels-Setup: <span style='color:{dir_col};'>{dir_l}</span> <span style='float:right; font-size:1rem; color:{sig_c};'>{sig_i} {sig_t}</span>", unsafe_allow_html=True)
     
-    entry = cp; target_p = t_up if is_long else t_down; stop_l = cp * 0.97 if is_long else cp * 1.03
-    risk = abs(entry - stop_l); reward = abs(target_p - entry); crv = reward / risk if risk > 0 else 0
-
+    target_p = t_up if is_long else t_down; stop_l = cp * 0.97 if is_long else cp * 1.03
+    risk = abs(cp - stop_l); reward = abs(target_p - cp); crv = reward / risk if risk > 0 else 0
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("EINSTIEG", f"{entry:,.2f}")
-    c2.metric("ZIEL (TP)", f"{target_p:,.2f}", f"{(target_p/entry-1)*100:+.2f}%", delta_color="normal" if is_long else "inverse")
-    c3.metric("STOP LOSS", f"{stop_l:,.2f}", f"{(stop_l/entry-1)*100:+.2f}%", delta_color="inverse" if is_long else "normal")
-    crv_c = "#00FFA3" if crv >= 2 else "#FFD700" if crv >= 1.5 else "#FF4B4B"
-    c4.markdown(f'<div style="text-align:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border: 1px solid {crv_c};"><small>CRV</small><br><span style="font-size:1.5rem; font-weight:bold; color:{crv_c};">{crv:.2f}</span></div>', unsafe_allow_html=True)
+    c1.metric("EINSTIEG", f"{cp:,.2f}")
+    c2.metric("ZIEL (TP)", f"{target_p:,.2f}", f"{(target_p/cp-1)*100:+.2f}%", delta_color="normal" if is_long else "inverse")
+    c3.metric("STOP LOSS", f"{stop_l:,.2f}", f"{(stop_l/cp-1)*100:+.2f}%", delta_color="inverse" if is_long else "normal")
+    c4.markdown(f'<div style="text-align:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border: 1px solid {sig_c};"><small>CRV</small><br><span style="font-size:1.5rem; font-weight:bold; color:{sig_c};">{crv:.2f}</span></div>', unsafe_allow_html=True)
+
+# FOOTER
+st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 Analyse: 4h-Intervall")
