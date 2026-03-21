@@ -9,6 +9,9 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
+# FOOTER
+st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 Analyse: 4h-Intervall")
+
 # --- 2. TICKER-MAPPING ---
 TICKER_NAMES = {
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
@@ -29,11 +32,6 @@ TICKER_NAMES = {
 TICKER_GROUPS = {
     "DAX 40 (DE)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
     "NASDAQ 100 (US)": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "AVGO", "COST", "NFLX", "AMD"]
-
-# Wir fügen sorted() hinzu, um die Liste der Ticker alphabetisch nach ihren Klarnamen zu sortieren
-    sorted_stocks = sorted(TICKER_GROUPS[sel_market], key=lambda x: TICKER_NAMES.get(x, x))
-    sel_stock = cs2.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
-
 }
 
 # --- 3. DESIGN ---
@@ -61,7 +59,7 @@ def extract_price(df, idx):
     try:
         if df.empty: return 0.0
         val = df['Close'].iloc[idx]
-        return float(val) if not isinstance(val, (pd.Series, np.ndarray)) else float(val.iloc[0])
+        return float(val) if not isinstance(val, (pd.Series, np.ndarray)) else float(val.iloc)
     except: return 0.0
 
 def run_market_scanner(ticker_list):
@@ -85,80 +83,69 @@ def run_market_scanner(ticker_list):
 # --- 5. AUFBAU ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
-# 1. WÄHRUNGEN MIT WETTER & AKTION
+# A. WÄHRUNGEN MIT WETTER & AKTION
 st.subheader("💱 Fokus/ Währungen")
 cw1, cw2, _ = st.columns(3)
 for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
     df_f = get_data(t, period="5d")
     if not df_f.empty:
         l = extract_price(df_f, -1); p = extract_price(df_f, -2); diff = ((l/p)-1)*100
-        
-        # Wetter & Aktions-Logik
         if diff > 0.15: sig, icon, clr = "CALL (STARK)", "☀️", "#00FFA3"
         elif diff < -0.15: sig, icon, clr = "PUT (SCHWACH)", "⛈️", "#FF4B4B"
         else: sig, icon, clr = "NEUTRAL", "⛅", "#8892b0"
-        
-        (cw1 if i==0 else cw2).markdown(f"""
-            <div class="market-card">
-                <small>{TICKER_NAMES.get(t,t)}</small>
-                <span style="float:right; font-size:1.2rem;">{icon}</span><br>
-                <span class="metric-value">{l:,.4f}</span><br>
-                <span style="color:{clr}; font-size:0.85rem; font-weight:bold;">{sig} ({diff:+.2f}%)</span>
-            </div>
-        """, unsafe_allow_html=True)
+        (cw1 if i==0 else cw2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><span style="float:right;">{icon}</span><br><span class="metric-value">{l:,.4f}</span><br><span style="color:{clr}; font-size:0.85rem; font-weight:bold;">{sig} ({diff:+.2f}%)</span></div>', unsafe_allow_html=True)
 
-
-# 2. INDIZES (GELÖST: WIEDER DA)
+# B. INDIZES (2 ZEILEN)
 st.subheader("📈 Fokus/ Indizes")
-cols_row1 = st.columns([1, 1, 2]) # 2 Spalten + Platzhalter für Optik
+c_r1 = st.columns(2)
 for i, t in enumerate(["^GDAXI", "^NDX"]):
     df_i = get_data(t, period="2d")
     if not df_i.empty:
         l = extract_price(df_i, -1); p = extract_price(df_i, -2); c = ((l/p)-1)*100
-        cols_row1[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span><br><span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
+        c_r1[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span><br><span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
 
-# Zweite Zeile: Die restlichen Indizes
-cols_row2 = st.columns(3)
+c_r2 = st.columns(3)
 for i, t in enumerate(["^STOXX50E", "XU100.IS", "^NSEI"]):
     df_i = get_data(t, period="2d")
     if not df_i.empty:
         l = extract_price(df_i, -1); p = extract_price(df_i, -2); c = ((l/p)-1)*100
-        cols_row2[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span><br><span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
+        c_r2[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span><br><span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
+
 st.divider()
 
-# 3. SCANNER (SYNCHRONISIERT)
+# C. STEUERUNG (ALPHABETISCH)
 cs1, cs2 = st.columns(2)
 sel_market = cs1.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
-sel_stock = cs2.selectbox("Aktie wählen:", TICKER_GROUPS[sel_market], format_func=lambda x: TICKER_NAMES.get(x, x))
+sorted_stocks = sorted(TICKER_GROUPS[sel_market], key=lambda x: TICKER_NAMES.get(x, x))
+sel_stock = cs2.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
 
+# D. SCANNER
 st.subheader(f"🎯 Prognose-Scanner: {sel_market}")
 scan_res = run_market_scanner(TICKER_GROUPS[sel_market])
 if not scan_res.empty:
     col_c, col_p = st.columns(2)
     with col_c:
-        st.markdown("<span class='bullish'>🟢 TOP 5 CALL-PROGNOSEN</span>", unsafe_allow_html=True)
+        st.markdown("<span class='bullish'>🟢 TOP 5 CALLS</span>", unsafe_allow_html=True)
         st.dataframe(scan_res[scan_res['Prognose %'] > 0].sort_values(by="Prognose %", ascending=False).head(5), use_container_width=True, hide_index=True)
     with col_p:
-        st.markdown("<span class='bearish'>🔴 TOP 5 PUT-PROGNOSEN</span>", unsafe_allow_html=True)
+        st.markdown("<span class='bearish'>🔴 TOP 5 PUTS</span>", unsafe_allow_html=True)
         st.dataframe(scan_res[scan_res['Prognose %'] < 0].sort_values(by="Prognose %", ascending=True).head(5), use_container_width=True, hide_index=True)
 
 st.divider()
 
-# 4. FOKUS ANALYSE
+# E. ANALYSE & SETUP
 d_s = get_data(sel_stock, period="60d")
 if not d_s.empty:
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
     vol = log_returns.std(); ann_vol = vol * np.sqrt(252) * 100
     cp = extract_price(d_s, -1)
 
-    # Simulation
     n_sims = 40; sim_results = []
     for _ in range(n_sims):
         prices = [cp]
         for _ in range(15): prices.append(prices[-1] * np.exp(np.random.normal(0, vol)))
         sim_results.append(prices[-1])
     
-    # Zentrale Logik (Synchronisiert)
     sim_median = float(np.median(sim_results))
     is_long = bool(sim_median >= cp)
     t_up, t_down = np.percentile(sim_results, 95), np.percentile(sim_results, 5)
@@ -167,18 +154,15 @@ if not d_s.empty:
                           ("ABWARTEN", "⚪", "#8892b0")
 
     st.markdown(f'<div class="header-box" style="border-color:{sig_c};"><b>{TICKER_NAMES.get(sel_stock, sel_stock)}</b> | Vola: <b>{ann_vol:.1f}%</b></div>', unsafe_allow_html=True)
-
+    
     plt.style.use('dark_background')
     fig, ax = plt.subplots(figsize=(12, 4))
     fig.patch.set_facecolor('#0E1117'); ax.set_facecolor('#0E1117')
-    for res in sim_results:
-        ax.plot([cp, res], color=sig_c, alpha=0.1)
+    for res in sim_results: ax.plot([cp, res], color=sig_c, alpha=0.1)
     ax.axhline(t_up, color='#00FFA3', ls='--', alpha=0.3); ax.axhline(t_down, color='#FF4B4B', ls='--', alpha=0.3)
     st.pyplot(fig)
 
-    # 5. HANDELS-SETUP
-    dir_label = "[ CALL ]" if is_long else "[ PUT ]"
-    dir_col = "#00FFA3" if is_long else "#FF4B4B"
+    dir_label, dir_col = ("[ CALL ]", "#00FFA3") if is_long else ("[ PUT ]", "#FF4B4B")
     st.markdown(f"### 📝 Handels-Setup: <span style='color:{dir_col};'>{dir_label}</span> <span style='float:right; font-size:1rem; color:{sig_c};'>{sig_i} {sig_t}</span>", unsafe_allow_html=True)
     
     entry = cp; target_p = t_up if is_long else t_down; stop_l = cp * 0.97 if is_long else cp * 1.03
@@ -190,19 +174,3 @@ if not d_s.empty:
     c3.metric("STOP LOSS", f"{stop_l:,.2f}", f"{(stop_l/entry-1)*100:+.2f}%", delta_color="inverse" if is_long else "normal")
     crv_c = "#00FFA3" if crv >= 2 else "#FFD700" if crv >= 1.5 else "#FF4B4B"
     c4.markdown(f'<div style="text-align:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border: 1px solid {crv_c};"><small>CRV</small><br><span style="font-size:1.5rem; font-weight:bold; color:{crv_c};">{crv:.2f}</span></div>', unsafe_allow_html=True)
-
-    # 6. STRATEGIE-CHECK
-    st.markdown("---")
-    st.subheader("🎯 Strategie-Check & Handlung")
-    col_str1, col_str2 = st.columns(2)
-    with col_str1:
-        st.markdown(f'<div style="text-align:center; padding:20px; border:2px solid {crv_c}; border-radius:15px; background:rgba(255,255,255,0.03);"><small>CHANCE-RISIKO-SCORE</small><br><span style="font-size:2.5rem; font-weight:bold; color:{crv_c};">{crv:.2f}</span></div>', unsafe_allow_html=True)
-    with col_str2:
-        msg, b_clr = ("🔥 **STARKE CHANCE:** Hoher Vorteil.", "#00FFA3") if crv >= 2 and ann_vol < 35 else \
-                     ("⚠️ **HOHE GEFAHR:** Markt zu unruhig.", "#FFD700") if ann_vol > 40 else \
-                     ("🛑 **KEIN TRADE:** CRV zu schwach.", "#FF4B4B")
-        st.markdown(f'<div style="background:rgba(255,255,255,0.05); padding:20px; border-radius:15px; border-left: 8px solid {b_clr}; height: 100%;">{msg}</div>', unsafe_allow_html=True)
-
-# FOOTER
-aktuelle_zeit = pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')
-st.info(f"🕒 Stand: {aktuelle_zeit} | 📊 Analyse: 4h-Intervall (60 Tage Historie)")
