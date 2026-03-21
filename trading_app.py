@@ -147,6 +147,37 @@ if not scan_res.empty:
 
 st.divider()
 
+# --- MARKT-STATUS CHECK (UNTER DEM SCANNER) ---
+jetzt = pd.Timestamp.now()
+ist_wochenende = jetzt.weekday() >= 5 # 5=Samstag, 6=Sonntag
+handelszeit_start = 8
+handelszeit_ende = 22
+
+# Status-Logik
+if ist_wochenende:
+    markt_status = "GESCHLOSSEN (Wochenende)"
+    markt_icon = "🛑"
+    markt_farbe = "#FF4B4B"
+    markt_hinweis = "Die Kurse sind auf dem Stand vom Freitagabend fixiert."
+elif jetzt.hour < handelszeit_start or jetzt.hour >= handelszeit_ende:
+    markt_status = "GESCHLOSSEN (Außerbörslich)"
+    markt_icon = "🌙"
+    markt_farbe = "#FFD700"
+    markt_hinweis = f"Der reguläre Handel startet wieder um {handelszeit_start:02d}:00 Uhr."
+else:
+    markt_status = "GEÖFFNET (Live-Handel)"
+    markt_icon = "🟢"
+    markt_farbe = "#00FFA3"
+    markt_hinweis = "Die Kurse und Prognosen aktualisieren sich jede Minute."
+
+# Visuelle Anzeige
+st.markdown(f"""
+    <div style="background:rgba(255,255,255,0.03); padding:15px; border-radius:12px; border-left: 5px solid {markt_farbe}; margin-bottom: 25px;">
+        <span style="font-size:1.2rem; font-weight:bold; color:{markt_farbe};">{markt_icon} Markt-Status: {markt_status}</span><br>
+        <small style="color:#8892b0;">{markt_hinweis}</small>
+    </div>
+""", unsafe_allow_html=True)
+
 # E. ANALYSE & SETUP
 d_s = get_data(sel_stock, period="60d")
 if not d_s.empty:
