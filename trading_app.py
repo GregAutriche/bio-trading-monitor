@@ -9,6 +9,9 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
+st.info(f"Status: {pd.Timestamp.now().strftime('%H:%M:%S')}")
+
+
 # --- 2. TICKER-MAPPING ---
 TICKER_NAMES = {
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
@@ -211,4 +214,3 @@ if not d_s.empty:
             for n in t_obj.news[:3]: st.markdown(f"🔹 **{n['title']}** ({n['publisher']})")
         except: st.info("News-Feed aktuell nicht erreichbar.")
 
-st.info(f"Status: {pd.Timestamp.now().strftime('%H:%M:%S')}")
