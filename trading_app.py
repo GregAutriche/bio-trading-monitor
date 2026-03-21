@@ -13,23 +13,37 @@ st_autorefresh(interval=60000, limit=1000, key="fscounter")
 st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 Analyse: 4h-Intervall")
 
 # --- 2. TICKER-MAPPING ---
+# --- 2. TICKER-MAPPING (VOLLSTÄNDIG: EUROSTOXX 50 HINZUGEFÜGT) ---
 TICKER_NAMES = {
+    # Währungen & Indizes
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
     "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
-    "ADS.DE": "Adidas", "AIR.DE": "Airbus", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer",
-    "BEI.DE": "Beiersdorf", "BMW.DE": "BMW", "BNR.DE": "Brenntag", "CBK.DE": "Commerzbank", "CON.DE": "Continental",
-    "1COV.DE": "Covestro", "DTG.DE": "Daimler Truck", "DBK.DE": "Deutsche Bank", "DB1.DE": "Deutsche Börse",
-    "DHL.DE": "DHL Group", "DTE.DE": "Telekom", "EON.DE": "E.ON", "FME.DE": "Fresenius Med.", "FRE.DE": "Fresenius SE",
-    "GEA.DE": "GEA Group", "HNR1.DE": "Hannover Rück", "HEI.DE": "Heidelberg Mat.", "HEN3.DE": "Henkel",
-    "IFX.DE": "Infineon", "MBG.DE": "Mercedes-Benz", "MRK.DE": "Merck", "MTX.DE": "MTU Aero", "MUV2.DE": "Münchener Rück",
-    "PAH3.DE": "Porsche SE", "PUM.DE": "Puma", "QIA.DE": "Qiagen", "RHM.DE": "Rheinmetall", "RWE.DE": "RWE",
-    "SAP.DE": "SAP", "SIE.DE": "Siemens", "ENR.DE": "Siemens Energy", "SHL.DE": "Siemens Health.", "SY1.DE": "Symrise",
-    "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia", "ZAL.DE": "Zalando",
+    
+    # EURO STOXX 50 (Blue-Chips Europa)
+    "AD.AS": "Ahold Delhaize", "ADS.DE": "Adidas", "AI.PA": "Air Liquide", "AIR.PA": "Airbus", "ALV.DE": "Allianz",
+    "ASML.AS": "ASML", "BAS.DE": "BASF", "BAYN.DE": "Bayer", "BBVA.MC": "BBVA", "BNP.PA": "BNP Paribas",
+    "BMW.DE": "BMW", "CRH.L": "CRH", "CS.PA": "AXA", "DG.PA": "Vinci", "DHL.DE": "DHL Group",
+    "DTE.DE": "Telekom", "ENEL.MI": "Enel", "ENI.MI": "Eni", "EL.PA": "EssilorLuxottica", "FLTR.L": "Flutter Ent.",
+    "HER.PA": "Hermès", "IBE.MC": "Iberdrola", "ITX.MC": "Inditex", "IFX.DE": "Infineon", "INGA.AS": "ING Group",
+    "ISP.MI": "Intesa Sanpaolo", "KER.PA": "Kering", "OR.PA": "L'Oréal", "MC.PA": "LVMH", "MBG.DE": "Mercedes-Benz",
+    "MRK.DE": "Merck", "MUV2.DE": "Münchener Rück", "NOKIA.HE": "Nokia", "ORANGE.PA": "Orange", "PRX.AS": "Prosus",
+    "RHM.DE": "Rheinmetall", "RI.PA": "Pernod Ricard", "RMS.PA": "Hermès", "SAF.PA": "Safran", "SAN.MC": "Santander",
+    "SAP.DE": "SAP", "SGO.PA": "Saint-Gobain", "SIE.DE": "Siemens", "ENR.DE": "Siemens Energy", "STLAM.MI": "Stellantis",
+    "STMPA.PA": "STMicroelectronics", "TTE.PA": "TotalEnergies", "UCG.MI": "UniCredit", "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia",
+    
+    # NASDAQ (US)
     "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "AMZN": "Amazon", "META": "Meta", "TSLA": "Tesla",
     "GOOGL": "Alphabet", "AVGO": "Broadcom", "COST": "Costco", "NFLX": "Netflix", "AMD": "AMD"
 }
 
 TICKER_GROUPS = {
+    "EuroStoxx 50 (EU)": [
+        "AD.AS", "ADS.DE", "AI.PA", "AIR.PA", "ALV.DE", "ASML.AS", "BAS.DE", "BAYN.DE", "BBVA.MC", "BNP.PA",
+        "BMW.DE", "CS.PA", "DG.PA", "DHL.DE", "DTE.DE", "ENEL.MI", "ENI.MI", "EL.PA", "FLTR.L", "IBE.MC",
+        "ITX.MC", "IFX.DE", "INGA.AS", "ISP.MI", "KER.PA", "OR.PA", "MC.PA", "MBG.DE", "MRK.DE", "MUV2.DE",
+        "NOKIA.HE", "ORANGE.PA", "PRX.AS", "RHM.DE", "RI.PA", "SAF.PA", "SAN.MC", "SAP.DE", "SGO.PA", "SIE.DE",
+        "ENR.DE", "STLAM.MI", "STMPA.PA", "TTE.PA", "UCG.MI", "VOW3.DE", "VNA.DE"
+    ],
     "DAX 40 (DE)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
     "NASDAQ 100 (US)": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "AVGO", "COST", "NFLX", "AMD"]
 }
