@@ -22,7 +22,7 @@ TICKER_NAMES = {
 }
 
 TICKER_GROUPS = {
-    "EuroStoxx 50 (EU)": ["AD.AS", "ADS.DE", "AI.PA", "AIR.PA", "ALV.DE", "ASML.AS", "BAS.DE", "BAYN.DE", "BNP.PA", "BMW.DE", "CS.PA", "DG.PA", "DHL.DE", "DTE.DE", "EL.PA", "IBE.MC", "ITX.MC", "IFX.DE", "INGA.AS", "ISP.MI", "OR.PA", "MC.PA", "MBG.DE", "MRK.DE", "MUV2.DE", "PRX.AS", "RHM.DE", "SAF.PA", "SAN.MC", "SAP.DE", "SGO.PA", "SIE.DE", "ENR.DE", "STLAM.MI", "TTE.PA", "UCG.MI", "VOW3.DE", "VNA.DE"],
+    "EuroStoxx 50 (EU)": ["AD.AS", "ADS.DE", "AI.PA", "AIR.PA", "ALV.DE", "ASML.AS", "BAS.DE", "BAYN.DE", "BNP.PA", "BMW.DE", "CS.PA", "DG.PA", "DHL.DE", "DTE.DE", "EL.PA", "IBE.MC", "ITX.MC", "IFX.DE", "INGA.AS", "ISP.MI", "OR.PA", "MC.PA", "MBG.DE", "MRK.DE", "MUV2.DE", "PRX.AS", "RHM.DE", "RI.PA", "SAF.PA", "SAN.MC", "SAP.DE", "SGO.PA", "SIE.DE", "ENR.DE", "STLAM.MI", "TTE.PA", "UCG.MI", "VOW3.DE", "VNA.DE"],
     "DAX 40 (DE)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
     "NASDAQ 100 (US)": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "AVGO", "COST", "NFLX", "AMD"]
 }
@@ -53,7 +53,7 @@ def extract_price(df, idx):
     try:
         if df.empty: return 0.0
         val = df['Close'].iloc[idx]
-        return float(val) if not isinstance(val, (pd.Series, np.ndarray)) else float(val.iloc[0])
+        return float(val) if not isinstance(val, (pd.Series, np.ndarray)) else float(val.iloc)
     except: return 0.0
 
 def draw_info_card(col, t, is_currency=False):
@@ -62,7 +62,7 @@ def draw_info_card(col, t, is_currency=False):
         l = extract_price(df, -1); p = extract_price(df, -2); diff = ((l/p)-1)*100
         prec = 4 if is_currency else 2
         
-        # LOGIK FÜR FARBEN & ICONS
+        # LOGIK FÜR FARBEN & ICONS (GEFIXT)
         if diff > 0.15: 
             sig, icon, css, icon_clr = "CALL (STARK)", "☀️", "sig-call", "#00FFA3"
         elif diff < -0.15: 
