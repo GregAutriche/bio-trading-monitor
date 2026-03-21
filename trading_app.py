@@ -111,10 +111,10 @@ def run_market_scanner(ticker_list):
 
 # --- 5. AUFBAU ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
+st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 Analyse: 4h-Intervall")
 
 # A. WÄHRUNGEN (WETTER & AKTION)
 st.subheader("💱 Fokus/ Währungen")
-st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 Analyse: 4h-Intervall")
 
 cw1, cw2, _ = st.columns(3)
 for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
