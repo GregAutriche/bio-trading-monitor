@@ -13,24 +13,19 @@ st_autorefresh(interval=60000, limit=1000, key="fscounter")
 TICKER_NAMES = {
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
     "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
-    # EURO STOXX 50
-    "AD.AS": "Ahold Delhaize", "ADS.DE": "Adidas", "AI.PA": "Air Liquide", "AIR.PA": "Airbus", "ALV.DE": "Allianz",
-    "ASML.AS": "ASML", "BAS.DE": "BASF", "BAYN.DE": "Bayer", "BBVA.MC": "BBVA", "BNP.PA": "BNP Paribas",
-    "BMW.DE": "BMW", "CS.PA": "AXA", "DG.PA": "Vinci", "DHL.DE": "DHL Group", "DTE.DE": "Telekom",
-    "ENEL.MI": "Enel", "ENI.MI": "Eni", "EL.PA": "EssilorLuxottica", "FLTR.L": "Flutter Ent.", "HER.PA": "Hermès",
-    "IBE.MC": "Iberdrola", "ITX.MC": "Inditex", "IFX.DE": "Infineon", "INGA.AS": "ING Group", "ISP.MI": "Intesa Sanpaolo",
-    "KER.PA": "Kering", "OR.PA": "L'Oréal", "MC.PA": "LVMH", "MBG.DE": "Mercedes-Benz", "MRK.DE": "Merck",
-    "MUV2.DE": "Münchener Rück", "NOKIA.HE": "Nokia", "ORANGE.PA": "Orange", "PRX.AS": "Prosus", "RHM.DE": "Rheinmetall",
-    "RI.PA": "Pernod Ricard", "SAF.PA": "Safran", "SAN.MC": "Santander", "SAP.DE": "SAP", "SGO.PA": "Saint-Gobain",
-    "SIE.DE": "Siemens", "ENR.DE": "Siemens Energy", "STLAM.MI": "Stellantis", "STMPA.PA": "STMicroelectronics",
-    "TTE.PA": "TotalEnergies", "UCG.MI": "UniCredit", "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia",
-    # NASDAQ & DAX Rest
+    # EURO STOXX 50 (Auswahl der wichtigsten)
+    "ASML.AS": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "OR.PA": "L'Oréal", "ADS.DE": "Adidas", 
+    "AIR.PA": "Airbus", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer", "BMW.DE": "BMW",
+    "DHL.DE": "DHL Group", "DTE.DE": "Telekom", "IFX.DE": "Infineon", "MBG.DE": "Mercedes-Benz",
+    "MRK.DE": "Merck", "MUV2.DE": "Münchener Rück", "RHM.DE": "Rheinmetall", "SIE.DE": "Siemens",
+    "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia",
+    # NASDAQ
     "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "AMZN": "Amazon", "META": "Meta", "TSLA": "Tesla",
-    "GOOGL": "Alphabet", "AVGO": "Broadcom", "COST": "Costco", "NFLX": "Netflix", "AMD": "AMD", "CBK.DE": "Commerzbank"
+    "GOOGL": "Alphabet", "AVGO": "Broadcom", "COST": "Costco", "NFLX": "Netflix", "AMD": "AMD"
 }
 
 TICKER_GROUPS = {
-    "EuroStoxx 50 (EU)": ["AD.AS", "ADS.DE", "AI.PA", "AIR.PA", "ALV.DE", "ASML.AS", "BAS.DE", "BAYN.DE", "BBVA.MC", "BNP.PA", "BMW.DE", "CS.PA", "DG.PA", "DHL.DE", "DTE.DE", "ENEL.MI", "ENI.MI", "EL.PA", "FLTR.L", "IBE.MC", "ITX.MC", "IFX.DE", "INGA.AS", "ISP.MI", "KER.PA", "OR.PA", "MC.PA", "MBG.DE", "MRK.DE", "MUV2.DE", "NOKIA.HE", "ORANGE.PA", "PRX.AS", "RHM.DE", "RI.PA", "SAF.PA", "SAN.MC", "SAP.DE", "SGO.PA", "SIE.DE", "ENR.DE", "STLAM.MI", "STMPA.PA", "TTE.PA", "UCG.MI", "VOW3.DE", "VNA.DE"],
+    "EuroStoxx 50 (EU)": ["ASML.AS", "MC.PA", "SAP.DE", "OR.PA", "ADS.DE", "AIR.PA", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "DHL.DE", "DTE.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MUV2.DE", "RHM.DE", "SIE.DE", "VOW3.DE", "VNA.DE"],
     "DAX 40 (DE)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
     "NASDAQ 100 (US)": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "AVGO", "COST", "NFLX", "AMD"]
 }
@@ -41,8 +36,9 @@ st.markdown("""
     .stApp { background-color: #0E1117; color: #E0E0E0; }
     .market-card { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px; }
     .metric-value { font-size: 1.1rem; font-weight: bold; font-family: 'Courier New', monospace; color: white; }
-    .bullish { color: #00FFA3 !important; font-weight: bold; }
-    .bearish { color: #FF4B4B !important; font-weight: bold; }
+    .sig-call { color: #00FFA3; font-weight: bold; font-size: 0.85rem; }
+    .sig-put { color: #FF4B4B; font-weight: bold; font-size: 0.85rem; }
+    .sig-neutral { color: #8892b0; font-weight: bold; font-size: 0.85rem; }
     .header-box { padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 25px; border: 1px solid #1E90FF; background: rgba(30,144,255,0.05); }
     </style>
     """, unsafe_allow_html=True)
@@ -65,153 +61,78 @@ def extract_price(df, idx):
 
 def run_market_scanner(ticker_list):
     results = []
-    # Daten laden
     data = yf.download(ticker_list, period="60d", interval="4h", progress=False)
     if isinstance(data.columns, pd.MultiIndex): close_p = data['Close']
     else: close_p = data[['Close']]
-    
-    # Zeit-Check für Stabilität
-    heute_str = pd.Timestamp.now().strftime('%Y-%m-%d')
-    # Wir nutzen das Datum als "Seed", damit die Simulation 24h gleich bleibt
-    seed_val = int(pd.Timestamp.now().timestamp() // 86400) 
-    
+    # Seed für stabile Simulation am Wochenende
+    seed_val = int(pd.Timestamp.now().timestamp() // 86400)
     for t in ticker_list:
         try:
             series = close_p[t].dropna()
             if len(series) > 10:
-                cp = series.iloc[-1]
-                log_r = np.log(series / series.shift(1)).dropna()
-                vol = log_r.std()
-                ann_vol = vol * np.sqrt(252) * 100
-                
-                # Fixierte Simulation (bleibt den ganzen Tag gleich)
-                np.random.seed(seed_val + hash(t) % 1000) 
-                sim_moves = [np.exp(np.random.normal(0, vol)) for _ in range(100)]
-                trend_sim = (np.mean(sim_moves) - 1) * 100
-                
-                # STRENGE LOGIK: Wann zeigen wir ein Signal?
-                # 1. Nur wenn die Prognose deutlich ist (> 0.2%)
-                # 2. Nur wenn die Vola nicht explodiert (< 35%)
-                # 3. Am Wochenende (Sa/So) wird 'Abwarten' priorisiert, außer Trend ist extrem klar
-                ist_we = pd.Timestamp.now().weekday() >= 5
-                
-                if abs(trend_sim) > 0.2 and ann_vol < 35:
-                    aktion = "🟢" if trend_sim > 0 else "🔴"
-                else:
-                    aktion = "⚪" # ABWARTEN bei Unsicherheit oder Wochenende
-                
-                results.append({
-                    "Aktie": TICKER_NAMES.get(t, t), 
-                    "Kurs": round(cp, 2), 
-                    "Prognose %": round(trend_sim, 2), 
-                    "Status": aktion
-                })
+                cp = series.iloc[-1]; log_r = np.log(series / series.shift(1)).dropna()
+                vol = log_r.std(); ann_vol = vol * np.sqrt(252) * 100
+                np.random.seed(seed_val + hash(t) % 1000)
+                sim_move = np.mean([np.exp(np.random.normal(0, vol)) for _ in range(50)])
+                trend_sim = (sim_move - 1) * 100
+                status = "🟢" if trend_sim > 0.15 and ann_vol < 35 else "🔴" if trend_sim < -0.15 and ann_vol < 35 else "⚪"
+                results.append({"Aktie": TICKER_NAMES.get(t, t), "Kurs": round(cp, 2), "Prognose %": round(trend_sim, 2), "Status": status})
         except: continue
     return pd.DataFrame(results)
 
+def draw_info_card(col, t, is_currency=False):
+    df = get_data(t, period="5d")
+    if not df.empty:
+        l = extract_price(df, -1); p = extract_price(df, -2); diff = ((l/p)-1)*100
+        prec = 4 if is_currency else 2
+        # Logik mit Farbcodes
+        if diff > 0.15: sig, icon, css = "CALL (STARK)", "☀️", "sig-call"
+        elif diff < -0.15: sig, icon, css = "PUT (BEARISH)", "⛈️", "sig-put"
+        else: sig, icon, css = "NEUTRAL", "⛅", "sig-neutral"
+        col.markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><span style="float:right;">{icon}</span><br><span class="metric-value">{l:,.{prec}f}</span><br><span class="{css}">{sig} ({diff:+.2f}%)</span></div>', unsafe_allow_html=True)
+
 # --- 5. AUFBAU ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
-st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 Analyse: 4h-Intervall")
 
-# A. WÄHRUNGEN (WETTER & AKTION)
+# A. WÄHRUNGEN
 st.subheader("💱 Fokus/ Währungen")
-
 cw1, cw2, _ = st.columns(3)
-for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
-    df_f = get_data(t, period="5d")
-    if not df_f.empty:
-        l = extract_price(df_f, -1); p = extract_price(df_f, -2); diff = ((l/p)-1)*100
-        sig, icon, clr = ("CALL (STARK)", "☀️", "#00FFA3") if diff > 0.15 else ("PUT (SCHWACH)", "⛈️", "#FF4B4B") if diff < -0.15 else ("NEUTRAL", "⛅", "#8892b0")
-        (cw1 if i==0 else cw2).markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><span style="float:right;">{icon}</span><br><span class="metric-value">{l:,.4f}</span><br><span style="color:{clr}; font-size:0.85rem; font-weight:bold;">{sig} ({diff:+.2f}%)</span></div>', unsafe_allow_html=True)
+draw_info_card(cw1, "EURUSD=X", True); draw_info_card(cw2, "EURRUB=X", True)
 
-# B. INDIZES (2 ZEILEN)
+# B. INDIZES
 st.subheader("📈 Fokus/ Indizes")
-def draw_index_card(col, t):
-    df_i = get_data(t, period="2d")
-    if not df_i.empty:
-        l = extract_price(df_i, -1); p = extract_price(df_i, -2); diff = ((l/p)-1)*100
-        
-        # Wetter & Aktions-Logik für Indizes (etwas sensibler als bei Einzelaktien)
-        if diff > 0.30: sig, icon, clr = "CALL (BULLISH)", "☀️", "#00FFA3"
-        elif diff < -0.30: sig, icon, clr = "PUT (BEARISH)", "⛈️", "#FF4B4B"
-        else: sig, icon, clr = "NEUTRAL", "⛅", "#8892b0"
-        
-        col.markdown(f"""
-            <div class="market-card">
-                <small>{TICKER_NAMES.get(t,t)}</small>
-                <span style="float:right; font-size:1.1rem;">{icon}</span><br>
-                <span class="metric-value">{l:,.2f}</span><br>
-                <span style="color:{clr}; font-size:0.8rem; font-weight:bold;">{sig} ({diff:+.2f}%)</span>
-            </div>
-        """, unsafe_allow_html=True)
-        
-c_r1 = st.columns(2)
-for i, t in enumerate(["^GDAXI", "^NDX"]):
-    draw_index_card(c_r1[i], t)
+c_r1 = st.columns(2); draw_info_card(c_r1[0], "^GDAXI"); draw_info_card(c_r1[1], "^NDX")
+c_r2 = st.columns(3); draw_info_card(c_r2[0], "^STOXX50E"); draw_info_card(c_r2[1], "XU100.IS"); draw_info_card(c_r2[2], "^NSEI")
 
-# Zweite Zeile: EuroStoxx, BIST, Nifty
-c_r2 = st.columns(3)
-for i, t in enumerate(["^STOXX50E", "XU100.IS", "^NSEI"]):
-    draw_index_card(c_r2[i], t)
 st.divider()
 
-# C. STEUERUNG (ALPHABETISCH)
+# C. STEUERUNG & SCANNER
 cs1, cs2 = st.columns(2)
 sel_market = cs1.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
 sorted_stocks = sorted(TICKER_GROUPS[sel_market], key=lambda x: TICKER_NAMES.get(x, x))
 sel_stock = cs2.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
 
-# D. SCANNER (MIT AKTION)
+# D. SCANNER
 st.subheader(f"🎯 Prognose-Scanner: {sel_market}")
 scan_res = run_market_scanner(TICKER_GROUPS[sel_market])
 if not scan_res.empty:
     col_c, col_p = st.columns(2)
     with col_c:
-        st.markdown("<span class='bullish'>🟢 TOP 5 CALLS</span>", unsafe_allow_html=True)
+        st.markdown("<span style='color:#00FFA3; font-weight:bold;'>🟢 TOP 5 CALLS</span>", unsafe_allow_html=True)
         st.dataframe(scan_res[scan_res['Prognose %'] > 0].sort_values(by="Prognose %", ascending=False).head(5), use_container_width=True, hide_index=True)
     with col_p:
-        st.markdown("<span class='bearish'>🔴 TOP 5 PUTS</span>", unsafe_allow_html=True)
+        st.markdown("<span style='color:#FF4B4B; font-weight:bold;'>🔴 TOP 5 PUTS</span>", unsafe_allow_html=True)
         st.dataframe(scan_res[scan_res['Prognose %'] < 0].sort_values(by="Prognose %", ascending=True).head(5), use_container_width=True, hide_index=True)
 
 st.divider()
-
-# --- MARKT-STATUS CHECK (UNTER DEM SCANNER) ---
-jetzt = pd.Timestamp.now()
-ist_wochenende = jetzt.weekday() >= 5 # 5=Samstag, 6=Sonntag
-handelszeit_start = 8
-handelszeit_ende = 22
-
-# Status-Logik
-if ist_wochenende:
-    markt_status = "GESCHLOSSEN (Wochenende)"
-    markt_icon = "🛑"
-    markt_farbe = "#FF4B4B"
-    markt_hinweis = "Die Kurse sind auf dem Stand vom Freitagabend fixiert."
-elif jetzt.hour < handelszeit_start or jetzt.hour >= handelszeit_ende:
-    markt_status = "GESCHLOSSEN (Außerbörslich)"
-    markt_icon = "🌙"
-    markt_farbe = "#FFD700"
-    markt_hinweis = f"Der reguläre Handel startet wieder um {handelszeit_start:02d}:00 Uhr."
-else:
-    markt_status = "GEÖFFNET (Live-Handel)"
-    markt_icon = "🟢"
-    markt_farbe = "#00FFA3"
-    markt_hinweis = "Die Kurse und Prognosen aktualisieren sich jede Minute."
-
-# Visuelle Anzeige
-st.markdown(f"""
-    <div style="background:rgba(255,255,255,0.03); padding:15px; border-radius:12px; border-left: 5px solid {markt_farbe}; margin-bottom: 25px;">
-        <span style="font-size:1.2rem; font-weight:bold; color:{markt_farbe};">{markt_icon} Markt-Status: {markt_status}</span><br>
-        <small style="color:#8892b0;">{markt_hinweis}</small>
-    </div>
-""", unsafe_allow_html=True)
 
 # E. ANALYSE & SETUP
 d_s = get_data(sel_stock, period="60d")
 if not d_s.empty:
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
-    vol = log_returns.std(); ann_vol = vol * np.sqrt(252) * 100
-    cp = extract_price(d_s, -1)
+    vol = log_returns.std(); ann_vol = vol * np.sqrt(252) * 100; cp = extract_price(d_s, -1)
+    # Stabile Simulation (Seed)
+    np.random.seed(int(pd.Timestamp.now().timestamp() // 86400) + hash(sel_stock) % 1000)
     sim_results = [cp * np.exp(np.random.normal(0, vol * np.sqrt(15))) for _ in range(100)]
     is_long = bool(np.median(sim_results) >= cp)
     t_up, t_down = np.percentile(sim_results, 95), np.percentile(sim_results, 5)
@@ -219,8 +140,8 @@ if not d_s.empty:
     
     st.markdown(f'<div class="header-box" style="border-color:{sig_c};"><b>{TICKER_NAMES.get(sel_stock, sel_stock)}</b> | Vola: <b>{ann_vol:.1f}%</b></div>', unsafe_allow_html=True)
     
-    dir_l, dir_col = ("[ CALL ]", "#00FFA3") if is_long else ("[ PUT ]", "#FF4B4B")
-    st.markdown(f"### 📝 Handels-Setup: <span style='color:{dir_col};'>{dir_l}</span> <span style='float:right; font-size:1rem; color:{sig_c};'>{sig_i} {sig_t}</span>", unsafe_allow_html=True)
+    dir_label, dir_col = ("[ CALL ]", "#00FFA3") if is_long else ("[ PUT ]", "#FF4B4B")
+    st.markdown(f"### 📝 Handels-Setup: <span style='color:{dir_col};'>{dir_label}</span> <span style='float:right; font-size:1rem; color:{sig_c};'>{sig_i} {sig_t}</span>", unsafe_allow_html=True)
     
     target_p = t_up if is_long else t_down; stop_l = cp * 0.97 if is_long else cp * 1.03
     risk = abs(cp - stop_l); reward = abs(target_p - cp); crv = reward / risk if risk > 0 else 0
@@ -228,4 +149,8 @@ if not d_s.empty:
     c1.metric("EINSTIEG", f"{cp:,.2f}")
     c2.metric("ZIEL (TP)", f"{target_p:,.2f}", f"{(target_p/cp-1)*100:+.2f}%", delta_color="normal" if is_long else "inverse")
     c3.metric("STOP LOSS", f"{stop_l:,.2f}", f"{(stop_l/cp-1)*100:+.2f}%", delta_color="inverse" if is_long else "normal")
-    c4.markdown(f'<div style="text-align:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border: 1px solid {sig_c};"><small>CRV</small><br><span style="font-size:1.5rem; font-weight:bold; color:{sig_c};">{crv:.2f}</span></div>', unsafe_allow_html=True)
+    crv_col = "#00FFA3" if crv >= 2 else "#FFD700" if crv >= 1.5 else "#FF4B4B"
+    c4.markdown(f'<div style="text-align:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border: 1px solid {crv_col};"><small>CRV</small><br><span style="font-size:1.5rem; font-weight:bold; color:{crv_col};">{crv:.2f}</span></div>', unsafe_allow_html=True)
+
+# FOOTER
+st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 Analyse: 4h-Intervall")
