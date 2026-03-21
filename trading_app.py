@@ -154,25 +154,5 @@ if not d_s.empty:
     crv_col = "#00FFA3" if crv >= 2 else "#FFD700" if crv >= 1.5 else "#FF4B4B"
     c4.markdown(f'<div style="text-align:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border: 1px solid {crv_col};"><small>CRV</small><br><span style="font-size:1.5rem; font-weight:bold; color:{crv_col};">{crv:.2f}</span></div>', unsafe_allow_html=True)
 
-    # G. RISIKO-RADAR (NEU)
-       # G. RISIKO-RADAR MIT FALLBACK-NEWS
-    st.divider()
-    st.subheader("🚨 Risiko-Radar: Termine & News")
-    t_obj = yf.Ticker(sel_stock)
-    col_r1, col_r2 = st.columns(2)
-
-    with col_r1:
-        try:
-            cal = t_obj.calendar
-            if isinstance(cal, pd.DataFrame) and not cal.empty:
-                # Suche nach dem ersten verfügbaren Datum im Kalender
-                e_date = cal.iloc[0, 0] if 'Earnings Date' in cal.index else cal.iloc[0]
-                if isinstance(e_date, list): e_date = e_date[0]
-                st.warning(f"📅 Nächste Zahlen: **{pd.to_datetime(e_date).strftime('%d.%m.%Y')}**")
-            else:
-                st.info("Keine anstehenden Earnings-Termine gefunden.")
-        except:
-            st.info("Earnings-Daten aktuell nicht verfügbar.")
-
 # FOOTER
 st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 Analyse: 4h-Intervall")
