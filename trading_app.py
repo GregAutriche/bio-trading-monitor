@@ -180,7 +180,7 @@ if not d_s.empty:
     is_attractive = crv >= 2.0 and ann_vol < 30
     is_risky = ann_vol > 40
     
-    col_str1, col_str2 = st.columns()
+    col_str1, col_str2 = st.columns(2)
     with col_str1:
         score_color = "#00FFA3" if crv >= 2 else "#FFD700" if crv >= 1.5 else "#FF4B4B"
         st.markdown(f"""
