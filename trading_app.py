@@ -60,91 +60,51 @@ sel_market = cs1.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
 sorted_stocks = sorted(TICKER_GROUPS[sel_market], key=lambda x: TICKER_NAMES.get(x, x))
 sel_stock = cs2.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
 
-st.divider()
+    # --- VOLUMENSINFO DER LETZTEN 20 TAGE (CA. 120 KERZEN À 4H) ---
+    st.divider()
+    st.subheader("📊 Volumens-Analyse (Letzte 20 Handelstage)")
 
-d_s = get_data(sel_stock, period="60d")
-
-if not d_s.empty:
-    # A. VOLUMEN-LOGIK (Aktuell)
-    avg_vol_short = d_s['Volume'].tail(10).mean()
-    cur_vol = d_s['Volume'].iloc[-1]
-    v_diff = ((cur_vol / avg_vol_short) - 1) * 100 if avg_vol_short > 0 else 0
-    v_icon, v_col = ("🔥", "#00FFA3") if v_diff > 15 else ("💤", "#FF4B4B") if v_diff < -15 else ("📊", "#8892b0")
-    v_status = "Bestätigt" if v_diff > 15 else "Schwach" if v_diff < -15 else "Normal"
-
-    # B. PROGNOSE & SETUP
-    log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
-    vol = log_returns.std()
-    ann_vol = vol * np.sqrt(252) * 100
-    cp = extract_price(d_s, -1)
-
-    np.random.seed(int(pd.Timestamp.now().timestamp() // 86400) + hash(sel_stock) % 1000)
-    sim_results = [cp * np.exp(np.random.normal(0, vol * np.sqrt(15))) for _ in range(100)]
-    is_long = bool(np.median(sim_results) >= cp)
-    t_up, t_down = np.percentile(sim_results, 95), np.percentile(sim_results, 5)
-    sig_t, sig_i, sig_c = (("LONG EINSTIEG", "🟢", "#00FFA3") if is_long and ann_vol < 35 else ("SHORT CHANCE", "🔴", "#FF4B4B") if not is_long and ann_vol < 35 else ("ABWARTEN", "⚪", "#8892b0"))
-
-    # HEADER & SETUP ANZEIGE
-    st.markdown(f'<div class="header-box" style="border-color:{sig_c};"><b style="font-size:1.3rem; color:white;">{TICKER_NAMES.get(sel_stock, sel_stock)}</b> <span style="color:#1E90FF; margin: 0 15px;">|</span> Vola: <b>{ann_vol:.1f}%</b> <span style="color:#1E90FF; margin: 0 15px;">|</span> Volumen: <b style="color:{v_col};">{v_icon} {v_diff:+.1f}%</b></div>', unsafe_allow_html=True)
+    # 1. Datenaufbereitung
+    # Da das Intervall 4h ist, entsprechen 20 Handelstage ca. 120 Datenpunkten (6 pro Tag)
+    vol_20d = d_s['Volume'].tail(120)
+    avg_vol_20d = vol_20d.mean()
+    max_vol_20d = vol_20d.max()
     
-    dir_l, dir_col = ("[ CALL ]", "#00FFA3") if is_long else ("[ PUT ]", "#FF4B4B")
-    st.markdown(f"### 📝 Handels-Setup: <span style='color:{dir_col};'>{dir_l}</span> <span style='float:right; font-size:1rem; color:{sig_c};'>{sig_i} {sig_t}</span>", unsafe_allow_html=True)
-
-    target_p = t_up if is_long else t_down
-    stop_l = cp * 0.97 if is_long else cp * 1.03
-    crv = abs(target_p - cp) / abs(cp - stop_l) if abs(cp - stop_l) > 0 else 0
-
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("EINSTIEG", f"{cp:,.2f}")
-    c2.metric("ZIEL (TP)", f"{target_p:,.2f}", f"{(target_p/cp-1)*100:+.2f}%")
-    c3.metric("STOP LOSS", f"{stop_l:,.2f}", f"{(stop_l/cp-1)*100:+.2f}%")
-    c4.metric("VOLUMEN", f"{v_icon} {v_diff:+.1f}%", v_status)
+    # Vergleich aktuelles Volumen zu 20-Tage-Schnitt
+    v_diff_20d = ((cur_vol / avg_vol_20d) - 1) * 100 if avg_vol_20d > 0 else 0
     
-    crv_col = "#00FFA3" if crv >= 2 else "#FFD700" if crv >= 1.5 else "#FF4B4B"
-    c5.markdown(f'<div style="text-align:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border: 1px solid {crv_col};"><small style="color:#8892b0;">CRV</small><br><span style="font-size:1.5rem; font-weight:bold; color:{crv_col};">{crv:.2f}</span></div>', unsafe_allow_html=True)
-
-    # --- NEU: VOLUMENS-BEREICH (LETZTE 20 TAGE) ---
-    st.markdown("---")
-    st.subheader("📊 Volumensinfo der letzten 20 Handelstage")
+    col_v1, col_v2, col_v3 = st.columns(3)
     
-    # Daten für 20 Tage aufbereiten (da 4h Intervall, nehmen wir die letzten 120 Datenpunkte (~20 Börsentage))
-    vol_data = d_s['Volume'].tail(120) 
-    # Resample auf Daily, falls nötig, oder einfach die letzten 20 4h-Blöcke visualisieren:
-    vol_20 = d_s['Volume'].tail(20)
-    avg_20 = d_s['Volume'].tail(60).mean() # 60 Einheiten als Referenz-Durchschnitt
-
-    col_v1, col_v2 = st.columns([1, 2])
-
     with col_v1:
-        v_20_mean = vol_20.mean()
-        v_trend = ((cur_vol / v_20_mean) - 1) * 100 if v_20_mean > 0 else 0
-        st.metric("Ø Volumen (20 Tage)", f"{v_20_mean:,.0f}")
-        st.metric("Aktuell vs. Ø 20 Tage", f"{cur_vol:,.0f}", f"{v_trend:+.1f}%")
-        
-        if v_trend > 20:
-            st.success("Anomalie: Stark erhöhtes Volumen!")
-        elif v_trend < -20:
-            st.warning("Achtung: Sehr geringes Interesse.")
-
+        st.metric("Ø Volumen (20d)", f"{avg_vol_20d:,.0f}")
+    
     with col_v2:
-        # Kleiner Bar-Chart für das Volumen
-        fig, ax = plt.subplots(figsize=(10, 3.5))
-        fig.patch.set_facecolor('#0E1117')
-        ax.set_facecolor('#0E1117')
+        st.metric("Aktuell vs. Ø 20d", f"{cur_vol:,.0f}", f"{v_diff_20d:+.1f}%")
         
-        colors = ['#1E90FF' if v < avg_20 else '#00FFA3' for v in vol_20]
-        ax.bar(range(len(vol_20)), vol_20, color=colors, alpha=0.7)
-        ax.axhline(avg_20, color='red', linestyle='--', alpha=0.5, label="Ø 60 Perioden")
-        
-        ax.set_title("Volumen-Verlauf (Letzte 20 Perioden)", color='white', fontsize=10)
-        ax.tick_params(axis='x', colors='white')
-        ax.tick_params(axis='y', colors='white')
-        ax.spines['bottom'].set_color('#333')
-        ax.spines['left'].set_color('#333')
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        
-        st.pyplot(fig)
+    with col_v3:
+        vol_peak_status = "Peak erreicht" if cur_vol >= max_vol_20d * 0.9 else "Normal"
+        st.metric("20d High", f"{max_vol_20d:,.0f}", vol_peak_status)
+
+    # 2. Visualisierung (Balkendiagramm)
+    # Wir zeigen die letzten 40 Perioden für eine bessere Übersichtlichkeit
+    fig, ax = plt.subplots(figsize=(12, 3))
+    fig.patch.set_facecolor('#0E1117')
+    ax.set_facecolor('#0E1117')
+    
+    # Farben basierend auf Volumenstärke
+    vol_colors = ['#00FFA3' if v > avg_vol_20d else '#1E90FF' for v in vol_20d.tail(40)]
+    
+    ax.bar(range(len(vol_20d.tail(40))), vol_20d.tail(40), color=vol_colors, alpha=0.8)
+    ax.axhline(avg_20, color='#FF4B4B', linestyle='--', label="Ø 20 Tage")
+    
+    # Styling
+    ax.set_title("Volumen-Verlauf (Letzte 40 Perioden)", color='white', fontsize=10)
+    ax.tick_params(axis='both', colors='#8892b0', labelsize=8)
+    for spine in ax.spines.values():
+        spine.set_edgecolor('#333')
+    
+    st.pyplot(fig)
+
 
 # FOOTER
 st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 Analyse: 4h-Intervall")
