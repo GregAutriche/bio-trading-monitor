@@ -77,8 +77,18 @@ def run_market_scanner(ticker_list):
                 vol = log_r.std(); ann_vol = vol * np.sqrt(252) * 100
                 sim_move = np.mean([np.exp(np.random.normal(0, vol)) for _ in range(50)])
                 trend_sim = (sim_move - 1) * 100
-                aktion = "🟢 LONG" if trend_sim > 0.15 and ann_vol < 35 else "🔴 SHORT" if trend_sim < -0.15 and ann_vol < 35 else "⚪ ABWARTEN"
-                results.append({"Aktie": TICKER_NAMES.get(t, t), "Kurs": round(cp, 2), "Prognose %": round(trend_sim, 2), "Aktion": aktion})
+                
+                # NUR NOCH DEN PUNKT ZUWEISEN:
+                if trend_sim > 0.15 and ann_vol < 35: aktion = "🟢"
+                elif trend_sim < -0.15 and ann_vol < 35: aktion = "🔴"
+                else: aktion = "⚪"
+                
+                results.append({
+                    "Aktie": TICKER_NAMES.get(t, t), 
+                    "Kurs": round(cp, 2), 
+                    "Prognose %": round(trend_sim, 2), 
+                    "Status": aktion # Spaltenname auf 'Status' geändert für saubere Optik
+                })
         except: continue
     return pd.DataFrame(results)
 
