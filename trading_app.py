@@ -9,23 +9,20 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. TICKER-MAPPING (VOLLSTÄNDIG) ---
+# --- 2. TICKER-MAPPING ---
 TICKER_NAMES = {
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
     "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
-    # EURO STOXX 50 (Auswahl der wichtigsten)
-    "ASML.AS": "ASML", "MC.PA": "LVMH", "SAP.DE": "SAP", "OR.PA": "L'Oréal", "ADS.DE": "Adidas", 
-    "AIR.PA": "Airbus", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer", "BMW.DE": "BMW",
-    "DHL.DE": "DHL Group", "DTE.DE": "Telekom", "IFX.DE": "Infineon", "MBG.DE": "Mercedes-Benz",
-    "MRK.DE": "Merck", "MUV2.DE": "Münchener Rück", "RHM.DE": "Rheinmetall", "SIE.DE": "Siemens",
-    "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia",
-    # NASDAQ
+    "ADS.DE": "Adidas", "AIR.PA": "Airbus", "ALV.DE": "Allianz", "ASML.AS": "ASML", "BAS.DE": "BASF", 
+    "BAYN.DE": "Bayer", "BMW.DE": "BMW", "DHL.DE": "DHL Group", "DTE.DE": "Telekom", "IFX.DE": "Infineon", 
+    "MBG.DE": "Mercedes-Benz", "MC.PA": "LVMH", "MUV2.DE": "Münchener Rück", "OR.PA": "L'Oréal", 
+    "RHM.DE": "Rheinmetall", "SAP.DE": "SAP", "SIE.DE": "Siemens", "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia",
     "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "AMZN": "Amazon", "META": "Meta", "TSLA": "Tesla",
     "GOOGL": "Alphabet", "AVGO": "Broadcom", "COST": "Costco", "NFLX": "Netflix", "AMD": "AMD"
 }
 
 TICKER_GROUPS = {
-    "EuroStoxx 50 (EU)": ["ASML.AS", "MC.PA", "SAP.DE", "OR.PA", "ADS.DE", "AIR.PA", "ALV.DE", "BAS.DE", "BAYN.DE", "BMW.DE", "DHL.DE", "DTE.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MUV2.DE", "RHM.DE", "SIE.DE", "VOW3.DE", "VNA.DE"],
+    "EuroStoxx 50 (EU)": ["AD.AS", "ADS.DE", "AI.PA", "AIR.PA", "ALV.DE", "ASML.AS", "BAS.DE", "BAYN.DE", "BNP.PA", "BMW.DE", "CS.PA", "DG.PA", "DHL.DE", "DTE.DE", "EL.PA", "IBE.MC", "ITX.MC", "IFX.DE", "INGA.AS", "ISP.MI", "OR.PA", "MC.PA", "MBG.DE", "MRK.DE", "MUV2.DE", "PRX.AS", "RHM.DE", "SAF.PA", "SAN.MC", "SAP.DE", "SGO.PA", "SIE.DE", "ENR.DE", "STLAM.MI", "TTE.PA", "UCG.MI", "VOW3.DE", "VNA.DE"],
     "DAX 40 (DE)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
     "NASDAQ 100 (US)": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "AVGO", "COST", "NFLX", "AMD"]
 }
@@ -56,29 +53,8 @@ def extract_price(df, idx):
     try:
         if df.empty: return 0.0
         val = df['Close'].iloc[idx]
-        return float(val) if not isinstance(val, (pd.Series, np.ndarray)) else float(val.iloc)
+        return float(val) if not isinstance(val, (pd.Series, np.ndarray)) else float(val.iloc[0])
     except: return 0.0
-
-def run_market_scanner(ticker_list):
-    results = []
-    data = yf.download(ticker_list, period="60d", interval="4h", progress=False)
-    if isinstance(data.columns, pd.MultiIndex): close_p = data['Close']
-    else: close_p = data[['Close']]
-    # Seed für stabile Simulation am Wochenende
-    seed_val = int(pd.Timestamp.now().timestamp() // 86400)
-    for t in ticker_list:
-        try:
-            series = close_p[t].dropna()
-            if len(series) > 10:
-                cp = series.iloc[-1]; log_r = np.log(series / series.shift(1)).dropna()
-                vol = log_r.std(); ann_vol = vol * np.sqrt(252) * 100
-                np.random.seed(seed_val + hash(t) % 1000)
-                sim_move = np.mean([np.exp(np.random.normal(0, vol)) for _ in range(50)])
-                trend_sim = (sim_move - 1) * 100
-                status = "🟢" if trend_sim > 0.15 and ann_vol < 35 else "🔴" if trend_sim < -0.15 and ann_vol < 35 else "⚪"
-                results.append({"Aktie": TICKER_NAMES.get(t, t), "Kurs": round(cp, 2), "Prognose %": round(trend_sim, 2), "Status": status})
-        except: continue
-    return pd.DataFrame(results)
 
 def draw_info_card(col, t, is_currency=False):
     df = get_data(t, period="5d")
@@ -86,7 +62,7 @@ def draw_info_card(col, t, is_currency=False):
         l = extract_price(df, -1); p = extract_price(df, -2); diff = ((l/p)-1)*100
         prec = 4 if is_currency else 2
         
-        # Die Logik für Farben, Icons und Texte
+        # LOGIK FÜR FARBEN & ICONS
         if diff > 0.15: 
             sig, icon, css, icon_clr = "CALL (STARK)", "☀️", "sig-call", "#00FFA3"
         elif diff < -0.15: 
@@ -103,6 +79,26 @@ def draw_info_card(col, t, is_currency=False):
             </div>
         """, unsafe_allow_html=True)
 
+def run_market_scanner(ticker_list):
+    results = []
+    data = yf.download(ticker_list, period="60d", interval="4h", progress=False)
+    if isinstance(data.columns, pd.MultiIndex): close_p = data['Close']
+    else: close_p = data[['Close']]
+    seed_val = int(pd.Timestamp.now().timestamp() // 86400)
+    for t in ticker_list:
+        try:
+            series = close_p[t].dropna()
+            if len(series) > 10:
+                cp = series.iloc[-1]; log_r = np.log(series / series.shift(1)).dropna()
+                vol = log_r.std(); ann_vol = vol * np.sqrt(252) * 100
+                np.random.seed(seed_val + hash(t) % 1000)
+                sim_move = np.mean([np.exp(np.random.normal(0, vol)) for _ in range(50)])
+                trend_sim = (sim_move - 1) * 100
+                status = "🟢" if trend_sim > 0.15 and ann_vol < 35 else "🔴" if trend_sim < -0.15 and ann_vol < 35 else "⚪"
+                results.append({"Aktie": TICKER_NAMES.get(t, t), "Kurs": round(cp, 2), "Prognose %": round(trend_sim, 2), "Status": status})
+        except: continue
+    return pd.DataFrame(results)
+
 # --- 5. AUFBAU ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
@@ -111,14 +107,17 @@ st.subheader("💱 Fokus/ Währungen")
 cw1, cw2, _ = st.columns(3)
 draw_info_card(cw1, "EURUSD=X", True); draw_info_card(cw2, "EURRUB=X", True)
 
-# B. INDIZES
+# B. INDIZES (2 ZEILEN)
 st.subheader("📈 Fokus/ Indizes")
-c_r1 = st.columns(2); draw_info_card(c_r1[0], "^GDAXI"); draw_info_card(c_r1[1], "^NDX")
-c_r2 = st.columns(3); draw_info_card(c_r2[0], "^STOXX50E"); draw_info_card(c_r2[1], "XU100.IS"); draw_info_card(c_r2[2], "^NSEI")
+c_r1 = st.columns(2)
+draw_info_card(c_r1[0], "^GDAXI"); draw_info_card(c_r1[1], "^NDX")
+
+c_r2 = st.columns(3)
+draw_info_card(c_r2[0], "^STOXX50E"); draw_info_card(c_r2[1], "XU100.IS"); draw_info_card(c_r2[2], "^NSEI")
 
 st.divider()
 
-# C. STEUERUNG & SCANNER
+# C. STEUERUNG (ALPHABETISCH)
 cs1, cs2 = st.columns(2)
 sel_market = cs1.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
 sorted_stocks = sorted(TICKER_GROUPS[sel_market], key=lambda x: TICKER_NAMES.get(x, x))
@@ -143,10 +142,10 @@ d_s = get_data(sel_stock, period="60d")
 if not d_s.empty:
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
     vol = log_returns.std(); ann_vol = vol * np.sqrt(252) * 100; cp = extract_price(d_s, -1)
-    # Stabile Simulation (Seed)
     np.random.seed(int(pd.Timestamp.now().timestamp() // 86400) + hash(sel_stock) % 1000)
     sim_results = [cp * np.exp(np.random.normal(0, vol * np.sqrt(15))) for _ in range(100)]
-    is_long = bool(np.median(sim_results) >= cp)
+    sim_median = float(np.median(sim_results))
+    is_long = bool(sim_median >= cp)
     t_up, t_down = np.percentile(sim_results, 95), np.percentile(sim_results, 5)
     sig_t, sig_i, sig_c = ("LONG EINSTIEG", "🟢", "#00FFA3") if is_long and ann_vol < 35 else ("SHORT CHANCE", "🔴", "#FF4B4B") if not is_long and ann_vol < 35 else ("ABWARTEN", "⚪", "#8892b0")
     
