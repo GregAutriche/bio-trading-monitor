@@ -9,7 +9,7 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. TICKER-MAPPING (ERWEITERT UM EUROSTOXX) ---
+# --- 2. TICKER-MAPPING (VOLLSTÄNDIG) ---
 TICKER_NAMES = {
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
     "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
@@ -22,7 +22,7 @@ TICKER_NAMES = {
 }
 
 TICKER_GROUPS = {
-    "EuroStoxx 50 (EU)": ["ASML.AS", "MC.PA", "SAP.DE", "OR.PA", "AIR.PA", "DHL.DE", "ITX.MC", "SAN.MC", "BNP.PA", "EL.PA"],
+    "EuroStoxx 50 (EU)": ["AD.AS", "ADS.DE", "AI.PA", "AIR.PA", "ALV.DE", "ASML.AS", "BAS.DE", "BAYN.DE", "BNP.PA", "BMW.DE", "CS.PA", "DG.PA", "DHL.DE", "DTE.DE", "EL.PA", "IBE.MC", "ITX.MC", "IFX.DE", "INGA.AS", "ISP.MI", "OR.PA", "MC.PA", "MBG.DE", "MRK.DE", "MUV2.DE", "PRX.AS", "RHM.DE", "RI.PA", "SAF.PA", "SAN.MC", "SAP.DE", "SGO.PA", "SIE.DE", "ENR.DE", "STLAM.MI", "TTE.PA", "UCG.MI", "VOW3.DE", "VNA.DE"],
     "DAX 40 (DE)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
     "NASDAQ 100 (US)": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "AVGO", "COST", "NFLX", "AMD"]
 }
@@ -31,8 +31,6 @@ TICKER_GROUPS = {
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: #E0E0E0; }
-    .market-card { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px; }
-    .metric-value { font-size: 1.1rem; font-weight: bold; font-family: 'Courier New', monospace; color: white; }
     .header-box { padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 25px; border: 1px solid #1E90FF; background: rgba(30,144,255,0.05); }
     </style>
     """, unsafe_allow_html=True)
@@ -59,13 +57,9 @@ def draw_info_card(col, t, is_currency=False):
         l = extract_price(df, -1); p = extract_price(df, -2); diff = ((l/p)-1)*100
         prec = 4 if is_currency else 2
         
-        # DEFINITIVE LOGIK FÜR FARBEN & ICONS
-        if diff > 0.15: 
-            sig, icon, clr = "🟢", "#00FFA3" # GRÜN
-        elif diff < -0.15: 
-            sig, icon, clr = "🔴", "#FF4B4B" # ROT
-        else: 
-            sig, icon, clr =  "⚪", "#8892b0" # GRAU
+        if diff > 0.15: sig, icon, clr = "CALL (STARK)", "☀️", "#00FFA3"
+        elif diff < -0.15: sig, icon, clr = "PUT (BEARISH)", "⛈️", "#FF4B4B"
+        else: sig, icon, clr = "NEUTRAL", "⛅", "#8892b0"
             
         col.markdown(f"""
             <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px;">
@@ -81,7 +75,6 @@ def draw_info_card(col, t, is_currency=False):
                 </div>
             </div>
         """, unsafe_allow_html=True)
-
 
 def run_market_scanner(ticker_list):
     results = []
@@ -99,7 +92,7 @@ def run_market_scanner(ticker_list):
                 sim_move = np.mean([np.exp(np.random.normal(0, vol)) for _ in range(50)])
                 trend_sim = (sim_move - 1) * 100
                 status = "🟢" if trend_sim > 0.15 and ann_vol < 35 else "🔴" if trend_sim < -0.15 and ann_vol < 35 else "⚪"
-                results.append({"Aktie": TICKER_NAMES.get(t, t), "Kurs": round(cp, 2), "Prognose %": round(trend_sim, 2), "Status": status})
+                results.append({"Aktie": TICKER_NAMES.get(t, t), "Kurs": round(cp, 2), "Prognose %": round(trend_sim, 2), "Aktion": status})
         except: continue
     return pd.DataFrame(results)
 
@@ -113,14 +106,12 @@ draw_info_card(cw[0], "EURUSD=X", True); draw_info_card(cw[1], "EURRUB=X", True)
 
 # B. INDIZES (2 ZEILEN)
 st.subheader("📈 Fokus/ Indizes")
-c_r1 = st.columns(2)
-draw_info_card(c_r1[0], "^GDAXI"); draw_info_card(c_r1[1], "^NDX")
-c_r2 = st.columns(3)
-draw_info_card(c_r2[0], "^STOXX50E"); draw_info_card(c_r2[1], "XU100.IS"); draw_info_card(c_r2[2], "^NSEI")
+c_r1 = st.columns(2); draw_info_card(c_r1[0], "^GDAXI"); draw_info_card(c_r1[1], "^NDX")
+c_r2 = st.columns(3); draw_info_card(c_r2[0], "^STOXX50E"); draw_info_card(c_r2[1], "XU100.IS"); draw_info_card(c_r2[2], "^NSEI")
 
 st.divider()
 
-# C. STEUERUNG
+# C. STEUERUNG (ALPHABETISCH)
 cs1, cs2 = st.columns(2)
 sel_market = cs1.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
 sorted_stocks = sorted(TICKER_GROUPS[sel_market], key=lambda x: TICKER_NAMES.get(x, x))
@@ -138,9 +129,16 @@ if not scan_res.empty:
         st.markdown("<span style='color:#FF4B4B; font-weight:bold;'>🔴 TOP 5 PUTS</span>", unsafe_allow_html=True)
         st.dataframe(scan_res[scan_res['Prognose %'] < 0].sort_values(by="Prognose %", ascending=True).head(5), use_container_width=True, hide_index=True)
 
+# E. MARKT-AMPEL (UNTER SCANNER)
+jetzt = pd.Timestamp.now()
+ist_we = jetzt.weekday() >= 5
+m_clr = "#FF4B4B" if ist_we else "#00FFA3"
+m_txt = "🛑 GESCHLOSSEN (Wochenende)" if ist_we else "🟢 GEÖFFNET (Live-Handel)"
+st.markdown(f'<div style="background:rgba(255,255,255,0.03); padding:10px; border-radius:10px; border-left: 5px solid {m_clr}; margin: 20px 0;">{m_txt}</div>', unsafe_allow_html=True)
+
 st.divider()
 
-# E. ANALYSE & SETUP
+# F. ANALYSE & SETUP
 d_s = get_data(sel_stock, period="60d")
 if not d_s.empty:
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
