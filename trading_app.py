@@ -59,10 +59,13 @@ def draw_info_card(col, t, is_currency=False):
         l = extract_price(df, -1); p = extract_price(df, -2); diff = ((l/p)-1)*100
         prec = 4 if is_currency else 2
         
-        # FARBLOGIK FIX
-        if diff > 0.15: sig, icon, clr = "CALL (STARK)", "☀️", "#00FFA3"
-        elif diff < -0.15: sig, icon, clr = "PUT (BEARISH)", "⛈️", "#FF4B4B"
-        else: sig, icon, clr = "NEUTRAL", "⛅", "#8892b0"
+        # FARBLOGIK UMSETZUNG
+        if diff > 0.15: 
+            sig, icon, clr = "CALL (STARK)", "☀️", "#00FFA3"
+        elif diff < -0.15: 
+            sig, icon, clr = "PUT (BEARISH)", "⛈️", "#FF4B4B"
+        else: 
+            sig, icon, clr = "NEUTRAL", "⛅", "#8892b0"
             
         col.markdown(f"""
             <div class="market-card">
