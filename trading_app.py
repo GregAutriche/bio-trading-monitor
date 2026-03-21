@@ -69,29 +69,46 @@ def extract_price(df, idx):
 
 def run_market_scanner(ticker_list):
     results = []
+    # Daten laden
     data = yf.download(ticker_list, period="60d", interval="4h", progress=False)
     if isinstance(data.columns, pd.MultiIndex): close_p = data['Close']
     else: close_p = data[['Close']]
+    
+    # Zeit-Check für Stabilität
+    heute_str = pd.Timestamp.now().strftime('%Y-%m-%d')
+    # Wir nutzen das Datum als "Seed", damit die Simulation 24h gleich bleibt
+    seed_val = int(pd.Timestamp.now().timestamp() // 86400) 
+    
     for t in ticker_list:
         try:
             series = close_p[t].dropna()
             if len(series) > 10:
                 cp = series.iloc[-1]
                 log_r = np.log(series / series.shift(1)).dropna()
-                vol = log_r.std(); ann_vol = vol * np.sqrt(252) * 100
-                sim_move = np.mean([np.exp(np.random.normal(0, vol)) for _ in range(50)])
-                trend_sim = (sim_move - 1) * 100
+                vol = log_r.std()
+                ann_vol = vol * np.sqrt(252) * 100
                 
-                # NUR NOCH DEN PUNKT ZUWEISEN:
-                if trend_sim > 0.15 and ann_vol < 35: aktion = "🟢"
-                elif trend_sim < -0.15 and ann_vol < 35: aktion = "🔴"
-                else: aktion = "⚪"
+                # Fixierte Simulation (bleibt den ganzen Tag gleich)
+                np.random.seed(seed_val + hash(t) % 1000) 
+                sim_moves = [np.exp(np.random.normal(0, vol)) for _ in range(100)]
+                trend_sim = (np.mean(sim_moves) - 1) * 100
+                
+                # STRENGE LOGIK: Wann zeigen wir ein Signal?
+                # 1. Nur wenn die Prognose deutlich ist (> 0.2%)
+                # 2. Nur wenn die Vola nicht explodiert (< 35%)
+                # 3. Am Wochenende (Sa/So) wird 'Abwarten' priorisiert, außer Trend ist extrem klar
+                ist_we = pd.Timestamp.now().weekday() >= 5
+                
+                if abs(trend_sim) > 0.2 and ann_vol < 35:
+                    aktion = "🟢" if trend_sim > 0 else "🔴"
+                else:
+                    aktion = "⚪" # ABWARTEN bei Unsicherheit oder Wochenende
                 
                 results.append({
                     "Aktie": TICKER_NAMES.get(t, t), 
                     "Kurs": round(cp, 2), 
                     "Prognose %": round(trend_sim, 2), 
-                    "Status": aktion # Spaltenname auf 'Status' geändert für saubere Optik
+                    "Status": aktion
                 })
         except: continue
     return pd.DataFrame(results)
