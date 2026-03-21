@@ -9,10 +9,7 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-
 # --- 2. TICKER-MAPPING (VOLLSTÄNDIG) ---
-st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 Analyse: 4h-Intervall")
-
 TICKER_NAMES = {
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
     "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
@@ -117,6 +114,8 @@ st.title("🚀 Bio-Trading Monitor Live PRO")
 
 # A. WÄHRUNGEN (WETTER & AKTION)
 st.subheader("💱 Fokus/ Währungen")
+st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 Analyse: 4h-Intervall")
+
 cw1, cw2, _ = st.columns(3)
 for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
     df_f = get_data(t, period="5d")
