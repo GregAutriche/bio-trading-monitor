@@ -9,10 +9,6 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 8. HEADER / STATUS ---
-aktuelle_zeit = pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')
-st.info(f"🕒 Stand: {aktuelle_zeit} | 📊 Analyse-Basis: 4h-Intervall (60 Tage Historie)")
-
 # --- 2. TICKER-MAPPING ---
 TICKER_NAMES = {
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
@@ -60,7 +56,7 @@ def extract_price(df, idx):
     try:
         if df.empty: return 0.0
         val = df['Close'].iloc[idx]
-        return float(val.iloc[0]) if isinstance(val, (pd.Series, np.ndarray)) else float(val)
+        return float(val) if not isinstance(val, (pd.Series, np.ndarray)) else float(val.iloc[0])
     except: return 0.0
 
 def run_market_scanner(ticker_list):
@@ -125,100 +121,81 @@ d_s = get_data(sel_stock, period="60d")
 if not d_s.empty:
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
     vol = log_returns.std(); ann_vol = vol * np.sqrt(252) * 100
-    cp = extract_price(d_s, -1); trend = ((cp / extract_price(d_s, -2)) - 1) * 100
+    cp = extract_price(d_s, -1)
 
-    # Signal-Logik (Bereitstellung für später)
-    if trend > 0.5 and ann_vol < 25: sig_t, sig_i, sig_c = "LONG EINSTIEG", "🟢", "#00FFA3"
-    elif trend < -0.5: sig_t, sig_i, sig_c = "SHORT CHANCE", "🔴", "#FF4B4B"
-    else: sig_t, sig_i, sig_c = "ABWARTEN", "⚪", "#8892b0"
-
-    # Schlanker Header
-    st.markdown(f"""
-        <div class="header-box" style="border-color:{sig_c};">
-            <b style="font-size:1.2rem;">{TICKER_NAMES.get(sel_stock, sel_stock)}</b> 
-            <span style="color:#1E90FF; margin: 0 15px;">|</span>
-            Vola: <b>{ann_vol:.1f}%</b>
-        </div>
-    """, unsafe_allow_html=True)
-
+    # 1. MONTE CARLO SIMULATION
     n_sims = 40; sim_results = []
+    for _ in range(n_sims):
+        prices = [cp]
+        for _ in range(15): prices.append(prices[-1] * np.exp(np.random.normal(0, vol)))
+        sim_results.append(prices[-1])
+    
+    t_up, t_down = np.percentile(sim_results, 95), np.percentile(sim_results, 5)
+    
+    # 2. RICHTUNG ENTSCHEIDEN (Synchronisiert)
+    sim_median = np.median(sim_results)
+    is_long = sim_median >= cp
+    sig_t, sig_i, sig_c = ("LONG EINSTIEG", "🟢", "#00FFA3") if is_long and ann_vol < 35 else \
+                          ("SHORT CHANCE", "🔴", "#FF4B4B") if not is_long and ann_vol < 35 else \
+                          ("ABWARTEN", "⚪", "#8892b0")
+
+    # Header-Box
+    st.markdown(f'<div class="header-box" style="border-color:{sig_c};"><b>{TICKER_NAMES.get(sel_stock, sel_stock)}</b> | Vola: <b>{ann_vol:.1f}%</b></div>', unsafe_allow_html=True)
+
+    # Plot zeichnen
     plt.style.use('dark_background')
     fig, ax = plt.subplots(figsize=(12, 4))
     fig.patch.set_facecolor('#0E1117'); ax.set_facecolor('#0E1117')
     for _ in range(n_sims):
-        prices = [cp]
-        for _ in range(15): prices.append(prices[-1] * np.exp(np.random.normal(0, vol)))
-        sim_results.append(prices[-1]); ax.plot(prices, color=sig_c, alpha=0.1)
-    
-    t_up, t_down = np.percentile(sim_results, 95), np.percentile(sim_results, 5)
+        p_path = [cp]
+        for _ in range(15): p_path.append(p_path[-1] * np.exp(np.random.normal(0, vol)))
+        ax.plot(p_path, color=sig_c, alpha=0.1)
     ax.axhline(t_up, color='#00FFA3', ls='--', alpha=0.3); ax.axhline(t_down, color='#FF4B4B', ls='--', alpha=0.3)
     st.pyplot(fig)
 
-    # E. KORRIGIERTE LOGIK: SIMULATION ENTSCHEIDET DIE RICHTUNG
-    # Wir berechnen den Median der Simulation, um die wahre Richtung zu sehen
-    sim_median = np.median(sim_results)
-    is_long = sim_median >= cp
-    
+    # E. HANDELS-SETUP
     dir_label = "[ CALL ]" if is_long else "[ PUT ]"
     dir_col = "#00FFA3" if is_long else "#FF4B4B"
-
-    # Signal-Text an die Simulations-Richtung anpassen
-    if is_long and ann_vol < 35: sig_t, sig_i, sig_c = "LONG EINSTIEG", "🟢", "#00FFA3"
-    elif not is_long and ann_vol < 35: sig_t, sig_i, sig_c = "SHORT CHANCE", "🔴", "#FF4B4B"
-    else: sig_t, sig_i, sig_c = "ABWARTEN (VOLA HOCH)", "⚪", "#8892b0"
-
-    st.markdown(f"""
-        ### 📝 Handels-Setup: <span style='color:{dir_col};'>{dir_label}</span> 
-        <span style='float:right; font-size:1rem; color:{sig_c};'>{sig_i} {sig_t}</span>
-    """, unsafe_allow_html=True)
-
-
+    st.markdown(f"### 📝 Handels-Setup: <span style='color:{dir_col};'>{dir_label}</span> <span style='float:right; font-size:1rem; color:{sig_c};'>{sig_i} {sig_t}</span>", unsafe_allow_html=True)
     
-    # F. STRATEGIE-CHECK & HANDLUNG
+    entry = cp; target_p = t_up if is_long else t_down; stop_l = cp * 0.97 if is_long else cp * 1.03
+    risk = abs(entry - stop_l); reward = abs(target_p - entry); crv = reward / risk if risk > 0 else 0
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("EINSTIEG", f"{entry:,.2f}")
+    c2.metric("ZIEL (TP)", f"{target_p:,.2f}", f"{(target_p/entry-1)*100:+.2f}%", delta_color="normal" if is_long else "inverse")
+    c3.metric("STOP LOSS", f"{stop_l:,.2f}", f"{(stop_l/entry-1)*100:+.2f}%", delta_color="inverse" if is_long else "normal")
+    crv_c = "#00FFA3" if crv >= 2 else "#FFD700" if crv >= 1.5 else "#FF4B4B"
+    c4.markdown(f'<div style="text-align:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border: 1px solid {crv_c};"><small>CRV</small><br><span style="font-size:1.5rem; font-weight:bold; color:{crv_c};">{crv:.2f}</span></div>', unsafe_allow_html=True)
+
+    # F. STRATEGIE-CHECK
     st.markdown("---")
     st.subheader("🎯 Strategie-Check & Handlung")
-    is_attractive = crv >= 2.0 and ann_vol < 30
-    is_risky = ann_vol > 40
-    
+    is_attractive = crv >= 2.0 and ann_vol < 35
     col_str1, col_str2 = st.columns(2)
     with col_str1:
-        score_color = "#00FFA3" if crv >= 2 else "#FFD700" if crv >= 1.5 else "#FF4B4B"
-        st.markdown(f"""
-            <div style="text-align:center; padding:20px; border:2px solid {score_color}; border-radius:15px; background:rgba(255,255,255,0.03);">
-                <small style="color:#8892b0;">CHANCE-RISIKO-SCORE</small><br>
-                <span style="font-size:2.5rem; font-weight:bold; color:{score_color};">{crv:.2f}</span><br>
-                <small style="color:{score_color};">{'Attraktiv' if crv >= 2 else 'Grenzwertig' if crv >= 1.5 else 'Zu riskant'}</small>
-            </div>
-        """, unsafe_allow_html=True)
-
+        st.markdown(f'<div style="text-align:center; padding:20px; border:2px solid {crv_c}; border-radius:15px; background:rgba(255,255,255,0.03);"><small>CHANCE-RISIKO-SCORE</small><br><span style="font-size:2.5rem; font-weight:bold; color:{crv_c};">{crv:.2f}</span></div>', unsafe_allow_html=True)
     with col_str2:
-        if is_attractive: msg, b_clr = "🔥 **STARKE CHANCE:** Hohes Potenzial. Setup ist statistisch im Vorteil.", "#00FFA3"
-        elif is_risky: msg, b_clr = "⚠️ **HOHE GEFAHR:** Markt zu nervös (Vola!). Ausstoppen wahrscheinlich.", "#FFD700"
-        elif crv < 1.5: msg, b_clr = "🛑 **KEIN TRADE:** Risiko zu groß. Warte auf besseren Einstieg.", "#FF4B4B"
-        else: msg, b_clr = "⚖️ **NEUTRAL:** Setup okay, aber kein 'Must-Have'. Kleine Position wählen.", "#8892b0"
-
-        st.markdown(f"""
-            <div style="background:rgba(255,255,255,0.05); padding:20px; border-radius:15px; border-left: 8px solid {b_clr}; height: 100%;">
-                <span style="font-size:1.1rem; color:white;">{msg}</span><br><br>
-                <small style="color:#8892b0;">INFO: Ein CRV von {crv:.2f} bedeutet, du gewinnst im Erfolgsfall das {crv:.2f}-fache deines Einsatzes.</small>
-            </div>
-        """, unsafe_allow_html=True)
+        msg, b_clr = ("🔥 **STARKE CHANCE:** Setup im Vorteil.", "#00FFA3") if is_attractive else \
+                     ("⚠️ **HOHE GEFAHR:** Vola zu hoch.", "#FFD700") if ann_vol > 40 else \
+                     ("🛑 **KEIN TRADE:** CRV zu schwach.", "#FF4B4B")
+        st.markdown(f'<div style="background:rgba(255,255,255,0.05); padding:20px; border-radius:15px; border-left: 8px solid {b_clr}; height: 100%;">{msg}</div>', unsafe_allow_html=True)
 
     # G. RISIKO-RADAR
-    st.divider()
-    st.subheader("🚨 Risiko-Radar: Termine & News")
-    t_obj = yf.Ticker(sel_stock)
-    col_r1, col_r2 = st.columns(2)
+    st.divider(); st.subheader("🚨 Risiko-Radar: Termine & News")
+    t_obj = yf.Ticker(sel_stock); col_r1, col_r2 = st.columns(2)
     with col_r1:
         try:
             cal = t_obj.calendar
             if isinstance(cal, pd.DataFrame) and not cal.empty:
-                e_date = cal.iloc[0] if 'Earnings Date' in cal.index else cal.iloc[0,0]
-                days = (pd.to_datetime(e_date).replace(tzinfo=None) - pd.Timestamp.now()).days
-                st.warning(f"Earnings in {days} Tagen ({pd.to_datetime(e_date).strftime('%d.%m.%Y')})")
-            else: st.info("Keine anstehenden Earnings-Termine.")
+                e_date = cal.iloc if 'Earnings Date' in cal.index else cal.iloc
+                st.warning(f"Earnings: {pd.to_datetime(e_date).strftime('%d.%m.%Y')}")
+            else: st.info("Keine anstehenden Termine.")
         except: st.info("Earnings-Daten nicht verfügbar.")
     with col_r2:
         try:
             for n in t_obj.news[:3]: st.markdown(f"🔹 **{n['title']}** ({n['publisher']})")
-        except: st.info("News-Feed aktuell nicht erreichbar.")
+        except: st.info("News nicht erreichbar.")
+
+# FOOTER
+st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 Analyse: 4h-Intervall")
