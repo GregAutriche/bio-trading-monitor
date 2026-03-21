@@ -56,10 +56,12 @@ sel_market = cs1.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
 sorted_stocks = sorted(TICKER_GROUPS[sel_market], key=lambda x: TICKER_NAMES.get(x, x))
 sel_stock = cs2.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
 
-# F. ANALYSE & SETUP (VOLLSTÄNDIGES VOLUMEN-UPGRADE)
+st.divider()
+
+# --- ANALYSE & SETUP (MIT VOLUMEN-UPGRADE) ---
 d_s = get_data(sel_stock, period="60d")
 if not d_s.empty:
-    # A. VOLUMEN-LOGIK
+    # A. VOLUMEN-LOGIK (Berechnung)
     avg_vol = d_s['Volume'].tail(10).mean()
     cur_vol = d_s['Volume'].iloc[-1]
     v_diff = ((cur_vol / avg_vol) - 1) * 100 if avg_vol > 0 else 0
@@ -77,7 +79,7 @@ if not d_s.empty:
     t_up, t_down = np.percentile(sim_results, 95), np.percentile(sim_results, 5)
     sig_t, sig_i, sig_c = ("LONG EINSTIEG", "🟢", "#00FFA3") if is_long and ann_vol < 35 else ("SHORT CHANCE", "🔴", "#FF4B4B") if not is_long and ann_vol < 35 else ("ABWARTEN", "⚪", "#8892b0")
     
-    # 1. HEADER-BOX (JETZT MIT VOLUMEN-INFO)
+    # 1. HEADER-BOX (JETZT MIT VOLUMEN-INFO ANZEIGE)
     st.markdown(f"""
         <div class="header-box" style="border-color:{sig_c};">
             <b style="font-size:1.2rem;">{TICKER_NAMES.get(sel_stock, sel_stock)}</b> | 
@@ -98,7 +100,7 @@ if not d_s.empty:
     c2.metric("ZIEL (TP)", f"{target_p:,.2f}", f"{(target_p/cp-1)*100:+.2f}%", delta_color="normal" if is_long else "inverse")
     c3.metric("STOP LOSS", f"{stop_l:,.2f}", f"{(stop_l/cp-1)*100:+.2f}%", delta_color="inverse" if is_long else "normal")
     
-    # NEU: VOLUMEN-SPALTE
+    # ANZEIGE DER VOLUMEN-METRIK
     c4.metric("VOLUMEN", f"{v_icon} {v_diff:+.1f}%", v_status, delta_color="normal" if v_diff > 15 else "inverse")
     
     # CRV-BOX
@@ -111,4 +113,4 @@ if not d_s.empty:
     """, unsafe_allow_html=True)
 
 # FOOTER
-st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 Analyse: 4h-Intervall")
+st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 4h-Intervall (60d Basis)")
