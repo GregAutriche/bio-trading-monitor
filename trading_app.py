@@ -53,7 +53,7 @@ def extract_price(df, idx):
     try:
         if df.empty: return 0.0
         val = df['Close'].iloc[idx]
-        return float(val) if not isinstance(val, (pd.Series, np.ndarray)) else float(val.iloc)
+        return float(val) if not isinstance(val, (pd.Series, np.ndarray)) else float(val.iloc[0])
     except: return 0.0
 
 def draw_info_card(col, t, is_currency=False):
@@ -84,6 +84,7 @@ def run_market_scanner(ticker_list):
     data = yf.download(ticker_list, period="60d", interval="4h", progress=False)
     if isinstance(data.columns, pd.MultiIndex): close_p = data['Close']
     else: close_p = data[['Close']]
+    # Seed für stabile Simulation am Wochenende
     seed_val = int(pd.Timestamp.now().timestamp() // 86400)
     for t in ticker_list:
         try:
@@ -117,7 +118,7 @@ draw_info_card(c_r2[0], "^STOXX50E"); draw_info_card(c_r2[1], "XU100.IS"); draw_
 
 st.divider()
 
-# C. STEUERUNG (ALPHABETISCH)
+# C. STEUERUNG & SCANNER
 cs1, cs2 = st.columns(2)
 sel_market = cs1.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
 sorted_stocks = sorted(TICKER_GROUPS[sel_market], key=lambda x: TICKER_NAMES.get(x, x))
@@ -142,6 +143,7 @@ d_s = get_data(sel_stock, period="60d")
 if not d_s.empty:
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
     vol = log_returns.std(); ann_vol = vol * np.sqrt(252) * 100; cp = extract_price(d_s, -1)
+    # Stabile Simulation
     np.random.seed(int(pd.Timestamp.now().timestamp() // 86400) + hash(sel_stock) % 1000)
     sim_results = [cp * np.exp(np.random.normal(0, vol * np.sqrt(15))) for _ in range(100)]
     sim_median = float(np.median(sim_results))
