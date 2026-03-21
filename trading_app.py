@@ -71,19 +71,27 @@ sel_stock = cs2.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x:
     max_vol_20d = vol_20d.max()
     
     # Vergleich aktuelles Volumen zu 20-Tage-Schnitt
-    v_diff_20d = ((cur_vol / avg_vol_20d) - 1) * 100 if avg_vol_20d > 0 else 0
+    vol_20d_data = d_s['Volume'].tail(120)
+    avg_vol_20d = vol_20d_data.mean()
+    current_vol_final = float(d_s['Volume'].iloc[-1])
     
-    col_v1, col_v2, col_v3 = st.columns(3)
+    # Abweichung zum 20-Tage-Schnitt
+    v_diff_20d = ((current_vol_final / avg_vol_20d) - 1) * 100 if avg_vol_20d > 0 else 0
+
+    # Anzeige in Spalten
+    cv1, cv2, cv3 = st.columns(3)
     
-    with col_v1:
+    with cv1:
+        st.metric("Aktuelles Volumen", f"{current_vol_final:,.0f}")
+    with cv2:
         st.metric("Ø Volumen (20d)", f"{avg_vol_20d:,.0f}")
-    
-    with col_v2:
-        st.metric("Aktuell vs. Ø 20d", f"{cur_vol:,.0f}", f"{v_diff_20d:+.1f}%")
-        
-    with col_v3:
-        vol_peak_status = "Peak erreicht" if cur_vol >= max_vol_20d * 0.9 else "Normal"
-        st.metric("20d High", f"{max_vol_20d:,.0f}", vol_peak_status)
+    with cv3:
+        # Farbe je nach Stärke
+        v_color = "normal" if abs(v_diff_20d) < 15 else "inverse"
+        st.metric("Abweichung", f"{v_diff_20d:+.1f}%", delta_color=v_color)
+
+    # Kleiner visueller Balken-Chart für die Bestätigung
+    st.bar_chart(d_s['Volume'].tail(20)) # Zeigt die letzten 20 Datenpunkte grafisch
 
     # 2. Visualisierung (Balkendiagramm)
     # Wir zeigen die letzten 40 Perioden für eine bessere Übersichtlichkeit
