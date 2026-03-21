@@ -155,20 +155,47 @@ if not d_s.empty:
     c4.markdown(f'<div style="text-align:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border: 1px solid {crv_col};"><small>CRV</small><br><span style="font-size:1.5rem; font-weight:bold; color:{crv_col};">{crv:.2f}</span></div>', unsafe_allow_html=True)
 
     # G. RISIKO-RADAR (NEU)
-    st.divider(); st.subheader("🚨 Risiko-Radar: Termine & News")
-    t_obj = yf.Ticker(sel_stock); col_r1, col_r2 = st.columns(2)
+       # G. RISIKO-RADAR MIT FALLBACK-NEWS
+    st.divider()
+    st.subheader("🚨 Risiko-Radar: Termine & News")
+    t_obj = yf.Ticker(sel_stock)
+    col_r1, col_r2 = st.columns(2)
+
     with col_r1:
         try:
             cal = t_obj.calendar
             if isinstance(cal, pd.DataFrame) and not cal.empty:
-                e_date = cal.iloc if 'Earnings Date' in cal.index else cal.iloc
-                st.warning(f"Earnings: {pd.to_datetime(e_date).strftime('%d.%m.%Y')}")
-            else: st.info("Keine anstehenden Termine.")
-        except: st.info("Earnings-Daten nicht verfügbar.")
+                # Suche nach dem ersten verfügbaren Datum im Kalender
+                e_date = cal.iloc[0, 0] if 'Earnings Date' in cal.index else cal.iloc[0]
+                if isinstance(e_date, list): e_date = e_date[0]
+                st.warning(f"📅 Nächste Zahlen: **{pd.to_datetime(e_date).strftime('%d.%m.%Y')}**")
+            else:
+                st.info("Keine anstehenden Earnings-Termine gefunden.")
+        except:
+            st.info("Earnings-Daten aktuell nicht verfügbar.")
+
     with col_r2:
         try:
-            for n in t_obj.news[:3]: st.markdown(f"🔹 **{n['title']}** ({n['publisher']})")
-        except: st.info("News nicht erreichbar.")
+            # Versuch 1: Yahoo Finance News
+            stock_news = t_obj.news[:3]
+            if stock_news:
+                for n in stock_news:
+                    st.markdown(f"🔹 **{n['title']}** ([Link]({n['link']}))")
+            else:
+                raise ValueError("Keine News")
+        except:
+            # Fallback: Google News Suche für die Aktie
+            search_term = TICKER_NAMES.get(sel_stock, sel_stock).replace(" ", "+")
+            google_url = f"https://www.google.com{search_term}+Aktie+News&tbm=nws"
+            
+            st.error("⚠️ News-Feed (Yahoo) pausiert.")
+            st.markdown(f"""
+                <div style="background:rgba(30,144,255,0.1); padding:10px; border-radius:8px; border:1px solid #1E90FF;">
+                    <a href="{google_url}" target="_blank" style="text-decoration:none; color:white; font-weight:bold;">
+                        🔍 Jetzt aktuelle News zu {TICKER_NAMES.get(sel_stock, sel_stock)} auf Google News prüfen
+                    </a>
+                </div>
+            """, unsafe_allow_html=True)
 
 # FOOTER
 st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%d.%m.%Y | %H:%M:%S')} | 📊 Analyse: 4h-Intervall")
