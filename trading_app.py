@@ -78,9 +78,11 @@ def extract_price(df, idx):
 
 def run_market_scanner(ticker_list):
     results = []
+    # 60 Tage laden für korrekte Vola-Berechnung
     data = yf.download(ticker_list, period="60d", interval="4h", progress=False)
     if isinstance(data.columns, pd.MultiIndex): close_p = data['Close']
     else: close_p = data[['Close']]
+    
     for t in ticker_list:
         try:
             series = close_p[t].dropna()
@@ -88,9 +90,23 @@ def run_market_scanner(ticker_list):
                 cp = series.iloc[-1]
                 log_r = np.log(series / series.shift(1)).dropna()
                 vol = log_r.std()
+                ann_vol = vol * np.sqrt(252) * 100
+                
+                # Mini-Simulation
                 sim_move = np.mean([np.exp(np.random.normal(0, vol)) for _ in range(50)])
                 trend_sim = (sim_move - 1) * 100
-                results.append({"Aktie": TICKER_NAMES.get(t, t), "Kurs": round(cp, 2), "Prognose %": round(trend_sim, 2)})
+                
+                # Aktions-Logik (Synchron zum Handels-Setup)
+                if trend_sim > 0.3 and ann_vol < 35: aktion = "🟢 LONG"
+                elif trend_sim < -0.3 and ann_vol < 35: aktion = "🔴 SHORT"
+                else: aktion = "⚪ ABWARTEN"
+                
+                results.append({
+                    "Aktie": TICKER_NAMES.get(t, t), 
+                    "Kurs": round(cp, 2), 
+                    "Prognose %": round(trend_sim, 2),
+                    "Aktion": aktion
+                })
         except: continue
     return pd.DataFrame(results)
 
