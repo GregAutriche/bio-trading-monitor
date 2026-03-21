@@ -65,7 +65,7 @@ def draw_info_card(col, t, is_currency=False):
         elif diff < -0.15: 
             sig, icon, clr = "🔴", "#FF4B4B" # ROT
         else: 
-            sig, icon, clr = "NEUTRAL", "⚪", "#8892b0" # GRAU
+            sig, icon, clr =  "⚪", "#8892b0" # GRAU
             
         col.markdown(f"""
             <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px;">
