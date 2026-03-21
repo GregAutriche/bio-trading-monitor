@@ -46,14 +46,10 @@ st.markdown("""
     s_c = sig_c if 'sig_c' in locals() else "#8892b0"
 
     # Stabiler Header-Box Aufruf
-    st.markdown(f"""
-        <div class="header-box" style="border-color:{s_c};">
-            <b>{display_name}</b> | 
-            Signal: <span style="color:{s_c};">{s_i} {s_t}</span> | 
-            Vola: {ann_vol:.1f}%
-        </div>
-    """, unsafe_allow_html=True)
+# Ersetze die fehlerhafte Zeile durch diese hier:
+st.markdown(f'<div class="header-box" style="border-color:{sig_c};"><b>{TICKER_NAMES.get(sel_stock, sel_stock)}</b> | Signal: <span style="color:{sig_c};">{sig_i} {sig_t}</span> | Vola: {ann_vol:.1f}%</div>', unsafe_allow_html=True)
 
+ 
     </style>
     """, unsafe_allow_html=True)
 
