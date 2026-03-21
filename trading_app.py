@@ -102,6 +102,54 @@ for i, t in enumerate(["^GDAXI", "^STOXX50E", "^NDX", "XU100.IS", "^NSEI"]):
         l = extract_price(df_i, -1); p = extract_price(df_i, -2); c = ((l/p)-1)*100
         cols_i[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span><br><span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
 
+    # --- 8. RISIKO-RADAR: EARNINGS & NEWS ---
+    st.subheader("🚨 Risiko-Radar: Termine & News")
+    
+    col_e1, col_e2 = st.columns([1, 2])
+    
+    # A. Earnings Check
+    with col_e1:
+        try:
+            ticker_obj = yf.Ticker(sel_stock)
+            calendar = ticker_obj.calendar
+            if calendar is not None and not calendar.empty:
+                # Wir suchen nach dem nächsten Datum
+                next_date = calendar.iloc[0, 0]
+                days_to_earn = (next_date.tz_localize(None) - pd.Timestamp.now()).days
+                
+                # Warn-Logik
+                warn_col = "#FF4B4B" if days_to_earn <= 7 else "#FFD700" if days_to_earn <= 14 else "#00FFA3"
+                st.markdown(f"""
+                    <div style="background:rgba(255,255,255,0.03); padding:15px; border-radius:10px; border-top: 4px solid {warn_col};">
+                        <small style="color:#8892b0;">NÄCHSTE ZAHLEN</small><br>
+                        <b style="font-size:1.1rem; color:white;">{next_date.strftime('%d.%m.%Y')}</b><br>
+                        <span style="color:{warn_col};">In {days_to_earn} Tagen</span>
+                    </div>
+                """, unsafe_allow_html=True)
+                if days_to_earn <= 3:
+                    st.error("⚠️ ACHTUNG: Earnings stehen kurz bevor! Erhöhtes Gap-Risiko.")
+            else:
+                st.info("Keine anstehenden Earnings-Termine gefunden.")
+        except:
+            st.info("Earnings-Daten aktuell nicht verfügbar.")
+
+    # B. News Feed (Was passiert gerade?)
+    with col_e2:
+        try:
+            news = ticker_obj.news[:3] # Die letzten 3 Schlagzeilen
+            for n in news:
+                st.markdown(f"""
+                    <div style="margin-bottom:8px; padding-bottom:5px; border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <a href="{n['link']}" target="_blank" style="text-decoration:none; color:#1E90FF; font-size:0.9rem;">
+                            <b>{n['title']}</b>
+                        </a><br>
+                        <small style="color:#8892b0;">Quelle: {n['publisher']} | {pd.to_datetime(n['providerPublishTime'], unit='s').strftime('%H:%M')}</small>
+                    </div>
+                """, unsafe_allow_html=True)
+        except:
+            st.write("News-Feed konnte nicht geladen werden.")
+
+
 st.divider()
 
 # 3. STEUERUNG & SCANNER
