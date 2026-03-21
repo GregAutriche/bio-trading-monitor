@@ -72,14 +72,14 @@ if not d_s.empty:
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
     vol = log_returns.std(); ann_vol = vol * np.sqrt(252) * 100; cp = extract_price(d_s, -1)
     
-    # Simulation für Richtung & Ziele
+    # Simulation
     np.random.seed(int(pd.Timestamp.now().timestamp() // 86400) + hash(sel_stock) % 1000)
     sim_results = [cp * np.exp(np.random.normal(0, vol * np.sqrt(15))) for _ in range(100)]
     is_long = bool(np.median(sim_results) >= cp)
     t_up, t_down = np.percentile(sim_results, 95), np.percentile(sim_results, 5)
     sig_t, sig_i, sig_c = ("LONG EINSTIEG", "🟢", "#00FFA3") if is_long and ann_vol < 35 else ("SHORT CHANCE", "🔴", "#FF4B4B") if not is_long and ann_vol < 35 else ("ABWARTEN", "⚪", "#8892b0")
     
-    # 1. HEADER (NAME + VOLA + VOLUMEN)
+    # 1. HEADER (FIX: KLARTEXT-NAME + VOLA + VOLUMEN)
     st.markdown(f"""
         <div class="header-box" style="border-color:{sig_c};">
             <b style="font-size:1.3rem; color:white;">{TICKER_NAMES.get(sel_stock, sel_stock)}</b> 
@@ -90,18 +90,20 @@ if not d_s.empty:
         </div>
     """, unsafe_allow_html=True)
 
-    # 2. HANDELS-SETUP (5 SPALTEN LAYOUT)
+    # 2. HANDELS-SETUP (FIX: 5 SPALTEN LAYOUT)
     dir_l, dir_col = ("[ CALL ]", "#00FFA3") if is_long else ("[ PUT ]", "#FF4B4B")
     st.markdown(f"### 📝 Handels-Setup: <span style='color:{dir_col};'>{dir_l}</span> <span style='float:right; font-size:1rem; color:{sig_c};'>{sig_i} {sig_t}</span>", unsafe_allow_html=True)
     
     target_p = t_up if is_long else t_down; stop_l = cp * 0.97 if is_long else cp * 1.03
     risk = abs(cp - stop_l); reward = abs(target_p - cp); crv = reward / risk if risk > 0 else 0
     
-    # HIER SIND DIE FESTEN 5 SPALTEN
+    # FESTE 5 SPALTEN FÜR MAXIMALE INFO
     c1, c2, c3, c4, c5 = st.columns(5) 
     c1.metric("EINSTIEG", f"{cp:,.2f}")
     c2.metric("ZIEL (TP)", f"{target_p:,.2f}", f"{(target_p/cp-1)*100:+.2f}%", delta_color="normal" if is_long else "inverse")
     c3.metric("STOP LOSS", f"{stop_l:,.2f}", f"{(stop_l/cp-1)*100:+.2f}%", delta_color="inverse" if is_long else "normal")
+    
+    # NEU: VOLUMEN-SPALTE (Bestätigung des Trends)
     c4.metric("VOLUMEN", f"{v_icon} {v_diff:+.1f}%", v_status, delta_color="normal" if v_diff > 15 else "inverse")
     
     # CRV-BOX
