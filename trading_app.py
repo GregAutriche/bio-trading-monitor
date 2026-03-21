@@ -93,13 +93,20 @@ for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
 
 # 2. INDIZES (GELÖST: WIEDER DA)
 st.subheader("📈 Fokus/ Indizes")
-cols_i = st.columns(5)
-for i, t in enumerate(["^GDAXI", "^STOXX50E", "^NDX", "XU100.IS", "^NSEI"]):
+cols_row1 = st.columns([1, 1, 2]) # 2 Spalten + Platzhalter für Optik
+for i, t in enumerate(["^GDAXI", "^NDX"]):
     df_i = get_data(t, period="2d")
     if not df_i.empty:
         l = extract_price(df_i, -1); p = extract_price(df_i, -2); c = ((l/p)-1)*100
-        cols_i[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span><br><span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
+        cols_row1[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span><br><span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
 
+# Zweite Zeile: Die restlichen Indizes
+cols_row2 = st.columns(3)
+for i, t in enumerate(["^STOXX50E", "XU100.IS", "^NSEI"]):
+    df_i = get_data(t, period="2d")
+    if not df_i.empty:
+        l = extract_price(df_i, -1); p = extract_price(df_i, -2); c = ((l/p)-1)*100
+        cols_row2[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span><br><span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
 st.divider()
 
 # 3. SCANNER (SYNCHRONISIERT)
