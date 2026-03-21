@@ -39,7 +39,21 @@ st.markdown("""
     .metric-value { font-size: 1.1rem; font-weight: bold; font-family: 'Courier New', monospace; color: white; }
     .bullish { color: #00FFA3 !important; }
     .bearish { color: #FF4B4B !important; }
-    .header-box { padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 25px; border: 1px solid #1E90FF; background: rgba(30,144,255,0.05); }
+    # Sicherheitsabfrage für Signalfarben und Texte
+    display_name = TICKER_NAMES.get(sel_stock, sel_stock)
+    s_t = sig_t if 'sig_t' in locals() else "ANALYSE..."
+    s_i = sig_i if 'sig_i' in locals() else "⏳"
+    s_c = sig_c if 'sig_c' in locals() else "#8892b0"
+
+    # Stabiler Header-Box Aufruf
+    st.markdown(f"""
+        <div class="header-box" style="border-color:{s_c};">
+            <b>{display_name}</b> | 
+            Signal: <span style="color:{s_c};">{s_i} {s_t}</span> | 
+            Vola: {ann_vol:.1f}%
+        </div>
+    """, unsafe_allow_html=True)
+
     </style>
     """, unsafe_allow_html=True)
 
