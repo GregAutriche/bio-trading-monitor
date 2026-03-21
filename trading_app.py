@@ -85,11 +85,23 @@ def draw_info_card(col, t, is_currency=False):
     if not df.empty:
         l = extract_price(df, -1); p = extract_price(df, -2); diff = ((l/p)-1)*100
         prec = 4 if is_currency else 2
-        # Logik mit Farbcodes
-        if diff > 0.15: sig, icon, css = "CALL (STARK)", "☀️", "sig-call"
-        elif diff < -0.15: sig, icon, css = "PUT (BEARISH)", "⛈️", "sig-put"
-        else: sig, icon, css = "NEUTRAL", "⛅", "sig-neutral"
-        col.markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><span style="float:right;">{icon}</span><br><span class="metric-value">{l:,.{prec}f}</span><br><span class="{css}">{sig} ({diff:+.2f}%)</span></div>', unsafe_allow_html=True)
+        
+        # Die Logik für Farben, Icons und Texte
+        if diff > 0.15: 
+            sig, icon, css, icon_clr = "CALL (STARK)", "☀️", "sig-call", "#00FFA3"
+        elif diff < -0.15: 
+            sig, icon, css, icon_clr = "PUT (BEARISH)", "⛈️", "sig-put", "#FF4B4B"
+        else: 
+            sig, icon, css, icon_clr = "NEUTRAL", "⛅", "sig-neutral", "#8892b0"
+            
+        col.markdown(f"""
+            <div class="market-card">
+                <small style="color:#8892b0;">{TICKER_NAMES.get(t,t)}</small>
+                <span style="float:right; font-size:1.2rem; color:{icon_clr};">{icon}</span><br>
+                <span class="metric-value">{l:,.{prec}f}</span><br>
+                <span class="{css}">{sig} ({diff:+.2f}%)</span>
+            </div>
+        """, unsafe_allow_html=True)
 
 # --- 5. AUFBAU ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
