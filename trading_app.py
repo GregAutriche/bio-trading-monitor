@@ -117,41 +117,54 @@ if not scan_results.empty:
 
 st.divider()
 
-# 5. FOKUS: MONTE CARLO & WETTER
+# --- 5. FOKUS: MONTE CARLO & MARKT-WETTER ---
 d_s = get_data(sel_stock, period="60d")
 if not d_s.empty:
-    cp = extract_price(d_s, -1)
-    trend_now = ((cp / extract_price(d_s, -2)) - 1) * 100
+    # 1. Berechnung der Volatilität (Das "Wetter")
+    log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
+    vol = log_returns.std() # Tägliche Standardabweichung
+    ann_vol = vol * np.sqrt(252) * 100 # Annualisierte Volatilität in %
     
-    # --- LOGIK: (C)all / (P)ut ---
-    label, icon, color = ("(C)", "☀️", "#00FFA3") if trend_now >= 0 else ("(P)", "⛈️", "#FF4B4B")
-    target = cp * 1.05 if trend_now >= 0 else cp * 0.95
-    sl_dist = -3.00
+    cp = extract_price(d_s, -1)
+    
+    # Wetter-Logik basierend auf Volatilität
+    if ann_vol < 15: weather_icon, weather_desc, color = "☀️", "Ruhig", "#00FFA3"
+    elif ann_vol < 30: weather_icon, weather_desc, color = "⛅", "Moderat", "#FFD700"
+    else: weather_icon, weather_desc, color = "⛈️", "Stürmisch", "#FF4B4B"
 
-    # Fokus-Balken mit Aktionsfarben VOR der Info
-    st.markdown(f"""
-        <div class="header-box">
-            <span style="color:#8892b0;">Fokus:</span> <b style="color:white; font-size:1.1rem; margin-right:15px;">{TICKER_NAMES.get(sel_stock, sel_stock)}</b> 
-            <span style="color:#1E90FF;">|</span>
-            <span style="color:#8892b0; margin-left:15px;">Kurs:</span> <b style="color:white; font-size:1.1rem; margin-right:15px;">{cp:,.2f}</b> 
-            <span style="color:#1E90FF;">|</span>
-            <span style="color:{color}; font-weight:bold; font-size:1.2rem; margin-left:15px;">
-                {label} Ziel: {target:,.2f} 
-                <span style="font-size:0.85rem; color:#8892b0; font-weight:normal;">({sl_dist:+.2f}% SL)</span> {icon}
-            </span>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # Plot
+    # 2. Monte Carlo Simulation (20 Tage Vorschau)
+    n_sims = 50
+    n_days = 20
+    sim_results = []
+    
     plt.style.use('dark_background')
     fig, ax = plt.subplots(figsize=(12, 4.5))
     fig.patch.set_facecolor('#0E1117'); ax.set_facecolor('#0E1117')
-    log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)); vol = log_returns.std()
-    for _ in range(25):
-        p = [cp]; 
-        for _ in range(20): p.append(p[-1] * np.exp(np.random.normal(0, vol)))
-        ax.plot(p, color='#00FFA3' if p[-1] > cp else '#FF4B4B', alpha=0.15)
+    
+    for _ in range(n_sims):
+        prices = [cp]
+        for _ in range(n_days):
+            prices.append(prices[-1] * np.exp(np.random.normal(0, vol)))
+        sim_results.append(prices[-1])
+        ax.plot(prices, color=color, alpha=0.1)
+
+    # Statistisches Kursziel (95% Konfidenzbereich)
+    target_up = np.percentile(sim_results, 95)
+    target_down = np.percentile(sim_results, 5)
+
+    # 3. Aktions-Info Bar
+    st.markdown(f"""
+        <div class="header-box" style="border-color:{color};">
+            <span style="color:#8892b0;">Status:</span> <b style="color:white;">{weather_icon} {weather_desc} (Vol: {ann_vol:.1f}%)</b> 
+            <span style="color:#1E90FF; margin: 0 15px;">|</span>
+            <span style="color:#8892b0;">Erwartung (20d):</span> 
+            <b style="color:#00FFA3;">↑ {target_up:,.2f}</b> bis <b style="color:#FF4B4B;">↓ {target_down:,.2f}</b>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    ax.axhline(target_down, color='#FF4B4B', linestyle='--', alpha=0.5)
     st.pyplot(fig)
+
 
 # --- Ganz unten in deinem Code (Abschnitt 8 / Footer) ---
 st.info(f"Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Status: {TICKER_NAMES.get(sel_stock, sel_stock)}")
