@@ -186,10 +186,15 @@ if not d_s.empty:
         </div>
     """, unsafe_allow_html=True)
     
+    ax.axhline(t_up, color='#00FFA3', linestyle='--', alpha=0.3)
     ax.axhline(t_down, color='#FF4B4B', linestyle='--', alpha=0.3)
     st.pyplot(fig)
 
     # --- 6. NEU: ORDER-BOARD (CRV RECHNER) ---
+        is_long = trend >= 0
+    direction_label = "[ CALL / LONG ]" if is_long else "[ PUT / SHORT ]"
+    direction_col = "#00FFA3" if is_long else "#FF4B4B"
+    st.markdown(f"### 📝 Handels-Setup: <span style='color:{direction_col};'>{direction_label}</span>", unsafe_allow_html=True)
     st.subheader("📝 Handels-Setup (Vorschlag)")
     
     # Dynamisches Setup basierend auf der Simulation
