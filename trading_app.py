@@ -59,22 +59,29 @@ def draw_info_card(col, t, is_currency=False):
         l = extract_price(df, -1); p = extract_price(df, -2); diff = ((l/p)-1)*100
         prec = 4 if is_currency else 2
         
-        # FARBLOGIK UMSETZUNG
+        # DEFINITIVE LOGIK FÜR FARBEN & ICONS
         if diff > 0.15: 
-            sig, icon, clr = "CALL (STARK)", "☀️", "#00FFA3"
+            sig, icon, clr = "CALL (STARK)", "☀️", "#00FFA3" # GRÜN
         elif diff < -0.15: 
-            sig, icon, clr = "PUT (BEARISH)", "⛈️", "#FF4B4B"
+            sig, icon, clr = "PUT (BEARISH)", "⛈️", "#FF4B4B" # ROT
         else: 
-            sig, icon, clr = "NEUTRAL", "⛅", "#8892b0"
+            sig, icon, clr = "NEUTRAL", "⛅", "#8892b0" # GRAU
             
         col.markdown(f"""
-            <div class="market-card">
-                <small style="color:#8892b0;">{TICKER_NAMES.get(t,t)}</small>
-                <span style="float:right; font-size:1.2rem; color:{clr};">{icon}</span><br>
-                <span class="metric-value">{l:,.{prec}f}</span><br>
-                <span style="color:{clr}; font-weight:bold; font-size:0.85rem;">{sig} ({diff:+.2f}%)</span>
+            <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <small style="color:#8892b0;">{TICKER_NAMES.get(t,t)}</small>
+                    <span style="color:{clr}; font-size:1.2rem;">{icon}</span>
+                </div>
+                <div style="font-size: 1.1rem; font-weight: bold; color: white; font-family: 'Courier New', monospace; margin: 5px 0;">
+                    {l:,.{prec}f}
+                </div>
+                <div style="color:{clr}; font-weight: bold; font-size: 0.85rem;">
+                    {sig} ({diff:+.2f}%)
+                </div>
             </div>
         """, unsafe_allow_html=True)
+
 
 def run_market_scanner(ticker_list):
     results = []
