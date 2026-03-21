@@ -189,6 +189,43 @@ if not d_s.empty:
     ax.axhline(t_down, color='#FF4B4B', linestyle='--', alpha=0.3)
     st.pyplot(fig)
 
+    # --- 6. NEU: ORDER-BOARD (CRV RECHNER) ---
+    st.subheader("📝 Handels-Setup (Vorschlag)")
+    
+    # Dynamisches Setup basierend auf der Simulation
+    if trend >= 0: # Long Szenario
+        entry = cp
+        target_price = t_up # 95% Quantil als Ziel
+        stop_loss = cp * 0.97 # 3% Sicherheitsnetz
+    else: # Short Szenario
+        entry = cp
+        target_price = t_down # 5% Quantil als Ziel
+        stop_loss = cp * 1.03 # 3% Sicherheitsnetz oben
+    
+    # CRV Berechnung: (Ziel - Einstieg) / (Einstieg - Stop)
+    risk = abs(entry - stop_loss)
+    reward = abs(target_price - entry)
+    crv = reward / risk if risk > 0 else 0
+    
+    # Optische Aufbereitung in 3 Spalten
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("EINSTIEG (Limit)", f"{entry:,.2f}")
+    c2.metric("ZIEL (Take Profit)", f"{target_price:,.2f}", f"{(target_price/entry-1)*100:+.2f}%")
+    c3.metric("STOP LOSS", f"{stop_loss:,.2f}", f"{(stop_loss/entry-1)*100:+.2f}%", delta_color="inverse")
+    
+    # CRV Anzeige mit Farblogik
+    crv_col = "#00FFA3" if crv >= 2 else "#FFD700" if crv >= 1.5 else "#FF4B4B"
+    c4.markdown(f"""
+        <div style="text-align:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border: 1px solid {crv_col};">
+            <small style="color:#8892b0;">CHANCE-RISIKO (CRV)</small><br>
+            <span style="font-size:1.5rem; font-weight:bold; color:{crv_col};">{crv:.2f}</span>
+        </div>
+    """, unsafe_allow_html=True)
+
+    if crv < 1.5:
+        st.warning("⚠️ CRV ist niedrig. Warte auf einen besseren Rücksetzer für den Einstieg.")
+    elif crv >= 2:
+        st.success("✅ Statistisch attraktives Setup erkannt.")
 
 
 # --- Ganz unten in deinem Code (Abschnitt 8 / Footer) ---
