@@ -132,13 +132,18 @@ if not d_s.empty:
     
     t_up, t_down = np.percentile(sim_results, 95), np.percentile(sim_results, 5)
     
-    # 2. RICHTUNG ENTSCHEIDEN (Synchronisiert)
-    sim_median = np.median(sim_results)
-    is_long = sim_median >= cp
-    sig_t, sig_i, sig_c = ("LONG EINSTIEG", "🟢", "#00FFA3") if is_long and ann_vol < 35 else \
-                          ("SHORT CHANCE", "🔴", "#FF4B4B") if not is_long and ann_vol < 35 else \
-                          ("ABWARTEN", "⚪", "#8892b0")
+# 2. RICHTUNG ENTSCHEIDEN (Eindeutige Prüfung mit .item() oder float)
+    sim_median = float(np.median(sim_results))
+    is_long = bool(sim_median >= cp) # Erzwingt einen eindeutigen True/False Wert
 
+    if is_long and ann_vol < 35: 
+        sig_t, sig_i, sig_c = "LONG EINSTIEG", "🟢", "#00FFA3"
+    elif not is_long and ann_vol < 35: 
+        sig_t, sig_i, sig_c = "SHORT CHANCE", "🔴", "#FF4B4B"
+    else: 
+        sig_t, sig_i, sig_c = "ABWARTEN", "⚪", "#8892b0"
+
+    
     # Header-Box
     st.markdown(f'<div class="header-box" style="border-color:{sig_c};"><b>{TICKER_NAMES.get(sel_stock, sel_stock)}</b> | Vola: <b>{ann_vol:.1f}%</b></div>', unsafe_allow_html=True)
 
