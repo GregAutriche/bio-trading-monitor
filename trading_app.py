@@ -128,20 +128,33 @@ for i, t in enumerate(["EURUSD=X", "EURRUB=X"]):
 
 # B. INDIZES (2 ZEILEN)
 st.subheader("📈 Fokus/ Indizes")
+def draw_index_card(col, t):
+    df_i = get_data(t, period="2d")
+    if not df_i.empty:
+        l = extract_price(df_i, -1); p = extract_price(df_i, -2); diff = ((l/p)-1)*100
+        
+        # Wetter & Aktions-Logik für Indizes (etwas sensibler als bei Einzelaktien)
+        if diff > 0.30: sig, icon, clr = "CALL (BULLISH)", "☀️", "#00FFA3"
+        elif diff < -0.30: sig, icon, clr = "PUT (BEARISH)", "⛈️", "#FF4B4B"
+        else: sig, icon, clr = "NEUTRAL", "⛅", "#8892b0"
+        
+        col.markdown(f"""
+            <div class="market-card">
+                <small>{TICKER_NAMES.get(t,t)}</small>
+                <span style="float:right; font-size:1.1rem;">{icon}</span><br>
+                <span class="metric-value">{l:,.2f}</span><br>
+                <span style="color:{clr}; font-size:0.8rem; font-weight:bold;">{sig} ({diff:+.2f}%)</span>
+            </div>
+        """, unsafe_allow_html=True)
+        
 c_r1 = st.columns(2)
 for i, t in enumerate(["^GDAXI", "^NDX"]):
-    df_i = get_data(t, period="2d")
-    if not df_i.empty:
-        l = extract_price(df_i, -1); p = extract_price(df_i, -2); c = ((l/p)-1)*100
-        c_r1[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span><br><span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
+    draw_index_card(c_r1[i], t)
 
+# Zweite Zeile: EuroStoxx, BIST, Nifty
 c_r2 = st.columns(3)
 for i, t in enumerate(["^STOXX50E", "XU100.IS", "^NSEI"]):
-    df_i = get_data(t, period="2d")
-    if not df_i.empty:
-        l = extract_price(df_i, -1); p = extract_price(df_i, -2); c = ((l/p)-1)*100
-        c_r2[i].markdown(f'<div class="market-card"><small>{TICKER_NAMES.get(t,t)}</small><br><span class="metric-value">{l:,.2f}</span><br><span class="{"bullish" if c>0 else "bearish"}">{c:+.2f}%</span></div>', unsafe_allow_html=True)
-
+    draw_index_card(c_r2[i], t)
 st.divider()
 
 # C. STEUERUNG (ALPHABETISCH)
