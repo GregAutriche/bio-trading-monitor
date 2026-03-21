@@ -139,25 +139,55 @@ st.markdown(f'<div style="background:rgba(255,255,255,0.03); padding:10px; borde
 st.divider()
 
 # F. ANALYSE & SETUP
+# F. ANALYSE & SETUP (JETZT MIT VOLUMEN-CHECK)
 d_s = get_data(sel_stock, period="60d")
 if not d_s.empty:
+    # 1. Volatilität & Kursdaten
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
     vol = log_returns.std(); ann_vol = vol * np.sqrt(252) * 100; cp = extract_price(d_s, -1)
+    
+    # 2. VOLUMEN-LOGIK (NEU)
+    # Durchschnittsvolumen der letzten 10 Perioden (40h)
+    avg_volume = d_s['Volume'].tail(10).mean()
+    current_volume = d_s['Volume'].iloc[-1]
+    vol_change = ((current_volume / avg_volume) - 1) * 100
+    
+    # Volumen-Status bestimmen
+    if vol_change > 20: 
+        vol_txt, vol_icon, vol_clr = "HOCH (Bestätigt)", "🔥", "#00FFA3"
+    elif vol_change < -20: 
+        vol_txt, vol_icon, vol_clr = "GERING (Warnung)", "💤", "#FF4B4B"
+    else: 
+        vol_txt, vol_icon, vol_clr = "NORMAL", "📊", "#8892b0"
+
+    # 3. Simulation & Richtung
     np.random.seed(int(pd.Timestamp.now().timestamp() // 86400) + hash(sel_stock) % 1000)
     sim_results = [cp * np.exp(np.random.normal(0, vol * np.sqrt(15))) for _ in range(100)]
     is_long = bool(np.median(sim_results) >= cp)
     t_up, t_down = np.percentile(sim_results, 95), np.percentile(sim_results, 5)
+    
+    # Signal-Farbe (Bio-Trading Logik)
     sig_t, sig_i, sig_c = ("LONG EINSTIEG", "🟢", "#00FFA3") if is_long and ann_vol < 35 else ("SHORT CHANCE", "🔴", "#FF4B4B") if not is_long and ann_vol < 35 else ("ABWARTEN", "⚪", "#8892b0")
     
-    st.markdown(f'<div class="header-box" style="border-color:{sig_c};"><b>{TICKER_NAMES.get(sel_stock, sel_stock)}</b> | Vola: <b>{ann_vol:.1f}%</b></div>', unsafe_allow_html=True)
+    # --- HEADER-BOX MIT VOLUMEN ---
+    st.markdown(f"""
+        <div class="header-box" style="border-color:{sig_c};">
+            <b>{TICKER_NAMES.get(sel_stock, sel_stock)}</b> | 
+            Vola: <b>{ann_vol:.1f}%</b> | 
+            Volumen: <b style="color:{vol_clr};">{vol_icon} {vol_change:+.1f}%</b>
+        </div>
+    """, unsafe_allow_html=True)
     
+    # --- HANDELS-SETUP ---
     dir_label, dir_col = ("[ CALL ]", "#00FFA3") if is_long else ("[ PUT ]", "#FF4B4B")
-    st.markdown(f"### 📝 Handels-Setup: <span style='color:{dir_col};'>{dir_label}</span> <span style='float:right; font-size:1rem; color:{sig_c};'>{sig_i} {sig_t}</span>", unsafe_allow_html=True)
+    st.markdown(f"### 📝 Handels-Setup: <span style='color:{dir_col} !important;'>{dir_label}</span> <span style='float:right; font-size:1rem; color:{sig_c} !important;'>{sig_i} {sig_t}</span>", unsafe_allow_html=True)
     
     target_p = t_up if is_long else t_down; stop_l = cp * 0.97 if is_long else cp * 1.03
     risk = abs(cp - stop_l); reward = abs(target_p - cp); crv = reward / risk if risk > 0 else 0
+    
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("EINSTIEG", f"{cp:,.2f}"); c2.metric("ZIEL (TP)", f"{target_p:,.2f}", f"{(target_p/cp-1)*100:+.2f}%", delta_color="normal" if is_long else "inverse")
+    c1.metric("EINSTIEG", f"{cp:,.2f}")
+    c2.metric("ZIEL (TP)", f"{target_p:,.2f}", f"{(target_p/cp-1)*100:+.2f}%", delta_color="normal" if is_long else "inverse")
     c3.metric("STOP LOSS", f"{stop_l:,.2f}", f"{(stop_l/cp-1)*100:+.2f}%", delta_color="inverse" if is_long else "normal")
     crv_col = "#00FFA3" if crv >= 2 else "#FFD700" if crv >= 1.5 else "#FF4B4B"
     c4.markdown(f'<div style="text-align:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border: 1px solid {crv_col};"><small>CRV</small><br><span style="font-size:1.5rem; font-weight:bold; color:{crv_col};">{crv:.2f}</span></div>', unsafe_allow_html=True)
