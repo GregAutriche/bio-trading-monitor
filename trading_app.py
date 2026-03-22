@@ -9,14 +9,11 @@ from datetime import datetime
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. VOLLSTÄNDIGES TICKER-MAPPING ---
+# --- 2. TICKER-MAPPING ---
 TICKER_NAMES = {
-    # WETTER (Indizes & Forex)
     "EURUSD=X": "💱 EUR/USD", "EURRUB=X": "💱 EUR/RUB", 
     "^GDAXI": "📊 DAX 40", "^NDX": "📊 NASDAQ 100",
     "^STOXX50E": "📊 EuroStoxx 50", "^NSEI": "📊 Nifty 50", "XU100.IS": "📊 BIST 100",
-    
-    # DAX 40 KOMPLETT (🇩🇪)
     "ADS.DE": "🇩🇪 Adidas", "AIR.DE": "🇩🇪 Airbus", "ALV.DE": "🇩🇪 Allianz", "BAS.DE": "🇩🇪 BASF", "BAYN.DE": "🇩🇪 Bayer", 
     "BEI.DE": "🇩🇪 Beiersdorf", "BMW.DE": "🇩🇪 BMW", "BNR.DE": "🇩🇪 Brenntag", "CBK.DE": "🇩🇪 Commerzbank", "CON.DE": "🇩🇪 Continental", 
     "1COV.DE": "🇩🇪 Covestro", "DTG.DE": "🇩🇪 Daimler Truck", "DBK.DE": "🇩🇪 Deutsche Bank", "DB1.DE": "🇩🇪 Deutsche Börse", 
@@ -27,15 +24,12 @@ TICKER_NAMES = {
     "RHM.DE": "🇩🇪 Rheinmetall", "RWE.DE": "🇩🇪 RWE", "SAP.DE": "🇩🇪 SAP", "SRT3.DE": "🇩🇪 Sartorius", "SIE.DE": "🇩🇪 Siemens", 
     "ENR.DE": "🇩🇪 Siemens Energy", "SHL.DE": "🇩🇪 Siemens Healthineers", "SY1.DE": "🇩🇪 Symrise", "TKA.DE": "🇩🇪 Thyssenkrupp", 
     "VOW3.DE": "🇩🇪 Volkswagen", "VNA.DE": "🇩🇪 Vonovia",
-    
-    # NASDAQ 100 AUSWAHL (🇺🇸 - Die Wichtigsten)
     "AAPL": "🇺🇸 Apple", "MSFT": "🇺🇸 Microsoft", "AMZN": "🇺🇸 Amazon", "NVDA": "🇺🇸 Nvidia", "GOOGL": "🇺🇸 Alphabet", 
     "META": "🇺🇸 Meta", "TSLA": "🇺🇸 Tesla", "AVGO": "🇺🇸 Broadcom", "PEP": "🇺🇸 PepsiCo", "COST": "🇺🇸 Costco", 
     "ADBE": "🇺🇸 Adobe", "CSCO": "🇺🇸 Cisco", "NFLX": "🇺🇸 Netflix", "AMD": "🇺🇸 AMD", "PLTR": "🇺🇸 Palantir", 
     "MSTR": "🇺🇸 MicroStrategy", "QCOM": "🇺🇸 Qualcomm", "TXN": "🇺🇸 Texas Instruments", "INTC": "🇺🇸 Intel"
 }
 
-# FILTER: Nur Aktien (Kein ^ für Index, kein =X für Forex, kein .IS für BIST Index)
 STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k and k != "XU100.IS"]
 
 # --- 3. DESIGN ---
@@ -49,105 +43,95 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. FUNKTIONEN ---
+# --- 4. ZENTRALE FUNKTION FÜR IDENTISCHE DATEN ---
 @st.cache_data(ttl=60)
 def get_analysis(ticker):
-    """ Berechnet alle Werte einheitlich für Top 5 und Details """
-    df = yf.download(ticker, period="30d", interval="1h", progress=False)
-    if df.empty or len(df) < 20: 
-        return {"cp": 0.0, "chg": 0.0, "chance": 50, "atr": 0.0, "vol": 0}
-    
-    if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-    
-    cp = float(df['Close'].iloc[-1])
-    prev = float(df['Close'].iloc[-2])
-    chg = ((cp / prev) - 1) * 100
-    
-    # ATR (14)
-    atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1]
-    
-    # CHANCE (Monte Carlo mit festem Seed für Identität)
-    returns = np.log(df['Close'] / df['Close'].shift(1)).dropna()
-    np.random.seed(42) # FIX: Garantiert gleiche Ergebnisse überall
-    sim = np.random.normal(returns.mean(), returns.std(), 1000)
-    chance = int((sim > 0).sum() / 10)
-    
-    return {
-        "cp": cp, "chg": chg, "chance": chance, "atr": atr, 
-        "vol": int(df['Volume'].iloc[-1]), "df": df
-    }
+    try:
+        df = yf.download(ticker, period="30d", interval="1h", progress=False)
+        if df.empty or len(df) < 15: 
+            return {"cp": 0.0, "chg": 0.0, "chance": 50, "atr": 0.0, "vol": 0, "df": df}
+        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+        
+        cp = float(df['Close'].iloc[-1])
+        prev = float(df['Close'].iloc[-2])
+        chg = ((cp / prev) - 1) * 100
+        atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1]
+        
+        # Chance Simulation mit festem Seed
+        returns = np.log(df['Close'] / df['Close'].shift(1)).dropna()
+        np.random.seed(42)
+        sim = np.random.normal(returns.mean(), returns.std(), 1000)
+        chance = int((sim > 0).sum() / 10)
+        
+        return {"cp": cp, "chg": chg, "chance": chance, "atr": atr, "vol": int(df['Volume'].iloc[-1]), "df": df}
+    except:
+        return {"cp": 0.0, "chg": 0.0, "chance": 50, "atr": 0.0, "vol": 0, "df": pd.DataFrame()}
 
-def get_weather_info(df):
-    if df.empty or len(df) < 2: return 0.0, 0.0, "☁️", "#8892b0", "⚪"
-    cp = float(df['Close'].iloc[-1])
-    chg = ((cp / float(df['Close'].iloc[-2])) - 1) * 100
-    if chg > 0.15: return cp, chg, "☀️", "#00FFA3", "🟢"
-    if chg < -0.15: return cp, chg, "⛈️", "#1E90FF", "🔵"
-    return cp, chg, "☁️", "#8892b0", "⚪"
+def get_weather_style(chg):
+    if chg > 0.15: return "☀️", "#00FFA3", "🟢"
+    if chg < -0.15: return "⛈️", "#1E90FF", "🔵"
+    return "☁️", "#8892b0", "⚪"
 
 # --- 5. DASHBOARD ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
-
-# Update Info
 now = datetime.now().strftime('%H:%M:%S')
-st.markdown(f'<div class="update-info">🕒 Letztes Update: <b>{now}</b> | Intervall: <b>60s</b> | Quelle: <b>Yahoo Finance</b></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="update-info">🕒 Update: <b>{now}</b> | Intervall: <b>60s</b> | Synchronisiert</div>', unsafe_allow_html=True)
 
 # 5a. MARKT-WETTER (3 ZEILEN)
 WEATHER_ROWS = [["EURUSD=X", "EURRUB=X"], ["^GDAXI", "^NDX"], ["^STOXX50E", "^NSEI", "XU100.IS"]]
 for row in WEATHER_ROWS:
     cols = st.columns(len(row))
     for i, t in enumerate(row):
-        df_m = get_data(t, period="5d")
-        cp, chg, icon, color, dot = get_weather_info(df_m)
+        res = get_analysis(t) # Nutzt jetzt die zentrale Funktion
+        icon, color, dot = get_weather_style(res["chg"])
         prec = ".4f" if "=X" in t else ".2f"
         with cols[i]:
-            st.markdown(f'<div class="weather-card" style="border-color:{color};"><small>{TICKER_NAMES.get(t,t)}</small><span> {icon}</span><br><b style="font-size:1.5rem;">{cp: ,{prec}}</b><br><span style="color:{color};">{chg:+.2f}%</span> {dot}</div>', unsafe_allow_html=True)
+            st.markdown(f"""
+                <div class="weather-card" style="border-color:{color};">
+                    <div style="display: flex; justify-content: space-between;"><small>{TICKER_NAMES.get(t,t)}</small><span>{icon}</span></div>
+                    <b style="font-size:1.5rem;">{res['cp']: ,{prec}}</b><br>
+                    <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                        <span style="color:{color};">{res['chg']:+.2f}%</span><span>{dot}</span>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
 
 st.divider()
 
-# 5b. TOP 5 AKTIEN NACH CHANCE
+# 5b. TOP 5 AKTIEN
 st.subheader("📊 Top 5 Aktien-Chancen")
 signals = []
-with st.spinner("Synchronisiere Daten..."):
+with st.spinner("Synchronisiere Top-Werte..."):
     for s in STOCKS_ONLY:
-        res = get_analysis(s)
-        if res["cp"] > 0:
-            # Wetter-Logik für Status-Punkt
-            dot = "🟢" if res["chg"] > 0.15 else "🔵" if res["chg"] < -0.15 else "⚪"
-            signals.append({
-                'Status': dot, 'Aktie': TICKER_NAMES.get(s,s), 
-                'Trend_Val': res["chg"], 'Trend': f"{res['chg']:+.2f}%", 
-                'Chance': res["chance"]
-            })
+        r = get_analysis(s)
+        if r["cp"] > 0:
+            _, _, dot = get_weather_style(r["chg"])
+            signals.append({'Status': dot, 'Aktie': TICKER_NAMES.get(s,s), 'Trend_Val': r["chg"], 'Trend': f"{r['chg']:+.2f}%", 'Chance': r["chance"]})
 
 df_sig = pd.DataFrame(signals)
 if not df_sig.empty:
-    c_t1, c_t2 = st.columns(2)
-    with c_t1:
-        st.markdown("<h4 style='color:#00FFA3;'>Top 5 CALL (Chance)</h4>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("<h4 style='color:#00FFA3;'>Top 5 CALL (Identisch)</h4>", unsafe_allow_html=True)
         st.table(df_sig[df_sig['Trend_Val'] > 0].nlargest(5, 'Chance')[['Status', 'Aktie', 'Trend', 'Chance']])
-    with c_t2:
-        st.markdown("<h4 style='color:#1E90FF;'>Top 5 PUT (Chance)</h4>", unsafe_allow_html=True)
+    with c2:
+        st.markdown("<h4 style='color:#1E90FF;'>Top 5 PUT (Identisch)</h4>", unsafe_allow_html=True)
         st.table(df_sig[df_sig['Trend_Val'] < 0].nsmallest(5, 'Chance')[['Status', 'Aktie', 'Trend', 'Chance']])
 
 st.divider()
 
-# 5c. DETAIL-ANALYSE (STRIKT NUR AKTIEN)
-st.subheader("🔍 Detail-Analyse (Aktien)")
+# 5c. DETAIL-ANALYSE
+st.subheader("🔍 Detail-Analyse (Synchronisiert)")
 sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
 sel_stock = st.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
 
-res_det = get_analysis(sel_stock)
-if res_det["cp"] > 0:
-    # Wetter-Logik für Icons
-    icon = "☀️" if res_det["chg"] > 0.15 else "⛈️" if res_det["chg"] < -0.15 else "☁️"
-    dot = "🟢" if res_det["chg"] > 0.15 else "🔵" if res_det["chg"] < -0.15 else "⚪"
-    
+res_d = get_analysis(sel_stock)
+if res_d["cp"] > 0:
+    icon_d, _, dot_d = get_weather_style(res_d["chg"])
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("KURS", f"{res_det['cp']:,.2f}", f"{res_det['chg']:+.2f}%")
-    col2.metric("CHANCE", f"{res_det['chance']}%", delta=f"{res_det['chance']-50}%")
-    col3.metric("ATR (14h)", f"{res_det['atr']:.2f}")
-    col4.metric("VOLUMEN", f"{res_det['vol']:,.0f}")
-    
-    st.write(f"**Wetter-Status:** {icon} {dot}")
-    st.bar_chart(res_det["df"]['Volume'].tail(40))
+    col1.metric("KURS", f"{res_d['cp']:,.2f}", f"{res_d['chg']:+.2f}%")
+    col2.metric("CHANCE", f"{res_d['chance']}%", delta=f"{res_d['chance']-50}%")
+    col3.metric("ATR (14h)", f"{res_d['atr']:.2f}")
+    col4.metric("VOLUMEN", f"{res_d['vol']:,.0f}")
+    st.write(f"**Wetter-Status:** {icon_d} {dot_d}")
+    st.bar_chart(res_d["df"]['Volume'].tail(40))
