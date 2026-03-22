@@ -141,26 +141,49 @@ for row in WEATHER_ROWS:
 st.divider()
 
 # 5b. TOP 5 AKTIEN
+# --- 5b. TOP 5 AKTIEN MIT SCAN-STATISTIK ---
 st.subheader("📊 Top 5 Aktien-Chancen")
+
+# Zähler für die Statistik vorbereiten
+count_de = len([k for k in STOCKS_ONLY if k.endswith(".DE")])
+count_us = len([k for k in STOCKS_ONLY if not k.endswith(".DE")])
+
+# Info-Zeile direkt unter der Überschrift
+st.markdown(f"""
+    <div style="color: #8892b0; font-size: 0.9rem; margin-bottom: 15px;">
+        ℹ️ Info: <b>{count_de}</b> Aktien aus DE / <b>{count_us}</b> Aktien aus US gescannt 
+        (Gesamt: {len(STOCKS_ONLY)})
+    </div>
+""", unsafe_allow_html=True)
+
 signals = []
-with st.spinner("Analysiere Markt..."):
+with st.spinner("Analysiere Markt-Daten..."):
     for s in STOCKS_ONLY:
         r = get_analysis(s)
         if r["cp"] > 0:
             _, _, dot = get_style(r["chg"])
-            signals.append({'Status': dot, 'Aktie': TICKER_NAMES.get(s,s), 'Trend_Val': r["chg"], 'Trend': f"{r['chg']:+.2f}%", 'Chance': r["chance"]})
+            signals.append({
+                'Status': dot, 
+                'Aktie': TICKER_NAMES.get(s,s), 
+                'Trend_Val': r["chg"], 
+                'Trend': f"{r['chg']:+.2f}%", 
+                'Chance': r["chance"]
+            })
 
 df_sig = pd.DataFrame(signals)
 if not df_sig.empty:
-    c1, c2 = st.columns(2)
-    with c1:
+    c_t1, c_t2 = st.columns(2)
+    with c_t1:
         st.markdown("<h4 style='color:#00FFA3;'>Top 5 CALL (Chance)</h4>", unsafe_allow_html=True)
-        st.table(df_sig[df_sig['Trend_Val'] > 0].nlargest(5, 'Chance')[['Status', 'Aktie', 'Trend', 'Chance']])
-    with c2:
+        # Filter: Nur positiver Trend
+        calls = df_sig[df_sig['Trend_Val'] > 0].nlargest(5, 'Chance')
+        st.table(calls[['Status', 'Aktie', 'Trend', 'Chance']])
+    with c_t2:
         st.markdown("<h4 style='color:#1E90FF;'>Top 5 PUT (Chance)</h4>", unsafe_allow_html=True)
-        st.table(df_sig[df_sig['Trend_Val'] < 0].nsmallest(5, 'Chance')[['Status', 'Aktie', 'Trend', 'Chance']])
+        # Filter: Nur negativer Trend
+        puts = df_sig[df_sig['Trend_Val'] < 0].nsmallest(5, 'Chance')
+        st.table(puts[['Status', 'Aktie', 'Trend', 'Chance']])
 
-st.divider()
 
 # 5c. DETAIL-ANALYSE
 st.divider()
