@@ -9,7 +9,7 @@ from datetime import datetime
 
 # --- 1. KONFIGURATION ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
-st_autorefresh(interval=60000, limit=1000, key="fscounter")
+count = st_autorefresh(interval=8 * 60 * 1000, key="fscounter")
 
 # --- 2. TICKER-MAPPING ---
 TICKER_NAMES = {
