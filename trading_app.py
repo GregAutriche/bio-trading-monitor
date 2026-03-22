@@ -86,6 +86,7 @@ def get_top_5_signals(tickers):
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
 # 5a. MARKT-WETTER
+# --- 5a. MARKT-WETTER (WETTER-SYMBOLE & AKTIONS-PUNKTE) ---
 st.subheader("🌐 Globales Markt-Wetter")
 
 for row_tickers in WEATHER_STRUCTURE:
@@ -97,23 +98,36 @@ for row_tickers in WEATHER_STRUCTURE:
             prev_w = extract_val(w_data, 'Close', -2)
             chg_w = ((cp_w / prev_w) - 1) * 100 if prev_w > 0 else 0
             
-            # Wetter- & Farblogik mit Symbolen
-            if chg_w > 0.15: 
-                symbol, color = "☀️", "#00FFA3"  # GRÜN (Call)
-            elif chg_w < -0.15: 
-                symbol, color = "⛈️", "#1E90FF"  # BLAU (Put)
+            # 1. Langfristige Wetter-Logik (Trend-Indikator)
+            if chg_w > 0.10: 
+                wetter_icon = "☀️"  # Sonnig / Bullisch
+            elif chg_w < -0.10: 
+                wetter_icon = "⛈️"  # Gewitter / Bärisch
             else: 
-                symbol, color = "☁️", "#8892b0"  # GRAU (Warten)
+                wetter_icon = "☁️"  # Bewölkt / Neutral
+                
+            # 2. Aktions-Logik (Punkt-Farben: Grün, Grau, Blau)
+            if chg_w > 0.15: 
+                dot_color, action_hint = "#00FFA3", "🟢 CALL" # GRÜN
+            elif chg_w < -0.15: 
+                dot_color, action_hint = "#1E90FF", "🔵 PUT"  # BLAU
+            else: 
+                dot_color, action_hint = "#8892b0", "⚪ WARTEN" # GRAU
             
             prec = 5 if "=X" in t else 2
             
             with cols[i]:
                 st.markdown(f"""
-                    <div class="weather-card" style="border-color:{color}; background:rgba(255,255,255,0.02); padding: 15px;">
-                        <div style="font-size:0.9rem; color:#8892b0; margin-bottom:5px;">{TICKER_NAMES.get(t, t)}</div>
+                    <div class="weather-card" style="border-color:{dot_color}; background:rgba(255,255,255,0.02); padding: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <small style="color:#8892b0;">{TICKER_NAMES.get(t, t)}</small>
+                            <span style="font-size:1.2rem;">{wetter_icon}</span>
+                        </div>
                         <b style="font-size:1.5rem; color:white;">{cp_w:,.{prec}f}</b><br>
-                        <span style="color:{color}; font-weight:bold; font-size:1.1rem;">{chg_w:+.2f}%</span><br>
-                        <div style="font-size:1.8rem; margin-top:5px;">{symbol}</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                            <span style="color:{dot_color}; font-weight:bold; font-size:1.1rem;">{chg_w:+.2f}%</span>
+                            <span style="color:{dot_color}; font-size:1.3rem;">●</span>
+                        </div>
                     </div>
                 """, unsafe_allow_html=True)
 
