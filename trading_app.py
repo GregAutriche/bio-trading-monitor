@@ -40,6 +40,7 @@ st.markdown("""
     .weather-card { text-align:center; padding:12px; border-radius:10px; background:rgba(30,144,255,0.05); border: 1px solid #1E90FF; margin-bottom: 10px; }
     .analysis-box { padding: 20px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid #333; margin-top: 15px; }
     table { background-color: #161B22 !important; color: white !important; border-radius: 10px; width: 100%; }
+    thead tr th { background-color: #1F2937 !important; color: #8892b0 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -59,16 +60,32 @@ def extract_val(df, column, idx):
     except: return 0.0
 
 def calculate_atr(df, period=14):
+    if len(df) < period: return 0.0
     high_low = df['High'] - df['Low']
     high_cp = np.abs(df['High'] - df['Close'].shift())
     low_cp = np.abs(df['Low'] - df['Close'].shift())
     tr = pd.concat([high_low, high_cp, low_cp], axis=1).max(axis=1)
     return tr.rolling(period).mean().iloc[-1]
 
+def get_top_5_signals(tickers):
+    signals = []
+    for t in tickers:
+        df = get_data(t, period="5d", interval="1h")
+        if not df.empty and len(df) > 1:
+            cp = extract_val(df, 'Close', -1)
+            prev = extract_val(df, 'Close', -2)
+            ret = ((cp / prev) - 1) * 100 if prev > 0 else 0
+            signals.append({'Aktie': TICKER_NAMES.get(t, t), 'Preis': cp, 'Trend': ret})
+    
+    df_sig = pd.DataFrame(signals)
+    if df_sig.empty: return pd.DataFrame(), pd.DataFrame()
+    return df_sig.nlargest(5, 'Trend'), df_sig.nsmallest(5, 'Trend')
+
 # --- 5. DASHBOARD ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
 # 5a. MARKT-WETTER
+st.subheader("🌐 Globales Markt-Wetter")
 for row in WEATHER_STRUCTURE:
     cols = st.columns(len(row))
     for i, t in enumerate(row):
@@ -83,7 +100,25 @@ for row in WEATHER_STRUCTURE:
 
 st.divider()
 
-# 5b. EINZELWERT ANALYSE
+# 5b. TOP 5 TABELLEN (WIEDER DA!)
+st.subheader("📊 Top 5 Aktien-Bewegungen (Aktien only)")
+t_col1, t_col2 = st.columns(2)
+
+with st.spinner("Scanne Märkte für Top-Werte..."):
+    calls, puts = get_top_5_signals(STOCKS_ONLY)
+
+if not calls.empty:
+    with t_col1:
+        st.markdown("<h4 style='color:#00FFA3;'>🟢 Top 5 CALL (Long-Favoriten)</h4>", unsafe_allow_html=True)
+        st.table(calls[['Aktie', 'Preis', 'Trend']].style.format({'Preis': '{:.2f}', 'Trend': '{:+.2f}%'}))
+
+    with t_col2:
+        st.markdown("<h4 style='color:#FF4B4B;'>🔴 Top 5 PUT (Short-Chancen)</h4>", unsafe_allow_html=True)
+        st.table(puts[['Aktie', 'Preis', 'Trend']].style.format({'Preis': '{:.2f}', 'Trend': '{:+.2f}%'}))
+
+st.divider()
+
+# 5c. EINZELWERT ANALYSE (ERWEITERT)
 st.subheader("🔍 Einzelwert im Detail analysieren")
 all_stocks_sorted = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
 sel_stock = st.selectbox("Aktie wählen:", all_stocks_sorted, format_func=lambda x: TICKER_NAMES.get(x, x))
@@ -102,9 +137,6 @@ if not d_s.empty:
     vol_ratio = (cur_vol / avg_vol) if avg_vol > 0 else 1
     
     # Strategie-Logik
-    # CALL: Preis > EMA20 (simuliert) + hohes Volumen
-    # PUT: Preis < EMA20 (simuliert) + hohes Volumen
-    # WARTEN: Wenig Volumen oder Seitwärts
     if vol_ratio > 1.2 and change > 0.5: recommendation, rec_col = "CALL (KAUFEN)", "#00FFA3"
     elif vol_ratio > 1.2 and change < -0.5: recommendation, rec_col = "PUT (VERKAUFEN)", "#FF4B4B"
     else: recommendation, rec_col = "ABWARTEN / NEUTRAL", "#FFD700"
@@ -113,18 +145,16 @@ if not d_s.empty:
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Kurs", f"{cp:,.2f}", f"{change:+.2f}%")
     m2.metric("ATR (14)", f"{atr:,.2f}")
-    m3.metric("Volumen-Trend", f"{vol_ratio:.2f}x", f"{'Hoch' if vol_ratio > 1 else 'Niedrig'}")
-    m4.markdown(f'<div style="text-align:center; background:{rec_col}22; padding:10px; border-radius:8px; border:1px solid {rec_col}; color:{rec_col}; font-weight:bold;"><small>EMPFEHLUNG</small><br>{recommendation}</div>', unsafe_allow_html=True)
+    m3.metric("Volumen-Trend", f"{vol_ratio:.2f}x")
+    m4.markdown(f'<div style="text-align:center; background:{rec_col}22; padding:10px; border-radius:8px; border:1px solid {rec_col}; color:{rec_col}; font-weight:bold;"><small>STATUS</small><br>{recommendation}</div>', unsafe_allow_html=True)
 
     st.line_chart(d_s['Close'])
 
-    # Detail-Box
     st.markdown(f"""
     <div class="analysis-box">
-        <h4>📊 Analyse-Zusammenfassung: {TICKER_NAMES[sel_stock]}</h4>
-        <p>Der aktuelle Trend wird als <b>{recommendation}</b> eingestuft. 
-        Die <b>ATR</b> von {atr:.2f} deutet auf eine {'erhöhte' if atr > (cp*0.02) else 'normale'} Volatilität hin. 
-        Das Volumen liegt aktuell bei <b>{vol_ratio:.1f}-fachen</b> des Durchschnitts, was den Trend {'bestätigt' if vol_ratio > 1.2 else 'noch nicht ausreichend untermauert'}.</p>
+        <h4>📊 Zusammenfassung: {TICKER_NAMES[sel_stock]}</h4>
+        Status: <b>{recommendation}</b>. Die Volatilität (ATR) liegt bei {atr:.2f}. 
+        Das Handelsvolumen ist aktuell das <b>{vol_ratio:.2f}-fache</b> des Durchschnitts.
     </div>
     """, unsafe_allow_html=True)
 
