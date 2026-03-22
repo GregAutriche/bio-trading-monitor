@@ -9,6 +9,8 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
+st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%H:%M:%S')} | Quelle: Yahoo Finance")
+
 # --- 2. VOLLSTÄNDIGES NAMENS-MAPPING ---
 TICKER_NAMES = {
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", "^GDAXI": "DAX 40 Index", "^NDX": "NASDAQ 100 Index",
@@ -129,6 +131,7 @@ if not calls.empty:
 st.divider()
 
 # 5c. EINZELWERT ANALYSE
+# --- 5c. EINZELWERT ANALYSE (INKL. MONTE-CARLO & WAHRSCHEINLICHKEIT) ---
 st.subheader("🔍 Einzelwert im Detail analysieren")
 all_stocks_sorted = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
 sel_stock = st.selectbox("Aktie wählen:", all_stocks_sorted, format_func=lambda x: TICKER_NAMES.get(x, x))
@@ -137,33 +140,61 @@ d_s = get_data(sel_stock, period="60d", interval="1h")
 
 if not d_s.empty:
     cp = extract_val(d_s, 'Close', -1)
-    chg = ((cp / extract_val(d_s, 'Close', -2)) - 1) * 100
-    cur_vol = extract_val(d_s, 'Volume', -1)
-    avg_vol = d_s['Volume'].tail(20).mean()
-    vol_ratio = (cur_vol / avg_vol) if avg_vol > 0 else 1
+    # Volatilität berechnen
+    log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
+    vola_std = log_returns.std()
     
-    # Aktions-Check
-    icon, color, dot = get_action_style(chg)
-    status_text = "KAUFEN" if dot == "🟢" else "VERKAUFEN" if dot == "🔵" else "WARTEN"
+    # --- MONTE-CARLO SIMULATION (100 Pfade für 15h) ---
+    np.random.seed(42)
+    sim_paths = 100
+    sim_h = 15
+    simulations = np.zeros((sim_h, sim_paths))
+    for i in range(sim_paths):
+        # Geometrische Brownsche Bewegung (vereinfacht)
+        simulations[:, i] = cp * np.exp(np.cumsum(np.random.normal(0, vola_std, sim_h)))
+    
+    # Berechnung der Ziele & Wahrscheinlichkeit
+    tp_95 = np.percentile(simulations[-1, :], 95)
+    sl_05 = np.percentile(simulations[-1, :], 5)
+    prob_up = (simulations[-1, :] > cp).sum() / sim_paths * 100 # Wie viele Pfade gehen hoch?
+    
+    # Aktions-Farbe basierend auf Wahrscheinlichkeit
+    rec_col = "#00FFA3" if prob_up > 55 else "#1E90FF" if prob_up < 45 else "#8892b0"
+    rec_text = "CALL" if prob_up > 55 else "PUT" if prob_up < 45 else "NEUTRAL"
 
+    # Metriken Anzeigen
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Kurs", f"{cp:,.2f}", f"{chg:+.2f}%")
-    m2.metric("Wetter", icon)
-    m3.metric("Volumen", f"{vol_ratio:.2f}x")
-    m4.markdown(f'<div style="text-align:center; background:{color}22; padding:10px; border-radius:8px; border:1px solid {color}; color:{color}; font-weight:bold;"><small>STATUS</small><br>{dot} {status_text}</div>', unsafe_allow_html=True)
+    m1.metric("Kurs", f"{cp:,.2f}")
+    m2.metric("Ziel (TP)", f"{tp_95:,.2f}", f"{(tp_95/cp-1)*100:+.2f}%")
+    m3.metric("Stop-Loss (SL)", f"{sl_05:,.2f}", f"{(sl_05/cp-1)*100:+.2f}%")
+    m4.metric("Wahrscheinlichkeit", f"{prob_up:.0f}% {rec_text}", delta=f"{prob_up-50:+.0f}%", delta_color="normal")
 
-    # KOMBI-CHART
+    # --- KOMBI-CHART MIT ZUKUNFTS-FÄCHER ---
     fig, ax1 = plt.subplots(figsize=(12, 5), facecolor='#0E1117')
     ax1.set_facecolor('#0E1117')
-    ax1.plot(d_s.index, d_s['Close'], color='#1E90FF', linewidth=2)
-    ax1.tick_params(axis='y', labelcolor='#E0E0E0')
     
-    ax2 = ax1.twinx()
-    # Volumensfarben: Grün bei Kursplus, Blau bei Kursminus (passend zur Aktionslogik)
-    v_cols = ['#00FFA3' if d_s['Close'].iloc[i] >= d_s['Open'].iloc[i] else '#1E90FF' for i in range(len(d_s))]
-    ax2.bar(d_s.index, d_s['Volume'], color=v_cols, alpha=0.3, width=0.03)
-    ax2.set_ylim(0, d_s['Volume'].max() * 4)
+    # Vergangenheit (Blaue Linie)
+    ax1.plot(d_s.index, d_s['Close'], color='#1E90FF', linewidth=2, label='Historie')
     
+    # Zukunft (Monte-Carlo Pfade)
+    future_index = pd.date_range(d_s.index[-1], periods=sim_h + 1, freq='h')[1:]
+    for i in range(sim_paths):
+        ax1.plot(future_index, simulations[:, i], color=rec_col, alpha=0.05, linewidth=1)
+    
+    # Ziel-Linien (Gestrichelt)
+    ax1.axhline(tp_95, color='#00FFA3', linestyle='--', alpha=0.5, label='Ziel (95%)')
+    ax1.axhline(sl_05, color='#FF4B4B', linestyle='--', alpha=0.5, label='Stop (5%)')
+    
+    ax1.tick_params(axis='both', colors='#8892b0')
+    ax1.grid(color='#333', linestyle=':', alpha=0.3)
     st.pyplot(fig)
+
+    st.markdown(f"""
+    <div class="analysis-box">
+        <h4>🧬 Bio-Statistik für {TICKER_NAMES[sel_stock]}</h4>
+        Die Simulation zeigt eine <b>{prob_up:.1f}% Chance</b> für steigende Kurse in den nächsten 15 Stunden. 
+        Der statistisch abgesicherte <b>Stop-Loss</b> liegt bei <b>{sl_05:.2f}</b>.
+    </div>
+    """, unsafe_allow_html=True)
 
 st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%H:%M:%S')} | Quelle: Yahoo Finance")
