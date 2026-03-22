@@ -8,28 +8,32 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. VOLLSTÄNDIGES NAMENS-MAPPING (Währungen, Indizes & Aktien) ---
-TICKER_NAMES = {
-    # Währungen & Indizes
+# --- 2. NAMENS-MAPPING ---
+MARKET_TICKERS = {
     "EURUSD=X": "💱 EUR/USD", "EURRUB=X": "💱 EUR/RUB", 
-    "^GDAXI": "📊 DAX 40 Index", "^NDX": "📊 NASDAQ 100 Index",
-    "^STOXX50E": "📊 EuroStoxx 50", "XU100.IS": "📊 BIST 100", "^NSEI": "📊 Nifty 50",
-    # Aktien DAX
-    "ADS.DE": "🇩🇪 Adidas", "AIR.DE": "🇩🇪 Airbus", "ALV.DE": "🇩🇪 Allianz", "BAS.DE": "🇩🇪 BASF", "BAYN.DE": "🇩🇪 Bayer", 
-    "BMW.DE": "🇩🇪 BMW", "DBK.DE": "🇩🇪 Deutsche Bank", "DTE.DE": "🇩🇪 Telekom", "RHM.DE": "🇩🇪 Rheinmetall", "SAP.DE": "🇩🇪 SAP",
-    # Aktien US
-    "AAPL": "🇺🇸 Apple", "MSFT": "🇺🇸 Microsoft", "NVDA": "🇺🇸 Nvidia", "TSLA": "🇺🇸 Tesla", "AMD": "🇺🇸 AMD"
+    "^GDAXI": "📊 DAX 40", "^NDX": "📊 NASDAQ 100",
+    "^STOXX50E": "📊 EuroStoxx 50", "XU100.IS": "📊 BIST 100"
 }
 
-# Gruppen für die Logik
-ALL_TICKERS = list(TICKER_NAMES.keys())
+STOCK_TICKERS = {
+    "ADS.DE": "🇩🇪 Adidas", "AIR.DE": "🇩🇪 Airbus", "ALV.DE": "🇩🇪 Allianz", "BAS.DE": "🇩🇪 BASF", 
+    "BAYN.DE": "🇩🇪 Bayer", "BMW.DE": "🇩🇪 BMW", "DBK.DE": "🇩🇪 Deutsche Bank", "DTE.DE": "🇩🇪 Telekom", 
+    "RHM.DE": "🇩🇪 Rheinmetall", "SAP.DE": "🇩🇪 SAP", "AAPL": "🇺🇸 Apple", "MSFT": "🇺🇸 Microsoft", 
+    "NVDA": "🇺🇸 Nvidia", "TSLA": "🇺🇸 Tesla", "AMD": "🇺🇸 AMD", "PLTR": "🇺🇸 Palantir"
+}
 
-# --- 3. DESIGN (MAXIMALER KONTRAST FÜR LESBARKEIT) ---
+# --- 3. DESIGN (KONTRAST-FIX & DARK MODE) ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117 !important; color: #FFFFFF !important; }
     
-    /* TABELLEN-KOPFZEILE (Extrem hell & fett) */
+    /* WETTER KARTEN */
+    .weather-card { 
+        text-align:center; border-radius:10px; background:rgba(30,144,255,0.08); 
+        border: 1px solid #1E90FF; margin-bottom: 10px; padding: 15px; 
+    }
+
+    /* TABELLEN ÜBERSCHRIFTEN (Extrem lesbar) */
     thead tr th { 
         background-color: #2D3748 !important; 
         color: #FFFFFF !important; 
@@ -39,17 +43,14 @@ st.markdown("""
         text-transform: uppercase !important;
     }
     
-    /* TABELLEN-ZELLEN */
+    /* TABELLEN ZELLEN */
     tbody tr td { 
         color: #FFFFFF !important; 
         background-color: #161B22 !important;
-        font-size: 1rem !important;
         border-bottom: 1px solid #30363D !important;
     }
 
     .stTable { border: 1px solid #4A5568 !important; border-radius: 10px !important; }
-    [data-testid="stMetricValue"] { color: #FFFFFF !important; font-weight: bold !important; }
-    [data-testid="stMetricLabel"] { color: #A0AEC0 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -68,72 +69,74 @@ def extract_val(df, column, idx):
         return float(val)
     except: return 0.0
 
-def get_market_signals(tickers):
-    results = []
-    for t in tickers:
+def get_signals(tickers):
+    res = []
+    for t, name in tickers.items():
         df = get_data(t)
         if not df.empty and len(df) > 5:
             cp = extract_val(df, 'Close', -1)
-            prev = extract_val(df, 'Close', -2)
-            ret = ((cp / prev) - 1) * 100
-            
-            # Simulation für "Chance"
-            log_ret = np.log(df['Close'] / df['Close'].shift(1)).dropna()
-            std = log_ret.std()
-            sim = np.random.normal(0, std, 1000)
-            chance_up = (sim > 0).sum() / 10 
-            
-            results.append({
-                'Status': '🟢' if ret > 0 else '🔵', 
-                'Aktie/Symbol': TICKER_NAMES.get(t, t), 
-                'Trend': ret, 
-                'Chance': f"{int(chance_up)}%"
-            })
-    df_res = pd.DataFrame(results)
-    if df_res.empty: return pd.DataFrame(), pd.DataFrame()
-    return df_res.nlargest(8, 'Trend'), df_res.nsmallest(8, 'Trend')
+            ret = ((cp / extract_val(df, 'Close', -2)) - 1) * 100
+            # Chance Simulation
+            std = np.log(df['Close'] / df['Close'].shift(1)).dropna().std()
+            chance = int((np.random.normal(0, std, 1000) > 0).sum() / 10)
+            res.append({'Status': '🟢' if ret > 0 else '🔵', 'Aktie': name, 'Trend': ret, 'Chance': f"{chance}%"})
+    df_res = pd.DataFrame(res)
+    return df_res.nlargest(5, 'Trend'), df_res.nsmallest(5, 'Trend')
 
 # --- 5. DASHBOARD ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
-# 5a. Top Mover (JETZT INKLUSIVE WÄHRUNGEN & INDIZES)
-st.subheader("📊 Top Markt-Chancen (Alle Märkte)")
-with st.spinner("Analysiere Währungen, Indizes & Aktien..."):
-    calls, puts = get_market_signals(ALL_TICKERS)
+# 5a. MARKT-WETTER (INDICES & WÄHRUNGEN)
+st.subheader("🌐 Globales Markt-Wetter")
+m_cols = st.columns(len(MARKET_TICKERS))
+for i, (t, name) in enumerate(MARKET_TICKERS.items()):
+    df_m = get_data(t)
+    if not df_m.empty:
+        cp_m = extract_val(df_m, 'Close', -1)
+        chg_m = ((cp_m / extract_val(df_m, 'Close', -2)) - 1) * 100
+        color = "#00FFA3" if chg_m > 0 else "#1E90FF"
+        with m_cols[i]:
+            st.markdown(f"""
+                <div class="weather-card" style="border-color:{color};">
+                    <small style="color:#A0AEC0;">{name}</small><br>
+                    <b style="font-size:1.4rem;">{cp_m:,.2f if "^" in t else 4}</b><br>
+                    <span style="color:{color}; font-weight:bold;">{chg_m:+.2f}%</span>
+                </div>
+            """, unsafe_allow_html=True)
+
+st.divider()
+
+# 5b. AKTIEN-SIGNALE (SORTIERT NACH CHANCE/TREND)
+st.subheader("📊 Top Aktien-Chancen")
+with st.spinner("Analysiere Trends..."):
+    calls, puts = get_signals(STOCK_TICKERS)
 
 col_a, col_b = st.columns(2)
 with col_a:
     st.markdown("<h4 style='color:#00FFA3;'>Trend-Favoriten (Call)</h4>", unsafe_allow_html=True)
-    if not calls.empty:
-        st.table(calls[['Status', 'Aktie/Symbol', 'Trend', 'Chance']].reset_index(drop=True))
+    if not calls.empty: st.table(calls[['Status', 'Aktie', 'Trend', 'Chance']].reset_index(drop=True))
 with col_b:
     st.markdown("<h4 style='color:#1E90FF;'>Trend-Favoriten (Put)</h4>", unsafe_allow_html=True)
-    if not puts.empty:
-        st.table(puts[['Status', 'Aktie/Symbol', 'Trend', 'Chance']].reset_index(drop=True))
+    if not puts.empty: st.table(puts[['Status', 'Aktie', 'Trend', 'Chance']].reset_index(drop=True))
 
 st.divider()
 
-# 5b. Einzelwert & Volumen
-st.subheader("🔍 Detail-Analyse & Volumen-Check")
-sel_stock = st.selectbox("Symbol wählen:", ALL_TICKERS, format_func=lambda x: TICKER_NAMES.get(x, x))
+# 5c. EINZELWERT & VOLUMEN
+st.subheader("🔍 Detail-Analyse & Volumen (Letzte 20 Tage)")
+all_options = {**MARKET_TICKERS, **STOCK_TICKERS}
+sel_stock = st.selectbox("Symbol wählen:", list(all_options.keys()), format_func=lambda x: all_options[x])
+
 d_s = get_data(sel_stock, period="60d", interval="4h")
-
 if not d_s.empty:
-    has_vol = 'Volume' in d_s.columns and d_s['Volume'].tail(20).sum() > 0
-    
+    has_vol = 'Volume' in d_s.columns and d_s['Volume'].tail(10).sum() > 0
+    v1, v2 = st.columns([1, 2])
     if has_vol:
-        v_col1, v_col2 = st.columns([1, 2])
-        cur_vol = extract_val(d_s, 'Volume', -1)
-        avg_vol = d_s['Volume'].tail(120).mean()
-        v_diff = ((cur_vol / avg_vol) - 1) * 100 if avg_vol > 0 else 0
-        
-        with v_col1:
-            st.metric("Aktuelles Volumen", f"{cur_vol:,.0f}", f"{v_diff:+.1f}%")
-            st.write(f"**Schnitt (20 Tage):** {avg_vol:,.0f}")
-        with v_col2:
-            st.bar_chart(d_s['Volume'].tail(40))
+        cur_v = extract_val(d_s, 'Volume', -1)
+        avg_v = d_s['Volume'].tail(120).mean()
+        v_diff = ((cur_v / avg_v) - 1) * 100 if avg_v > 0 else 0
+        v1.metric("Aktuelles Volumen", f"{cur_v:,.0f}", f"{v_diff:+.1f}%")
+        v2.bar_chart(d_s['Volume'].tail(40))
     else:
-        st.info(f"ℹ️ Für {TICKER_NAMES.get(sel_stock)} (Währung/Index) sind keine Volumendaten verfügbar.")
-        st.metric("Aktueller Kurs", f"{extract_val(d_s, 'Close', -1):,.4f}")
+        st.info("Keine Volumendaten für dieses Symbol (Währung/Index).")
 
-st.info(f"🕒 Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Alle Märkte integriert | Design-Kontrast verstärkt.")
+st.info(f"🕒 Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Indizes oben, Aktien unten | Spalten auf Weiss/Fett optimiert.")
