@@ -4,33 +4,50 @@ import pandas as pd
 import numpy as np
 from streamlit_autorefresh import st_autorefresh
 
-# --- 1. KONFIGURATION ---
+# --- 1. KONFIGURATION & THEME ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. TICKER-LISTEN ---
-DAX_40_TICKERS = [
-    "ADS.DE", "AIR.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BEI.DE", "BMW.DE", "BNR.DE",
-    "CBK.DE", "CON.DE", "1COV.DE", "DTG.DE", "DBK.DE", "DB1.DE", "DHL.DE", "DTE.DE",
-    "EOAN.DE", "FRE.DE", "FME.DE", "MTX.DE", "HEI.DE", "HEN3.DE", "IFX.DE", "MBG.DE",
-    "MRK.DE", "MUV2.DE", "PAH3.DE", "PUM.DE", "QIA.DE", "RHM.DE", "RWE.DE", "SAP.DE",
-    "SRT3.DE", "SIE.DE", "ENR.DE", "SHL.DE", "SY1.DE", "TKA.DE", "VOW3.DE", "VNA.DE"
-]
-
-NASDAQ_100_TICKERS = [
-    "AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "META", "TSLA", "AVGO", "PEP", "COST",
-    "ADBE", "CSCO", "NFLX", "AMD", "PLTR", "MSTR", "QCOM", "TXN", "ISRG", "PANW"
-]
-
+# --- 2. VOLLSTÄNDIGES NAMENS-MAPPING ---
 TICKER_NAMES = {
+    # Währungen & Indizes (Nur für Wetter)
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", 
-    "^GDAXI": "DAX 40", "^NDX": "NASDAQ 100",
-    "^STOXX50E": "EuroStoxx 50", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50"
+    "^GDAXI": "DAX 40 Index", "^NDX": "NASDAQ 100 Index",
+    "^STOXX50E": "EuroStoxx 50", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
+    # DAX 40 Aktien
+    "ADS.DE": "Adidas", "AIR.DE": "Airbus", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer", 
+    "BEI.DE": "Beiersdorf", "BMW.DE": "BMW", "BNR.DE": "Brenntag", "CBK.DE": "Commerzbank", "CON.DE": "Continental", 
+    "1COV.DE": "Covestro", "DTG.DE": "Daimler Truck", "DBK.DE": "Deutsche Bank", "DB1.DE": "Deutsche Börse", 
+    "DHL.DE": "DHL Group", "DTE.DE": "Deutsche Telekom", "EOAN.DE": "E.ON", "FRE.DE": "Fresenius", 
+    "FME.DE": "Fresenius Medical Care", "MTX.DE": "MTU Aero Engines", "HEI.DE": "Heidelberg Materials", 
+    "HEN3.DE": "Henkel", "IFX.DE": "Infineon", "MBG.DE": "Mercedes-Benz", "MRK.DE": "Merck", 
+    "MUV2.DE": "Münchener Rück", "PAH3.DE": "Porsche SE", "PUM.DE": "Puma", "QIA.DE": "Qiagen", 
+    "RHM.DE": "Rheinmetall", "RWE.DE": "RWE", "SAP.DE": "SAP", "SRT3.DE": "Sartorius", "SIE.DE": "Siemens", 
+    "ENR.DE": "Siemens Energy", "SHL.DE": "Siemens Healthineers", "SY1.DE": "Symrise", "TKA.DE": "Thyssenkrupp", 
+    "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia",
+    # NASDAQ 100 Top-Werte
+    "AAPL": "Apple", "MSFT": "Microsoft", "AMZN": "Amazon", "NVDA": "Nvidia", "GOOGL": "Alphabet (A)", 
+    "META": "Meta (Facebook)", "TSLA": "Tesla", "AVGO": "Broadcom", "PEP": "PepsiCo", "COST": "Costco", 
+    "ADBE": "Adobe", "CSCO": "Cisco", "NFLX": "Netflix", "AMD": "AMD", "PLTR": "Palantir", 
+    "MSTR": "MicroStrategy", "QCOM": "Qualcomm", "TXN": "Texas Instruments", "ISRG": "Intuitive Surgical", "PANW": "Palo Alto"
 }
 
+# Listen-Definitionen
 WEATHER_STRUCTURE = [["EURUSD=X", "EURRUB=X"], ["^GDAXI", "^NDX"], ["^STOXX50E", "XU100.IS", "^NSEI"]]
+STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k and not ".IS" in k]
 
-# --- 3. FUNKTIONEN ---
+# --- 3. DESIGN (DARK BIO-TRADING) ---
+st.markdown("""
+    <style>
+    .stApp { background-color: #0E1117; color: #E0E0E0; }
+    .weather-card { text-align:center; padding:12px; border-radius:10px; background:rgba(30,144,255,0.05); border: 1px solid #1E90FF; margin-bottom: 10px; }
+    [data-testid="stMetricValue"] { font-size: 1.6rem !important; }
+    table { background-color: #161B22 !important; color: white !important; border-radius: 10px; }
+    thead tr th { background-color: #1F2937 !important; color: #8892b0 !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 4. FUNKTIONEN ---
 @st.cache_data(ttl=60)
 def get_data(ticker, period="5d", interval="1h"):
     try:
@@ -42,7 +59,7 @@ def get_data(ticker, period="5d", interval="1h"):
 def extract_val(df, column, idx):
     try:
         val = df[column].iloc[idx]
-        return float(val.iloc[0]) if hasattr(val, 'iloc') else float(val)
+        return float(val.iloc) if hasattr(val, 'iloc') else float(val)
     except: return 0.0
 
 def get_top_5_signals(tickers):
@@ -53,16 +70,16 @@ def get_top_5_signals(tickers):
             cp = extract_val(df, 'Close', -1)
             prev = extract_val(df, 'Close', -2)
             ret = ((cp / prev) - 1) * 100 if prev > 0 else 0
-            signals.append({'Ticker': t, 'Preis': cp, 'Change': ret})
+            signals.append({'Name': TICKER_NAMES.get(t, t), 'Preis': cp, 'Change': ret})
     
     df_sig = pd.DataFrame(signals)
     if df_sig.empty: return pd.DataFrame(), pd.DataFrame()
     return df_sig.nlargest(5, 'Change'), df_sig.nsmallest(5, 'Change')
 
-# --- 4. DASHBOARD LAYOUT ---
+# --- 5. DASHBOARD LAYOUT ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
-# MARKT-WETTER (3 Zeilen)
+# 5a. MARKT-WETTER (3 Zeilen)
 st.subheader("🌐 Globales Markt-Wetter")
 for row in WEATHER_STRUCTURE:
     cols = st.columns(len(row))
@@ -74,43 +91,39 @@ for row in WEATHER_STRUCTURE:
             prec = 5 if "=X" in t else 2
             color = "#00FFA3" if chg_w > 0.1 else "#FF4B4B" if chg_w < -0.1 else "#FFD700"
             with cols[i]:
-                st.markdown(f'<div style="border:1px solid {color}; padding:10px; border-radius:10px; text-align:center; background:rgba(255,255,255,0.02);">'
-                            f'<small>{TICKER_NAMES.get(t, t)}</small><br><b style="font-size:1.2rem;">{cp_w:,.{prec}f}</b>'
-                            f'<br><span style="color:{color}; font-size:0.9rem;">{chg_w:+.2f}%</span></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="weather-card" style="border-color:{color};">'
+                            f'<small style="color:#8892b0;">{TICKER_NAMES.get(t, t)}</small><br>'
+                            f'<b style="font-size:1.3rem; color:white;">{cp_w:,.{prec}f}</b><br>'
+                            f'<span style="color:{color}; font-size:0.9rem;">{chg_w:+.2f}%</span></div>', unsafe_allow_html=True)
 
 st.divider()
 
-# TOP 5 TABELLEN (FEHLER BEHOBEN & FARBEN KORRIGIERT)
-st.subheader("📊 Top 5 Handels-Signale (DAX & NASDAQ)")
+# 5b. TOP 5 TABELLEN (NUR AKTIENNAMEN)
+st.subheader("📊 Top 5 Aktien-Bewegungen (DAX & NASDAQ)")
 t_col1, t_col2 = st.columns(2)
 
-with st.spinner("Scanne Märkte..."):
-    calls, puts = get_top_5_signals(DAX_40_TICKERS + NASDAQ_100_TICKERS)
+with st.spinner("Aktualisiere Top-Werte..."):
+    calls, puts = get_top_5_signals(STOCKS_ONLY)
 
 if not calls.empty:
     with t_col1:
-        st.markdown("<h3 style='color:#00FFA3;'>🟢 Top 5 CALL (Stärkste)</h3>", unsafe_allow_html=True)
-        # Korrektur: Nur einfache Spaltenliste, kein doppelter Ticker
-        st.table(calls[['Ticker', 'Preis', 'Change']].style.format({'Preis': '{:.2f}', 'Change': '{:+.2f}%'})\
-                 .set_properties(**{'background-color': 'rgba(0, 255, 163, 0.05)', 'color': '#00FFA3', 'border-color': '#00FFA3'}))
+        st.markdown("<h3 style='color:#00FFA3;'>🟢 Top 5 CALL (Long-Favoriten)</h3>", unsafe_allow_html=True)
+        st.table(calls[['Name', 'Preis', 'Change']].style.format({'Preis': '{:.2f}', 'Change': '{:+.2f}%'}))
 
     with t_col2:
-        st.markdown("<h3 style='color:#FF4B4B;'>🔴 Top 5 PUT (Schwächste)</h3>", unsafe_allow_html=True)
-        # Korrektur: 'Ticker' war doppelt -> jetzt gefixt
-        st.table(puts[['Ticker', 'Preis', 'Change']].style.format({'Preis': '{:.2f}', 'Change': '{:+.2f}%'})\
-                 .set_properties(**{'background-color': 'rgba(255, 75, 75, 0.05)', 'color': '#FF4B4B', 'border-color': '#FF4B4B'}))
+        st.markdown("<h3 style='color:#FF4B4B;'>🔴 Top 5 PUT (Short-Chancen)</h3>", unsafe_allow_html=True)
+        st.table(puts[['Name', 'Preis', 'Change']].style.format({'Preis': '{:.2f}', 'Change': '{:+.2f}%'}))
 
 st.divider()
 
-# EINZELWERT ANALYSE
-st.subheader("🔍 Analyse Einzelwert")
-all_stocks = sorted(DAX_40_TICKERS + NASDAQ_100_TICKERS)
-sel_stock = st.selectbox("Aktie wählen:", all_stocks)
+# 5c. EINZELWERT ANALYSE
+all_stocks_sorted = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
+sel_stock = st.selectbox("Einzelwert im Detail analysieren:", all_stocks_sorted, format_func=lambda x: TICKER_NAMES.get(x, x))
 
 d_s = get_data(sel_stock, period="60d", interval="4h")
 if not d_s.empty:
     cp = extract_val(d_s, 'Close', -1)
-    st.metric(f"Aktueller Kurs: {sel_stock}", f"{cp:,.2f}")
+    st.metric(f"Aktueller Kurs: {TICKER_NAMES[sel_stock]}", f"{cp:,.2f}")
     st.line_chart(d_s['Close'])
 
-st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%H:%M:%S')} | Quelle: Yahoo Finance")
+st.info(f"🕒 Letztes Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Quelle: Yahoo Finance (Live)")
