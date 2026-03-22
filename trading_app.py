@@ -168,37 +168,51 @@ st.markdown("""
 @st.cache_data(ttl=60)
 def get_analysis(ticker_symbol):
     import yfinance as yf
-    res = {"cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 50, "df": None}
+    import pandas as pd
+    
+    res = {"cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 50.0, "df": None}
     
     try:
-        # WICHTIG: Zeitraum auf 1 Jahr (1y) stellen für 250-Tage-Werte
         tk = yf.Ticker(ticker_symbol)
-        df = tk.history(period="1y") 
+        df = tk.history(period="1y") # 1 Jahr laden für 250-Tage-Werte
         
-        if not df.empty and len(df) > 1:
-            # Aktuelle Werte (letzte Zeile)
-            res["cp"] = float(df["Close"].iloc[-1])
-            res["vol"] = float(df["Volume"].iloc[-1])
-            res["chg"] = ((df["Close"].iloc[-1] / df["Close"].iloc[-2]) - 1) * 100
+        if not df.empty and len(df) > 20:
+            cp = float(df["Close"].iloc[-1])
+            h250 = float(df["High"].max())
+            l250 = float(df["Low"].min())
+            chg = ((cp / df["Close"].iloc[-2]) - 1) * 100
             
-            # 250-Tage Werte (Maximum/Minimum des gesamten Zeitraums)
-            res["h250"] = float(df["High"].max())
-            res["l250"] = float(df["Low"].min())
-            
-            # Einfache ATR Berechnung (Vola)
+            # ATR Berechnung für Vola-Komponente
             df['TR'] = df['High'] - df['Low']
-            res["atr"] = float(df['TR'].tail(14).mean())
+            atr = float(df['TR'].tail(14).mean())
             
-            # Dummy Chance-Logik (hier deine eigene Logik nutzen)
-            res["chance"] = round(random.uniform(51, 58), 2)
-            base_chance = 50
-            trend_bonus = abs(res["chg"]) * 2 # Je stärker die Bewegung, desto höher die Chance
-            res["chance"] = round(base_chance + trend_bonus, 2)
-            res["df"] = df
+            # --- DYNAMISCHE CHANCE-BERECHNUNG ---
+            # Basis ist 50%. Wir addieren Faktoren für einen realistischen Score.
+            # 1. Trend-Stärke (höherer Trend = leicht höhere Chance)
+            trend_factor = abs(chg) * 0.5 
             
-    except Exception as e:
-        print(f"Fehler bei {ticker_symbol}: {e}")
+            # 2. Position im Jahresband (Mean Reversion)
+            # Wenn Aktie weit vom Hoch/Tief weg ist, steigt die statistische Chance
+            pos_pct = (cp - l250) / (h250 - l250) if h250 > l250 else 0.5
+            range_factor = (0.5 - abs(pos_pct - 0.5)) * 4 
+            
+            # 3. Volatilitäts-Bonus
+            vola_factor = (atr / cp) * 10 
+            
+            # Finaler Score (begrenzt auf einen Bereich von 51% bis 59.9%)
+            raw_chance = 51.0 + trend_factor + range_factor + vola_factor
+            final_chance = round(max(51.0, min(59.9, raw_chance)), 2)
+
+            res.update({
+                "cp": cp, "h250": h250, "l250": l250, "chg": chg,
+                "atr": atr, "vol": float(df["Volume"].iloc[-1]),
+                "chance": final_chance,
+                "df": df
+            })
+    except:
+        pass
     return res
+
 
 def get_style(chg):
     if chg > 0.15: return "☀️", "#00FFA3", "🟢"
