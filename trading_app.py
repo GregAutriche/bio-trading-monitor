@@ -58,7 +58,6 @@ st.title("🚀 Bio-Trading Monitor Live PRO")
 st.markdown(f'<div class="update-info">🕒 Update: <b>{datetime.now().strftime("%H:%M:%S")}</b> | Intervall: 60s</div>', unsafe_allow_html=True)
 
 # 5a. MARKT-WETTER (3 ZEILEN)
-# 5a. MARKT-WETTER (3 ZEILEN)
 st.subheader("🌐 Globales Markt-Wetter")
 WEATHER_ROWS = [["EURUSD=X", "EURRUB=X"], ["^GDAXI", "^NDX"], ["^STOXX50E", "^NSEI", "XU100.IS"]]
 
@@ -110,19 +109,51 @@ if not df_sig.empty:
 
 st.divider()
 
-# 5c. DETAIL-ANALYSE
-st.subheader("🔍 Detail-Analyse (Aktien)")
-sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
-sel_stock = st.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
+# --- 5c. DETAIL-ANALYSE (MIT SINNVOLLER GRAFIK) ---
+st.subheader(f"🔍 Detail-Analyse: {TICKER_NAMES.get(sel_stock, sel_stock)}")
 
 res_d = get_analysis(sel_stock)
 if res_d["cp"] > 0:
     icon_d, _, dot_d = get_style(res_d["chg"])
+    
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("KURS", f"{res_d['cp']:,.2f}", f"{res_d['chg']:+.2f}%")
     col2.metric("CHANCE", f"{res_d['chance']}%", delta=f"{res_d['chance']-50}%")
     col3.metric("ATR (14h)", f"{res_d['atr']:.2f}")
-    col4.metric("VOLUMEN", f"{res_d['vol']:,.0f}")
+    col4.metric("VOLUMEN (AKT.)", f"{res_d['vol']:,.0f}")
     
     st.write(f"**Wetter-Status:** {icon_d} {dot_d}")
-    st.bar_chart(res_d["df"]['Volume'].tail(40), color="#1E90FF")
+
+    # --- PROFESSIONELLE CHART-LOGIK (OHNE ZEITLÜCKEN) ---
+    df_plot = res_d["df"].tail(40).copy()
+    
+    # Wir erstellen zwei Subplots: Kurs oben, Volumen unten
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
+                        vertical_spacing=0.05, row_heights=[0.7, 0.3])
+
+    # 1. Kurs-Linie
+    fig.add_trace(go.Scatter(x=df_plot.index, y=df_plot['Close'], 
+                             name="Kurs", line=dict(color='#00FFA3', width=2)), row=1, col=1)
+
+    # 2. Volumen-Balken
+    fig.add_trace(go.Bar(x=df_plot.index, y=df_plot['Volume'], 
+                         name="Volumen", marker_color='#1E90FF', opacity=0.7), row=2, col=1)
+
+    # Layout-Anpassungen für Dark Mode und kompakte Darstellung
+    fig.update_layout(
+        height=500,
+        margin=dict(l=0, r=0, t=20, b=0),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        showlegend=False,
+        xaxis_rangeslider_visible=False
+    )
+    
+    # Entfernt die Lücken (Wochenende/Nacht) auf der X-Achse
+    fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"]), dict(bounds=[17.5, 9], pattern="hour")])
+    fig.update_yaxes(gridcolor='#333')
+
+    st.plotly_chart(fig, use_container_width=True)
