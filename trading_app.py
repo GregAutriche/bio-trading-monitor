@@ -33,25 +33,68 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 4. ZENTRALE FUNKTION ---
-@st.cache_data(ttl=60)
-def get_analysis(ticker):
     try:
-        df = yf.download(ticker, period="30d", interval="1h", progress=False)
-        if df.empty or len(df) < 15: return {"cp": 0.0, "chg": 0.0, "chance": 50, "atr": 0.0, "vol": 0, "df": df}
-        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-        cp = float(df['Close'].iloc[-1])
-        chg = ((cp / float(df['Close'].iloc[-2])) - 1) * 100
-        atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1]
-        np.random.seed(42)
-        sim = np.random.normal(0, 0.01, 1000)
-        chance = int((sim > 0).sum() / 10)
-        return {"cp": cp, "chg": chg, "chance": chance, "atr": atr, "vol": int(df['Volume'].iloc[-1]), "df": df}
-    except: return {"cp": 0.0, "chg": 0.0, "chance": 50, "atr": 0.0, "vol": 0, "df": pd.DataFrame()}
+        import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
 
-def get_style(chg):
-    if chg > 0.15: return "☀️", "#00FFA3", "🟢"
-    if chg < -0.15: return "⛈️", "#1E90FF", "🔵"
-    return "☁️", "#8892b0", "⚪"
+        df_plot = res_d["df"].tail(60).copy()
+        df_plot['x_label'] = df_plot.index.strftime('%d.%m %H:%M')
+        
+        # Dual-Axis Setup
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+        # A. VOLUMEN (Balken) -> Linke Y-Achse
+        fig.add_trace(
+            go.Bar(
+                x=df_plot['x_label'], 
+                y=df_plot['Volume'], 
+                name="Volumen", 
+                marker_color='#1E90FF', 
+                opacity=0.25 # Etwas dezenter im Hintergrund
+            ),
+            secondary_y=False,
+        )
+
+        # B. CANDLESTICKS (Kerzen) -> Rechte Y-Achse
+        fig.add_trace(
+            go.Candlestick(
+                x=df_plot['x_label'],
+                open=df_plot['Open'],
+                high=df_plot['High'],
+                low=df_plot['Low'],
+                close=df_plot['Close'],
+                name="Kurs",
+                increasing_line_color='#00FFA3', # Bio-Grün für steigend
+                decreasing_line_color='#FF4B4B'  # Rot für fallend
+            ),
+            secondary_y=True,
+        )
+
+        # Layout-Anpassungen
+        fig.update_layout(
+            height=500,
+            margin=dict(l=0, r=0, t=10, b=0),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            showlegend=False,
+            xaxis_rangeslider_visible=False, # Range Slider ausblenden für mehr Platz
+            xaxis=dict(
+                type='category',
+                tickangle=-45,
+                nticks=10,
+                gridcolor='#333',
+                showgrid=False
+            )
+        )
+
+        # Achsen-Konfiguration
+        fig.update_yaxes(title_text="Volumen (links)", secondary_y=False, showgrid=False, color="#8892b0")
+        fig.update_yaxes(title_text="Kurs (rechts)", secondary_y=True, gridcolor='#444', side="right")
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    except ImportError:
+        st.error("Bitte installiere Plotly: 'pip install plotly'")
 
 # --- 5. DASHBOARD ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
