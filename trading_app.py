@@ -152,74 +152,88 @@ if not df_sig.empty:
 
 st.divider()
 
-# --- 5c. DETAIL-ANALYSE (FIX: REIHENFOLGE & DURCHGEHENDE GRAFIK) ---
-st.divider()
-st.subheader("🔍 Detail-Analyse & Volumen-Profil")
+# --- 5c. DETAIL-ANALYSE (CANDLESTICKS & VOLUMEN-PROFIL) ---
+st.subheader(f"🔍 Detail-Analyse: {TICKER_NAMES.get(sel_stock, sel_stock)}")
 
-# 1. Auswahl (Nur Aktien)
-sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
-sel_stock = st.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
-
-# 2. Datenabruf (JETZT DEFINIERT: res_d wird hier erstellt)
+# Daten abrufen (Synchronisiert über die zentrale Funktion)
 res_d = get_analysis(sel_stock)
 
-# Sicherstellen, dass Daten vorhanden sind
 if res_d["cp"] > 0:
-    # 3. Metriken anzeigen
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("KURS", f"{res_d['cp']:,.2f}", f"{res_d['chg']:+.2f}%")
-    col2.metric("CHANCE", f"{res_d['chance']}%", delta=f"{res_d['chance']-50}%")
-    col3.metric("ATR (14h)", f"{res_d['atr']:.2f}")
-    col4.metric("VOLUMEN", f"{res_d['vol']:,.0f}")
+    # Wetter-Status-Symbole für die Anzeige
+    icon_d, color_d, dot_d = get_style(res_d["chg"])
+    
+    # Metriken-Leiste (Kurs, Chance, ATR, Volumen)
+    col_d1, col_d2, col_d3, col_d4 = st.columns(4)
+    col_d1.metric("KURS", f"{res_d['cp']:,.2f}", f"{res_d['chg']:+.2f}%")
+    col_d2.metric("CHANCE", f"{res_d['chance']}%", delta=f"{res_d['chance']-50}%")
+    col_d3.metric("ATR (14h)", f"{res_d['atr']:.2f}")
+    col_d4.metric("VOLUMEN", f"{res_d['vol']:,.0f}")
+    
+    st.markdown(f"**Aktueller Status:** {icon_d} {dot_d} | **Volumen-Profil (Lückenlos):**")
 
-    # 4. Profi-Grafik (Durchgehend: Links Volumen / Rechts Kurs)
+    # --- PROFESSIONELLE PLOTLY GRAFIK ---
     try:
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
 
-        # Daten vorbereiten
+        # Daten für Chart vorbereiten (letzte 60 Perioden)
         df_plot = res_d["df"].tail(60).copy()
-        # Zeit-Label als Text formatieren (Trick für durchgehende Achse)
-        df_plot['x_label'] = df_plot.index.strftime('%d.%m %H:%M')
+        df_plot['x_label'] = df_plot.index.strftime('%d.%m %H:%M') # Text-Label für lückenlose X-Achse
         
-        # Dual-Axis Setup
+        # Erstelle Figur mit sekundärer Y-Achse
         fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-        # VOLUMEN (Balken) -> Linke Y-Achse
+        # 1. VOLUMEN (Links / Hintergrund)
         fig.add_trace(
-            go.Bar(x=df_plot['x_label'], y=df_plot['Volume'], name="Volumen", 
-                   marker_color='#1E90FF', opacity=0.3),
+            go.Bar(
+                x=df_plot['x_label'], 
+                y=df_plot['Volume'], 
+                name="Volumen", 
+                marker_color='#1E90FF', 
+                opacity=0.25  # Dezent im Hintergrund
+            ),
             secondary_y=False,
         )
 
-        # KURS (Linie) -> Rechte Y-Achse (JETZT DURCHGEHEND)
+        # 2. CANDLESTICKS (Rechts / Vordergrund)
         fig.add_trace(
-            go.Scatter(x=df_plot['x_label'], y=df_plot['Close'], name="Kurs", 
-                       line=dict(color='#00FFA3', width=3), connectgaps=True),
+            go.Candlestick(
+                x=df_plot['x_label'],
+                open=df_plot['Open'],
+                high=df_plot['High'],
+                low=df_plot['Low'],
+                close=df_plot['Close'],
+                name="Kurs",
+                increasing_line_color='#00FFA3', # Grün für Aufwärts
+                decreasing_line_color='#FF4B4B', # Rot für Abwärts
+                increasing_fillcolor='#00FFA3',
+                decreasing_fillcolor='#FF4B4B'
+            ),
             secondary_y=True,
         )
 
-        # Layout-Anpassungen (Dark Mode & Kategorie-Achse)
+        # Layout-Konfiguration
         fig.update_layout(
-            height=450, margin=dict(l=0, r=0, t=10, b=0),
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+            height=500,
+            margin=dict(l=0, r=0, t=10, b=0),
+            paper_bgcolor='rgba(0,0,0,0)', # Transparent an Streamlit angepasst
+            plot_bgcolor='rgba(0,0,0,0)',
             showlegend=False,
+            xaxis_rangeslider_visible=False, # Slider aus für mehr Fokus
             xaxis=dict(
-                type='category', # Entfernt alle Zeitlücken automatisch
+                type='category', # Entfernt Zeitlücken automatisch
                 tickangle=-45,
-                nticks=10,
+                nticks=12,
                 gridcolor='#333',
                 showgrid=False
             )
         )
 
-        # Achsen-Konfiguration
-        fig.update_yaxes(title_text="Volumen (links)", secondary_y=False, showgrid=False, color="#8892b0")
-        fig.update_yaxes(title_text="Kurs (rechts)", secondary_y=True, gridcolor='#333', side="right")
+        # Achsen-Beschriftungen
+        fig.update_yaxes(title_text="Volumen (Links)", secondary_y=False, showgrid=False, color="#8892b0")
+        fig.update_yaxes(title_text="Kurs (Rechts)", secondary_y=True, gridcolor='#333', side="right")
 
         st.plotly_chart(fig, use_container_width=True)
 
-    except ImportError:
-        st.error("Bitte installiere Plotly: 'pip install plotly'")
-else:
-    st.warning("Keine Daten für dieses Symbol verfügbar.")
+    except Exception as e:
+        st.error(f"Grafik-Modul konnte nicht geladen werden: {e}")
