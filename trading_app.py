@@ -58,24 +58,36 @@ st.title("🚀 Bio-Trading Monitor Live PRO")
 st.markdown(f'<div class="update-info">🕒 Update: <b>{datetime.now().strftime("%H:%M:%S")}</b> | Intervall: 60s</div>', unsafe_allow_html=True)
 
 # 5a. MARKT-WETTER (3 ZEILEN)
+# 5a. MARKT-WETTER (3 ZEILEN)
+st.subheader("🌐 Globales Markt-Wetter")
 WEATHER_ROWS = [["EURUSD=X", "EURRUB=X"], ["^GDAXI", "^NDX"], ["^STOXX50E", "^NSEI", "XU100.IS"]]
+
 for row in WEATHER_ROWS:
     cols = st.columns(len(row))
     for i, t in enumerate(row):
         res = get_analysis(t)
         icon, color, dot = get_style(res["chg"])
-        # Fix für ValueError: CSS-Klammern werden durch doppeltes {{ }} geschützt
-        st.markdown(f"""
-            <div class="weather-card" style="border-color:{color};">
-                <div style="display: flex; justify-content: space-between;"><small>{TICKER_NAMES.get(t,t)}</small><span>{icon}</span></div>
-                <b style="font-size:1.5rem;">{res["cp"]: ,.2f if "^" in t else .4f}</b><br>
-                <div style="display: flex; justify-content: space-between; margin-top: 5px;">
-                    <span style="color:{color};">{res["chg"]:+.2f}%</span><span>{dot}</span>
+        
+        # FIX FÜR DEN VALUE-ERROR: Formatierung vorab definieren
+        prec = ".2f" if "^" in t else ".4f"
+        price_formated = f"{res['cp']:,{prec}}"
+        
+        with cols[i]:
+            st.markdown(f"""
+                <div class="weather-card" style="border-color:{color};">
+                    <div style="display: flex; justify-content: space-between;">
+                        <small style="color:#8892b0;">{TICKER_NAMES.get(t,t)}</small>
+                        <span>{icon}</span>
+                    </div>
+                    <b style="font-size:1.5rem; color:white;">{price_formated}</b><br>
+                    <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                        <span style="color:{color}; font-weight:bold;">{res["chg"]:+.2f}%</span>
+                        <span>{dot}</span>
+                    </div>
                 </div>
-            </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+    st.write("") # Abstandhalter
 
-st.divider()
 
 # 5b. TOP 5 AKTIEN NACH CHANCE
 st.subheader("📊 Top 5 Aktien-Chancen")
