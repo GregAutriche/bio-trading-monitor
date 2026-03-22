@@ -219,6 +219,14 @@ st.markdown(f"""
 # --- 5.1 INFO-EXPANDER (DOKUMENTATION) ---
 with st.expander("ℹ️ Hilfe & Dokumentation: Wie werden die Werte berechnet?"):
     st.markdown("""
+    ### 📈 Grafik-Beschreibung
+    Das Chart kombiniert zwei wichtige Informationsebenen:
+    1. **Candlesticks (Kerzen):** Zeigen Eröffnung, Schluss, Hoch und Tief pro Stunde. 
+       - <span style='color:#00FFA3;'>Grün</span> = Kurs gestiegen.
+       - <span style='color:#FF4B4B;'>Rot</span> = Kurs gefallen.
+    2. **Volumen-Profil (Blau):** Die blauen Balken im Hintergrund nutzen die **linke Y-Achse**. Sie zeigen die Handelsaktivität.
+    3. **Lückenlos-Achse:** Wochenenden und Nachtstunden werden ausgeblendet, um eine unterbrechungsfreie technische Analyse zu ermöglichen.
+    ---
     ### 📊 Top 5 Aktien-Chancen
     Die Top-Listen werden bei jedem Refresh (60s) neu generiert. 
     - **Scan:** Es werden alle hinterlegten DAX 40 und NASDAQ 100 Werte (ca. 130+ Aktien) analysiert.
@@ -241,14 +249,6 @@ with st.expander("ℹ️ Hilfe & Dokumentation: Wie werden die Werte berechnet?"
     Riskierst beispielsweise EUR 100 (wenn der Stop-Loss erreicht wird).
     Zielst auf einen Gewinn von EUR 300 (wenn das Ziel erreicht wird).
     Bedeutung für die Strategie: Ein CRV von 3.0 ist mathematisch sehr wertvoll. Es erlaubt dir, selbst dann profitabel zu sein, wenn nur 30 % deiner Trades gewinnen.
-    
-    ### 📈 Grafik-Beschreibung
-    Das Chart kombiniert zwei wichtige Informationsebenen:
-    1. **Candlesticks (Kerzen):** Zeigen Eröffnung, Schluss, Hoch und Tief pro Stunde. 
-       - <span style='color:#00FFA3;'>Grün</span> = Kurs gestiegen.
-       - <span style='color:#FF4B4B;'>Rot</span> = Kurs gefallen.
-    2. **Volumen-Profil (Blau):** Die blauen Balken im Hintergrund nutzen die **linke Y-Achse**. Sie zeigen die Handelsaktivität.
-    3. **Lückenlos-Achse:** Wochenenden und Nachtstunden werden ausgeblendet, um eine unterbrechungsfreie technische Analyse zu ermöglichen.
     """, unsafe_allow_html=True)
 
 
