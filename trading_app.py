@@ -78,31 +78,90 @@ TICKER_NAMES = {
 STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k and k != "XU100.IS"]
 
 # --- 3. DESIGN (DARK MODE & KONTRAST) ---
+# --- 3. DESIGN (DARK BIO-TRADING THEME - OPTIMIERT) ---
 st.markdown("""
     <style>
-        /* Metriken schärfer und kleiner machen */
+    /* 1. Haupt-Hintergrund & Basisschrift */
+    .stApp { 
+        background-color: #0E1117 !important; 
+        color: #FFFFFF !important; 
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* 2. METRIKEN (K Kurs, ATR, Chance etc.) */
+    /* Wert-Anzeige (Groß, Weiß, Fett) */
     [data-testid="stMetricValue"] {
-        font-size: 1.6rem !important; /* Etwas kleiner */
-        font-weight: 800 !important;   /* Extra fett */
-        color: #FFFFFF !important;    /* Reinweiß */
+        font-size: 1.5rem !important; /* Etwas kleiner für Kompaktheit */
+        font-weight: 800 !important;   /* Maximale Schärfe durch Fettdruck */
+        color: #FFFFFF !important;    /* Absolutes Weiß */
+        letter-spacing: -0.5px;
     }
+    
+    /* Label-Anzeige (Klein, Grau, Über dem Wert) */
     [data-testid="stMetricLabel"] {
-        font-size: 0.8rem !important;  /* Kleinere Labels */
-        color: #8892b0 !important;    /* Dezentes Grau */
-        text-transform: uppercase;
+        font-size: 0.75rem !important;
+        color: #8892b0 !important;    /* Dezentes Blau-Grau */
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+        margin-bottom: -5px !important;
     }
-    /* Kompakterer Abstand */
+
+    /* Container der Metriken (Kompakter & dezent hinterlegt) */
     div[data-testid="stMetric"] {
-        padding: 5px 10px;
-        background: rgba(255,255,255,0.02);
-        border-radius: 8px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.05);
+        padding: 8px 12px !important;
+        border-radius: 10px;
     }
-    """, unsafe_allow_html=True)
-    .stApp { background-color: #0E1117 !important; color: #FFFFFF !important; }
-    .weather-card { text-align:center; border-radius:12px; background:rgba(255,255,255,0.03); border: 2px solid #333; padding: 15px; margin-bottom: 10px; }
-    .update-info { color: #8892b0; font-size: 0.85rem; margin-bottom: 20px; text-align: center; border: 1px solid #1E90FF; padding: 5px; border-radius: 5px; }
-    thead tr th { background-color: #2D3748 !important; color: #FFFFFF !important; font-weight: 900 !important; border-bottom: 3px solid #1E90FF !important; }
-    tbody tr td { color: #FFFFFF !important; background-color: #161B22 !important; border-bottom: 1px solid #30363D !important; }
+
+    /* 3. SPEZIAL-BOX FÜR CRV (Zusätzlicher Wert) */
+    .crv-box {
+        text-align: center;
+        border: 1px solid #1E90FF;
+        background: rgba(30,144,255,0.1);
+        border-radius: 10px;
+        padding: 5px;
+        height: 100%;
+    }
+
+    /* 4. MARKT-WETTER KARTEN (Oben) */
+    .weather-card { 
+        text-align: center; 
+        border-radius: 12px; 
+        background: rgba(255,255,255,0.03); 
+        border: 2px solid #333; 
+        padding: 12px; 
+        margin-bottom: 10px; 
+    }
+
+    /* 5. TABELLEN (Top 5 - Maximaler Kontrast) */
+    thead tr th { 
+        background-color: #2D3748 !important; 
+        color: #FFFFFF !important; 
+        font-weight: 900 !important; 
+        font-size: 0.9rem !important;
+        border-bottom: 3px solid #1E90FF !important;
+        text-transform: uppercase !important;
+    }
+    tbody tr td { 
+        color: #FFFFFF !important; 
+        background-color: #161B22 !important;
+        border-bottom: 1px solid #30363D !important;
+        font-size: 0.95rem !important;
+    }
+
+    /* 6. STATUS-BANNER (Detail-Analyse) */
+    .status-banner {
+        background: rgba(255,255,255,0.03); 
+        padding: 12px; 
+        border-radius: 12px; 
+        border-left: 6px solid #1E90FF; 
+        margin-bottom: 15px;
+    }
+    
+    /* Scrollbars dezent machen */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
