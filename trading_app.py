@@ -463,7 +463,7 @@ try:
 
         st.plotly_chart(fig, use_container_width=True)
         
-    except Exception as e:
+except Exception as e:
         st.error(f"Grafik-Fehler: {e}")
 
 else:
