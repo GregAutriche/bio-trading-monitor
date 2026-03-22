@@ -234,33 +234,21 @@ if not df_sig.empty:
 
 
 # --- 5c. DETAIL-ANALYSE (MIT TRADING-SETUP & CHART-LINIEN) ---
-# --- 5c. DETAIL-ANALYSE (REIHENFOLGE KORRIGIERT) ---
 st.divider()
 
-# 1. ZUERST die Auswahl erstellen (definiert sel_stock)
+# 1. Auswahl & Überschrift
 sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
-sel_stock = st.selectbox(
-    "Aktie für Analyse wählen:", 
-    sorted_stocks, 
-    format_func=lambda x: TICKER_NAMES.get(x, x)
-)
-
-# 2. JETZT kann die Überschrift sel_stock benutzen
+sel_stock = st.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
 st.subheader(f"🔍 Detail-Analyse: {TICKER_NAMES.get(sel_stock, sel_stock)}")
 
-# 3. Daten abrufen
 res_d = get_analysis(sel_stock)
 
 if res_d["cp"] > 0:
-    cp = res_d["cp"]
-    atr = res_d["atr"]
-    chance = res_d["chance"]
-    chg = res_d["chg"]
+    cp, atr, chance, chg = res_d["cp"], res_d["atr"], res_d["chance"], res_d["chg"]
     
     # Trading-Logik (ATR-basiert)
     risk = atr * 1.5
     reward = risk * 3.0
-    
     if chance >= 50:
         setup_type, setup_color = "LONG (CALL)", "#00FFA3"
         target, stop = cp + reward, cp - risk
@@ -277,16 +265,21 @@ if res_d["cp"] > 0:
         </div>
     """, unsafe_allow_html=True)
 
-    # Metriken
-    m1, m2, m3, m4, m5, m6 = st.columns(6)
-    m1.metric("KURS", f"{cp:,.2f}", f"{chg:+.2f}%")
-    m2.metric("CHANCE", f"{chance}%")
-    m3.metric("ZIEL (TP)", f"{target:,.2f}", f"{(target/cp-1)*100:+.2f}%")
-    m4.metric("STOP (SL)", f"{stop:,.2f}", f"{(stop/cp-1)*100:+.2f}%", delta_color="inverse")
-    m5.metric("ATR (14h)", f"{atr:.2f}")
-    m6.metric("VOLUMEN", f"{res_d['vol']:,.0f}")
+    # --- METRIKEN IN ZWEI ZEILEN ---
+    
+    # 1. Zeile: Markt-Basisdaten
+    r1c1, r1c2, r1c3 = st.columns(3)
+    r1c1.metric("KURS", f"{cp:,.2f}", f"{chg:+.2f}%")
+    r1c2.metric("ATR (14h)", f"{atr:.2f}")
+    r1c3.metric("VOLUMEN", f"{res_d['vol']:,.0f}")
 
-    # Grafik
+    # 2. Zeile: Trading-Strategie
+    r2c1, r2c2, r2c3 = st.columns(3)
+    r2c1.metric("CHANCE", f"{chance}%", delta=f"{chance-50}%")
+    r2c2.metric("ZIEL (TP)", f"{target:,.2f}", f"{(target/cp-1)*100:+.2f}%")
+    r2c3.metric("STOP (SL)", f"{stop:,.2f}", f"{(stop/cp-1)*100:+.2f}%", delta_color="inverse")
+
+    # 3. Grafik (Lückenlose Candlesticks)
     try:
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
@@ -297,15 +290,14 @@ if res_d["cp"] > 0:
         fig.add_trace(go.Bar(x=df_plot['x_label'], y=df_plot['Volume'], name="Volumen", marker_color='#1E90FF', opacity=0.2), secondary_y=False)
         fig.add_trace(go.Candlestick(x=df_plot['x_label'], open=df_plot['Open'], high=df_plot['High'], low=df_plot['Low'], close=df_plot['Close'], name="Kurs", increasing_line_color='#00FFA3', decreasing_line_color='#FF4B4B'), secondary_y=True)
         
-        # Setup-Linien
+        # Setup-Linien im Chart
         fig.add_hline(y=target, line_dash="dash", line_color="#00FFA3", annotation_text="ZIEL", secondary_y=True)
         fig.add_hline(y=stop, line_dash="dash", line_color="#FF4B4B", annotation_text="STOP", secondary_y=True)
         
-        fig.update_layout(height=550, margin=dict(l=0, r=0, t=10, b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, xaxis_rangeslider_visible=False, xaxis=dict(type='category', tickangle=-45, nticks=12, showgrid=False))
+        fig.update_layout(height=500, margin=dict(l=0, r=0, t=10, b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, xaxis_rangeslider_visible=False, xaxis=dict(type='category', tickangle=-45, nticks=12, showgrid=False))
         st.plotly_chart(fig, use_container_width=True)
     except Exception as e:
         st.error(f"Grafik-Fehler: {e}")
-
 else:
     st.warning("Keine Daten für dieses Symbol verfügbar.")
 
