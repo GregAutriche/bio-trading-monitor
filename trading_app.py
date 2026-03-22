@@ -191,6 +191,9 @@ def get_analysis(ticker_symbol):
             
             # Dummy Chance-Logik (hier deine eigene Logik nutzen)
             res["chance"] = round(random.uniform(51, 58), 2)
+            base_chance = 50
+            trend_bonus = abs(res["chg"]) * 2 # Je stärker die Bewegung, desto höher die Chance
+            res["chance"] = round(base_chance + trend_bonus, 2)
             res["df"] = df
             
     except Exception as e:
