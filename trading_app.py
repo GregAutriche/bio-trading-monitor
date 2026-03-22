@@ -86,6 +86,7 @@ for row in WEATHER_ROWS:
 st.divider()
 
 # 5b. TOP 5 AKTIEN NACH CHANCE
+# --- 5b. TOP 5 AKTIEN NACH CHANCE (MIT TREND-FILTER) ---
 st.subheader("📊 Top 5 Aktien-Chancen")
 signals = []
 for s in STOCKS_ONLY:
@@ -95,17 +96,30 @@ for s in STOCKS_ONLY:
         rets = np.log(df_s['Close'] / df_s['Close'].shift(1)).dropna()
         chance = int((np.random.normal(rets.mean(), rets.std(), 1000) > 0).sum() / 10)
         cp, chg, icon, color, dot = get_weather_info(df_s)
-        signals.append({'Status': dot, 'Aktie': TICKER_NAMES.get(s,s), 'Trend': f"{chg:+.2f}%", 'Chance': chance})
+        signals.append({
+            'Status': dot, 
+            'Aktie': TICKER_NAMES.get(s,s), 
+            'Trend_Val': chg, 
+            'Trend': f"{chg:+.2f}%", 
+            'Chance': chance
+        })
 
 df_sig = pd.DataFrame(signals)
 c_t1, c_t2 = st.columns(2)
+
 if not df_sig.empty:
     with c_t1:
         st.markdown("<h4 style='color:#00FFA3;'>Top 5 CALL (Chance)</h4>", unsafe_allow_html=True)
-        st.table(df_sig.nlargest(5, 'Chance')[['Status', 'Aktie', 'Trend', 'Chance']])
+        # FILTER: Nur positiver Trend, dann nach höchster Chance sortieren
+        calls = df_sig[df_sig['Trend_Val'] > 0].nlargest(5, 'Chance')
+        st.table(calls[['Status', 'Aktie', 'Trend', 'Chance']])
+        
     with c_t2:
         st.markdown("<h4 style='color:#1E90FF;'>Top 5 PUT (Chance)</h4>", unsafe_allow_html=True)
-        st.table(df_sig.nsmallest(5, 'Chance')[['Status', 'Aktie', 'Trend', 'Chance']])
+        # FILTER: Nur negativer Trend, dann nach niedrigster Chance sortieren
+        puts = df_sig[df_sig['Trend_Val'] < 0].nsmallest(5, 'Chance')
+        st.table(puts[['Status', 'Aktie', 'Trend', 'Chance']])
+
 
 st.divider()
 
