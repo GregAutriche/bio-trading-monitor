@@ -118,54 +118,53 @@ if not calls.empty:
 
 st.divider()
 
-# 5c. EINZELWERT ANALYSE (ERWEITERT)
+# --- 5c. EINZELWERT ANALYSE (MIT VOLUMENS-CHART) ---
 st.subheader("🔍 Einzelwert im Detail analysieren")
 all_stocks_sorted = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
 sel_stock = st.selectbox("Aktie wählen:", all_stocks_sorted, format_func=lambda x: TICKER_NAMES.get(x, x))
 
-d_s = get_data(sel_stock, period="60d", interval="4h")
+d_s = get_data(sel_stock, period="60d", interval="1h") # 1h für detaillierteres Volumen
 
 if not d_s.empty:
     cp = extract_val(d_s, 'Close', -1)
     prev_cp = extract_val(d_s, 'Close', -2)
     change = ((cp / prev_cp) - 1) * 100
     
-    # ATR & Volumen
     atr = calculate_atr(d_s)
     cur_vol = extract_val(d_s, 'Volume', -1)
     avg_vol = d_s['Volume'].tail(20).mean()
     vol_ratio = (cur_vol / avg_vol) if avg_vol > 0 else 1
     
-    # Strategie-Logik
-    if change > 0.5:
-        if vol_ratio > 1.1:
-            recommendation, rec_col = "CALL (STARKER KAUF)", "#00FFA3"
-        else:
-            recommendation, rec_col = "CALL (VORSICHT - WENIG VOL.)", "#FFD700"
-    elif change < -0.5:
-        if vol_ratio > 1.1:
-            recommendation, rec_col = "PUT (STARKER VERKAUF)", "#FF4B4B"
-        else:
-            recommendation, rec_col = "PUT (VORSICHT - WENIG VOL.)", "#FFD700"
-    else:
+    # Synchronisierte Strategie-Logik
+    vol_alert = "⚠️" if vol_ratio < 1.1 else "✅"
+    if change > 0.4: 
+        recommendation, rec_col = f"CALL ({vol_alert} Vol.)", "#00FFA3"
+    elif change < -0.4: 
+        recommendation, rec_col = f"PUT ({vol_alert} Vol.)", "#FF4B4B"
+    else: 
         recommendation, rec_col = "ABWARTEN / NEUTRAL", "#8892b0"
 
-
-    # Anzeige Metriken
+    # Metriken
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Kurs", f"{cp:,.2f}", f"{change:+.2f}%")
     m2.metric("ATR (14)", f"{atr:,.2f}")
-    m3.metric("Volumen-Trend", f"{vol_ratio:.2f}x")
+    m3.metric("Volumen-Trend", f"{vol_ratio:.2f}x", f"{'Stark' if vol_ratio > 1.1 else 'Schwach'}")
     m4.markdown(f'<div style="text-align:center; background:{rec_col}22; padding:10px; border-radius:8px; border:1px solid {rec_col}; color:{rec_col}; font-weight:bold;"><small>STATUS</small><br>{recommendation}</div>', unsafe_allow_html=True)
 
-    st.line_chart(d_s['Close'])
+    # DOPPEL-CHART: Preis oben, Volumen unten
+    st.markdown("#### 📈 Kurs- & Volumenentwicklung")
+    st.line_chart(d_s['Close'], height=250)
+    
+    # Volumens-Balken (Farbe passt sich Trend an)
+    st.bar_chart(d_s['Volume'].tail(60), height=150)
 
     st.markdown(f"""
     <div class="analysis-box">
-        <h4>📊 Zusammenfassung: {TICKER_NAMES[sel_stock]}</h4>
-        Status: <b>{recommendation}</b>. Die Volatilität (ATR) liegt bei {atr:.2f}. 
-        Das Handelsvolumen ist aktuell das <b>{vol_ratio:.2f}-fache</b> des Durchschnitts.
+        <small style="color:#8892b0;">BIO-ANALYSE</small><br>
+        Der Wert <b>{TICKER_NAMES[sel_stock]}</b> zeigt aktuell ein <b>{vol_ratio:.2f}-faches</b> Durchschnittsvolumen. 
+        {'🔥 Ausbruch bestätigt durch Volumen.' if vol_ratio > 1.2 else '⚠️ Vorsicht: Preisbewegung ohne Volumen-Rückhalt (Fake-Move möglich).'}
     </div>
     """, unsafe_allow_html=True)
+
 
 st.info(f"🕒 Stand: {pd.Timestamp.now().strftime('%H:%M:%S')} | Quelle: Yahoo Finance")
