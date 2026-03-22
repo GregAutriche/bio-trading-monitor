@@ -110,50 +110,13 @@ if not df_sig.empty:
 st.divider()
 
 # --- 5c. DETAIL-ANALYSE (MIT GRAFIK) ---
-st.divider()
-st.subheader("🔍 Detail-Analyse & Volumen-Profil")
-
-# 1. Auswahl-Logik (Nur Aktien, alphabetisch sortiert)
-sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
-sel_stock = st.selectbox(
-    "Aktie für Tiefen-Analyse wählen:", 
-    sorted_stocks, 
-    format_func=lambda x: TICKER_NAMES.get(x, x),
-    key="detail_selector"
-)
-
-# 2. Datenabruf über zentrale Funktion (Synchronität garantiert)
-res_d = get_analysis(sel_stock)
-
-if res_d["cp"] > 0:
-    # Wetter-Status für die Detail-Ansicht
-    icon_d, color_d, dot_d = get_style(res_d["chg"])
-    
-    # 3. Metriken-Kacheln (Kurs, Chance, ATR, Volumen)
-    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-    
-    col_m1.metric("KURS", f"{res_d['cp']:,.2f}", f"{res_d['chg']:+.2f}%")
-    
-    # Chance-Metrik mit Delta-Anzeige zu 50%
-    chance_delta = f"{res_d['chance']-50:+.1f}%"
-    col_m2.metric("CHANCE", f"{res_d['chance']}%", delta=chance_delta)
-    
-    col_m3.metric("ATR (14h)", f"{res_d['atr']:.2f}")
-    
-    # Aktuelles Volumen im Vergleich zum 20-Tage-Schnitt (120h)
-    avg_v = res_d["df"]['Volume'].tail(120).mean()
-    v_trend = ((res_d['vol'] / avg_v) - 1) * 100 if avg_v > 0 else 0
-    col_m4.metric("VOLUMEN (AKT.)", f"{res_d['vol']:,.0f}", f"{v_trend:+.1f}%")
-
-    st.markdown(f"**Aktueller Status:** {icon_d} {dot_d} ({'Sonnig / Call-Aktion' if res_d['chg'] > 0.15 else 'Gewitter / Put-Aktion' if res_d['chg'] < -0.15 else 'Bewölkt / Abwarten'})")
-
-    # 4. KURS- & VOLUMEN-PROFIL (Plotly ohne Zeitlücken)
-    df_plot = res_d["df"].tail(60) # Die letzten 60 Handelsstunden
-    
-    from plotly.subplots import make_subplots
+try:
     import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
 
-    # Subplots erstellen: Kurs (70% Höhe), Volumen (30% Höhe)
+    df_plot = res_d["df"].tail(60)
+    
+    # Subplots: Kurs oben, Volumen unten
     fig = make_subplots(
         rows=2, cols=1, 
         shared_xaxes=True, 
@@ -161,33 +124,32 @@ if res_d["cp"] > 0:
         row_heights=[0.7, 0.3]
     )
 
-    # Kurs-Pfad (Line-Chart)
+    # Kurs-Linie
     fig.add_trace(
         go.Scatter(x=df_plot.index, y=df_plot['Close'], name="Kurs", line=dict(color='#00FFA3', width=2)),
         row=1, col=1
     )
 
-    # Volumen-Balken (Bar-Chart)
+    # Volumen-Balken
     fig.add_trace(
         go.Bar(x=df_plot.index, y=df_plot['Volume'], name="Volumen", marker_color='#1E90FF', opacity=0.8),
         row=2, col=1
     )
 
-    # Layout-Optimierung (Dark Mode & Lücken-Entfernung)
     fig.update_layout(
         height=500,
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         showlegend=False,
-        xaxis_rangeslider_visible=False # Deaktiviert, um Platz zu sparen
+        xaxis_rangeslider_visible=False
     )
 
-    # Entfernt Wochenenden und Nachtstunden von der X-Achse (Lückenlos-Fix)
+    # Lückenlos-Fix (Wochenenden & Nachtstunden)
     fig.update_xaxes(
         rangebreaks=[
-            dict(bounds=["sat", "mon"]), # Samstage & Sonntage entfernen
-            dict(bounds=[17.5, 9], pattern="hour") # Handelsfreie Zeit (17:30 - 09:00) entfernen
+            dict(bounds=["sat", "mon"]),
+            dict(bounds=[17.5, 9], pattern="hour")
         ],
         gridcolor='#333'
     )
@@ -195,5 +157,7 @@ if res_d["cp"] > 0:
 
     st.plotly_chart(fig, use_container_width=True)
 
-else:
-    st.warning("Für dieses Symbol konnten keine Detail-Daten geladen werden.")
+except ModuleNotFoundError:
+    st.error("❌ Grafik-Modul fehlt: Bitte 'plotly' in die requirements.txt hinzufügen.")
+    # Fallback: Einfacher Chart, falls Plotly nicht da ist
+    st.line_chart(res_d["df"]['Close'].tail(60))
