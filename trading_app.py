@@ -86,7 +86,7 @@ def get_signals(tickers):
 # --- 5. DASHBOARD ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
-# 5a. MARKT-WETTER (INDICES & WÄHRUNGEN)
+# --- 5a. MARKT-WETTER (INDICES & WÄHRUNGEN) ---
 st.subheader("🌐 Globales Markt-Wetter")
 m_cols = st.columns(len(MARKET_TICKERS))
 for i, (t, name) in enumerate(MARKET_TICKERS.items()):
@@ -95,14 +95,20 @@ for i, (t, name) in enumerate(MARKET_TICKERS.items()):
         cp_m = extract_val(df_m, 'Close', -1)
         chg_m = ((cp_m / extract_val(df_m, 'Close', -2)) - 1) * 100
         color = "#00FFA3" if chg_m > 0 else "#1E90FF"
+        
+        # KORREKTUR: Formatierung vorab festlegen
+        prec = ".2f" if "^" in t else ".4f"
+        price_str = f"{cp_m: ,{prec}}"
+        
         with m_cols[i]:
             st.markdown(f"""
                 <div class="weather-card" style="border-color:{color};">
                     <small style="color:#A0AEC0;">{name}</small><br>
-                    <b style="font-size:1.4rem;">{cp_m:,.2f if "^" in t else 4}</b><br>
+                    <b style="font-size:1.4rem;">{price_str}</b><br>
                     <span style="color:{color}; font-weight:bold;">{chg_m:+.2f}%</span>
                 </div>
             """, unsafe_allow_html=True)
+
 
 st.divider()
 
