@@ -97,25 +97,26 @@ for row_tickers in WEATHER_STRUCTURE:
             prev_w = extract_val(w_data, 'Close', -2)
             chg_w = ((cp_w / prev_w) - 1) * 100 if prev_w > 0 else 0
             
-            # Neue Farblogik für Wetter & Aktion
+            # Wetter- & Farblogik mit Symbolen
             if chg_w > 0.15: 
-                icon, color, action = "☀️", "#00FFA3", "CALL"   # GRÜN
+                symbol, color = "☀️", "#00FFA3"  # GRÜN (Call)
             elif chg_w < -0.15: 
-                icon, color, action = "🌧️", "#1E90FF", "PUT"    # BLAU
+                symbol, color = "⛈️", "#1E90FF"  # BLAU (Put)
             else: 
-                icon, color, action = "☁️", "#8892b0", "WARTEN" # GRAU
+                symbol, color = "☁️", "#8892b0"  # GRAU (Warten)
             
             prec = 5 if "=X" in t else 2
             
             with cols[i]:
                 st.markdown(f"""
-                    <div class="weather-card" style="border-color:{color}; background:rgba(255,255,255,0.02);">
-                        <div style="font-size:1rem; color:#8892b0;">{TICKER_NAMES.get(t, t)}</div>
-                        <b style="font-size:1.4rem; color:white;">{cp_w:,.{prec}f}</b><br>
-                        <span style="color:{color}; font-weight:bold; font-size:1rem;">{chg_w:+.2f}%</span><br>
-                        <small style="color:{color}; letter-spacing:2px; font-weight:bold;">{action}</small>
+                    <div class="weather-card" style="border-color:{color}; background:rgba(255,255,255,0.02); padding: 15px;">
+                        <div style="font-size:0.9rem; color:#8892b0; margin-bottom:5px;">{TICKER_NAMES.get(t, t)}</div>
+                        <b style="font-size:1.5rem; color:white;">{cp_w:,.{prec}f}</b><br>
+                        <span style="color:{color}; font-weight:bold; font-size:1.1rem;">{chg_w:+.2f}%</span><br>
+                        <div style="font-size:1.8rem; margin-top:5px;">{symbol}</div>
                     </div>
                 """, unsafe_allow_html=True)
+
 
 # 5b. TOP 5 TABELLEN
 st.subheader("📊 Top 5 Aktien-Bewegungen")
