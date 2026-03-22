@@ -190,7 +190,7 @@ def get_analysis(ticker_symbol):
             res["atr"] = float(df['TR'].tail(14).mean())
             
             # Dummy Chance-Logik (hier deine eigene Logik nutzen)
-            res["chance"] = 54.2 
+            res["chance"] = round(random.uniform(51, 58), 2)
             res["df"] = df
             
     except Exception as e:
@@ -321,7 +321,7 @@ if failed_scans:
         </div>
     """, unsafe_allow_html=True)
 
-# 4. TABELLEN-AUSGABE (Rest bleibt gleich)
+# 4. TABELLEN-AUSGABE
 df_sig = pd.DataFrame(signals)
 if not df_sig.empty:
     c_t1, c_t2 = st.columns(2)
