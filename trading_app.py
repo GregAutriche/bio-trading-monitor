@@ -223,6 +223,7 @@ with st.expander("ℹ️ Hilfe & Dokumentation: Wie werden die Werte berechnet?"
     - **ATR (14h):** Die *Average True Range* zeigt die durchschnittliche Schwankungsbreite der letzten 14 Stunden. Sie dient zur Bestimmung der Volatilität und zur Setzung von Stop-Loss-Marken.
     - **VOLUMEN-TREND:** Das aktuelle Volumen im Vergleich zum 20-Tage-Schnitt (120 Handelsstunden). Ein positiver Wert zeigt erhöhtes Interesse.
     ---
+        ### ⚖️ CRV (Chance Riskio Verhältnis)
     Das CRV (Chance-Risiko-Verhältnis) ist eine der wichtigsten Kennzahlen im professionellen Trading. Es beschreibt das mathematische Verhältnis zwischen dem potenziellen Gewinn und dem eingegangenen Risiko eines Trades.
     Hier ist die detaillierte Beschreibung für deine Dokumentation oder den Info-Expander:
     ⚖️ CRV (Chance-Risiko-Verhältnis)
