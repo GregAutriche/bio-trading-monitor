@@ -426,7 +426,6 @@ r2c4.markdown(f"""
         <small style="color:#8892b0; font-size:0.7rem; text-transform:uppercase;">CRV</small><br>
         <b style="color:#1E90FF; font-size:1.4rem;">{crv_val:.1f}</b>
     </div>
-""", unsafe_allow_html=True)
     """, unsafe_allow_html=True)
 
     # --- 5. GRAFIK (LÜCKENLOSE CANDLESTICKS & SETUP-LINIEN) ---
