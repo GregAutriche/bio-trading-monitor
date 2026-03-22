@@ -165,23 +165,13 @@ for row in WEATHER_ROWS:
 
 st.divider()
 
-# 5b. TOP 5 AKTIEN
-# --- 5b. TOP 5 AKTIEN MIT SCAN-STATISTIK ---
+# --- 5b. TOP 5 AKTIEN MIT FEHLER-ANZEIGE ---
 st.subheader("📊 Top 5 Aktien-Chancen")
 
-# Zähler für die Statistik vorbereiten
-count_de = len([k for k in STOCKS_ONLY if k.endswith(".DE")])
-count_us = len([k for k in STOCKS_ONLY if not k.endswith(".DE")])
-
-# Info-Zeile direkt unter der Überschrift
-st.markdown(f"""
-    <div style="color: #8892b0; font-size: 0.9rem; margin-bottom: 15px;">
-        ℹ️ Info: <b>{count_de}</b> Aktien aus DE / <b>{count_us}</b> Aktien aus US gescannt 
-        (Gesamt: {len(STOCKS_ONLY)})
-    </div>
-""", unsafe_allow_html=True)
-
+# 1. SCAN-VORGANG & FEHLER-TRACKING
 signals = []
+failed_scans = [] # Liste für nicht erreichbare Werte
+
 with st.spinner("Analysiere Markt-Daten..."):
     for s in STOCKS_ONLY:
         r = get_analysis(s)
@@ -194,20 +184,42 @@ with st.spinner("Analysiere Markt-Daten..."):
                 'Trend': f"{r['chg']:+.2f}%", 
                 'Chance': r["chance"]
             })
+        else:
+            # Falls Kurs 0 ist, ab in die Fehlerliste (mit Klartext-Namen)
+            failed_scans.append(TICKER_NAMES.get(s, s))
 
+# 2. SCAN-STATISTIK ANZEIGEN
+count_de = len([k for k in STOCKS_ONLY if k.endswith(".DE")])
+count_us = len([k for k in STOCKS_ONLY if not k.endswith(".DE")])
+
+st.markdown(f"""
+    <div style="color: #8892b0; font-size: 0.9rem; margin-bottom: 5px;">
+        ℹ️ Info: <b>{count_de}</b> Aktien aus DE / <b>{count_us}</b> Aktien aus US gescannt (Gesamt: {len(STOCKS_ONLY)})
+    </div>
+""", unsafe_allow_html=True)
+
+# 3. NEU: ANZEIGE DER NICHT GESCANNTEN WERTE
+if failed_scans:
+    failed_text = ", ".join(failed_scans)
+    st.markdown(f"""
+        <div style="color: #FF4B4B; font-size: 0.85rem; margin-bottom: 15px; padding: 8px; border: 1px solid rgba(255,75,75,0.2); border-radius: 5px; background: rgba(255,75,75,0.05);">
+            ⚠️ <b>Folgende Werte wurden aktuell nicht gescannt:</b><br>{failed_text}
+        </div>
+    """, unsafe_allow_html=True)
+
+# 4. TABELLEN-AUSGABE (Rest bleibt gleich)
 df_sig = pd.DataFrame(signals)
 if not df_sig.empty:
     c_t1, c_t2 = st.columns(2)
     with c_t1:
         st.markdown("<h4 style='color:#00FFA3;'>Top 5 CALL (Chance)</h4>", unsafe_allow_html=True)
-        # Filter: Nur positiver Trend
         calls = df_sig[df_sig['Trend_Val'] > 0].nlargest(5, 'Chance')
         st.table(calls[['Status', 'Aktie', 'Trend', 'Chance']])
     with c_t2:
         st.markdown("<h4 style='color:#1E90FF;'>Top 5 PUT (Chance)</h4>", unsafe_allow_html=True)
-        # Filter: Nur negativer Trend
         puts = df_sig[df_sig['Trend_Val'] < 0].nsmallest(5, 'Chance')
         st.table(puts[['Status', 'Aktie', 'Trend', 'Chance']])
+
 
 
 # 5c. DETAIL-ANALYSE
