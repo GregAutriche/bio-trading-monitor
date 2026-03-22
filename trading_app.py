@@ -124,36 +124,62 @@ if not df_sig.empty:
 st.divider()
 
 # 5c. DETAIL-ANALYSE
+st.divider()
 st.subheader("🔍 Detail-Analyse & Volumen-Profil")
+
 sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
 sel_stock = st.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
 
 res_d = get_analysis(sel_stock)
 
 if res_d["cp"] > 0:
+    # Wetter-Logik abrufen
     icon_d, color_d, dot_d = get_style(res_d["chg"])
     
-    # Metriken
+    # Status-Text bestimmen
+    if res_d["chg"] > 0.15:
+        status_msg = "SONNIG / CALL-Szenario"
+    elif res_d["chg"] < -0.15:
+        status_msg = "GEWITTER / PUT-Szenario"
+    else:
+        status_msg = "BEWÖLKT / NEUTRAL (Abwarten)"
+
+    # --- NEU: STATUS-BANNER DIREKT ÜBER DEM KURS ---
+    st.markdown(f"""
+        <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border-left: 5px solid {color_d}; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span style="font-size: 1.8rem; vertical-align: middle;">{icon_d} {dot_d}</span>
+                    <b style="font-size: 1.3rem; color: white; margin-left: 10px;">{status_msg}</b>
+                </div>
+                <div style="text-align: right;">
+                    <small style="color: #8892b0; display: block;">Aktuelle Änderung</small>
+                    <b style="font-size: 1.2rem; color: {color_d};">{res_d['chg']:+.2f}%</b>
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Metriken-Reihe
     col_d1, col_d2, col_d3, col_d4 = st.columns(4)
-    col_d1.metric("KURS", f"{res_d['cp']:,.2f}", f"{res_d['chg']:+.2f}%")
+    col_d1.metric("KURS", f"{res_d['cp']:,.2f}")
     col_d2.metric("CHANCE", f"{res_d['chance']}%", delta=f"{res_d['chance']-50}%")
     col_d3.metric("ATR (14h)", f"{res_d['atr']:.2f}")
     col_d4.metric("VOLUMEN", f"{res_d['vol']:,.0f}")
-    
-    st.markdown(f"**Aktueller Status:** {icon_d} {dot_d}")
 
-    # Grafik (Lückenlose Candlesticks & Volumen)
+    # Candlestick-Grafik (unverändert)
     try:
+        import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
+        
         df_plot = res_d["df"].tail(60).copy()
         df_plot['x_label'] = df_plot.index.strftime('%d.%m %H:%M')
         
         fig = make_subplots(specs=[[{"secondary_y": True}]])
-        # Volumen (Links)
         fig.add_trace(go.Bar(x=df_plot['x_label'], y=df_plot['Volume'], name="Volumen", marker_color='#1E90FF', opacity=0.25), secondary_y=False)
-        # Candlesticks (Rechts)
         fig.add_trace(go.Candlestick(x=df_plot['x_label'], open=df_plot['Open'], high=df_plot['High'], low=df_plot['Low'], close=df_plot['Close'], name="Kurs", increasing_line_color='#00FFA3', decreasing_line_color='#FF4B4B'), secondary_y=True)
 
-        fig.update_layout(height=500, margin=dict(l=0, r=0, t=10, b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, xaxis_rangeslider_visible=False, xaxis=dict(type='category', tickangle=-45, nticks=12, gridcolor='#333', showgrid=False))
+        fig.update_layout(height=450, margin=dict(l=0, r=0, t=10, b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, xaxis_rangeslider_visible=False, xaxis=dict(type='category', tickangle=-45, nticks=12, gridcolor='#333', showgrid=False))
         fig.update_yaxes(title_text="Volumen", secondary_y=False, showgrid=False, color="#8892b0")
         fig.update_yaxes(title_text="Kurs", secondary_y=True, gridcolor='#333', side="right")
 
