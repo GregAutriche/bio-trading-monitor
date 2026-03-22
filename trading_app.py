@@ -109,65 +109,70 @@ if not df_sig.empty:
 
 st.divider()
 
-# --- 5c. DETAIL-ANALYSE (MIT GRAFIK) ---
-try:
-    import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
+# --- 5c. DETAIL-ANALYSE (FIX: REIHENFOLGE + DUAL-AXIS CHART) ---
+st.divider()
+st.subheader("🔍 Detail-Analyse & Volumen-Profil")
 
-    df_plot = res_d["df"].tail(60)
-    
-    # Wir erstellen ein Chart mit zwei verschiedenen Y-Achsen
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
+# 1. Auswahl (Strikt nur Aktien)
+sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
+sel_stock = st.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
 
-    # 1. VOLUMEN (Balken) -> Linke Y-Achse (Standard)
-    fig.add_trace(
-        go.Bar(
-            x=df_plot.index, 
-            y=df_plot['Volume'], 
-            name="Volumen", 
-            marker_color='#1E90FF', 
-            opacity=0.4  # Etwas transparenter im Hintergrund
-        ),
-        secondary_y=False,
-    )
+# 2. Datenabruf (JETZT DEFINIERT: res_d wird hier erstellt)
+res_d = get_analysis(sel_stock)
 
-    # 2. KURS (Linie) -> Rechte Y-Achse
-    fig.add_trace(
-        go.Scatter(
-            x=df_plot.index, 
-            y=df_plot['Close'], 
-            name="Kurs", 
-            line=dict(color='#00FFA3', width=3)
-        ),
-        secondary_y=True,
-    )
+# Sicherstellen, dass Daten vorhanden sind
+if res_d["cp"] > 0:
+    # 3. Metriken anzeigen
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("KURS", f"{res_d['cp']:,.2f}", f"{res_d['chg']:+.2f}%")
+    col2.metric("CHANCE", f"{res_d['chance']}%", delta=f"{res_d['chance']-50}%")
+    col3.metric("ATR (14h)", f"{res_d['atr']:.2f}")
+    col4.metric("VOLUMEN", f"{res_d['vol']:,.0f}")
 
-    # Layout-Optimierung
-    fig.update_layout(
-        height=450,
-        margin=dict(l=0, r=0, t=10, b=0),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        showlegend=False,
-        xaxis_rangeslider_visible=False
-    )
+    # 4. Profi-Grafik (Links Volumen / Rechts Kurs)
+    try:
+        import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
 
-    # Achsen-Beschriftung und Lückenlos-Fix
-    fig.update_xaxes(
-        rangebreaks=[
-            dict(bounds=["sat", "mon"]), 
-            dict(bounds=[17.5, 9], pattern="hour")
-        ],
-        gridcolor='#333'
-    )
+        df_plot = res_d["df"].tail(60)
+        
+        # Dual-Axis Setup
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    # Linke Achse (Volumen)
-    fig.update_yaxes(title_text="Volumen", secondary_y=False, gridcolor='#333', showgrid=False)
-    
-    # Rechte Achse (Kurs)
-    fig.update_yaxes(title_text="Kurs", secondary_y=True, gridcolor='#333', side="right")
+        # VOLUMEN (Balken) -> Linke Y-Achse
+        fig.add_trace(
+            go.Bar(x=df_plot.index, y=df_plot['Volume'], name="Volumen", 
+                   marker_color='#1E90FF', opacity=0.35),
+            secondary_y=False,
+        )
 
-    st.plotly_chart(fig, use_container_width=True)
+        # KURS (Linie) -> Rechte Y-Achse
+        fig.add_trace(
+            go.Scatter(x=df_plot.index, y=df_plot['Close'], name="Kurs", 
+                       line=dict(color='#00FFA3', width=3)),
+            secondary_y=True,
+        )
 
-except ImportError:
-    st.error("Bitte installiere Plotly: 'pip install plotly'")
+        # Layout-Anpassungen (Lückenlos & Skalen)
+        fig.update_layout(
+            height=450, margin=dict(l=0, r=0, t=10, b=0),
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+            showlegend=False, xaxis_rangeslider_visible=False
+        )
+
+        # X-Achsen Fix (Wochenenden entfernen)
+        fig.update_xaxes(
+            rangebreaks=[dict(bounds=["sat", "mon"]), dict(bounds=[17.5, 9], pattern="hour")],
+            gridcolor='#333'
+        )
+
+        # Achsen-Konfiguration
+        fig.update_yaxes(title_text="Volumen (links)", secondary_y=False, showgrid=False, color="#8892b0")
+        fig.update_yaxes(title_text="Kurs (rechts)", secondary_y=True, gridcolor='#333', side="right")
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    except ImportError:
+        st.error("Bitte installiere Plotly: 'pip install plotly'")
+else:
+    st.warning("Keine Daten für dieses Symbol verfügbar.")
