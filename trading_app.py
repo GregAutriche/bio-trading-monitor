@@ -137,9 +137,19 @@ if not d_s.empty:
     vol_ratio = (cur_vol / avg_vol) if avg_vol > 0 else 1
     
     # Strategie-Logik
-    if vol_ratio > 1.2 and change > 0.5: recommendation, rec_col = "CALL (KAUFEN)", "#00FFA3"
-    elif vol_ratio > 1.2 and change < -0.5: recommendation, rec_col = "PUT (VERKAUFEN)", "#FF4B4B"
-    else: recommendation, rec_col = "ABWARTEN / NEUTRAL", "#FFD700"
+    if change > 0.5:
+        if vol_ratio > 1.1:
+            recommendation, rec_col = "CALL (STARKER KAUF)", "#00FFA3"
+        else:
+            recommendation, rec_col = "CALL (VORSICHT - WENIG VOL.)", "#FFD700"
+    elif change < -0.5:
+        if vol_ratio > 1.1:
+            recommendation, rec_col = "PUT (STARKER VERKAUF)", "#FF4B4B"
+        else:
+            recommendation, rec_col = "PUT (VORSICHT - WENIG VOL.)", "#FFD700"
+    else:
+        recommendation, rec_col = "ABWARTEN / NEUTRAL", "#8892b0"
+
 
     # Anzeige Metriken
     m1, m2, m3, m4 = st.columns(4)
