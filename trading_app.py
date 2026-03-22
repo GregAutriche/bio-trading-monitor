@@ -138,9 +138,7 @@ with st.expander("ℹ️ Hilfe & Dokumentation: Wie werden die Werte berechnet?"
     - **CHANCE:** Ergebnis einer Simulation von 1.000 Pfaden basierend auf der Volatilität der letzten 30 Tage. Ein Wert über 50% signalisiert eine statistische Aufwärts-Wahrscheinlichkeit.
     - **ATR (14h):** Die *Average True Range* zeigt die durchschnittliche Schwankungsbreite der letzten 14 Stunden. Sie dient zur Bestimmung der Volatilität und zur Setzung von Stop-Loss-Marken.
     - **VOLUMEN-TREND:** Das aktuelle Volumen im Vergleich zum 20-Tage-Schnitt (120 Handelsstunden). Ein positiver Wert zeigt erhöhtes Interesse.
-    
     ---
-    
     ### 📈 Grafik-Beschreibung
     Das Chart kombiniert zwei wichtige Informationsebenen:
     1. **Candlesticks (Kerzen):** Zeigen Eröffnung, Schluss, Hoch und Tief pro Stunde. 
@@ -235,42 +233,105 @@ if not df_sig.empty:
 
 
 
-# 5c. DETAIL-ANALYSE
+# --- 5c. DETAIL-ANALYSE (MIT TRADING-SETUP & CHART-LINIEN) ---
 st.divider()
-st.subheader("🔍 Detail-Analyse & Volumen-Profil")
+st.subheader(f"🔍 Detail-Analyse: {TICKER_NAMES.get(sel_stock, sel_stock)}")
 
-sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
-sel_stock = st.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
-
+# Daten abrufen (Synchronisiert über zentrale Funktion)
 res_d = get_analysis(sel_stock)
 
 if res_d["cp"] > 0:
-    # Wetter-Logik abrufen
-    icon_d, color_d, dot_d = get_style(res_d["chg"])
+    cp = res_d["cp"]
+    atr = res_d["atr"]
+    chance = res_d["chance"]
+    chg = res_d["chg"]
     
-    # Status-Text bestimmen
-    if res_d["chg"] > 0.15:
-        status_msg = "SONNIG / CALL-Szenario"
-    elif res_d["chg"] < -0.15:
-        status_msg = "GEWITTER / PUT-Szenario"
+    # 1. TRADING-LOGIK (ATR-basiert mit CRV 3.0)
+    risk = atr * 1.5
+    reward = risk * 3.0
+    
+    if chance >= 50:
+        setup_type = "LONG (CALL)"
+        target = cp + reward
+        stop = cp - risk
+        setup_color = "#00FFA3"
     else:
-        status_msg = "BEWÖLKT / NEUTRAL (Abwarten)"
+        setup_type = "SHORT (PUT)"
+        target = cp - reward
+        stop = cp + risk
+        setup_color = "#FF4B4B"
 
-    # --- NEU: STATUS-BANNER DIREKT ÜBER DEM KURS ---
+    # 2. STATUS-BANNER
+    icon_d, color_d, dot_d = get_style(chg)
     st.markdown(f"""
-        <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border-left: 5px solid {color_d}; margin-bottom: 20px;">
+        <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border-left: 5px solid {setup_color}; margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <span style="font-size: 1.8rem; vertical-align: middle;">{icon_d} {dot_d}</span>
-                    <b style="font-size: 1.3rem; color: white; margin-left: 10px;">{status_msg}</b>
+                    <span style="font-size: 1.5rem;">{icon_d} {dot_d}</span>
+                    <b style="font-size: 1.2rem; color: white; margin-left: 10px;">{setup_type} SETUP</b>
                 </div>
                 <div style="text-align: right;">
-                    <small style="color: #8892b0; display: block;">Aktuelle Änderung</small>
-                    <b style="font-size: 1.2rem; color: {color_d};">{res_d['chg']:+.2f}%</b>
+                    <small style="color: #8892b0;">Chance</small><br>
+                    <b style="font-size: 1.2rem; color: {setup_color};">{chance}%</b>
                 </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
+
+    # 3. METRIKEN-REIHE (6 Spalten)
+    m1, m2, m3, m4, m5, m6 = st.columns(6)
+    m1.metric("KURS", f"{cp:,.2f}", f"{chg:+.2f}%")
+    m2.metric("CHANCE", f"{chance}%")
+    
+    # Ziel & Stop mit Prozent-Abstand
+    m3.metric("ZIEL (TP)", f"{target:,.2f}", f"{(target/cp-1)*100:+.2f}%")
+    m4.metric("STOP (SL)", f"{stop:,.2f}", f"{(stop/cp-1)*100:+.2f}%", delta_color="inverse")
+    
+    m5.metric("ATR (14h)", f"{atr:.2f}")
+    m6.metric("VOLUMEN", f"{res_d['vol']:,.0f}")
+
+    # 4. CHART MIT SETUP-LINIEN (Plotly)
+    try:
+        import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
+        
+        df_plot = res_d["df"].tail(60).copy()
+        df_plot['x_label'] = df_plot.index.strftime('%d.%m %H:%M')
+        
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        
+        # Volumen (Links)
+        fig.add_trace(go.Bar(x=df_plot['x_label'], y=df_plot['Volume'], name="Volumen", 
+                             marker_color='#1E90FF', opacity=0.2), secondary_y=False)
+        
+        # Candlesticks (Rechts)
+        fig.add_trace(go.Candlestick(x=df_plot['x_label'], open=df_plot['Open'], high=df_plot['High'], 
+                                     low=df_plot['Low'], close=df_plot['Close'], name="Kurs",
+                                     increasing_line_color='#00FFA3', decreasing_line_color='#FF4B4B'), secondary_y=True)
+
+        # HORIZONTALE SETUP-LINIEN
+        # Ziel-Linie (Grün gestrichelt bei Long, Rot bei Short)
+        fig.add_hline(y=target, line_dash="dash", line_color="#00FFA3", annotation_text="ZIEL (TP)", secondary_y=True)
+        # Stop-Linie (Rot gestrichelt)
+        fig.add_hline(y=stop, line_dash="dash", line_color="#FF4B4B", annotation_text="STOP (SL)", secondary_y=True)
+        # Einstiegs-Linie (Weiß punktiert)
+        fig.add_hline(y=cp, line_dash="dot", line_color="#FFFFFF", annotation_text="EINSTIEG", secondary_y=True)
+
+        fig.update_layout(height=550, margin=dict(l=0, r=0, t=10, b=0), paper_bgcolor='rgba(0,0,0,0)', 
+                          plot_bgcolor='rgba(0,0,0,0)', showlegend=False, xaxis_rangeslider_visible=False,
+                          xaxis=dict(type='category', tickangle=-45, nticks=12, gridcolor='#333', showgrid=False))
+        
+        fig.update_yaxes(title_text="Volumen", secondary_y=False, showgrid=False, color="#8892b0")
+        fig.update_yaxes(title_text="Kurs", secondary_y=True, gridcolor='#333', side="right")
+
+        st.plotly_chart(fig, use_container_width=True)
+        
+    except Exception as e:
+        st.error(f"Grafik-Fehler: {e}")
+
+else:
+    st.warning("Keine Daten für dieses Symbol verfügbar.")
+
 
     # Metriken-Reihe
     col_d1, col_d2, col_d3, col_d4 = st.columns(4)
