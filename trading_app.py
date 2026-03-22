@@ -178,7 +178,8 @@ if res_d["cp"] > 0:
 
         # Daten für Chart vorbereiten (letzte 60 Perioden)
         df_plot = res_d["df"].tail(60).copy()
-        df_plot['x_label'] = df_plot.index.strftime('%d.%m %H:%M') # Text-Label für lückenlose X-Achse
+        # Text-Label für lückenlose X-Achse (entfernt automatisch Wochenenden)
+        df_plot['x_label'] = df_plot.index.strftime('%d.%m %H:%M') 
         
         # Erstelle Figur mit sekundärer Y-Achse
         fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -190,7 +191,7 @@ if res_d["cp"] > 0:
                 y=df_plot['Volume'], 
                 name="Volumen", 
                 marker_color='#1E90FF', 
-                opacity=0.25  # Dezent im Hintergrund
+                opacity=0.25
             ),
             secondary_y=False,
         )
@@ -204,8 +205,8 @@ if res_d["cp"] > 0:
                 low=df_plot['Low'],
                 close=df_plot['Close'],
                 name="Kurs",
-                increasing_line_color='#00FFA3', # Grün für Aufwärts
-                decreasing_line_color='#FF4B4B', # Rot für Abwärts
+                increasing_line_color='#00FFA3',
+                decreasing_line_color='#FF4B4B',
                 increasing_fillcolor='#00FFA3',
                 decreasing_fillcolor='#FF4B4B'
             ),
@@ -216,12 +217,12 @@ if res_d["cp"] > 0:
         fig.update_layout(
             height=500,
             margin=dict(l=0, r=0, t=10, b=0),
-            paper_bgcolor='rgba(0,0,0,0)', # Transparent an Streamlit angepasst
+            paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             showlegend=False,
-            xaxis_rangeslider_visible=False, # Slider aus für mehr Fokus
+            xaxis_rangeslider_visible=False,
             xaxis=dict(
-                type='category', # Entfernt Zeitlücken automatisch
+                type='category', 
                 tickangle=-45,
                 nticks=12,
                 gridcolor='#333',
@@ -236,4 +237,4 @@ if res_d["cp"] > 0:
         st.plotly_chart(fig, use_container_width=True)
 
     except Exception as e:
-        st.error(f"Grafik-Modul konnte nicht geladen werden: {e}")
+        st.error(f"Grafik-Fehler: {e}")
