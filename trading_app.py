@@ -86,28 +86,38 @@ def get_signals(tickers):
 # --- 5. DASHBOARD ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
-# --- 5a. MARKT-WETTER (INDICES & WÄHRUNGEN) ---
+# --- 5a. MARKT-WETTER (STRUKTURIERT IN 3 ZEILEN) ---
 st.subheader("🌐 Globales Markt-Wetter")
-m_cols = st.columns(len(MARKET_TICKERS))
-for i, (t, name) in enumerate(MARKET_TICKERS.items()):
-    df_m = get_data(t)
-    if not df_m.empty:
-        cp_m = extract_val(df_m, 'Close', -1)
-        chg_m = ((cp_m / extract_val(df_m, 'Close', -2)) - 1) * 100
-        color = "#00FFA3" if chg_m > 0 else "#1E90FF"
-        
-        # KORREKTUR: Formatierung vorab festlegen
-        prec = ".2f" if "^" in t else ".4f"
-        price_str = f"{cp_m: ,{prec}}"
-        
-        with m_cols[i]:
-            st.markdown(f"""
-                <div class="weather-card" style="border-color:{color};">
-                    <small style="color:#A0AEC0;">{name}</small><br>
-                    <b style="font-size:1.4rem;">{price_str}</b><br>
-                    <span style="color:{color}; font-weight:bold;">{chg_m:+.2f}%</span>
-                </div>
-            """, unsafe_allow_html=True)
+
+# Definieren der Reihen-Struktur
+WEATHER_ROWS = [
+    ["EURUSD=X", "EURRUB=X"],                   # 1. Zeile: Währungen
+    ["^GDAXI", "^NDX"],                         # 2. Zeile: DAX, NASDAQ
+    ["^STOXX50E", "^NSEI", "XU100.IS"]          # 3. Zeile: EuroStoxx, NIFTY, BIST
+]
+
+for row in WEATHER_ROWS:
+    cols = st.columns(len(row))
+    for i, t in enumerate(row):
+        df_m = get_data(t)
+        if not df_m.empty:
+            cp_m = extract_val(df_m, 'Close', -1)
+            chg_m = ((cp_m / extract_val(df_m, 'Close', -2)) - 1) * 100
+            color = "#00FFA3" if chg_m > 0 else "#1E90FF"
+            
+            # Formatierung (Währungen 4 Stellen, Indizes 2 Stellen)
+            prec = ".4f" if "=X" in t else ".2f"
+            price_str = f"{cp_m: ,{prec}}"
+            
+            with cols[i]:
+                st.markdown(f"""
+                    <div class="weather-card" style="border-color:{color};">
+                        <small style="color:#A0AEC0;">{TICKER_NAMES.get(t, t)}</small><br>
+                        <b style="font-size:1.4rem;">{price_str}</b><br>
+                        <span style="color:{color}; font-weight:bold;">{chg_m:+.2f}%</span>
+                    </div>
+                """, unsafe_allow_html=True)
+    st.write("") # Kleiner Abstand zwischen den Zeilen
 
 
 st.divider()
