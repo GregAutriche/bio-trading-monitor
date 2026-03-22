@@ -228,11 +228,10 @@ with st.expander("ℹ️ Hilfe & Dokumentation: Wie werden die Werte berechnet?"
     Hier ist die detaillierte Beschreibung für deine Dokumentation oder den Info-Expander:
     ⚖️ CRV (Chance-Risiko-Verhältnis)
     Das CRV gibt an, wie viele Einheiten Gewinn für jede Einheit Risiko zu erwarten sind.
-
     Berechnung:
-    Dein Setup: In diesem Monitor ist das CRV fest auf 3.0 eingestellt. Das bedeutet:
-    Du riskierst beispielsweise 100 € (wenn der Stop-Loss erreicht wird).
-    Du zielst auf einen Gewinn von 300 € (wenn das Ziel erreicht wird).
+    Setup: In diesem Monitor ist das CRV fest auf 3.0 eingestellt. Das bedeutet:
+    Riskierst beispielsweise EUR 100 (wenn der Stop-Loss erreicht wird).
+    Zielst auf einen Gewinn von EUR 300 (wenn das Ziel erreicht wird).
     Bedeutung für die Strategie: Ein CRV von 3.0 ist mathematisch sehr wertvoll. Es erlaubt dir, selbst dann profitabel zu sein, wenn nur 30 % deiner Trades gewinnen.
     
     ### 📈 Grafik-Beschreibung
