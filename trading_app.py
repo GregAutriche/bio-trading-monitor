@@ -172,6 +172,9 @@ def get_analysis(ticker):
         if df.empty or len(df) < 15: 
             return {"cp": 0.0, "chg": 0.0, "chance": 50, "atr": 0.0, "vol": 0, "df": df}
         if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+
+        res_d["h250"] = float(df["High"].tail(250).max())
+        res_d["l250"] = float(df["Low"].tail(250).min())
         
         cp = float(df['Close'].iloc[-1])
         prev = float(df['Close'].iloc[-2])
