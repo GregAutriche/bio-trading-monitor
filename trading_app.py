@@ -428,15 +428,32 @@ if res_d.get("cp", 0) > 0:
     # ... (deine r2c1 - r2c4 Metriken)
 
     # --- 5. GRAFIK (PLOTLY) ---
-    try:
+       try:
         import plotly.graph_objects as go
+        # Sicherstellen, dass das fig-Objekt immer definiert wird
         df_plot = res_d["df"].tail(60).copy()
-        # Erstelle hier dein fig Objekt wie im ursprünglichen Code...
-        # fig = go.Figure(...) 
-        st.plotly_chart(fig, use_container_width=True)
-    except Exception as e:
-        st.warning(f"Chart-Vorschau nicht verfügbar: {e}")
+        df_plot['x_label'] = df_plot.index.strftime('%d.%m')
 
-    # Plotly Chart Teil hier einfügen...
+        fig = go.Figure(data=[go.Candlestick(
+            x=df_plot['x_label'], open=df_plot['Open'], high=df_plot['High'],
+            low=df_plot['Low'], close=df_plot['Close'],
+            increasing_line_color='#00FFA3', decreasing_line_color='#FF4B4B', name="Kurs"
+        )])
+
+        # Setup Linien einzeichnen
+        fig.add_hline(y=target, line_dash="dash", line_color="#00FFA3", annotation_text="ZIEL")
+        fig.add_hline(y=stop, line_dash="dash", line_color="#FF4B4B", annotation_text="STOP")
+        fig.add_hline(y=cp, line_dash="dot", line_color="white", annotation_text="ENTRY")
+
+        fig.update_layout(
+            height=450, template="plotly_dark", margin=dict(l=0, r=0, t=10, b=0),
+            xaxis_rangeslider_visible=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Fehler bei der Chart-Erstellung: {e}")
+
 else:
-    st.error("Konnte keine synchronisierten Daten für diesen Wert laden.")
+    st.warning("Keine Daten für diesen Ticker verfügbar.")
