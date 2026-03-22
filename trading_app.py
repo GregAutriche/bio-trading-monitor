@@ -11,7 +11,7 @@ st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
 # --- 2. TICKER-MAPPING & GRUPPEN ---
 TICKER_NAMES = {
-    # Währungen & Indizes für das "Wetter"
+    # Währungen & Indizes
     "EURUSD=X": "EUR/USD", "EURRUB=X": "EUR/RUB", 
     "^GDAXI": "DAX 40", "^STOXX50E": "EuroStoxx 50",
     "^NDX": "NASDAQ 100", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50",
@@ -21,7 +21,12 @@ TICKER_NAMES = {
     "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "AMD": "AMD", "NFLX": "Netflix", "RHM.DE": "Rheinmetall"
 }
 
-WEATHER_TICKERS = ["EURUSD=X", "EURRUB=X", "^GDAXI", "^NDX", "^STOXX50E", "XU100.IS", "^NSEI"]
+# Struktur für das Markt-Wetter (3 Zeilen)
+WEATHER_STRUCTURE = [
+    ["EURUSD=X", "EURRUB=X"],                   # Zeile 1: Forex
+    ["^GDAXI", "^NDX"],                         # Zeile 2: Haupt-Indizes
+    ["^STOXX50E", "XU100.IS", "^NSEI"]          # Zeile 3: Weitere Märkte
+]
 
 TICKER_GROUPS = {
     "DAX 40 (DE)": [k for k in TICKER_NAMES.keys() if k.endswith(".DE")],
@@ -35,7 +40,7 @@ st.markdown("""
     .stApp { background-color: #0E1117; color: #E0E0E0; }
     .header-box { padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 25px; border: 1px solid #1E90FF; background: rgba(30,144,255,0.05); }
     .alert-box { padding: 15px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; text-align: center; border: 1px solid; }
-    .weather-card { text-align:center; padding:10px; border-radius:10px; background:rgba(255,255,255,0.03); border: 1px solid #333; }
+    .weather-card { text-align:center; padding:12px; border-radius:10px; background:rgba(255,255,255,0.03); border: 1px solid #333; margin-bottom: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -47,7 +52,7 @@ def get_data(ticker, period="60d", interval="4h"):
         if isinstance(d.columns, pd.MultiIndex):
             d.columns = d.columns.get_level_values(0)
         return d
-    except Exception as e:
+    except Exception:
         return pd.DataFrame()
 
 def extract_val(df, column, idx):
@@ -59,32 +64,35 @@ def extract_val(df, column, idx):
 # --- 5. DASHBOARD START ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
-# --- 5a. NEU: MARKT-WETTER & AKTIONSLOGIK ---
-st.subheader("🌐 Globales Markt-Wetter & Indizes")
-w_cols = st.columns(len(WEATHER_TICKERS))
+# --- 5a. MARKT-WETTER (ZEILEN-LOGIK) ---
+st.subheader("🌐 Globales Markt-Wetter")
 
-for i, t in enumerate(WEATHER_TICKERS):
-    w_data = get_data(t, period="5d", interval="1h")
-    if not w_data.empty:
-        cp_w = extract_val(w_data, 'Close', -1)
-        prev_w = extract_val(w_data, 'Close', -2)
-        chg_w = ((cp_w / prev_w) - 1) * 100 if prev_w > 0 else 0
-        
-        # Wetter-Logik
-        if chg_w > 0.2: icon, col_w, action = "☀️", "#00FFA3", "BULLISH"
-        elif chg_w < -0.2: icon, col_w, action = "⛈️", "#FF4B4B", "BEARISH"
-        else: icon, col_w, action = "☁️", "#FFD700", "NEUTRAL"
-        
-        with w_cols[i]:
-            st.markdown(f"""
-                <div class="weather-card" style="border-color:{col_w};">
-                    <div style="font-size:1.2rem;">{icon}</div>
-                    <small style="color:#8892b0;">{TICKER_NAMES.get(t, t)}</small><br>
-                    <b style="font-size:1rem;">{cp_w:,.2f}</b><br>
-                    <span style="color:{col_w}; font-size:0.8rem;">{chg_w:+.2f}%</span><br>
-                    <small style="opacity:0.6; font-size:0.6rem;">{action}</small>
-                </div>
-            """, unsafe_allow_html=True)
+for row_tickers in WEATHER_STRUCTURE:
+    cols = st.columns(len(row_tickers))
+    for i, t in enumerate(row_tickers):
+        w_data = get_data(t, period="5d", interval="1h")
+        if not w_data.empty:
+            cp_w = extract_val(w_data, 'Close', -1)
+            prev_w = extract_val(w_data, 'Close', -2)
+            chg_w = ((cp_w / prev_w) - 1) * 100 if prev_w > 0 else 0
+            
+            # Wetter-Logik
+            if chg_w > 0.15: icon, col_w, action = "☀️", "#00FFA3", "BULLISH"
+            elif chg_w < -0.15: icon, col_w, action = "⛈️", "#FF4B4B", "BEARISH"
+            else: icon, col_w, action = "☁️", "#FFD700", "NEUTRAL"
+            
+            # Präzision: Forex 5 Stellen, Rest 2 Stellen
+            prec = 5 if "=X" in t else 2
+            
+            with cols[i]:
+                st.markdown(f"""
+                    <div class="weather-card" style="border-color:{col_w};">
+                        <div style="font-size:1.1rem;">{icon} <b>{TICKER_NAMES.get(t, t)}</b></div>
+                        <b style="font-size:1.2rem; color:white;">{cp_w:,.{prec}f}</b>
+                        <span style="color:{col_w}; font-size:0.9rem; margin-left:8px;">{chg_w:+.2f}%</span><br>
+                        <small style="opacity:0.5; font-size:0.7rem; letter-spacing:1px;">{action}</small>
+                    </div>
+                """, unsafe_allow_html=True)
 
 st.divider()
 
@@ -94,7 +102,7 @@ sel_market = cs1.selectbox("Markt wählen:", list(TICKER_GROUPS.keys()))
 sorted_stocks = sorted(TICKER_GROUPS[sel_market], key=lambda x: TICKER_NAMES.get(x, x))
 sel_stock = cs2.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
 
-# Daten laden
+# Daten laden (4h Intervall für Analyse)
 d_s = get_data(sel_stock)
 
 if not d_s.empty:
@@ -107,14 +115,13 @@ if not d_s.empty:
         if v_trend_20d > 50:
             st.markdown(f'<div class="alert-box" style="background:rgba(0,255,163,0.1); border-color:#00FFA3; color:#00FFA3;">🔥 VOLUMEN-ALARM: Stark erhöhte Aktivität (+{v_trend_20d:.1f}%)</div>', unsafe_allow_html=True)
     else:
-        v_trend_20d, cur_vol, avg_20d = 0, 0, 0
+        v_trend_20d, cur_vol = 0, 0
 
     # --- PREIS- & SETUP-LOGIK ---
     cp = extract_val(d_s, 'Close', -1)
     log_returns = np.log(d_s['Close'] / d_s['Close'].shift(1)).dropna()
     ann_vol = log_returns.std() * np.sqrt(252 * 6) * 100 
 
-    # Simulation (vereinfacht)
     np.random.seed(int(pd.Timestamp.now().timestamp() // 86400) + hash(sel_stock) % 1000)
     sim_results = [cp * np.exp(np.random.normal(0, log_returns.std() * np.sqrt(15))) for _ in range(100)]
     is_long = bool(np.median(sim_results) >= cp)
@@ -124,7 +131,7 @@ if not d_s.empty:
                            ("SHORT CHANCE", "🔴", "#FF4B4B") if not is_long and ann_vol < 45 else 
                            ("ABWARTEN", "⚪", "#8892b0"))
 
-    # HEADER
+    # HEADER BOX
     st.markdown(f"""
         <div class="header-box" style="border-color:{sig_c};">
             <b style="font-size:1.3rem; color:white;">{TICKER_NAMES.get(sel_stock, sel_stock)}</b> 
@@ -135,7 +142,7 @@ if not d_s.empty:
         </div>
     """, unsafe_allow_html=True)
 
-    # HANDELS-SETUP
+    # HANDELS-SETUP METRIKEN
     dir_l, dir_col = ("[ CALL ]", "#00FFA3") if is_long else ("[ PUT ]", "#FF4B4B")
     st.markdown(f"### 📝 Handels-Setup: <span style='color:{dir_col};'>{dir_l}</span> <span style='float:right; font-size:1rem; color:{sig_c};'>{sig_i} {sig_t}</span>", unsafe_allow_html=True)
 
