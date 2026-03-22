@@ -119,8 +119,17 @@ def get_style(chg):
 
 # --- 5. DASHBOARD AUFBAU ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
-now = datetime.now().strftime('%H:%M:%S')
-st.markdown(f'<div class="update-info">🕒 Letztes Update: <b>{now}</b> | Intervall: 60s | Synchronisiert</div>', unsafe_allow_html=True)
+# Zeit-Korrektur: Aktuelle Zeit + 1 Stunde (für MEZ/Winterzeit)
+from datetime import timedelta
+now_fixed = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
+
+st.markdown(f"""
+    <div class="update-info">
+        🕒 Letztes Update: <b>{now_fixed}</b> | 
+        Intervall: <b>60s</b> | 
+        Status: <b>Synchronisiert</b>
+    </div>
+""", unsafe_allow_html=True)
 
 # --- 5.1 INFO-EXPANDER (DOKUMENTATION) ---
 with st.expander("ℹ️ Hilfe & Dokumentation: Wie werden die Werte berechnet?"):
