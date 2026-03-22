@@ -80,6 +80,25 @@ STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "
 # --- 3. DESIGN (DARK MODE & KONTRAST) ---
 st.markdown("""
     <style>
+        /* Metriken schärfer und kleiner machen */
+    [data-testid="stMetricValue"] {
+        font-size: 1.6rem !important; /* Etwas kleiner */
+        font-weight: 800 !important;   /* Extra fett */
+        color: #FFFFFF !important;    /* Reinweiß */
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 0.8rem !important;  /* Kleinere Labels */
+        color: #8892b0 !important;    /* Dezentes Grau */
+        text-transform: uppercase;
+    }
+    /* Kompakterer Abstand */
+    div[data-testid="stMetric"] {
+        padding: 5px 10px;
+        background: rgba(255,255,255,0.02);
+        border-radius: 8px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     .stApp { background-color: #0E1117 !important; color: #FFFFFF !important; }
     .weather-card { text-align:center; border-radius:12px; background:rgba(255,255,255,0.03); border: 2px solid #333; padding: 15px; margin-bottom: 10px; }
     .update-info { color: #8892b0; font-size: 0.85rem; margin-bottom: 20px; text-align: center; border: 1px solid #1E90FF; padding: 5px; border-radius: 5px; }
