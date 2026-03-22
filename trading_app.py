@@ -234,10 +234,21 @@ if not df_sig.empty:
 
 
 # --- 5c. DETAIL-ANALYSE (MIT TRADING-SETUP & CHART-LINIEN) ---
+# --- 5c. DETAIL-ANALYSE (REIHENFOLGE KORRIGIERT) ---
 st.divider()
+
+# 1. ZUERST die Auswahl erstellen (definiert sel_stock)
+sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
+sel_stock = st.selectbox(
+    "Aktie für Analyse wählen:", 
+    sorted_stocks, 
+    format_func=lambda x: TICKER_NAMES.get(x, x)
+)
+
+# 2. JETZT kann die Überschrift sel_stock benutzen
 st.subheader(f"🔍 Detail-Analyse: {TICKER_NAMES.get(sel_stock, sel_stock)}")
 
-# Daten abrufen (Synchronisiert über zentrale Funktion)
+# 3. Daten abrufen
 res_d = get_analysis(sel_stock)
 
 if res_d["cp"] > 0:
@@ -246,86 +257,52 @@ if res_d["cp"] > 0:
     chance = res_d["chance"]
     chg = res_d["chg"]
     
-    # 1. TRADING-LOGIK (ATR-basiert mit CRV 3.0)
+    # Trading-Logik (ATR-basiert)
     risk = atr * 1.5
     reward = risk * 3.0
     
     if chance >= 50:
-        setup_type = "LONG (CALL)"
-        target = cp + reward
-        stop = cp - risk
-        setup_color = "#00FFA3"
+        setup_type, setup_color = "LONG (CALL)", "#00FFA3"
+        target, stop = cp + reward, cp - risk
     else:
-        setup_type = "SHORT (PUT)"
-        target = cp - reward
-        stop = cp + risk
-        setup_color = "#FF4B4B"
+        setup_type, setup_color = "SHORT (PUT)", "#FF4B4B"
+        target, stop = cp - reward, cp + risk
 
-    # 2. STATUS-BANNER
+    # Status-Banner
     icon_d, color_d, dot_d = get_style(chg)
     st.markdown(f"""
         <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border-left: 5px solid {setup_color}; margin-bottom: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <span style="font-size: 1.5rem;">{icon_d} {dot_d}</span>
-                    <b style="font-size: 1.2rem; color: white; margin-left: 10px;">{setup_type} SETUP</b>
-                </div>
-                <div style="text-align: right;">
-                    <small style="color: #8892b0;">Chance</small><br>
-                    <b style="font-size: 1.2rem; color: {setup_color};">{chance}%</b>
-                </div>
-            </div>
+            <span style="font-size: 1.5rem;">{icon_d} {dot_d}</span>
+            <b style="font-size: 1.2rem; color: white; margin-left: 10px;">{setup_type} SETUP ({chance}%)</b>
         </div>
     """, unsafe_allow_html=True)
 
-    # 3. METRIKEN-REIHE (6 Spalten)
+    # Metriken
     m1, m2, m3, m4, m5, m6 = st.columns(6)
     m1.metric("KURS", f"{cp:,.2f}", f"{chg:+.2f}%")
     m2.metric("CHANCE", f"{chance}%")
-    
-    # Ziel & Stop mit Prozent-Abstand
     m3.metric("ZIEL (TP)", f"{target:,.2f}", f"{(target/cp-1)*100:+.2f}%")
     m4.metric("STOP (SL)", f"{stop:,.2f}", f"{(stop/cp-1)*100:+.2f}%", delta_color="inverse")
-    
     m5.metric("ATR (14h)", f"{atr:.2f}")
     m6.metric("VOLUMEN", f"{res_d['vol']:,.0f}")
 
-    # 4. CHART MIT SETUP-LINIEN (Plotly)
+    # Grafik
     try:
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
-        
         df_plot = res_d["df"].tail(60).copy()
         df_plot['x_label'] = df_plot.index.strftime('%d.%m %H:%M')
         
         fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_trace(go.Bar(x=df_plot['x_label'], y=df_plot['Volume'], name="Volumen", marker_color='#1E90FF', opacity=0.2), secondary_y=False)
+        fig.add_trace(go.Candlestick(x=df_plot['x_label'], open=df_plot['Open'], high=df_plot['High'], low=df_plot['Low'], close=df_plot['Close'], name="Kurs", increasing_line_color='#00FFA3', decreasing_line_color='#FF4B4B'), secondary_y=True)
         
-        # Volumen (Links)
-        fig.add_trace(go.Bar(x=df_plot['x_label'], y=df_plot['Volume'], name="Volumen", 
-                             marker_color='#1E90FF', opacity=0.2), secondary_y=False)
+        # Setup-Linien
+        fig.add_hline(y=target, line_dash="dash", line_color="#00FFA3", annotation_text="ZIEL", secondary_y=True)
+        fig.add_hline(y=stop, line_dash="dash", line_color="#FF4B4B", annotation_text="STOP", secondary_y=True)
         
-        # Candlesticks (Rechts)
-        fig.add_trace(go.Candlestick(x=df_plot['x_label'], open=df_plot['Open'], high=df_plot['High'], 
-                                     low=df_plot['Low'], close=df_plot['Close'], name="Kurs",
-                                     increasing_line_color='#00FFA3', decreasing_line_color='#FF4B4B'), secondary_y=True)
-
-        # HORIZONTALE SETUP-LINIEN
-        # Ziel-Linie (Grün gestrichelt bei Long, Rot bei Short)
-        fig.add_hline(y=target, line_dash="dash", line_color="#00FFA3", annotation_text="ZIEL (TP)", secondary_y=True)
-        # Stop-Linie (Rot gestrichelt)
-        fig.add_hline(y=stop, line_dash="dash", line_color="#FF4B4B", annotation_text="STOP (SL)", secondary_y=True)
-        # Einstiegs-Linie (Weiß punktiert)
-        fig.add_hline(y=cp, line_dash="dot", line_color="#FFFFFF", annotation_text="EINSTIEG", secondary_y=True)
-
-        fig.update_layout(height=550, margin=dict(l=0, r=0, t=10, b=0), paper_bgcolor='rgba(0,0,0,0)', 
-                          plot_bgcolor='rgba(0,0,0,0)', showlegend=False, xaxis_rangeslider_visible=False,
-                          xaxis=dict(type='category', tickangle=-45, nticks=12, gridcolor='#333', showgrid=False))
-        
-        fig.update_yaxes(title_text="Volumen", secondary_y=False, showgrid=False, color="#8892b0")
-        fig.update_yaxes(title_text="Kurs", secondary_y=True, gridcolor='#333', side="right")
-
+        fig.update_layout(height=550, margin=dict(l=0, r=0, t=10, b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, xaxis_rangeslider_visible=False, xaxis=dict(type='category', tickangle=-45, nticks=12, showgrid=False))
         st.plotly_chart(fig, use_container_width=True)
-        
     except Exception as e:
         st.error(f"Grafik-Fehler: {e}")
 
