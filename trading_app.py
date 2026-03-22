@@ -381,30 +381,7 @@ if res_d["cp"] > 0:
         </div>
     """, unsafe_allow_html=True)
 
-    # --- 4. METRIKEN IN ZWEI ZEILEN (KOMPAKT & SCHARF) ---
-    
-    # ZEILE 1: Marktdaten (Kurs, Vola %, Volumen)
-    r1c1, r1c2, r1c3 = st.columns(3)
-    r1c1.metric("KURS", f"{cp:,.2f}", f"{chg:+.2f}%")
-    r1c2.metric("VOLA (ATR %)", f"{vola_pct:.2f}%", f"ATR: {atr:.2f}")
-    r1c3.metric("VOLUMEN (IST)", f"{res_d['vol']:,.0f}")
-
-    # ZEILE 2: Trading-Parameter (Chance, Ziel, Stop, CRV)
-    r2c1, r2c2, r2c3, r2c4 = st.columns(4)
-    r2c1.metric("CHANCE", f"{chance}%", delta=f"{chance-50}%")
-    r2c2.metric("ZIEL (TP)", f"{target:,.2f}", f"{(target/cp-1)*100:+.2f}%")
-    r2c3.metric("STOP (SL)", f"{stop:,.2f}", f"{(stop/cp-1)*100:+.2f}%", delta_color="inverse")
-    
-    # CRV Kachel mit Spezial-Styling aus Sektion 3
-    r2c4.markdown(f"""
-        <div class="crv-box">
-            <small style="color:#8892b0; font-size:0.7rem; text-transform:uppercase;">CRV</small><br>
-            <b style="color:#1E90FF; font-size:1.4rem;">{crv_val:.1f}</b>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # --- 4. METRIKEN IN ZWEI ZEILEN (KOMPAKT & MIT 250-TAGE-DATEN) ---
-
+# --- 4. METRIKEN IN ZWEI ZEILEN (KOMPAKT & MIT 250-TAGE-DATEN) ---
 # Hilfsberechnung für 250-Tage-Logik
 h250 = res_d.get("h250", 0)
 l250 = res_d.get("l250", 0)
@@ -449,10 +426,7 @@ r2c4.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# --- 5. GRAFIK (PLOTLY TEIL FOLGT HIER...) ---
-
-
-    # --- 5. GRAFIK (LÜCKENLOSE CANDLESTICKS & SETUP-LINIEN) ---
+# --- 5. GRAFIK (LÜCKENLOSE CANDLESTICKS & SETUP-LINIEN) ---
     try:
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
