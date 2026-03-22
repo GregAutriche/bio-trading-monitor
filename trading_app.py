@@ -21,7 +21,7 @@ TICKER_NAMES = {
 }
 STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k and k != "XU100.IS"]
 
-# --- 3. DESIGN ---
+# --- 3. DESIGN (ERZWUNGENER DARK MODE) ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117 !important; color: #FFFFFF !important; }
@@ -43,7 +43,7 @@ def get_analysis(ticker):
         chg = ((cp / float(df['Close'].iloc[-2])) - 1) * 100
         atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1]
         np.random.seed(42)
-        sim = np.random.normal(np.log(df['Close']/df['Close'].shift(1)).dropna().mean(), 0.01, 1000)
+        sim = np.random.normal(0, 0.01, 1000)
         chance = int((sim > 0).sum() / 10)
         return {"cp": cp, "chg": chg, "chance": chance, "atr": atr, "vol": int(df['Volume'].iloc[-1]), "df": df}
     except: return {"cp": 0.0, "chg": 0.0, "chance": 50, "atr": 0.0, "vol": 0, "df": pd.DataFrame()}
@@ -55,7 +55,7 @@ def get_style(chg):
 
 # --- 5. DASHBOARD ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
-st.markdown(f'<div class="update-info">🕒 Update: <b>{datetime.now().strftime("%H:%M:%S")}</b> | Intervall: <b>60s</b></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="update-info">🕒 Update: <b>{datetime.now().strftime("%H:%M:%S")}</b> | Intervall: 60s</div>', unsafe_allow_html=True)
 
 # 5a. MARKT-WETTER (3 ZEILEN)
 WEATHER_ROWS = [["EURUSD=X", "EURRUB=X"], ["^GDAXI", "^NDX"], ["^STOXX50E", "^NSEI", "XU100.IS"]]
@@ -64,12 +64,20 @@ for row in WEATHER_ROWS:
     for i, t in enumerate(row):
         res = get_analysis(t)
         icon, color, dot = get_style(res["chg"])
-        with cols[i]:
-            st.markdown(f'<div class="weather-card" style="border-color:{color};"><small>{TICKER_NAMES.get(t,t)}</small> {icon}<br><b style="font-size:1.5rem;">{res["cp"]: ,.2f if "^" in t else .4f}</b><br><span style="color:{color};">{res["chg"]:+.2f}%</span> {dot}</div>', unsafe_allow_html=True)
+        # Fix für ValueError: CSS-Klammern werden durch doppeltes {{ }} geschützt
+        st.markdown(f"""
+            <div class="weather-card" style="border-color:{color};">
+                <div style="display: flex; justify-content: space-between;"><small>{TICKER_NAMES.get(t,t)}</small><span>{icon}</span></div>
+                <b style="font-size:1.5rem;">{res["cp"]: ,.2f if "^" in t else .4f}</b><br>
+                <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                    <span style="color:{color};">{res["chg"]:+.2f}%</span><span>{dot}</span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
 
 st.divider()
 
-# 5b. TOP 5 AKTIEN
+# 5b. TOP 5 AKTIEN NACH CHANCE
 st.subheader("📊 Top 5 Aktien-Chancen")
 signals = []
 for s in STOCKS_ONLY:
@@ -90,23 +98,19 @@ if not df_sig.empty:
 
 st.divider()
 
-# 5c. DETAIL-ANALYSE (FIX: REIHENFOLGE GEÄNDERT)
-st.subheader("🔍 Detail-Analyse & Volumen")
-# Zuerst die Selectbox erstellen, damit sel_stock definiert ist!
+# 5c. DETAIL-ANALYSE
+st.subheader("🔍 Detail-Analyse (Aktien)")
 sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
 sel_stock = st.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
 
-# Jetzt sel_stock für die Analyse nutzen
 res_d = get_analysis(sel_stock)
 if res_d["cp"] > 0:
     icon_d, _, dot_d = get_style(res_d["chg"])
-    
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("KURS", f"{res_d['cp']:,.2f}", f"{res_d['chg']:+.2f}%")
     col2.metric("CHANCE", f"{res_d['chance']}%", delta=f"{res_d['chance']-50}%")
     col3.metric("ATR (14h)", f"{res_d['atr']:.2f}")
     col4.metric("VOLUMEN", f"{res_d['vol']:,.0f}")
-
-    # Volumen-Profil
-    st.write(f"**Status:** {icon_d} {dot_d} | **Volumen-Profil (Letzte 40 Perioden):**")
+    
+    st.write(f"**Wetter-Status:** {icon_d} {dot_d}")
     st.bar_chart(res_d["df"]['Volume'].tail(40), color="#1E90FF")
