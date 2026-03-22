@@ -110,54 +110,53 @@ if not df_sig.empty:
 st.divider()
 
 # --- 5c. DETAIL-ANALYSE (MIT GRAFIK) ---
-try:
-    import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
+st.divider()
+st.subheader("🔍 Detail-Analyse & Volumen-Profil")
 
-    df_plot = res_d["df"].tail(60)
-    
-    # Subplots: Kurs oben, Volumen unten
-    fig = make_subplots(
-        rows=2, cols=1, 
-        shared_xaxes=True, 
-        vertical_spacing=0.05, 
-        row_heights=[0.7, 0.3]
-    )
+# 1. Auswahl (Nur Aktien)
+sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
+sel_stock = st.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
 
-    # Kurs-Linie
-    fig.add_trace(
-        go.Scatter(x=df_plot.index, y=df_plot['Close'], name="Kurs", line=dict(color='#00FFA3', width=2)),
-        row=1, col=1
-    )
+# 2. Datenabruf (WICHTIG: Muss VOR der Grafik stehen!)
+res_d = get_analysis(sel_stock)
 
-    # Volumen-Balken
-    fig.add_trace(
-        go.Bar(x=df_plot.index, y=df_plot['Volume'], name="Volumen", marker_color='#1E90FF', opacity=0.8),
-        row=2, col=1
-    )
+# Prüfen, ob Daten vorhanden sind
+if res_d["cp"] > 0:
+    # 3. Metriken anzeigen
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("KURS", f"{res_d['cp']:,.2f}", f"{res_d['chg']:+.2f}%")
+    col2.metric("CHANCE", f"{res_d['chance']}%", delta=f"{res_d['chance']-50}%")
+    col3.metric("ATR (14h)", f"{res_d['atr']:.2f}")
+    col4.metric("VOLUMEN", f"{res_d['vol']:,.0f}")
 
-    fig.update_layout(
-        height=500,
-        margin=dict(l=0, r=0, t=10, b=0),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        showlegend=False,
-        xaxis_rangeslider_visible=False
-    )
+    # 4. Professionelle Grafik (Plotly)
+    try:
+        import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
 
-    # Lückenlos-Fix (Wochenenden & Nachtstunden)
-    fig.update_xaxes(
-        rangebreaks=[
-            dict(bounds=["sat", "mon"]),
-            dict(bounds=[17.5, 9], pattern="hour")
-        ],
-        gridcolor='#333'
-    )
-    fig.update_yaxes(gridcolor='#333')
+        df_plot = res_d["df"].tail(60) # Hier war der Fehler: res_d ist nun definiert!
+        
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
+                            vertical_spacing=0.05, row_heights=[0.7, 0.3])
 
-    st.plotly_chart(fig, use_container_width=True)
+        # Kurs-Linie (Oben)
+        fig.add_trace(go.Scatter(x=df_plot.index, y=df_plot['Close'], 
+                                 name="Kurs", line=dict(color='#00FFA3', width=2)), row=1, col=1)
 
-except ModuleNotFoundError:
-    st.error("❌ Grafik-Modul fehlt: Bitte 'plotly' in die requirements.txt hinzufügen.")
-    # Fallback: Einfacher Chart, falls Plotly nicht da ist
-    st.line_chart(res_d["df"]['Close'].tail(60))
+        # Volumen-Balken (Unten)
+        fig.add_trace(go.Bar(x=df_plot.index, y=df_plot['Volume'], 
+                             name="Volumen", marker_color='#1E90FF', opacity=0.8), row=2, col=1)
+
+        fig.update_layout(height=450, margin=dict(l=0, r=0, t=10, b=0),
+                          paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False)
+        
+        # Lückenlos-Fix (Wochenenden entfernen)
+        fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"]), dict(bounds=[17.5, 9], pattern="hour")])
+        
+        st.plotly_chart(fig, use_container_width=True)
+
+    except ImportError:
+        st.error("Bitte installiere Plotly: 'pip install plotly'")
+        st.bar_chart(res_d["df"]['Volume'].tail(40)) # Fallback Grafik
+else:
+    st.warning("Keine Daten für dieses Symbol verfügbar.")
