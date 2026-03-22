@@ -423,7 +423,7 @@ r2c3.metric("STOP (SL)", f"{stop:,.2f}", f"{(stop/cp-1)*100:+.2f}%", delta_color
 # CRV Kachel (unverändert)
 r2c4.markdown(f"""
     <div class="crv-box">
-        <small style="color:#8892b0; font-size:0.7rem; text-transform:uppercase;">CRV</small><br>
+        <small style="color:#8892b0; font-size:0.7rem; text-transform:uppercase;">CRV</small>
         <b style="color:#1E90FF; font-size:1.4rem;">{crv_val:.1f}</b>
     </div>
     """, unsafe_allow_html=True)
