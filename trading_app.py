@@ -97,7 +97,6 @@ st.markdown("""
         background: rgba(255,255,255,0.02);
         border-radius: 8px;
     }
-    </style>
     """, unsafe_allow_html=True)
     .stApp { background-color: #0E1117 !important; color: #FFFFFF !important; }
     .weather-card { text-align:center; border-radius:12px; background:rgba(255,255,255,0.03); border: 2px solid #333; padding: 15px; margin-bottom: 10px; }
