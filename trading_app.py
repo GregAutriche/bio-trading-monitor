@@ -427,7 +427,7 @@ r2c4.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- 5. GRAFIK (LÜCKENLOSE CANDLESTICKS & SETUP-LINIEN) ---
-    try:
+try:
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
         
