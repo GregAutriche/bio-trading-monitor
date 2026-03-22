@@ -322,19 +322,32 @@ if not df_sig.empty:
 # --- 5c. DETAIL-ANALYSE (MIT TRADING-SETUP & CHART-LINIEN) ---
 st.divider()
 
-# 1. Auswahl & Überschrift
+# 1. Auswahl-Logik (Nur Aktien, alphabetisch sortiert)
 sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
-sel_stock = st.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
+sel_stock = st.selectbox(
+    "Aktie für Analyse wählen:", 
+    sorted_stocks, 
+    format_func=lambda x: TICKER_NAMES.get(x, x),
+    key="selector_5c"
+)
+
 st.subheader(f"🔍 Detail-Analyse: {TICKER_NAMES.get(sel_stock, sel_stock)}")
 
+# 2. Datenabruf über zentrale Funktion (Synchronität garantiert)
 res_d = get_analysis(sel_stock)
 
 if res_d["cp"] > 0:
-    cp, atr, chance, chg = res_d["cp"], res_d["atr"], res_d["chance"], res_d["chg"]
+    cp = res_d["cp"]
+    atr = res_d["atr"]
+    chance = res_d["chance"]
+    chg = res_d["chg"]
     
-    # Trading-Logik (ATR-basiert)
+    # --- TRADING-LOGIK (ATR-basiert mit CRV 3.0) ---
     risk = atr * 1.5
     reward = risk * 3.0
+    vola_pct = (atr / cp) * 100 # Volatilität in Prozent vom Kurs
+    crv_val = 3.0 # Festgelegtes Chance-Risiko-Verhältnis
+
     if chance >= 50:
         setup_type, setup_color = "LONG (CALL)", "#00FFA3"
         target, stop = cp + reward, cp - risk
@@ -342,75 +355,84 @@ if res_d["cp"] > 0:
         setup_type, setup_color = "SHORT (PUT)", "#FF4B4B"
         target, stop = cp - reward, cp + risk
 
-    # Status-Banner
+    # 3. STATUS-BANNER (Prominent über den Kursen)
     icon_d, color_d, dot_d = get_style(chg)
     st.markdown(f"""
-        <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border-left: 5px solid {setup_color}; margin-bottom: 20px;">
-            <span style="font-size: 1.5rem;">{icon_d} {dot_d}</span>
-            <b style="font-size: 1.2rem; color: white; margin-left: 10px;">{setup_type} SETUP ({chance}%)</b>
+        <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 10px; border-left: 6px solid {setup_color}; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span style="font-size: 1.5rem;">{icon_d} {dot_d}</span>
+                    <b style="font-size: 1.1rem; color: white; margin-left: 10px; text-transform: uppercase;">{setup_type} SETUP AKTIV</b>
+                </div>
+                <div style="text-align: right;">
+                    <small style="color: #8892b0; display: block; font-size: 0.7rem;">STRATEGIE-KONFIDENZ</small>
+                    <b style="font-size: 1.2rem; color: {setup_color};">{chance}%</b>
+                </div>
+            </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # --- METRIKEN IN ZWEI ZEILEN ---
+    # --- 4. METRIKEN IN ZWEI ZEILEN (KOMPAKT & SCHARF) ---
     
-    # 1. Zeile: Markt-Basisdaten
+    # ZEILE 1: Marktdaten (Kurs, Vola %, Volumen)
     r1c1, r1c2, r1c3 = st.columns(3)
     r1c1.metric("KURS", f"{cp:,.2f}", f"{chg:+.2f}%")
-    r1c2.metric("ATR (14h)", f"{atr:.2f}")
-    r1c3.metric("VOLUMEN", f"{res_d['vol']:,.0f}")
+    r1c2.metric("VOLA (ATR %)", f"{vola_pct:.2f}%", f"ATR: {atr:.2f}")
+    r1c3.metric("VOLUMEN (IST)", f"{res_d['vol']:,.0f}")
 
-    # 2. Zeile: Trading-Strategie
-    r2c1, r2c2, r2c3 = st.columns(3)
+    # ZEILE 2: Trading-Parameter (Chance, Ziel, Stop, CRV)
+    r2c1, r2c2, r2c3, r2c4 = st.columns(4)
     r2c1.metric("CHANCE", f"{chance}%", delta=f"{chance-50}%")
     r2c2.metric("ZIEL (TP)", f"{target:,.2f}", f"{(target/cp-1)*100:+.2f}%")
     r2c3.metric("STOP (SL)", f"{stop:,.2f}", f"{(stop/cp-1)*100:+.2f}%", delta_color="inverse")
+    
+    # CRV Kachel mit Spezial-Styling aus Sektion 3
+    r2c4.markdown(f"""
+        <div class="crv-box">
+            <small style="color:#8892b0; font-size:0.7rem; text-transform:uppercase;">CRV</small><br>
+            <b style="color:#1E90FF; font-size:1.4rem;">{crv_val:.1f}</b>
+        </div>
+    """, unsafe_allow_html=True)
 
-    # 3. Grafik (Lückenlose Candlesticks)
+    # --- 5. GRAFIK (LÜCKENLOSE CANDLESTICKS & SETUP-LINIEN) ---
     try:
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
+        
         df_plot = res_d["df"].tail(60).copy()
         df_plot['x_label'] = df_plot.index.strftime('%d.%m %H:%M')
         
         fig = make_subplots(specs=[[{"secondary_y": True}]])
-        fig.add_trace(go.Bar(x=df_plot['x_label'], y=df_plot['Volume'], name="Volumen", marker_color='#1E90FF', opacity=0.2), secondary_y=False)
-        fig.add_trace(go.Candlestick(x=df_plot['x_label'], open=df_plot['Open'], high=df_plot['High'], low=df_plot['Low'], close=df_plot['Close'], name="Kurs", increasing_line_color='#00FFA3', decreasing_line_color='#FF4B4B'), secondary_y=True)
         
-        # Setup-Linien im Chart
+        # Volumen (Hintergrund / Links)
+        fig.add_trace(go.Bar(x=df_plot['x_label'], y=df_plot['Volume'], name="Volumen", 
+                             marker_color='#1E90FF', opacity=0.2), secondary_y=False)
+        
+        # Candlesticks (Vordergrund / Rechts)
+        fig.add_trace(go.Candlestick(x=df_plot['x_label'], open=df_plot['Open'], high=df_plot['High'], 
+                                     low=df_plot['Low'], close=df_plot['Close'], name="Kurs",
+                                     increasing_line_color='#00FFA3', decreasing_line_color='#FF4B4B',
+                                     increasing_fillcolor='#00FFA3', decreasing_fillcolor='#FF4B4B'), secondary_y=True)
+
+        # Horizontale Setup-Linien
         fig.add_hline(y=target, line_dash="dash", line_color="#00FFA3", annotation_text="ZIEL", secondary_y=True)
         fig.add_hline(y=stop, line_dash="dash", line_color="#FF4B4B", annotation_text="STOP", secondary_y=True)
+        fig.add_hline(y=cp, line_dash="dot", line_color="#FFFFFF", annotation_text="ENTRY", secondary_y=True)
+
+        fig.update_layout(
+            height=500, margin=dict(l=0, r=0, t=10, b=0),
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+            showlegend=False, xaxis_rangeslider_visible=False,
+            xaxis=dict(type='category', tickangle=-45, nticks=10, showgrid=False)
+        )
         
-        fig.update_layout(height=500, margin=dict(l=0, r=0, t=10, b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, xaxis_rangeslider_visible=False, xaxis=dict(type='category', tickangle=-45, nticks=12, showgrid=False))
-        st.plotly_chart(fig, use_container_width=True)
-    except Exception as e:
-        st.error(f"Grafik-Fehler: {e}")
-else:
-    st.warning("Keine Daten für dieses Symbol verfügbar.")
-
-
-    # Metriken-Reihe
-    col_d1, col_d2, col_d3, col_d4 = st.columns(4)
-    col_d1.metric("KURS", f"{res_d['cp']:,.2f}")
-    col_d2.metric("CHANCE", f"{res_d['chance']}%", delta=f"{res_d['chance']-50}%")
-    col_d3.metric("ATR (14h)", f"{res_d['atr']:.2f}")
-    col_d4.metric("VOLUMEN", f"{res_d['vol']:,.0f}")
-
-    # Candlestick-Grafik (unverändert)
-    try:
-        import plotly.graph_objects as go
-        from plotly.subplots import make_subplots
-        
-        df_plot = res_d["df"].tail(60).copy()
-        df_plot['x_label'] = df_plot.index.strftime('%d.%m %H:%M')
-        
-        fig = make_subplots(specs=[[{"secondary_y": True}]])
-        fig.add_trace(go.Bar(x=df_plot['x_label'], y=df_plot['Volume'], name="Volumen", marker_color='#1E90FF', opacity=0.25), secondary_y=False)
-        fig.add_trace(go.Candlestick(x=df_plot['x_label'], open=df_plot['Open'], high=df_plot['High'], low=df_plot['Low'], close=df_plot['Close'], name="Kurs", increasing_line_color='#00FFA3', decreasing_line_color='#FF4B4B'), secondary_y=True)
-
-        fig.update_layout(height=450, margin=dict(l=0, r=0, t=10, b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, xaxis_rangeslider_visible=False, xaxis=dict(type='category', tickangle=-45, nticks=12, gridcolor='#333', showgrid=False))
         fig.update_yaxes(title_text="Volumen", secondary_y=False, showgrid=False, color="#8892b0")
-        fig.update_yaxes(title_text="Kurs", secondary_y=True, gridcolor='#333', side="right")
+        fig.update_yaxes(title_text="Preis", secondary_y=True, gridcolor='#333', side="right")
 
         st.plotly_chart(fig, use_container_width=True)
+        
     except Exception as e:
         st.error(f"Grafik-Fehler: {e}")
+
+else:
+    st.error("Konnte keine synchronisierten Daten für diesen Wert laden.")
