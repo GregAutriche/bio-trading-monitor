@@ -428,7 +428,7 @@ if res_d.get("cp", 0) > 0:
     # ... (deine r2c1 - r2c4 Metriken)
 
     # --- 5. GRAFIK (PLOTLY) ---
-        try:
+    try:
         import plotly.graph_objects as go
         # Sicherstellen, dass das fig-Objekt immer definiert wird
         df_plot = res_d["df"].tail(60).copy()
