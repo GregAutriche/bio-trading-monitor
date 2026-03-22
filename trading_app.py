@@ -411,22 +411,6 @@ if res_d.get("cp", 0) > 0:
     display_l = l250 if h250 > l250 else cp * 0.99
     pos_pct = max(0, min(100, ((cp - display_l) / (display_h - display_l)) * 100))
 
-    st.markdown(f"""
-        <div style="margin: 10px 0 25px 0;">
-            <div style="display:flex; justify-content:space-between; font-size:0.65rem; color:#8892b0; margin-bottom:4px;">
-                <span>250-T TIEF ({display_l:,.2f})</span>
-                <span style="color:#1E90FF;">POSITION: {pos_pct:.1f}%</span>
-                <span>250-T HOCH ({display_h:,.2f})</span>
-            </div>
-            <div style="width:100%; height:4px; background:rgba(255,255,255,0.1); border-radius:2px;">
-                <div style="width:{pos_pct}%; height:100%; background:linear-gradient(90deg, #FF4B4B, #F1C40F, #00FFA3); position:relative;">
-                    <div style="position:absolute; right:-5px; top:-5px; width:12px; height:12px; background:white; border-radius:50%; border:2px solid #1E90FF;"></div>
-                </div>
-            </div>
-        </div>""", unsafe_allow_html=True)
-
-    # ... (deine r2c1 - r2c4 Metriken)
-
     # --- 5. GRAFIK (PLOTLY) ---
     try:
         import plotly.graph_objects as go
