@@ -48,7 +48,7 @@ TICKER_NAMES = {
     "ABI.BR": "🇧🇪 Anheuser-Busch InBev",
     "CRH.AS": "🇮🇪 CRH", 
     "FLTR.IR": "🇮🇪 Flutter Entertainment",
-    "NOKIA.HE": "🇫🇮 Nokia"
+    "NOKIA.HE": "🇫🇮 Nokia",
     
 # Aktien US / NASDAQ
     "AAPL": "🇺🇸 Apple", "MSFT": "🇺🇸 Microsoft", "GOOGL": "🇺🇸 Alphabet (A)", "GOOG": "🇺🇸 Alphabet (C)",
