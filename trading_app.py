@@ -216,15 +216,24 @@ with st.expander("ℹ️ Hilfe & Dokumentation: Wie werden die Werte berechnet?"
     - **Scan:** Es werden alle hinterlegten DAX 40 und NASDAQ 100 Werte (ca. 130+ Aktien) analysiert.
     - **Filter:** Die linke Tabelle zeigt nur Werte mit positivem Trend, die rechte nur mit negativem Trend.
     - **Sortierung:** Innerhalb dieser Gruppen wird nach der **statistischen Chance** (Monte-Carlo-Simulation) sortiert, nicht nach der reinen Kursänderung.
-    
     ---
-    
     ### 🔍 Detail-Info & Metriken
     - **KURS:** Aktueller Preis mit der prozentualen Änderung zum Vorstunden-Schlusskurs.
     - **CHANCE:** Ergebnis einer Simulation von 1.000 Pfaden basierend auf der Volatilität der letzten 30 Tage. Ein Wert über 50% signalisiert eine statistische Aufwärts-Wahrscheinlichkeit.
     - **ATR (14h):** Die *Average True Range* zeigt die durchschnittliche Schwankungsbreite der letzten 14 Stunden. Sie dient zur Bestimmung der Volatilität und zur Setzung von Stop-Loss-Marken.
     - **VOLUMEN-TREND:** Das aktuelle Volumen im Vergleich zum 20-Tage-Schnitt (120 Handelsstunden). Ein positiver Wert zeigt erhöhtes Interesse.
     ---
+    Das CRV (Chance-Risiko-Verhältnis) ist eine der wichtigsten Kennzahlen im professionellen Trading. Es beschreibt das mathematische Verhältnis zwischen dem potenziellen Gewinn und dem eingegangenen Risiko eines Trades.
+    Hier ist die detaillierte Beschreibung für deine Dokumentation oder den Info-Expander:
+    ⚖️ CRV (Chance-Risiko-Verhältnis)
+    Das CRV gibt an, wie viele Einheiten Gewinn für jede Einheit Risiko zu erwarten sind.
+
+    Berechnung:
+    Dein Setup: In diesem Monitor ist das CRV fest auf 3.0 eingestellt. Das bedeutet:
+    Du riskierst beispielsweise 100 € (wenn der Stop-Loss erreicht wird).
+    Du zielst auf einen Gewinn von 300 € (wenn das Ziel erreicht wird).
+    Bedeutung für die Strategie: Ein CRV von 3.0 ist mathematisch sehr wertvoll. Es erlaubt dir, selbst dann profitabel zu sein, wenn nur 30 % deiner Trades gewinnen.
+    
     ### 📈 Grafik-Beschreibung
     Das Chart kombiniert zwei wichtige Informationsebenen:
     1. **Candlesticks (Kerzen):** Zeigen Eröffnung, Schluss, Hoch und Tief pro Stunde. 
