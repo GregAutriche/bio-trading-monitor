@@ -3,6 +3,7 @@ seaborn
 yfinance
 pandas
 openpyxl
+plotly
 numpy
 matplotlib
 streamlit-autorefresh
