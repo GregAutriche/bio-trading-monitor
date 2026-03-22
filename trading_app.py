@@ -121,17 +121,28 @@ if not df_sig.empty:
 st.divider()
 
 # 5c. DETAIL-ANALYSE
-st.subheader("🔍 Detail-Analyse (Synchronisiert)")
-sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
-sel_stock = st.selectbox("Aktie wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
+# --- 5c. DETAIL-ANALYSE (MIT KURS & VOLUMEN-PROFIL) ---
+st.subheader(f"🔍 Detail-Analyse: {TICKER_NAMES.get(sel_stock, sel_stock)}")
 
 res_d = get_analysis(sel_stock)
 if res_d["cp"] > 0:
     icon_d, _, dot_d = get_weather_style(res_d["chg"])
+    
+    # 1. Metriken-Leiste
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("KURS", f"{res_d['cp']:,.2f}", f"{res_d['chg']:+.2f}%")
     col2.metric("CHANCE", f"{res_d['chance']}%", delta=f"{res_d['chance']-50}%")
     col3.metric("ATR (14h)", f"{res_d['atr']:.2f}")
     col4.metric("VOLUMEN", f"{res_d['vol']:,.0f}")
-    st.write(f"**Wetter-Status:** {icon_d} {dot_d}")
-    st.bar_chart(res_d["df"]['Volume'].tail(40))
+
+    # 2. Kurs-Verlauf (Oben)
+    st.write("**Kurs-Entwicklung (Letzte 60 Perioden):**")
+    st.line_chart(res_d["df"]['Close'].tail(60))
+
+    # 3. Volumen-Profil (Unten - Wie in Ihrem Bild)
+    st.write("**Volumen-Profil (Identisch zu Ihrer Vorlage):**")
+    # Wir nutzen hier st.bar_chart mit den exakten Volumen-Daten
+    vol_data = res_d["df"]['Volume'].tail(60)
+    st.bar_chart(vol_data, color="#1E90FF")
+    
+    st.markdown(f"**Status:** {icon_d} {dot_d} | Die Volumen-Balken entsprechen der täglichen Handelsaktivität.")
