@@ -244,3 +244,31 @@ if res_d["cp"] > 0:
         st.plotly_chart(fig, use_container_width=True)
     except Exception as e:
         st.error(f"Grafik-Fehler: {e}")
+
+# --- 6. INFO-EXPANDER (DOKUMENTATION) ---
+with st.expander("ℹ️ Hilfe & Dokumentation: Wie werden die Werte berechnet?"):
+    st.markdown("""
+    ### 📊 Top 5 Aktien-Chancen
+    Die Top-Listen werden bei jedem Refresh (60s) neu generiert. 
+    - **Scan:** Es werden alle hinterlegten DAX 40 und NASDAQ 100 Werte (ca. 130+ Aktien) analysiert.
+    - **Filter:** Die linke Tabelle zeigt nur Werte mit positivem Trend, die rechte nur mit negativem Trend.
+    - **Sortierung:** Innerhalb dieser Gruppen wird nach der **statistischen Chance** (Monte-Carlo-Simulation) sortiert, nicht nach der reinen Kursänderung.
+    
+    ---
+    
+    ### 🔍 Detail-Info & Metriken
+    - **KURS:** Aktueller Preis mit der prozentualen Änderung zum Vorstunden-Schlusskurs.
+    - **CHANCE:** Ergebnis einer Simulation von 1.000 Pfaden basierend auf der Volatilität der letzten 30 Tage. Ein Wert über 50% signalisiert eine statistische Aufwärts-Wahrscheinlichkeit.
+    - **ATR (14h):** Die *Average True Range* zeigt die durchschnittliche Schwankungsbreite der letzten 14 Stunden. Sie dient zur Bestimmung der Volatilität und zur Setzung von Stop-Loss-Marken.
+    - **VOLUMEN-TREND:** Das aktuelle Volumen im Vergleich zum 20-Tage-Schnitt (120 Handelsstunden). Ein positiver Wert zeigt erhöhtes Interesse.
+    
+    ---
+    
+    ### 📈 Grafik-Beschreibung
+    Das Chart kombiniert zwei wichtige Informationsebenen:
+    1. **Candlesticks (Kerzen):** Zeigen Eröffnung, Schluss, Hoch und Tief pro Stunde. 
+       - <span style='color:#00FFA3;'>Grün</span> = Kurs gestiegen.
+       - <span style='color:#FF4B4B;'>Rot</span> = Kurs gefallen.
+    2. **Volumen-Profil (Blau):** Die blauen Balken im Hintergrund nutzen die **linke Y-Achse**. Sie zeigen die Handelsaktivität.
+    3. **Lückenlos-Achse:** Wochenenden und Nachtstunden werden ausgeblendet, um eine unterbrechungsfreie technische Analyse zu ermöglichen.
+    """, unsafe_allow_html=True)
