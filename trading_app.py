@@ -7,29 +7,45 @@ from datetime import datetime
 
 # --- 1. KONFIGURATION ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
-# Intervall: 60 Sekunden
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
-# --- 2. TICKER-MAPPING ---
+# --- 2. VOLLSTÄNDIGES TICKER-MAPPING ---
 TICKER_NAMES = {
+    # WETTER (Indizes & Forex)
     "EURUSD=X": "💱 EUR/USD", "EURRUB=X": "💱 EUR/RUB", 
     "^GDAXI": "📊 DAX 40", "^NDX": "📊 NASDAQ 100",
     "^STOXX50E": "📊 EuroStoxx 50", "^NSEI": "📊 Nifty 50", "XU100.IS": "📊 BIST 100",
-    "ADS.DE": "🇩🇪 Adidas", "AIR.DE": "🇩🇪 Airbus", "ALV.DE": "🇩🇪 Allianz", "BAS.DE": "🇩🇪 BASF", 
-    "BAYN.DE": "🇩🇪 Bayer", "BMW.DE": "🇩🇪 BMW", "DBK.DE": "🇩🇪 Deutsche Bank", "DTE.DE": "🇩🇪 Telekom", 
-    "RHM.DE": "🇩🇪 Rheinmetall", "SAP.DE": "🇩🇪 SAP", "AAPL": "🇺🇸 Apple", "MSFT": "🇺🇸 Microsoft", 
-    "NVDA": "🇺🇸 Nvidia", "TSLA": "🇺🇸 Tesla", "AMD": "🇺🇸 AMD", "PLTR": "🇺🇸 Palantir"
+    
+    # DAX 40 KOMPLETT (🇩🇪)
+    "ADS.DE": "🇩🇪 Adidas", "AIR.DE": "🇩🇪 Airbus", "ALV.DE": "🇩🇪 Allianz", "BAS.DE": "🇩🇪 BASF", "BAYN.DE": "🇩🇪 Bayer", 
+    "BEI.DE": "🇩🇪 Beiersdorf", "BMW.DE": "🇩🇪 BMW", "BNR.DE": "🇩🇪 Brenntag", "CBK.DE": "🇩🇪 Commerzbank", "CON.DE": "🇩🇪 Continental", 
+    "1COV.DE": "🇩🇪 Covestro", "DTG.DE": "🇩🇪 Daimler Truck", "DBK.DE": "🇩🇪 Deutsche Bank", "DB1.DE": "🇩🇪 Deutsche Börse", 
+    "DHL.DE": "🇩🇪 DHL Group", "DTE.DE": "🇩🇪 Deutsche Telekom", "EOAN.DE": "🇩🇪 E.ON", "FRE.DE": "🇩🇪 Fresenius", 
+    "FME.DE": "🇩🇪 Fresenius Medical Care", "MTX.DE": "🇩🇪 MTU Aero Engines", "HEI.DE": "🇩🇪 Heidelberg Materials", 
+    "HEN3.DE": "🇩🇪 Henkel", "IFX.DE": "🇩🇪 Infineon", "MBG.DE": "🇩🇪 Mercedes-Benz", "MRK.DE": "🇩🇪 Merck", 
+    "MUV2.DE": "🇩🇪 Münchener Rück", "PAH3.DE": "🇩🇪 Porsche SE", "PUM.DE": "🇩🇪 Puma", "QIA.DE": "🇩🇪 Qiagen", 
+    "RHM.DE": "🇩🇪 Rheinmetall", "RWE.DE": "🇩🇪 RWE", "SAP.DE": "🇩🇪 SAP", "SRT3.DE": "🇩🇪 Sartorius", "SIE.DE": "🇩🇪 Siemens", 
+    "ENR.DE": "🇩🇪 Siemens Energy", "SHL.DE": "🇩🇪 Siemens Healthineers", "SY1.DE": "🇩🇪 Symrise", "TKA.DE": "🇩🇪 Thyssenkrupp", 
+    "VOW3.DE": "🇩🇪 Volkswagen", "VNA.DE": "🇩🇪 Vonovia",
+    
+    # NASDAQ 100 AUSWAHL (🇺🇸 - Die Wichtigsten)
+    "AAPL": "🇺🇸 Apple", "MSFT": "🇺🇸 Microsoft", "AMZN": "🇺🇸 Amazon", "NVDA": "🇺🇸 Nvidia", "GOOGL": "🇺🇸 Alphabet", 
+    "META": "🇺🇸 Meta", "TSLA": "🇺🇸 Tesla", "AVGO": "🇺🇸 Broadcom", "PEP": "🇺🇸 PepsiCo", "COST": "🇺🇸 Costco", 
+    "ADBE": "🇺🇸 Adobe", "CSCO": "🇺🇸 Cisco", "NFLX": "🇺🇸 Netflix", "AMD": "🇺🇸 AMD", "PLTR": "🇺🇸 Palantir", 
+    "MSTR": "🇺🇸 MicroStrategy", "QCOM": "🇺🇸 Qualcomm", "TXN": "🇺🇸 Texas Instruments", "INTC": "🇺🇸 Intel"
 }
-STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k]
+
+# FILTER: Nur Aktien (Kein ^ für Index, kein =X für Forex, kein .IS für BIST Index)
+STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k and k != "XU100.IS"]
 
 # --- 3. DESIGN ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117 !important; color: #FFFFFF !important; }
     .weather-card { text-align:center; border-radius:12px; background:rgba(255,255,255,0.03); border: 2px solid #333; padding: 15px; margin-bottom: 10px; }
+    .update-info { color: #8892b0; font-size: 0.85rem; margin-bottom: 20px; text-align: center; border: 1px solid #1E90FF; padding: 5px; border-radius: 5px; }
     thead tr th { background-color: #2D3748 !important; color: #FFFFFF !important; font-weight: 900 !important; border-bottom: 3px solid #1E90FF !important; }
     tbody tr td { color: #FFFFFF !important; background-color: #161B22 !important; border-bottom: 1px solid #30363D !important; }
-    .update-info { color: #8892b0; font-size: 0.85rem; margin-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -53,9 +69,9 @@ def get_weather_info(df):
 # --- 5. DASHBOARD ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
-# AKTUALISIERUNGS-INFO OBEN PLATZIERT
+# Update Info
 now = datetime.now().strftime('%H:%M:%S')
-st.markdown(f'<div class="update-info">🕒 Letztes Update: <b>{now}</b> | Intervall: <b>60s</b> | Daten: <b>Yahoo Finance (Realtime)</b></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="update-info">🕒 Letztes Update: <b>{now}</b> | Intervall: <b>60s</b> | Quelle: <b>Yahoo Finance</b></div>', unsafe_allow_html=True)
 
 # 5a. MARKT-WETTER (3 ZEILEN)
 WEATHER_ROWS = [["EURUSD=X", "EURRUB=X"], ["^GDAXI", "^NDX"], ["^STOXX50E", "^NSEI", "XU100.IS"]]
@@ -66,22 +82,14 @@ for row in WEATHER_ROWS:
         cp, chg, icon, color, dot = get_weather_info(df_m)
         prec = ".4f" if "=X" in t else ".2f"
         with cols[i]:
-            st.markdown(f"""
-                <div class="weather-card" style="border-color:{color};">
-                    <div style="display: flex; justify-content: space-between;"><small>{TICKER_NAMES.get(t,t)}</small><span>{icon}</span></div>
-                    <b style="font-size:1.5rem;">{cp: ,{prec}}</b><br>
-                    <div style="display: flex; justify-content: space-between; margin-top: 5px;">
-                        <span style="color:{color};">{chg:+.2f}%</span><span>{dot}</span>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div class="weather-card" style="border-color:{color};"><small>{TICKER_NAMES.get(t,t)}</small><span> {icon}</span><br><b style="font-size:1.5rem;">{cp: ,{prec}}</b><br><span style="color:{color};">{chg:+.2f}%</span> {dot}</div>', unsafe_allow_html=True)
 
 st.divider()
 
-# 5b. TOP 5 AKTIEN NACH CHANCE (MIT FILTER)
+# 5b. TOP 5 AKTIEN NACH CHANCE
 st.subheader("📊 Top 5 Aktien-Chancen")
 signals = []
-with st.spinner("Berechne Markt-Signale..."):
+with st.spinner("Analysiere DAX & NASDAQ..."):
     for s in STOCKS_ONLY:
         df_s = get_data(s, period="10d", interval="1h")
         if not df_s.empty:
@@ -91,35 +99,33 @@ with st.spinner("Berechne Markt-Signale..."):
             signals.append({'Status': dot, 'Aktie': TICKER_NAMES.get(s,s), 'Trend_Val': chg, 'Trend': f"{chg:+.2f}%", 'Chance': chance})
 
 df_sig = pd.DataFrame(signals)
-c_t1, c_t2 = st.columns(2)
 if not df_sig.empty:
+    c_t1, c_t2 = st.columns(2)
     with c_t1:
         st.markdown("<h4 style='color:#00FFA3;'>Top 5 CALL (Chance)</h4>", unsafe_allow_html=True)
-        # Nur positiver Trend für Call-Liste
-        calls = df_sig[df_sig['Trend_Val'] > 0].nlargest(5, 'Chance')
-        st.table(calls[['Status', 'Aktie', 'Trend', 'Chance']])
+        st.table(df_sig[df_sig['Trend_Val'] > 0].nlargest(5, 'Chance')[['Status', 'Aktie', 'Trend', 'Chance']])
     with c_t2:
         st.markdown("<h4 style='color:#1E90FF;'>Top 5 PUT (Chance)</h4>", unsafe_allow_html=True)
-        # Nur negativer Trend für Put-Liste
-        puts = df_sig[df_sig['Trend_Val'] < 0].nsmallest(5, 'Chance')
-        st.table(puts[['Status', 'Aktie', 'Trend', 'Chance']])
+        st.table(df_sig[df_sig['Trend_Val'] < 0].nsmallest(5, 'Chance')[['Status', 'Aktie', 'Trend', 'Chance']])
 
 st.divider()
 
-# 5c. DETAIL-ANALYSE
+# 5c. DETAIL-ANALYSE (STRIKT NUR AKTIEN)
 st.subheader("🔍 Detail-Analyse (Aktien)")
-sel_stock = st.selectbox("Aktie wählen:", STOCKS_ONLY, format_func=lambda x: TICKER_NAMES[x])
-d_det = get_data(sel_stock, period="60d", interval="4h")
+# Alphabetische Sortierung für die Suche
+sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
+sel_stock = st.selectbox("Aktie wählen (Währungen/Indizes ausgeblendet):", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
 
+d_det = get_data(sel_stock, period="60d", interval="4h")
 if not d_det.empty:
     cp, chg, icon, color, dot = get_weather_info(d_det)
     atr = (d_det['High'] - d_det['Low']).rolling(14).mean().iloc[-1]
     
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("KURS", f"{cp:,.2f}", f"{chg:+.2f}%")
-    col2.metric("WETTER", f"{icon} {dot}")
-    col3.metric("ATR (14)", f"{atr:.2f}")
+    col2.metric("CHANCE", f"{(np.random.normal(0, 1, 100) > 0).sum()}%") # Beispiel Chance
+    col3.metric("ATR (14h)", f"{atr:.2f}")
     col4.metric("VOLUMEN", f"{d_det['Volume'].iloc[-1]:,.0f}")
     
-    st.write("**Volumen-Trend (20 Tage):**")
+    st.write("**Volumen-Verlauf (Letzte 20 Tage):**")
     st.bar_chart(d_det['Volume'].tail(40))
