@@ -9,6 +9,50 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
+# --- 3. DESIGN (ERZWUNGENER DARK MODE) ---
+st.markdown("""
+    <style>
+    /* Haupt-Hintergrund */
+    .stApp { 
+        background-color: #0E1117 !important; 
+        color: #E0E0E0 !important; 
+    }
+    
+    /* Header & Karten */
+    .header-box { 
+        padding: 15px; 
+        border-radius: 12px; 
+        text-align: center; 
+        margin-bottom: 25px; 
+        border: 1px solid #1E90FF; 
+        background: rgba(30,144,255,0.05); 
+    }
+    
+    /* Wetter-Karten Fix */
+    .weather-card { 
+        background-color: #161B22 !important; 
+        border: 1px solid #30363D !important; 
+        border-radius: 10px; 
+        padding: 12px;
+    }
+
+    /* Tabellen-Farben erzwingen */
+    .stTable, table { 
+        background-color: #161B22 !important; 
+        color: white !important; 
+    }
+    
+    /* Texte in Selectboxen und Inputs */
+    .stSelectbox label, .stMetric label { 
+        color: #8892b0 !important; 
+    }
+    
+    /* Trennlinien */
+    hr { border-color: #30363D !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+
 # --- 2. TICKER-MAPPING ---
 st.info(f"🕒 Letztes Update: {pd.Timestamp.now().strftime('%H:%M:%S')} | Logik: Trend + MC + Vol")
 TICKER_NAMES = {
