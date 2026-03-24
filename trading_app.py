@@ -220,7 +220,7 @@ def get_style(chg):
     return "☁️", "#8892b0", "⚪"
 
 # --- 5. DASHBOARD AUFBAU ---
-st.title("🚀 Bio-Trading Monitor Live PRO")
+st.title("📊 Trading Monitor Live 📊")
 # Zeit-Korrektur: Aktuelle Zeit + 1 Stunde (für MEZ/Winterzeit)
 from datetime import timedelta
 now_fixed = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
@@ -244,7 +244,7 @@ with st.expander("ℹ️ Hilfe & Dokumentation: Wie werden die Werte berechnet?"
     2. **Volumen-Profil (Blau):** Die blauen Balken im Hintergrund nutzen die **linke Y-Achse**. Sie zeigen die Handelsaktivität.
     3. **Lückenlos-Achse:** Wochenenden und Nachtstunden werden ausgeblendet, um eine unterbrechungsfreie technische Analyse zu ermöglichen.
     ---
-    ### 📊 Top 5 Aktien-Chancen
+    ### 🚀 Top 5 Aktien-Chancen
     Die Top-Listen werden bei jedem Refresh (60s) neu generiert. 
     - **Scan:** Es werden alle hinterlegten DAX 40 und NASDAQ 100 Werte (ca. 130+ Aktien) analysiert.
     - **Filter:** Die linke Tabelle zeigt nur Werte mit positivem Trend, die rechte nur mit negativem Trend.
@@ -297,7 +297,7 @@ for row in WEATHER_ROWS:
 st.divider()
 
 # --- 5b. TOP 5 AKTIEN MIT FEHLER-ANZEIGE ---
-st.subheader("📊 Top 5 Aktien-Chancen")
+st.subheader("🚀 Top 5 Aktien-Chancen 🚀")
 
 # 1. SCAN-VORGANG & FEHLER-TRACKING
 signals = []
