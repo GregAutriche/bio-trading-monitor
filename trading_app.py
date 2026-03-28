@@ -1,89 +1,103 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+from datetime import datetime
 
+# --- 1. KONFIGURATION & STYLING ---
 st.set_page_config(page_title="Trading-Scanner Pro", layout="wide")
-st.title("📈 Tradingchancen-Rechner")
 
-# --- 1. PARAMETER ---
+# Anzeige des letzten Updates ganz oben
+last_update = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+st.markdown(f"<p style='text-align: right; color: gray;'>Letztes Update: {last_update}</p>", unsafe_allow_html=True)
+
+st.title("🚀 Tradingchancen-Rechner")
+
+# --- 2. SIDEBAR PARAMETER ---
+st.sidebar.header("Scan-Parameter")
 risiko_eur = st.sidebar.number_input("Risiko pro Trade (EUR)", value=500)
-intervall = st.sidebar.selectbox("Intervall", ["1d", "1h"], index=0)
+# NEU: 5-Minuten Intervall hinzugefügt
+intervall = st.sidebar.selectbox("Intervall", ["1d", "1h", "15m", "5m"], index=0)
 
-# --- 2. TICKER-MAP FÜR KLARTEXT-NAMEN ---
-@st.cache_data
-def get_stock_data():
-    # Erweiterte Liste DAX & NASDAQ
-    return {
-        "ADS.DE": "Adidas", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer", 
-        "BMW.DE": "BMW", "RHM.DE": "Rheinmetall", "SAP.DE": "SAP", "SIE.DE": "Siemens",
-        "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "TSLA": "Tesla",
-        "AMZN": "Amazon", "GOOGL": "Alphabet", "META": "Meta"
-    }
+# --- 3. DATEN-MAPPING (INDIZES & FOREX) ---
+# Ticker-Listen
+indices_tickers = {
+    "^GDAXI": "DAX", "^IXIC": "NASDAQ Composite", "^STOXX50E": "EURO STOXX 50", 
+    "^NSEI": "NIFTY 50", "XU100.IS": "BIST 100"
+}
+forex_ticker = {"EURUSD=X": "EUR/USD"}
 
-stock_map = get_stock_data()
+# Aktien-Liste (Auszug DAX/NASDAQ)
+stock_map = {
+    "ADS.DE": "Adidas", "ALV.DE": "Allianz", "BAS.DE": "BASF", "SAP.DE": "SAP", 
+    "RHM.DE": "Rheinmetall", "NVDA": "Nvidia", "AAPL": "Apple", "MSFT": "Microsoft",
+    "TSLA": "Tesla", "AMZN": "Amazon"
+}
 
-# --- 3. SCANNER LOGIK (VOLATILITÄTSBASIERT) ---
-def run_enhanced_scan(ticker_dict, timeframe):
-    results = []
-    progress_bar = st.progress(0)
-    
-    for i, (symbol, name) in enumerate(ticker_dict.items()):
+# --- 4. HILFSFUNKTION FÜR SETUPS ---
+def get_setup_data(ticker_dict, timeframe, is_forex=False):
+    data_list = []
+    for symbol, name in ticker_dict.items():
         try:
-            ticker = yf.Ticker(symbol)
-            # Wir laden 20 Tage, um die Volatilität (ATR) zu berechnen
-            df = ticker.history(period="20d", interval=timeframe)
-            if df.empty or len(df) < 14: continue
+            t = yf.Ticker(symbol)
+            # Bei 5m Intervall laden wir nur 5 Tage Historie für Speed
+            hist = t.history(period="5d" if "m" in timeframe else "60d", interval=timeframe)
+            if hist.empty: continue
             
-            current_price = df['Close'].iloc[-1]
+            cp = hist['Close'].iloc[-1]
+            high_20 = hist['High'].max()
+            low_20 = hist['Low'].min()
+            volatility = (high_20 - low_20) / 10 # Annäherung ATR
             
-            # Dynamisches Setup: 
-            # Stop-Loss = 2x die durchschnittliche Tagesbewegung (ATR-Ersatz)
-            volatilitat = df['High'].max() - df['Low'].min()
-            tages_schwankung = volatilitat / 20
+            # Setup Logik (ATR-basiert)
+            sl_dist = volatility * 1.5
+            sl = cp - sl_dist
+            tp = cp + (sl_dist * 2.5) # CRV 2.5
             
-            sl_distanz = tages_schwankung * 2.5 # Breiterer Stop für 3-10 Tage
-            sl = current_price - sl_distanz
+            risk_unit = cp - sl
+            shares = int(risiko_eur / risk_unit) if risk_unit > 0 else 0
             
-            # Kursziel = Basierend auf dem Risiko (CRV von 2.0 anstreben)
-            tp = current_price + (sl_distanz * 2.0)
+            # Bei Forex ist die Stückzahl anders skaliert (Lots)
+            if is_forex: shares = round(risiko_eur / (risk_unit * 10000), 2)
             
-            # Berechnungen
-            risk_per_share = current_price - sl
-            shares = int(risiko_eur / risk_per_share) if risk_per_share > 0 else 0
-            
-            gain_pot = tp - current_price
-            crv = gain_pot / risk_per_share
-            profit_pct = (gain_pot / current_price) * 100
-            
-            # Status-Logik: Nur OK, wenn Trend positiv (über 20er Schnitt)
-            sma_20 = df['Close'].mean()
-            ist_trend_positiv = current_price > sma_20
-            
-            results.append({
-                "Aktie": name,
-                "Symbol": symbol,
-                "Kurs": round(current_price, 2),
-                "Stück": shares,
-                "Positionswert": round(shares * current_price, 2),
-                "CRV": round(crv, 2),
-                "Ziel %": f"{profit_pct:.2f}%",
-                "Status": "✅ Bullisch" if ist_trend_positiv else "❌ Bärisch"
+            data_list.append({
+                "Name": name, "Kurs": round(cp, 4 if is_forex else 2), 
+                "Stück/Lots": shares, "CRV": round((tp-cp)/risk_unit, 2),
+                "Ziel %": f"{((tp-cp)/cp)*100:.2f}%",
+                "Status": "✅ Long" if cp > hist['Close'].mean() else "❌ Short"
             })
-        except:
-            continue
-        progress_bar.progress((i + 1) / len(ticker_dict))
-    
-    return pd.DataFrame(results)
+        except: continue
+    return data_list
 
-# --- 4. ANZEIGE ---
-if st.button(f"Scan starten ({len(stock_map)} Aktien)"):
-    df_results = run_enhanced_scan(stock_map, intervall)
-    
-    if not df_results.empty:
-        st.subheader(f"Ergebnisse (Basis: {intervall})")
-        # Spalte "Symbol" ausblenden für bessere Übersicht
-        st.dataframe(df_results.drop(columns=["Symbol"]), use_container_width=True)
+# --- 5. DASHBOARD LAYOUT ---
+
+# A. FOREX & INDIZES (OBERE SEKTION)
+col1, col2 = st.columns([1, 3])
+
+with col1:
+    st.subheader("💱 Forex")
+    fx_data = get_setup_data(forex_ticker, intervall, is_forex=True)
+    if fx_data:
+        st.metric(f"{fx_data[0]['Name']}", fx_data[0]['Kurs'])
+        st.write(f"**Chance:** {fx_data[0]['Status']} | **Ziel:** {fx_data[0]['Ziel %']}")
+        st.caption(f"SL: {fx_data[0]['Stück/Lots']} Lots für {risiko_eur}€ Risiko")
+
+with col2:
+    st.subheader("📊 Indizes Übersicht")
+    idx_results = get_setup_data(indices_tickers, intervall)
+    if idx_results:
+        idx_df = pd.DataFrame(idx_results)
+        st.dataframe(idx_df[["Name", "Kurs", "Status", "Ziel %", "CRV"]], use_container_width=True)
+
+st.divider()
+
+# B. AKTIEN SCAN (UNTERE SEKTION)
+st.subheader(f"🔍 Aktien-Scan ({len(stock_map)} Titel auf {intervall}-Basis)")
+if st.button("Großen Aktien-Scan starten"):
+    stock_results = get_setup_data(stock_map, intervall)
+    if stock_results:
+        st.dataframe(pd.DataFrame(stock_results), use_container_width=True)
     else:
-        st.warning("Keine Daten gefunden.")
+        st.error("Keine Daten für Aktien-Scan verfügbar.")
 
-st.info("Hinweis: Das Kursziel (%) ist nun dynamisch und berechnet sich aus der Volatilität der letzten 20 Tage.")
+st.markdown("---")
+st.caption("Grundlage: Yahoo Finance Live-Daten. Stückzahlen berechnet auf Basis Ihres 500€ Risikos pro Trade.")
