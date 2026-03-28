@@ -117,7 +117,7 @@ st.divider()
 
 # --- 6. AKTIEN DETAIL-ANALYSE (ALLE 40 DAX WERTE) ---
 st.subheader("🔍 Aktien Detail-Analyse & Options")
-dax_40 = {
+all_shares = {
 "ADS.DE": "🇩🇪 Adidas", "AIR.DE": "🇩🇪 Airbus", "ALV.DE": "🇩🇪 Allianz", "BAS.DE": "🇩🇪 BASF",
     "BAYN.DE": "🇩🇪 Bayer", "BEI.DE": "🇩🇪 Beiersdorf", "BMW.DE": "🇩🇪 BMW", "BNR.DE": "🇩🇪 Brenntag",
     "CBK.DE": "🇩🇪 Commerzbank", "CON.DE": "🇩🇪 Continental", "1COV.DE": "🇩🇪 Covestro",
@@ -175,8 +175,8 @@ dax_40 = {
     
 }
 
-sel_stock = st.selectbox("DAX Aktie wählen", list(dax_40.keys()), format_func=lambda x: dax_40[x])
-res_stock_list = get_analysis({sel_stock: dax_40[sel_stock]}, intervall, False, konto, risiko)
+sel_stock = st.selectbox("DAX Aktie wählen", list(all_shares.keys()), format_func=lambda x: all_shares[x])
+res_stock_list = get_analysis({sel_stock: all_shares[sel_stock]}, intervall, False, konto, risiko)
 
 if res_stock_list:
     item_s = res_stock_list[0]
