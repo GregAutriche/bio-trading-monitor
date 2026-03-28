@@ -147,7 +147,7 @@ if st.button("Aktien-Scan starten"):
         with col_put:
             st.error(f"📉 Top {top_n} PUT Signale")
             puts = df[df['Typ'] == "PUT 🔴"].sort_values(by="Prob_Value", ascending=False).head(top_n)
-            st.table(puts[["Aktie/Name", "Wahrscheinlichkeit", "Kurs", "Ziel %"]])
+            st.table(puts[["Aktie/Name", "Possible", "Kurs", "Ziel %"]])
     else:
         st.warning("Keine Daten gefunden. Bitte Intervall prüfen.")
 
