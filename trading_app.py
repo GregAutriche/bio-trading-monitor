@@ -101,7 +101,7 @@ if idx_res:
 
 st.divider()
 
-# --- 5. EUR/USD LIVE ---
+# --- 5. EUR/USD LIVE (WIEDER DA) ---
 st.subheader("💱 EUR/USD Live-Analyse")
 fx_data = get_analysis({"EURUSD=X": "EUR/USD"}, intervall, True, konto, risiko)
 if fx_data:
@@ -117,6 +117,7 @@ st.divider()
 
 # --- 6. AKTIEN DETAIL-ANALYSE (ALLE 40 DAX WERTE) ---
 st.subheader("🔍 Aktien Detail-Analyse & Options")
+dax_40 = {
 "ADS.DE": "🇩🇪 Adidas", "AIR.DE": "🇩🇪 Airbus", "ALV.DE": "🇩🇪 Allianz", "BAS.DE": "🇩🇪 BASF",
     "BAYN.DE": "🇩🇪 Bayer", "BEI.DE": "🇩🇪 Beiersdorf", "BMW.DE": "🇩🇪 BMW", "BNR.DE": "🇩🇪 Brenntag",
     "CBK.DE": "🇩🇪 Commerzbank", "CON.DE": "🇩🇪 Continental", "1COV.DE": "🇩🇪 Covestro",
@@ -171,6 +172,8 @@ st.subheader("🔍 Aktien Detail-Analyse & Options")
     "ODFL": "🇺🇸 Old Dominion", "ON": "🇺🇸 ON Semi", "EXC": "🇺🇸 Exelon", "BKR": "🇺🇸 Baker Hughes", "TTD": "🇺🇸 Trade Desk",
     # Sonstige Werte
     "ADI": "🇺🇸 Analog Devices", "ANSS": "🇺🇸 Ansys", "CDNS": "🇺🇸 Cadence", "CPRT": "🇺🇸 Copart", "CTAS": "🇺🇸 Cintas", "CSX": "🇺🇸 CSX Corp", "DLTR": "🇺🇸 Dollar Tree", "DXCM": "🇺🇸 DexCom", "FAST": "🇺🇸 Fastenal", "IDXX": "🇺🇸 IDEXX Labs", "KDP": "🇺🇸 Keurig Dr Pepper", "MAR": "🇺🇸 Marriott", "ODFL": "🇺🇸 Old Dominion", "PAYX": "🇺🇸 Paychex", "VRSK": "🇺🇸 Verisk"
+    
+}
 
 sel_stock = st.selectbox("DAX Aktie wählen", list(dax_40.keys()), format_func=lambda x: dax_40[x])
 res_stock_list = get_analysis({sel_stock: dax_40[sel_stock]}, intervall, False, konto, risiko)
