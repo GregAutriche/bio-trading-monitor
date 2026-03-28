@@ -181,23 +181,41 @@ for i in range(0, 6, 3):
 st.divider()
 
 # 5.3 TOP MARKT-CHANCEN TABELLE
-st.subheader("📊 Top Markt-Chancen (Vola-Analyse)")
+st.subheader("📊 Top 7 Markt-Chancen (Vola-Analyse)")
+
+# Daten für alle Aktien sammeln
 top_list = []
 for t in STOCKS_ONLY:
-    d = get_extended_stock_analysis(t)
+    d = get_extended_stock_analysis(t) # Nutzt die Funktion aus dem vorigen Schritt
     if d:
-        status = get_status_info(d['chg'])
+        # Signal-Logik (Call/Put/Neutral)
+        if d['chg'] > 0.4: signal = "🟢 CALL"
+        elif d['chg'] < -0.4: signal = "🔵 PUT"
+        else: signal = "⚪ NEUTRAL"
+        
+        # Wetter-Icon für die Aktie bestimmen
+        weather = "☀️" if d['chg'] > 0.5 else "⛈️" if d['chg'] < -0.5 else "☁️"
+        
         top_list.append({
-            "Aktie": f"{status} {TICKER_NAMES[t]}",
-            "Signal (C/P)": "🟢 CALL" if d['chg'] > 0.4 else "🔵 PUT" if d['chg'] < -0.4 else "⚪ NEUTRAL",
+            "Aktie": f"{weather} {TICKER_NAMES[t]}",
+            "Signal (C/P)": signal,
             "Chance (%)": d['chance'],
             "Kurs (€)": f"{d['cp']:.2f}",
             "Vol-Rel": f"{d['vol_rel']:.2f}x"
         })
 
-df_top = pd.DataFrame(top_list).sort_values(by="Chance (%)", ascending=False)
-df_top["Chance (%)"] = df_top["Chance (%)"].map("{:.4f}".format)
+# DataFrame erstellen
+df_top = pd.DataFrame(top_list)
+
+# 1. Sortieren nach Chance (Absteigend)
+# 2. Nur die Top 7 Werte auswählen
+df_top = df_top.sort_values(by="Chance (%)", ascending=False).head(7)
+# Formatierung der Chance auf 2 Nachkommastellen (wie besprochen)
+df_top["Chance (%)"] = df_top["Chance (%)"].map("{:.2f}".format)
+
+# Anzeige der Tabelle mit dem blauen Header (Design aus CSS-Teil)
 st.table(df_top)
+
 
 # 5.4 DETAIL-ANALYSE MIT 3 METRIK-ZEILEN
 st.divider()
