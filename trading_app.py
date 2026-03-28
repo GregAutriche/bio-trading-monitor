@@ -178,3 +178,22 @@ if det:
     
     fig.update_layout(height=600, template="plotly_dark", xaxis_rangeslider_visible=False, paper_bgcolor='#0B0E14', plot_bgcolor='#0B0E14', showlegend=False)
     st.plotly_chart(fig, use_container_width=True)
+
+# --- ERGÄNZUNG: AUSKLAPPBARE WERT-BESCHREIBUNG ---
+with st.expander("ℹ️ Erläuterung der Analyse-Werte (Trading-Guide)"):
+    st.markdown("""
+    ### 📊 Volumen-Kennzahlen
+    *   **VOLUMEN AKTUELL:** Anzahl der heute gehandelten Aktien. Hohes Volumen bestätigt die Stärke eines Trends.
+    *   **VOL-TREND (REL):** Das aktuelle Volumen im Vergleich zum 20-Tage-Durchschnitt. Werte **> 1.0x** zeigen erhöhtes institutionelles Interesse.
+    *   **VOL-VERÄNDERUNG:** Prozentualer Zuwachs des Volumens im Vergleich zum gestrigen Handelstag. Ein Sprung (> 50%) deutet oft auf News hin.
+    
+    ### 📈 Trend- & Kurs-Analyse
+    *   **LAGE IM JAHRESBAND:** Zeigt, wo der Kurs zwischen dem 250T Tief (0%) und dem 250T Hoch (100%) steht. Werte um 50% gelten als neutraler Bereich.
+    *   **250T HOCH / TIEF:** Die Extrempunkte der letzten 250 Handelstage (~1 Jahr). Der **Abstand** zeigt, wie viel "Luft" nach oben oder wie viel Puffer nach unten besteht.
+    *   **JAHRES-SPANNE:** Die gesamte Handelsbreite des letzten Jahres in Euro. Hilft bei der Einschätzung der langfristigen Volatilität.
+    
+    ### 🛡️ Signale & Chance
+    *   **SIGNAL (C/P):** Basierend auf kurzfristigen Trend-Indikatoren. **🟢 CALL** bei Aufwärtsmomentum, **🔵 PUT** bei Abwärtsdruck.
+    *   **CHANCE (%):** Ein gewichteter Score aus Volumen-Power und Trend-Stärke. Werte über **55%** gelten als statistisch signifikante Trading-Gelegenheit.
+    """)
+
