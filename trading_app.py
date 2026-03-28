@@ -19,6 +19,14 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# --- 3. HEADER: UPDATE & INTERVALL (Ganz oben) ---
+last_update = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+col_h1, col_h2 = st.columns([1, 1])
+with col_h1:
+    st.markdown(f"### 🕒 Letztes Update: <span style='color:#00d4ff;'>{last_update}</span>", unsafe_allow_html=True)
+with col_h2:
+    st.markdown(f"<h3 style='text-align:right;'>Basis: <span style='color:#00d4ff;'>{intervall}</span></h3>", unsafe_allow_html=True)
+
 # --- 2. ANALYSE-LOGIK ---
 def get_analysis(ticker_dict, timeframe, is_fx=False, kontostand=25000, risiko=500):
     data_list = []
