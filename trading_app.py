@@ -12,48 +12,30 @@ st.markdown("""
     <style>
     .stApp { background-color: #001f3f; color: #ffffff; } 
     div[data-testid="stTable"] { background-color: #002b55 !important; border-radius: 10px; }
-    .stTable td, .stTable th { color: #ffffff !important; background-color: #002b55 !important; }
+    .stTable td, .stTable th { color: #ffffff !important; background-color: #002b55 !important; border-bottom: 1px solid #0074D9 !important; }
     [data-testid="stMetric"] { background-color: #002b55; border: 1px solid #0074D9; border-radius: 10px; padding: 10px; }
-    [data-testid="stMetricLabel"] { color: #b0c4de !important; }
-    [data-testid="stMetricValue"] { color: #ffffff !important; }
-    .stButton>button { background-color: #0074D9; color: white; border: none; }
+    [data-testid="stMetricLabel"] { color: #b0c4de !important; font-size: 0.9rem !important; }
+    [data-testid="stMetricValue"] { color: #ffffff !important; font-weight: bold; }
+    .stButton>button { background-color: #0074D9; color: white; font-weight: bold; width: 100%; border: none; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. LOGIK: OPTIONEN ABRUFEN ---
-def get_option_board(symbol):
-    try:
-        ticker = yf.Ticker(symbol)
-        if not ticker.options:
-            return None, None
-        
-        # Nächstes Verfallsdatum wählen
-        expiry = ticker.options[0]
-        opt = ticker.option_chain(expiry)
-        
-        # Top 5 Calls & Puts nach Open Interest
-        calls = opt.calls.nlargest(5, 'openInterest')[['strike', 'lastPrice', 'openInterest']]
-        puts = opt.puts.nlargest(5, 'openInterest')[['strike', 'lastPrice', 'openInterest']]
-        return calls, puts
-    except:
-        return None, None
-
-# --- 3. LOGIK: ANALYSE & KURSE ---
+# --- 2. LOGIK-FUNKTIONEN ---
 def get_analysis(ticker_dict, timeframe, is_fx=False, kontostand=25000, risiko_val=500):
     data_list = []
     for symbol, name in ticker_dict.items():
         try:
             t = yf.Ticker(symbol)
             hist = t.history(period="60d", interval=timeframe)
-            if hist.empty: continue
+            if hist.empty or len(hist) < 5: continue
             
             cp = hist['Close'].iloc[-1]
             prev_close = hist['Close'].iloc[-2]
             chg_pct = ((cp / prev_close) - 1) * 100
             
-            # Trend & Risiko-Berechnung
             sma20 = hist['Close'].rolling(20).mean().iloc[-1]
             is_bullish = cp > sma20
+            
             vol_std = hist['High'].rolling(14).std().iloc[-1]
             sl_dist = max(vol_std * 2, cp * 0.005)
             
@@ -69,88 +51,102 @@ def get_analysis(ticker_dict, timeframe, is_fx=False, kontostand=25000, risiko_v
         except: continue
     return data_list
 
-# --- 4. GRAFIK-FUNKTION (OHNE MINUS-WERTE LINKS) ---
+def get_option_board(symbol):
+    try:
+        t = yf.Ticker(symbol)
+        if not t.options: return None, None
+        opt = t.option_chain(t.options[0])
+        calls = opt.calls.nlargest(5, 'openInterest')[['strike', 'lastPrice', 'openInterest']]
+        puts = opt.puts.nlargest(5, 'openInterest')[['strike', 'lastPrice', 'openInterest']]
+        return calls, puts
+    except: return None, None
+
 def plot_advanced_chart(item):
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, 
                         row_width=[0.2, 0.8], specs=[[{"secondary_y": True}], [{"secondary_y": False}]])
     
-    # Kerzenchart (Links-Achse)
     fig.add_trace(go.Candlestick(x=item['Hist'].index, open=item['Hist']['Open'], high=item['Hist']['High'],
                     low=item['Hist']['Low'], close=item['Hist']['Close'], name="Kurs"), row=1, col=1, secondary_y=False)
     
-    # Prozent-Linie (Rechts-Achse)
     pct_trace = ((item['Hist']['Close'] / item['Kurs']) - 1) * 100
-    fig.add_trace(go.Scatter(x=item['Hist'].index, y=pct_trace, name="Abweichung %", 
-                             line=dict(color='rgba(0, 212, 255, 0.3)'), fill='tozeroy'), row=1, col=1, secondary_y=True)
+    fig.add_trace(go.Scatter(x=item['Hist'].index, y=pct_trace, name="Abweichung %", line=dict(color='#00d4ff', width=1)), row=1, col=1, secondary_y=True)
     
-    # Volumen
     v_colors = ['#00ff00' if r['Open'] < r['Close'] else '#ff4b4b' for _, r in item['Hist'].iterrows()]
-    fig.add_trace(go.Bar(x=item['Hist'].index, y=item['Hist']['Volume'], marker_color=v_colors, opacity=0.4), row=2, col=1)
+    fig.add_trace(go.Bar(x=item['Hist'].index, y=item['Hist']['Volume'], marker_color=v_colors, opacity=0.4, name="Volumen"), row=2, col=1)
 
-    # Korrektur der Y-Achse (Kein Minus beim Kurs)
+    # FIX: Kein Minus links & saubere Skalierung
     fig.update_yaxes(title_text="Kurs (Absolut)", secondary_y=False, rangemode="nonnegative", row=1, col=1)
     fig.update_yaxes(title_text="Abweichung %", secondary_y=True, showgrid=False, row=1, col=1)
-    
-    fig.update_layout(height=500, template="plotly_dark", paper_bgcolor="#001f3f", plot_bgcolor="#001f3f", 
-                      xaxis_rangeslider_visible=False, margin=dict(l=10,r=10,t=10,b=10))
+    fig.update_layout(height=500, template="plotly_dark", paper_bgcolor="#001f3f", plot_bgcolor="#001f3f", xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
     st.plotly_chart(fig, use_container_width=True)
 
-# --- 5. SIDEBAR ---
+# --- 3. SIDEBAR ---
 st.sidebar.header("🛡️ Risikomanagement")
 konto = st.sidebar.number_input("Gesamtkapital (EUR)", value=25000)
 risiko = st.sidebar.number_input("Risiko pro Trade (EUR)", value=500)
-intervall = st.sidebar.selectbox("Intervall", ["1d", "1h", "15m", "5m"], index=0)
+intervall = st.sidebar.selectbox("Intervall wählen", ["1d", "1h", "15m", "5m"], index=0)
 
-# --- 6. INDEX HEATMAP ---
-st.subheader("🌍 Markt-Übersicht")
-indices = {"^GDAXI": "DAX", "^IXIC": "NASDAQ", "^STOXX50E": "EURO STOXX"}
-idx_data = get_analysis(indices, "1d")
-cols = st.columns(len(idx_data))
-for i, item in enumerate(idx_data):
-    color = "#008000" if item['Change'] >= 0 else "#800000"
-    cols[i].markdown(f"<div style='background:{color};padding:10px;border-radius:5px;text-align:center;'><b>{item['Name']}</b><br>{item['Kurs']:,.2f} ({item['Change']:.2f}%)</div>", unsafe_allow_html=True)
+# --- 4. INDEX-HEATMAP (WIEDER DA) ---
+st.subheader("🌍 Index-Heatmap")
+idx_map = {"^GDAXI": "DAX", "^IXIC": "NASDAQ", "^STOXX50E": "EURO STOXX", "^NSEI": "NIFTY", "XU100.IS": "BIST 100"}
+idx_res = get_analysis(idx_map, "1d")
+if idx_res:
+    cols = st.columns(len(idx_res))
+    for i, item in enumerate(idx_res):
+        bg = "#008000" if item['Change'] >= 0 else "#800000"
+        cols[i].markdown(f"""<div style="background-color:{bg};padding:10px;border-radius:10px;text-align:center;">
+            <span style="font-size:0.8rem;color:#b0c4de;">{item['Name']}</span><br>
+            <span style="font-weight:bold;">{item['Kurs']:,.0f}</span><br>
+            <span style="font-size:0.8rem;">{item['Change']:.2f}%</span></div>""", unsafe_allow_html=True)
 
 st.divider()
 
-# --- 7. FX & OPTION ANALYSIS ---
-st.subheader("📊 Detail-Analyse & Options-Board")
-
-# Auswahl-Logik
-stocks = {
-    "EURUSD=X": "💱 EUR/USD", "SAP.DE": "🇩🇪 SAP", "ADS.DE": "🇩🇪 Adidas", 
-    "ALV.DE": "🇩🇪 Allianz", "DBK.DE": "🇩🇪 Deutsche Bank", "VOW3.DE": "🇩🇪 VW"
-}
-selected_symbol = st.selectbox("Symbol wählen", list(stocks.keys()), format_func=lambda x: stocks[x])
-
-res_list = get_analysis({selected_symbol: stocks[selected_symbol]}, intervall, "EURUSD" in selected_symbol, konto, risiko)
-
-if res_list:
-    res = res_list[0]
-    plot_advanced_chart(res)
-    
-    # Metriken
+# --- 5. EUR/USD LIVE (WIEDER DA) ---
+st.subheader("💱 EUR/USD Live-Analyse")
+fx_data = get_analysis({"EURUSD=X": "EUR/USD"}, intervall, True, konto, risiko)
+if fx_data:
+    res_fx = fx_data[0]
+    plot_advanced_chart(res_fx)
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Kurs", f"{res['Kurs']:.5f}" if res['is_fx'] else f"{res['Kurs']:.2f}")
-    m2.metric("Trend", res['Typ'])
-    m3.metric("Ziel (TP)", f"{res['TP']:.4f}")
-    m4.metric("CRV", res['CRV'])
+    m1.metric("Kurs", f"{res_fx['Kurs']:.5f}")
+    m2.metric("Chance", res_fx['Chance'])
+    m3.metric("Richtung", res_fx['Typ'])
+    m4.metric("CRV", f"{res_fx['CRV']}")
 
-    st.divider()
-    
-    # OPTIONS BOARD
-    st.markdown("### 🎫 Top 5 Call & Put (Open Interest)")
-    calls, puts = get_option_board(selected_symbol)
-    
-    if calls is not None:
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown("<h4 style='color:#00ff00;'>Calls (Bullish)</h4>", unsafe_allow_html=True)
-            st.table(calls)
-        with c2:
-            st.markdown("<h4 style='color:#ff4b4b;'>Puts (Bearish)</h4>", unsafe_allow_html=True)
-            st.table(puts)
-    else:
-        st.info("Für dieses Symbol (z.B. Forex) sind keine direkten Börsen-Optionsdaten via yfinance verfügbar.")
+st.divider()
 
-st.markdown("---")
-st.caption(f"Terminal Stand: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')} | Daten von Yahoo Finance")
+# --- 6. AKTIEN DETAIL-ANALYSE (ALLE 40 DAX WERTE) ---
+st.subheader("🔍 Aktien Detail-Analyse & Options")
+dax_40 = {
+    "ADS.DE": "Adidas", "AIR.DE": "Airbus", "ALV.DE": "Allianz", "BAS.DE": "BASF", "BAYN.DE": "Bayer",
+    "BEI.DE": "Beiersdorf", "BMW.DE": "BMW", "BNR.DE": "Brenntag", "CBK.DE": "Commerzbank", "CON.DE": "Continental",
+    "1COV.DE": "Covestro", "DTG.DE": "Daimler Truck", "DBK.DE": "Deutsche Bank", "DB1.DE": "Deutsche Börse",
+    "DHL.DE": "DHL Group", "DTE.DE": "Deutsche Telekom", "EOAN.DE": "E.ON", "FRE.DE": "Fresenius",
+    "FME.DE": "Fresenius Med. Care", "G1A.DE": "GEA Group", "HEI.DE": "Heidelberg Mat.", "HNR1.DE": "Hannover Rück",
+    "HEN3.DE": "Henkel", "IFX.DE": "Infineon", "MBG.DE": "Mercedes-Benz", "MRK.DE": "Merck", "MTX.DE": "MTU Aero",
+    "MUV2.DE": "Münchener Rück", "PAH3.DE": "Porsche SE", "P911.DE": "Porsche AG", "PUM.DE": "Puma", "QIA.DE": "Qiagen",
+    "RHM.DE": "Rheinmetall", "RWE.DE": "RWE", "SAP.DE": "SAP", "SRT3.DE": "Sartorius", "G24.DE": "Scout24",
+    "SIE.DE": "Siemens", "ENR.DE": "Siemens Energy", "SHL.DE": "Siemens Health.", "SY1.DE": "Symrise",
+    "TKA.DE": "Thyssenkrupp", "VOW3.DE": "Volkswagen", "VNA.DE": "Vonovia", "ZAL.DE": "Zalando"
+}
+
+sel_stock = st.selectbox("DAX Aktie wählen", list(dax_40.keys()), format_func=lambda x: dax_40[x])
+res_stock_list = get_analysis({sel_stock: dax_40[sel_stock]}, intervall, False, konto, risiko)
+
+if res_stock_list:
+    item_s = res_stock_list[0]
+    plot_advanced_chart(item_s)
+    
+    # Options-Board
+    calls, puts = get_option_board(sel_stock)
+    c_col, p_col = st.columns(2)
+    with c_col:
+        st.markdown("#### 🟢 Top 5 Calls (OI)")
+        if calls is not None: st.table(calls)
+        else: st.info("Keine Optionsdaten.")
+    with p_col:
+        st.markdown("#### 🔴 Top 5 Puts (OI)")
+        if puts is not None: st.table(puts)
+        else: st.info("Keine Optionsdaten.")
+
+st.caption(f"Letztes Update: {datetime.now().strftime('%H:%M:%S')} | 2026 Trading Terminal")
