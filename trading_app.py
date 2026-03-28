@@ -1,75 +1,80 @@
+import streamlit as st
 import yfinance as yf
 import pandas as pd
-import sys
 
-# --- 1. KONFIGURATION (Hier deine Daten anpassen) ---
-RISIKO_PRO_TRADE = 500  # Dein festes Risiko in EUR
-WATCHLIST = {
-    "NVDA":    {"sl": 120.00, "tp": 150.00}, # Nvidia
-    "SAP.DE":  {"sl": 170.00, "tp": 200.00}, # SAP (Xetra)
-    "RHM.DE":  {"sl": 480.00, "tp": 550.00}, # Rheinmetall (Xetra)
-    "AAPL":    {"sl": 185.00, "tp": 215.00}  # Apple
+# --- 1. SEITEN-KONFIGURATION ---
+st.set_page_config(page_title="Trading-Scanner 3-10 Tage", layout="wide")
+st.title("📈 Tradingchancen-Rechner")
+st.write("Basierend auf dem 500€ Risiko-Modell (Haltedauer 3-10 Tage)")
+
+# --- 2. EINSTELLUNGEN IN DER SIDEBAR ---
+st.sidebar.header("Parameter")
+risiko_eur = st.sidebar.number_input("Risiko pro Trade (EUR)", value=500)
+st.sidebar.markdown("---")
+st.sidebar.write("3-5-7 Regel aktiv: Ziel > 7%")
+
+# --- 3. WATCHLIST DEFINITION ---
+watchlist = {
+    "NVDA":    {"sl": 120.00, "tp": 150.00},
+    "SAP.DE":  {"sl": 170.00, "tp": 200.00},
+    "RHM.DE":  {"sl": 480.00, "tp": 550.00},
+    "AAPL":    {"sl": 185.00, "tp": 215.00}
 }
 
-def check_trading_chancen():
-    print("="*60)
-    print("PROGRAMM GESTARTET: Tradingchancen (3-10 Tage)")
-    print(f"Risiko pro Trade: {RISIKO_PRO_TRADE} EUR")
-    print("="*60)
+# --- 4. SCANNER LOGIK ---
+def run_scan():
+    results = []
     
-    ergebnisse_gefunden = False
+    with st.spinner('Lade Marktdaten von Yahoo Finance...'):
+        for symbol, params in watchlist.items():
+            try:
+                ticker = yf.Ticker(symbol)
+                df = ticker.history(period="5d")
+                
+                if df.empty:
+                    continue
+                
+                current_price = df['Close'].iloc[-1]
+                sl = params['sl']
+                tp = params['tp']
+                
+                # Risiko-Kalkulation
+                risk_per_share = abs(current_price - sl)
+                shares = int(risiko_eur / risk_per_share) if risk_per_share > 0 else 0
+                
+                # Kennzahlen
+                gain_pot = abs(tp - current_price)
+                crv = gain_pot / risk_per_share if risk_per_share > 0 else 0
+                profit_pct = (gain_pot / current_price) * 100
+                
+                results.append({
+                    "Symbol": symbol,
+                    "Kurs": round(current_price, 2),
+                    "Stück": shares,
+                    "Positionswert": round(shares * current_price, 2),
+                    "CRV": round(crv, 2),
+                    "Ziel %": f"{profit_pct:.2f}%",
+                    "Status": "✅ OK" if profit_pct >= 7 else "⚠️ Ziel < 7%"
+                })
+            except Exception as e:
+                st.error(f"Fehler bei {symbol}: {e}")
 
-    for symbol, params in WATCHLIST.items():
-        try:
-            print(f"Lade Daten für {symbol}...", end="\r")
-            ticker = yf.Ticker(symbol)
-            # Nutze 5 Tage Historie, um sicherzugehen (Wochenende/Feiertage)
-            data = ticker.history(period="5d")
-            
-            if data.empty:
-                print(f"[-] {symbol}: Keine Daten von Yahoo erhalten.")
-                continue
-            
-            aktuelle_kurs = data['Close'].iloc[-1]
-            sl = params['sl']
-            tp = params['tp']
-            
-            # Berechnung Risiko pro Aktie
-            risiko_pro_aktie = abs(aktuelle_kurs - sl)
-            
-            if risiko_pro_aktie < 0.01:
-                print(f"[-] {symbol}: Stop-Loss zu nah am Kurs ({aktuelle_kurs:.2f}).")
-                continue
+    return pd.DataFrame(results)
 
-            # Stückzahl berechnen (Risiko / Differenz)
-            stueckzahl = int(RISIKO_PRO_TRADE / risiko_pro_aktie)
-            positions_wert = stueckzahl * aktuelle_kurs
-            
-            # Kennzahlen (3-5-7 Regel Check)
-            gewinn_potential = abs(tp - aktuelle_kurs)
-            crv = gewinn_potential / risiko_pro_aktie
-            rendite_ziel = (gewinn_potential / aktuelle_kurs) * 100
-            
-            # Ausgabe der Zeile
-            status = "PASSEND" if rendite_ziel >= 7 else "ZIEL < 7%"
-            
-            print(f"SYMBOL: {symbol:<8} | KURS: {aktuelle_kurs:>8.2f} | STÜCK: {stueckzahl:>4} | WERT: {positions_wert:>10.2f} | CRV: {crv:>4.2f} | {status}")
-            ergebnisse_gefunden = True
-
-        except Exception as e:
-            print(f"[-] Fehler bei {symbol}: {e}")
-
-    if not ergebnisse_gefunden:
-        print("\nKeine gültigen Setups gefunden. Prüfe Internetverbindung oder Ticker-Symbole.")
+# --- 5. ÜBERSICHT ANZEIGEN ---
+if st.button("Jetzt Scan starten"):
+    df_results = run_scan()
     
-    print("="*60)
-    print("SCAN BEENDET.")
+    if not df_results.empty:
+        # Ergebnisse als Tabelle
+        st.dataframe(df_results, use_container_width=True)
+        
+        # Highlight: Beste Chance (höchstes CRV)
+        best_trade = df_results.loc[df_results['CRV'].idxmax()]
+        st.success(f"Beste Chance aktuell: **{best_trade['Symbol']}** mit einem CRV von {best_trade['CRV']}")
+    else:
+        st.warning("Keine Daten gefunden. Bitte Internetverbindung prüfen.")
 
-# --- 2. STARTBEFEHL (Wichtig: Ohne das läuft nichts!) ---
-if __name__ == "__main__":
-    try:
-        check_trading_chancen()
-    except KeyboardInterrupt:
-        print("\nAbgebrochen durch Nutzer.")
-    except Exception as e:
-        print(f"Kritischer Programmfehler: {e}")
+# Footer
+st.markdown("---")
+st.caption("Datenquelle: Yahoo Finance. Alle Berechnungen ohne Gewähr.")
