@@ -459,51 +459,49 @@ if res_d.get("cp", 0) > 0:
 else:
     st.warning("Keine Daten für diesen Ticker verfügbar.")
 
-def check_trading_setup(symbol, price, stop_loss, take_profit, risk_per_trade_eur=500, vix_level=20, adx_level=25):
+import yfinance as yf
+import pandas as pd
+
+def get_live_trading_setup(symbol, stop_loss, take_profit, risk_eur=500):
     """
-    Berechnet Trading-Parameter basierend auf unserem 3-10 Tage Programm.
+    Zieht Live-Daten und berechnet das Setup basierend auf 500€ Risiko.
     """
-    
-    # 1. VIX-Filter (Volatilitäts-Check)
-    if vix_level > 25:
-        return f"STOPP: VIX bei {vix_level}. Volatilität zu hoch für 3-10 Tage Swings. Keine Trades!"
+    try:
+        # 1. Daten abrufen
+        ticker = yf.Ticker(symbol)
+        # Aktuellen Preis abrufen (Nutzt 'fast_info' für Geschwindigkeit)
+        current_price = ticker.fast_info['last_price']
+        currency = ticker.fast_info['currency']
+        
+        # 2. Risikokalkulation
+        risk_per_share = abs(current_price - stop_loss)
+        
+        if risk_per_share == 0:
+            return "Fehler: Stop-Loss liegt auf dem aktuellen Preis."
 
-    # 2. Trendstärke-Check (ADX)
-    if adx_level < 20:
-        return f"STOPP: ADX bei {adx_level}. Kein klarer Trend sichtbar. Seitwärtsphase vermeiden."
+        # Stückzahl berechnen (Risiko / Differenz)
+        shares = int(risk_eur / risk_per_share)
+        total_value = shares * current_price
+        
+        # 3. CRV und Ziel-Check
+        potential_gain = abs(take_profit - current_price)
+        crv = potential_gain / risk_per_share
+        profit_pct = (potential_gain / current_price) * 100
 
-    # 3. Risikomanagement (Positionsgröße)
-    risk_per_share = abs(price - stop_loss)
-    
-    if risk_per_share == 0:
-        return "Fehler: Stop-Loss darf nicht gleich dem Einstiegspreis sein."
+        # Ausgabe
+        print(f"--- LIVE SETUP: {symbol} ---")
+        print(f"Aktueller Kurs: {current_price:.2f} {currency}")
+        print(f"Empfohlene Stückzahl: {shares}")
+        print(f"Gesamtwert der Position: {total_value:.2f} {currency}")
+        print(f"Stopp: {stop_loss} | Ziel: {take_profit}")
+        print(f"CRV: {crv:.2f} | Erwartete Rendite: {profit_pct:.2f}%")
+        
+        if profit_pct < 7:
+            print("(!) ACHTUNG: Zielrendite unter 7% (3-5-7 Regel)")
+            
+    except Exception as e:
+        print(f"Fehler beim Abrufen von {symbol}: {e}")
 
-    # Berechnung Stückzahl (Einheit pro Trading 500€ Risiko)
-    shares_to_buy = int(risk_per_trade_eur / risk_per_share)
-    
-    # 4. Chance-Risiko-Verhältnis (CRV) - Ziel: Mindestens 7% Gewinn (3-5-7 Regel)
-    potential_profit_per_share = abs(take_profit - price)
-    crv = potential_profit_per_share / risk_per_share
-    profit_percent = (potential_profit_per_share / price) * 100
-
-    # Output
-    print(f"--- Setup für {symbol} ---")
-    print(f"Einstieg: {price} | Stop-Loss: {stop_loss} | Ziel: {take_profit}")
-    print(f"Stückzahl für 500€ Risiko: {shares_to_buy} Einheiten")
-    print(f"Positionsgröße gesamt: {shares_to_buy * price:.2f} EUR/USD")
-    print(f"Erwarteter Gewinn: {shares_to_buy * potential_profit_per_share:.2f} EUR/USD")
-    print(f"CRV: {crv:.2f} | Ziel-Rendite: {profit_percent:.2f}%")
-    
-    if profit_percent < 7:
-        print("WARNUNG: Zielrendite unter 7% (Verletzung der 3-5-7 Regel)")
-
-# BEISPIEL-DATEN (Ende März 2026)
-# Nvidia Long-Versuch
-check_trading_setup(
-    symbol="NVDA", 
-    price=181.50, 
-    stop_loss=172.00, 
-    take_profit=198.00, 
-    vix_level=22,  # Markt ist noch okay
-    adx_level=28   # Trend ist stark genug
-)
+# NUTZUNG:
+# Für deutsche Aktien das Suffix '.DE' nutzen (z.B. 'RHM.DE' für Rheinmetall)
+get_live_trading_setup("NVDA", stop_loss=120.00, take_profit=150.00)
