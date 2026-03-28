@@ -215,15 +215,29 @@ df_top["Chance (%)"] = df_top["Chance (%)"].map("{:.2f}".format)
 # Anzeige der Tabelle mit dem blauen Header (Design aus CSS-Teil)
 st.table(df_top)
 
-
 # 5.4 DETAIL-ANALYSE MIT 3 METRIK-ZEILEN
 st.divider()
 st.subheader("🔍 Smart-Entry: Detail-Analyse & Trading-Setup")
 selected = st.selectbox("Aktie wählen:", STOCKS_ONLY, format_func=lambda x: TICKER_NAMES[x])
 det = get_extended_stock_analysis(selected)
 
+# --- SMART-ENTRY: DETAIL-ANALYSE & TRADING-SETUP ---
 if det:
-    # ZEILE 1: VOLUMEN-INFOS
+    # 1. BERECHNUNG DER TRADING-LOGIK (REIHE 1)
+    weather = "☀️" if det['chg'] > 0.5 else "⛈️" if det['chg'] < -0.5 else "☁️"
+    dot = "🟢" if det['chg'] > 0.4 else "🔵" if det['chg'] < -0.4 else "⚪"
+    signal_text = "CALL" if det['chg'] > 0.4 else "PUT" if det['chg'] < -0.4 else "NEUTRAL"
+    
+    # REIHE 1: DIE HAUPT-SIGNALE (Ganz oben)
+    s1, s2, s3, s4 = st.columns(4)
+    with s1: st.metric("TRADING SIGNAL", f"{dot} {signal_text}")
+    with s2: st.metric("MARKT-WETTER", f"{weather}", "Langfristig")
+    with s3: st.metric("ACTION STATUS", "AKTIV" if abs(det['chg']) > 0.4 else "WAIT", delta_color="normal")
+    with s4: st.metric("CHANCE (%)", f"{det['chance']:.4f}", "Vola-Score")
+
+    st.markdown("---") # Trennung zur Daten-Analyse
+
+    # REIHE 2: VOLUMEN-KENNZAHLEN
     v1, v2, v3, v4 = st.columns(4)
     with v1: st.metric("VOLUMEN AKTUELL", f"{det['vol']:,.0f}")
     with v2: st.metric("VOL-TREND (REL)", f"{det['vol_rel']:.2f}x", "vs. 20D Ø")
@@ -232,14 +246,14 @@ if det:
         pos_in_range = (det['cp'] - det['l250']) / (det['h250'] - det['l250']) * 100
         st.metric("LAGE IM JAHRESBAND", f"{pos_in_range:.1f}%", "0=Tief / 100=Hoch")
 
-    # ZEILE 2: 250-TAGE HOCH / TIEF
+    # REIHE 3: 250-TAGE HOCH / TIEF
     r1, r2, r3, r4 = st.columns(4)
     with r1: st.metric("250T HOCH", f"{det['h250']:.2f} €", f"{((det['cp']/det['h250'])-1)*100:.1f}% Abstand")
     with r2: st.metric("250T TIEF", f"{det['l250']:.2f} €", f"+{((det['cp']/det['l250'])-1)*100:.1f}% Abstand")
     with r3: st.metric("JAHRES-SPANNE", f"{det['h250'] - det['l250']:.2f} €", "H vs L")
     with r4: st.metric("KURS AKTUELL", f"{det['cp']:.2f} €", f"{det['chg']:.2f}%")
 
-    # ZEILE 3: TRADING SETUP (SL / TP)
+    # REIHE 4: TRADING SETUP (SL / TP)
     direction = 1 if det['chg'] >= 0 else -1
     sl_price = det['cp'] - (1.5 * det['atr'] * direction)
     tp_price = det['cp'] + (3.0 * det['atr'] * direction)
@@ -248,8 +262,9 @@ if det:
     t1, t2, t3, t4 = st.columns(4)
     with t1: st.metric("STOP-LOSS (SL)", f"{sl_price:.2f} €", f"{((sl_price/det['cp'])-1)*100:.2f}%", delta_color="inverse")
     with t2: st.metric("TAKE-PROFIT (TP)", f"{tp_price:.2f} €", f"+{((tp_price/det['cp'])-1)*100:.2f}%")
-    with t3: st.metric("RISIKO PRO AKTIE", f"{abs(det['cp'] - sl_price):.2f} €", "Basiert auf ATR")
+    with t3: st.metric("RISIKO PRO AKTIE", f"{abs(det['cp'] - sl_price):.2f} €", "ATR-Basis")
     with t4: st.metric("CRV (ZIEL)", f"{crv:.2f}", "Chance/Risiko")
+
 
     # CHART MIT HANDELSLINIEN
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
