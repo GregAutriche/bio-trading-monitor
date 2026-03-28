@@ -92,22 +92,22 @@ def get_extended_stock_analysis(symbol):
         h250 = df["High"].max()
         l250 = df["Low"].min()
 
-# REIHE 3: TRADING MARKEN (STOP-LOSS & TAKE-PROFIT)
-# Berechnung basierend auf ATR (1.5x ATR für SL, 3.0x ATR für TP)
-atr_factor_sl = 1.5
-atr_factor_tp = 3.0
-# Richtung bestimmen für Call/Put
-direction = 1 if det['chg'] >= 0 else -1
+        # REIHE 3: TRADING MARKEN (STOP-LOSS & TAKE-PROFIT)
+        # Berechnung basierend auf ATR (1.5x ATR für SL, 3.0x ATR für TP)
+        atr_factor_sl = 1.5
+        atr_factor_tp = 3.0
 
-sl_price = det['cp'] - (det['atr'] * atr_factor_sl * direction)
-tp_price = det['cp'] + (det['atr'] * atr_factor_tp * direction)
-crv = abs(tp_price - det['cp']) / abs(det['cp'] - sl_price) if abs(det['cp'] - sl_price) > 0 else 0
+        # Richtung bestimmen für Call/Put
+        direction = 1 if det['chg'] >= 0 else -1
+        sl_price = det['cp'] - (det['atr'] * atr_factor_sl * direction)
+        tp_price = det['cp'] + (det['atr'] * atr_factor_tp * direction)
+        crv = abs(tp_price - det['cp']) / abs(det['cp'] - sl_price) if abs(det['cp'] - sl_price) > 0 else 0
 
-t1, t2, t3, t4 = st.columns(4)
-with t1: st.metric("STOP-LOSS (SL)", f"{sl_price:.2f} €", f"{((sl_price/det['cp'])-1)*100:.2f}%", delta_color="inverse")
-with t2: st.metric("TAKE-PROFIT (TP)", f"{tp_price:.2f} €", f"+{((tp_price/det['cp'])-1)*100:.2f}%")
-with t3: st.metric("RISIKO PRO AKTIE", f"{abs(det['cp'] - sl_price):.2f} €", "Basiert auf ATR")
-with t4: st.metric("CHANCE-RISIKO (CRV)", f"{crv:.2f}", "Ziel-Verhältnis")
+        t1, t2, t3, t4 = st.columns(4)
+        with t1: st.metric("STOP-LOSS (SL)", f"{sl_price:.2f} €", f"{((sl_price/det['cp'])-1)*100:.2f}%", delta_color="inverse")
+        with t2: st.metric("TAKE-PROFIT (TP)", f"{tp_price:.2f} €", f"+{((tp_price/det['cp'])-1)*100:.2f}%")
+        with t3: st.metric("RISIKO PRO AKTIE", f"{abs(det['cp'] - sl_price):.2f} €", "Basiert auf ATR")
+        with t4: st.metric("CHANCE-RISIKO (CRV)", f"{crv:.2f}", "Ziel-Verhältnis")
 
         
         # Volumen-Kennzahlen
