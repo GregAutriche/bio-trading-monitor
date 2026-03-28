@@ -8,7 +8,7 @@ from streamlit_autorefresh import st_autorefresh
 from datetime import datetime
 
 # --- 1. KONFIGURATION & REFRESH (5 MINUTEN) ---
-st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
+st.set_page_config(page_title="Trading Monitor", layout="wide")
 st_autorefresh(interval=5 * 60 * 1000, key="fscounter")
 
 # --- 2. TICKER-MAPPING ---
@@ -161,7 +161,7 @@ def get_extended_stock_analysis(symbol):
     except: return None
 
 # --- 5. DASHBOARD LAYOUT ---
-st.title("🚀 Bio-Trading Monitor Live PRO")
+st.title("🚀 Trading Monitor 🚀")
 
 # 5.1 HEADER INFO
 now = datetime.now().strftime('%H:%M:%S')
