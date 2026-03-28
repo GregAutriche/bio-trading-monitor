@@ -75,29 +75,6 @@ stocks = {"ADS.DE": "🇩🇪 Adidas", "AIR.DE": "🇩🇪 Airbus", "ALV.DE": "�
     "ADI": "🇺🇸 Analog Devices", "ANSS": "🇺🇸 Ansys", "CDNS": "🇺🇸 Cadence", "CPRT": "🇺🇸 Copart", "CTAS": "🇺🇸 Cintas", "CSX": "🇺🇸 CSX Corp", "DLTR": "🇺🇸 Dollar Tree", "DXCM": "🇺🇸 DexCom", "FAST": "🇺🇸 Fastenal", "IDXX": "🇺🇸 IDEXX Labs", "KDP": "🇺🇸 Keurig Dr Pepper", "MAR": "🇺🇸 Marriott", "ODFL": "🇺🇸 Old Dominion", "PAYX": "🇺🇸 Paychex", "VRSK": "🇺🇸 Verisk"
     }
 
-# 1. Der Slider in der Sidebar
-st.sidebar.header("Filter")
-top_n = st.sidebar.slider("Top-Signale anzeigen", min_value=1, max_value=10, value=5)
-
-# 2. Logik zur Aufteilung und Sortierung (nachdem der Scan durchgelaufen ist)
-if all_data:
-    df = pd.DataFrame(all_data)
-    
-    col_call, col_put = st.columns(2)
-    
-    with col_call:
-        st.success(f"🔥 Top {top_n} CALL Signale")
-        # Filtern nach CALL, Sortieren nach Wahrscheinlichkeit, Begrenzen durch Slider-Wert
-        calls = df[df['Typ'] == "CALL 🟢"].sort_values(by="Wahrscheinlichkeit", ascending=False).head(top_n)
-        st.table(calls[["Aktie/Name", "Wahrscheinlichkeit", "Kurs", "Ziel %"]])
-        
-    with col_put:
-        st.error(f"📉 Top {top_n} PUT Signale")
-        # Filtern nach PUT, Sortieren nach Wahrscheinlichkeit, Begrenzen durch Slider-Wert
-        puts = df[df['Typ'] == "PUT 🔴"].sort_values(by="Wahrscheinlichkeit", ascending=False).head(top_n)
-        st.table(puts[["Aktie/Name", "Wahrscheinlichkeit", "Kurs", "Ziel %"]])
-
-
 # --- 4. SCANNER LOGIK MIT WAHRSCHEINLICHKEIT ---
 def get_analysis(ticker_dict, timeframe, is_fx=False):
     data_list = []
