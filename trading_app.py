@@ -20,7 +20,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. SIDEBAR & PARAMETER ---
+# --- 2. SIDEBAR PARAMETER ---
 st.sidebar.header("🛡️ Risikomanagement")
 konto = st.sidebar.number_input("Gesamtkapital (EUR)", value=25000)
 risiko = st.sidebar.number_input("Risiko pro Trade (EUR)", value=500)
@@ -34,7 +34,7 @@ with col_h1:
 with col_h2:
     st.markdown(f"<h3 style='text-align:right;'>Basis: <span style='color:#00d4ff;'>{intervall}</span></h3>", unsafe_allow_html=True)
 
-# --- 4. ANALYSE-LOGIK (WETTER & RICHTUNG) ---
+# --- 4. ANALYSE-LOGIK (FIXIERTE SL/TP DISTANZ) ---
 def get_analysis(ticker_dict, timeframe, is_fx=False, kontostand=25000, risiko_val=500):
     data_list = []
     for symbol, name in ticker_dict.items():
@@ -44,61 +44,62 @@ def get_analysis(ticker_dict, timeframe, is_fx=False, kontostand=25000, risiko_v
             if hist.empty or len(hist) < 20: continue
             
             cp = hist['Close'].iloc[-1]
-            prev_close = hist['Close'].iloc[-2]
-            chg_pct = ((cp / prev_close) - 1) * 100
             sma20 = hist['Close'].rolling(20).mean().iloc[-1]
             is_bullish = cp > sma20
             
             # Wetter-Logik
+            chg_pct = ((cp / hist['Close'].iloc[-2]) - 1) * 100
             weather = "☀️" if is_bullish and chg_pct > 0.2 else "☁️" if is_bullish else "⛈️"
             
-            # SL/TP & 100% Sicherung
+            # FIX: SL-Distanz basierend auf Volatilität begrenzen
             vol = hist['High'].rolling(14).std().iloc[-1]
-            sl_dist_raw = vol * 2 if vol > 0 else cp * 0.005
+            sl_dist = vol * 2 if vol > 0 else cp * 0.003
+            
+            # Kapital-Sicherung
             min_sl_dist = (risiko_val * cp) / kontostand if not is_fx else (risiko_val * cp) / (kontostand / 100)
-            final_dist = max(sl_dist_raw, min_sl_dist)
+            final_dist = max(sl_dist, min_sl_dist)
             
             sl = cp - final_dist if is_bullish else cp + final_dist
             tp = cp + (final_dist * 2.5) if is_bullish else cp - (final_dist * 2.5)
             
-            chance_val = 75 if is_bullish else 45
-
             data_list.append({
                 "Name": name, "Symbol": symbol, "Typ": "CALL 🟢" if is_bullish else "PUT 🔴",
-                "Chance": f"{chance_val}%", "Chance_Val": chance_val, "Kurs": cp, "Change": chg_pct,
+                "Chance": f"{75 if is_bullish else 45}%", "Kurs": cp, "Change": chg_pct,
                 "SL": sl, "TP": tp, "Hist": hist, "is_fx": is_fx, "Wetter": weather
             })
         except: continue
     return data_list
 
-# --- 5. GRAFIK-FUNKTION (DUAL AXIS WERT LINKS / % RECHTS) ---
-def plot_trading_chart(item):
+# --- 5. GRAFIK-FUNKTION (DUAL AXIS MIT KORREKTER SKALIERUNG) ---
+def plot_dual_axis_chart(item):
+    # Erstelle Subplot mit zwei Y-Achsen
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
-    # Candlesticks auf linker Achse
+    # Candlesticks auf linker Achse (Werte)
     fig.add_trace(go.Candlestick(
         x=item['Hist'].index, open=item['Hist']['Open'], high=item['Hist']['High'],
         low=item['Hist']['Low'], close=item['Hist']['Close'], name="Kurs"
     ), secondary_y=False)
     
-    # Prozent-Skala auf rechter Achse (Relativ zum aktuellen Kurs)
+    # Prozent-Achse Rechts
     current_price = item['Kurs']
     pct_trace = ((item['Hist']['Close'] / current_price) - 1) * 100
     fig.add_trace(go.Scatter(x=item['Hist'].index, y=pct_trace, line=dict(color='rgba(0,0,0,0)'), showlegend=False), secondary_y=True)
     
-    # Trading-Linien
+    # Trading-Linien (Fixiert auf Kurs-Achse)
     dec = 5 if item['is_fx'] else 2
     fig.add_hline(y=item['TP'], line_dash="dash", line_color="#00ff00", annotation_text=f"Ziel {item['TP']:.{dec}f}")
     fig.add_hline(y=item['SL'], line_dash="dash", line_color="#ff4b4b", annotation_text=f"Stopp {item['SL']:.{dec}f}")
     fig.add_hline(y=current_price, line_color="#00d4ff", annotation_text=f"Entry {current_price:.{dec}f}")
 
-    fig.update_yaxes(title_text="<b>Kurs-Wert (Links)</b>", secondary_y=False, autorange=True)
+    # Achsen-Anpassung: Links Wert, Rechts Prozent
+    fig.update_yaxes(title_text="<b>Kurs-Wert (Links)</b>", secondary_y=False, autorange=True, fixedrange=False)
     fig.update_yaxes(title_text="<b>Abweichung % (Rechts)</b>", secondary_y=True, showgrid=False)
     
-    fig.update_layout(height=450, template="plotly_dark", paper_bgcolor="#001f3f", plot_bgcolor="#001f3f", margin=dict(l=0,r=0,t=10,b=0), xaxis_rangeslider_visible=False)
+    fig.update_layout(height=500, template="plotly_dark", paper_bgcolor="#001f3f", plot_bgcolor="#001f3f", margin=dict(l=0,r=0,t=10,b=0), xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
 
-# --- 6. INDEX-HEATMAP (2 ZEILEN) ---
+# --- 6. INDEX-HEATMAP ---
 st.subheader("🌍 Index-Heatmap")
 indices_r1 = {"^GDAXI": "DAX", "^IXIC": "NASDAQ"}
 indices_r2 = {"^STOXX50E": "EURO STOXX", "^NSEI": "NIFTY", "XU100.IS": "BIST 100"}
@@ -120,7 +121,7 @@ render_row(indices_r2)
 
 st.divider()
 
-# --- 7. EUR/USD LIVE-ANALYSE ---
+# --- 7. EUR/USD ANALYSE ---
 st.subheader("💱 EUR/USD Live-Analyse")
 fx_res_list = get_analysis({"EURUSD=X": "EUR/USD"}, intervall, True, konto, risiko)
 if fx_res_list:
@@ -129,11 +130,11 @@ if fx_res_list:
     c1.metric("Kurs", f"{res['Kurs']:.5f}", f"{res['Wetter']} Stimmung")
     c2.metric("Chance", res['Chance'])
     c3.metric("Richtung", res['Typ'].replace("🟢", "").replace("🔴", "").strip())
-    plot_trading_chart(res)
+    plot_dual_axis_chart(res)
 
 st.divider()
 
-# --- 8. TOP 5 AKTIEN & DETAIL-ANALYSE ---
+# --- 8. TOP 5 AKTIEN ---
 st.subheader("🔥 Top 5 Aktien-Chancen")
 stocks = {"ADS.DE": "Adidas", "SAP.DE": "SAP", "NVDA": "Nvidia", "RHM.DE": "Rheinmetall", "TSLA": "Tesla", "AAPL": "Apple"}
 stock_results = get_analysis(stocks, intervall, False, konto, risiko)
@@ -143,17 +144,13 @@ if stock_results:
     l, r = st.columns(2)
     with l:
         st.success("Top 5 CALL (Long)")
-        st.table(df[df['Typ'] == "CALL 🟢"].sort_values("Chance_Val", ascending=False).head(5)[["Name", "Chance", "Wetter", "Kurs"]])
+        st.table(df[df['Typ'] == "CALL 🟢"].head(5)[["Name", "Chance", "Wetter", "Kurs"]])
     with r:
         st.error("Top 5 PUT (Short)")
-        st.table(df[df['Typ'] == "PUT 🔴"].sort_values("Chance_Val", ascending=False).head(5)[["Name", "Chance", "Wetter", "Kurs"]])
+        st.table(df[df['Typ'] == "PUT 🔴"].head(5)[["Name", "Chance", "Wetter", "Kurs"]])
 
-    st.subheader("🔍 Aktien Detail-Ansicht")
+    st.subheader("🔍 Detail-Ansicht")
     selection = st.selectbox("Aktie wählen:", df['Name'].tolist())
     if selection:
         sel_item = next(x for x in stock_results if x['Name'] == selection)
-        c_d1, c_d2, c_d3 = st.columns(3)
-        c_d1.metric("Kurs", f"{sel_item['Kurs']:.2f}")
-        c_d2.metric("Chance", sel_item['Chance'])
-        c_d3.metric("Richtung", sel_item['Typ'].replace("🟢", "").replace("🔴", "").strip())
-        plot_trading_chart(sel_item)
+        plot_dual_axis_chart(sel_item)
