@@ -141,16 +141,37 @@ if data["df"] is not None:
 else:
     st.error("Daten konnten nicht geladen werden. Bitte Ticker prüfen.")
 
-# --- 6. TOP CHANCEN TABELLE ---
+# --- 6. TOP CHANCEN TABELLE (OPTIERTER KONTRAST) ---
 st.divider()
 st.subheader("🚀 Top Markt-Chancen (Vola-Analyse)")
-t_col1, t_col2 = st.columns(2)
 
-# Hier würde man alle STOCKS_ONLY loopen und sortieren (vereinfacht für Demo)
+# Daten sammeln
 top_data = []
-for t in STOCKS_ONLY[:5]: # Beispielhaft für die ersten 5
+for t in STOCKS_ONLY:
     d = get_analysis(t)
-    top_data.append({"Aktie": TICKER_NAMES[t], "Kurs": d["cp"], "Vol-Rel": d["vol_rel"], "Chance": d["chance"]})
+    top_data.append({
+        "Aktie": TICKER_NAMES[t], 
+        "Kurs (€)": f"{d['cp']:,.2f}", 
+        "Vol-Rel": f"{d['vol_rel']:.2f}x", 
+        "Chance (%)": d['chance']
+    })
 
-df_top = pd.DataFrame(top_data).sort_values(by="Chance", ascending=False)
-st.table(df_top)
+df_top = pd.DataFrame(top_data).sort_values(by="Chance (%)", ascending=False)
+
+# OPTION: Styling via Pandas für hohen Kontrast
+def style_df(df):
+    return df.style.set_table_styles([
+        {'selector': 'th', 'props': [('background-color', '#1E90FF'), ('color', 'white'), ('font-weight', 'bold')]},
+        {'selector': 'td', 'props': [('color', '#FFFFFF'), ('background-color', '#161B22'), ('border', '1px solid #30363D')]}
+    ]).format({"Chance (%)": "{:.2f}"})
+
+# Anzeige mit verbessertem Kontrast
+st.dataframe(style_df(df_top), use_container_width=True, hide_index=True)
+
+# Alternativ: Falls du st.table bevorzugst, füge dies oben in dein CSS (markdown) ein:
+st.markdown("""
+    <style>
+    .stTable td { color: #FFFFFF !important; font-weight: 500 !important; background-color: #1A1C24 !important; }
+    .stTable th { background-color: #262730 !important; color: #1E90FF !important; }
+    </style>
+    """, unsafe_allow_html=True)
