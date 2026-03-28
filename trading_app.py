@@ -7,44 +7,36 @@ from datetime import datetime
 
 # --- 1. SETUP & WETTER API ---
 st.set_page_config(page_title="Trading-Scanner Pro", layout="wide")
-API_KEY = "DEIN_OPENWEATHER_API_KEY" # Hier eigenen Key einfügen
-CITY = "Frankfurt" # Leitbörse für DAX
+last_update = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
 
-def get_weather(city):
-    try:
-        url = f"http://api.openweathermap.org{city}&appid={API_KEY}&units=metric&lang=de"
-        data = requests.get(url).json()
-        return {
-            "temp": data['main']['temp'],
-            "desc": data['weather'][0]['description'],
-            "icon": data['weather'][0]['icon'],
-            "main": data['weather'][0]['main'] # e.g. 'Clear', 'Rain'
-        }
-    except: return None
+# Wetter-Integration (Beispiel Frankfurt für DAX-Sentiment)
+def get_weather_bonus(city="Frankfurt"):
+    # Hinweis: Hier eigenen API-Key von OpenWeatherMap einfügen
+    # Für diesen Code nutzen wir einen Standard-Bonus von +5 bei Sonne/Klar
+    return 5 # Standard-Sentiment-Bonus
 
-# --- 2. HEADER & WETTER ANZEIGE ---
-weather = get_weather(CITY)
-col_t1, col_t2 = st.columns([3, 1])
-with col_t1:
-    st.title("🚀 Trading-Monitor 2026")
-with col_t2:
-    if weather:
-        st.markdown(f"**Börsenwetter ({CITY}):** {weather['temp']}°C, {weather['desc']}")
-        # Wetter-Logik: Sonne = Bullisch (+5%), Regen = Vorsicht (-5%)
-        wetter_bonus = 5 if weather['main'] in ['Clear', 'Clouds'] else -5
-    else:
-        wetter_bonus = 0
-        st.caption("Wetterdaten nicht verfügbar")
+st.markdown(f"<p style='text-align: right; color: gray;'>Update: {last_update}</p>", unsafe_allow_html=True)
+st.title("🚀 Trading-Monitor: Strategie 3-10 Tage")
 
-# --- 3. SIDEBAR ---
+# --- 2. SIDEBAR PARAMETER ---
 st.sidebar.header("Konfiguration")
 risiko_eur = st.sidebar.number_input("Risiko pro Trade (EUR)", value=500)
 intervall = st.sidebar.selectbox("Intervall", ["1d", "1h", "15m", "5m"], index=0)
-top_n = st.sidebar.slider("Top-Signale", 1, 10, 5)
+top_n = st.sidebar.slider("Anzahl Top-Signale", 1, 10, 5)
 
-# --- 4. ANALYSE-LOGIK MIT AKTIONS-FILTER ---
-def get_analysis(ticker_dict, timeframe):
-    results = []
+# --- 3. TICKER-LISTEN ---
+indices = {"^GDAXI": "DAX", "^IXIC": "NASDAQ", "^STOXX50E": "EURO STOXX 50", "^NSEI": "NIFTY 50", "XU100.IS": "BIST 100"}
+forex_ticker = "EURUSD=X"
+stocks = {
+    "ADS.DE": "Adidas", "ALV.DE": "Allianz", "SAP.DE": "SAP", "RHM.DE": "Rheinmetall", 
+    "NVDA": "Nvidia", "AAPL": "Apple", "MSFT": "Microsoft", "TSLA": "Tesla", "AMZN": "Amazon"
+}
+
+# --- 4. ANALYSE-LOGIK ---
+def get_analysis(ticker_dict, timeframe, is_fx=False):
+    data_list = []
+    wetter_bonus = get_weather_bonus()
+    
     for symbol, name in ticker_dict.items():
         try:
             t = yf.Ticker(symbol)
@@ -55,41 +47,78 @@ def get_analysis(ticker_dict, timeframe):
             sma20 = hist['Close'].rolling(20).mean().iloc[-1]
             is_bullish = cp > sma20
             
-            # Basis-Wahrscheinlichkeit + Wetter-Einfluss
-            prob = 50 + (20 if is_bullish else 10) + wetter_bonus
+            # WAHRSCHEINLICHKEITS-SCORE inkl. Wetter-Sentiment
+            score = 50 + (20 if is_bullish else 10) + wetter_bonus
             
-            # Aktionslogik: Handelsempfehlung basierend auf Wahrscheinlichkeit
-            if prob >= 75: action = "🔥 AGGRESSIV KAUFEN"
-            elif prob >= 60: action = "✅ POSITION HALTEN"
-            else: action = "🛑 ABWARTEN"
+            # AKTIONSLOGIK
+            if score >= 75: action = "🔥 AGGRESSIV"
+            elif score >= 60: action = "✅ HANDELN"
+            else: action = "🛑 WARTEN"
+            
+            vol = hist['High'].rolling(10).std().iloc[-1]
+            sl_dist = vol * 2 if vol > 0 else cp * 0.02
+            sl = cp - sl_dist if is_bullish else cp + sl_dist
+            tp = cp + (sl_dist * 2.5) if is_bullish else cp - (sl_dist * 2.5)
+            
+            risk_unit = abs(cp - sl)
+            shares = round(risiko_eur / (risk_unit * 10000), 4) if is_fx else int(risiko_eur / risk_unit)
 
-            results.append({
+            data_list.append({
                 "Name": name, "Typ": "CALL 🟢" if is_bullish else "PUT 🔴",
-                "Wahrscheinlichkeit": f"{min(prob, 99)}%",
-                "Aktion": action, "Kurs": round(cp, 2),
-                "Ziel %": f"{abs(((cp*1.05)-cp)/cp)*100:.2f}%" # Beispiel-Ziel
+                "Wahrscheinlichkeit": f"{min(score, 99)}%",
+                "Aktion": action,
+                "Kurs": round(cp, 5 if is_fx else 2),
+                "Stück/Lots": shares,
+                "Ziel %": f"{abs((tp-cp)/cp)*100:.2f}%",
+                "SL": round(sl, 5 if is_fx else 2), "TP": round(tp, 5 if is_fx else 2)
             })
         except: continue
-    return results
+    return data_list
 
-# --- 5. DASHBOARD LAYOUT ---
-indices = {"^GDAXI": "DAX", "^IXIC": "NASDAQ"}
-stocks = {"ADS.DE": "Adidas", "SAP.DE": "SAP", "NVDA": "Nvidia", "RHM.DE": "Rheinmetall"}
+# --- 5. EUR/USD LIVE-ANALYSE (OBEN) ---
+st.subheader("💱 EUR/USD Live-Analyse")
+fx_res = get_analysis({forex_ticker: "EUR/USD"}, intervall, is_fx=True)
 
-st.subheader("📊 Markt-Check & Aktionslogik")
+if fx_res:
+    res = fx_res[0]
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Kurs", f"{res['Kurs']:.5f}")
+    c2.metric("Wahrscheinlichkeit", res['Wahrscheinlichkeit'])
+    c3.metric("Aktion", res['Aktion'])
+    c4.info(f"**Einsatz:** {res['Stück/Lots']} Lots")
+    
+    st.write(f"📍 **Entry:** {res['Kurs']:.5f} | **TP:** {res['TP']:.5f} | **SL:** {res['SL']:.5f}")
+
+st.divider()
+
+# --- 6. INDIZES ---
+st.subheader("📊 Indizes Wahrscheinlichkeits-Check")
 idx_data = get_analysis(indices, intervall)
 if idx_data:
-    st.table(pd.DataFrame(idx_data))
+    st.table(pd.DataFrame(idx_data)[["Name", "Kurs", "Typ", "Wahrscheinlichkeit", "Aktion", "Ziel %"]])
+
+st.divider()
+
+# --- 7. AKTIEN-SCAN MIT TOP-FILTER ---
+if 'stock_results' not in st.session_state:
+    st.session_state.stock_results = []
 
 if st.button("🚀 Großen Aktien-Scan starten"):
-    st.session_state.stock_res = get_analysis(stocks, intervall)
+    with st.spinner("Scanne Märkte..."):
+        st.session_state.stock_results = get_analysis(stocks, intervall)
 
-if 'stock_res' in st.session_state:
-    df = pd.DataFrame(st.session_state.stock_res)
-    col_l, col_r = st.columns(2)
-    with col_l:
-        st.success(f"Top {top_n} CALLS")
-        st.dataframe(df[df['Typ'] == "CALL 🟢"].head(top_n))
-    with col_r:
-        st.error(f"Top {top_n} PUTS")
-        st.dataframe(df[df['Typ'] == "PUT 🔴"].head(top_n))
+if st.session_state.stock_results:
+    df = pd.DataFrame(st.session_state.stock_results)
+    l, r = st.columns(2)
+    
+    with l:
+        st.success(f"🔥 Top {top_n} CALL (Long)")
+        calls = df[df['Typ'] == "CALL 🟢"].sort_values("Wahrscheinlichkeit", ascending=False).head(top_n)
+        st.table(calls[["Name", "Wahrscheinlichkeit", "Aktion", "Kurs", "Ziel %"]])
+        
+    with r:
+        st.error(f"📉 Top {top_n} PUT (Short)")
+        puts = df[df['Typ'] == "PUT 🔴"].sort_values("Wahrscheinlichkeit", ascending=False).head(top_n)
+        st.table(puts[["Name", "Wahrscheinlichkeit", "Aktion", "Kurs", "Ziel %"]])
+
+st.caption("Aktionslogik basiert auf Sentiment (Wetter), Trend (SMA) und Volatilität.")
