@@ -249,9 +249,9 @@ if det:
     # REIHE 3: 250-TAGE HOCH / TIEF
     r1, r2, r3, r4 = st.columns(4)
     with r1: st.metric("250T HOCH", f"{det['h250']:.2f} €", f"{((det['cp']/det['h250'])-1)*100:.1f}% Abstand")
-    with r2: st.metric("250T TIEF", f"{det['l250']:.2f} €", f"+{((det['cp']/det['l250'])-1)*100:.1f}% Abstand")
-    with r3: st.metric("JAHRES-SPANNE", f"{det['h250'] - det['l250']:.2f} €", "H vs L")
-    with r4: st.metric("KURS AKTUELL", f"{det['cp']:.2f} €", f"{det['chg']:.2f}%")
+    with r2: st.metric("KURS AKTUELL", f"{det['cp']:.2f} €", f"{det['chg']:.2f}%")
+    with r3: st.metric("250T TIEF", f"{det['l250']:.2f} €", f"+{((det['cp']/det['l250'])-1)*100:.1f}% Abstand")
+    with r4: st.metric("JAHRES-SPANNE", f"{det['h250'] - det['l250']:.2f} €", "H vs L")
 
     # REIHE 4: TRADING SETUP (SL / TP)
     direction = 1 if det['chg'] >= 0 else -1
@@ -261,10 +261,9 @@ if det:
 
     t1, t2, t3, t4 = st.columns(4)
     with t1: st.metric("STOP-LOSS (SL)", f"{sl_price:.2f} €", f"{((sl_price/det['cp'])-1)*100:.2f}%", delta_color="inverse")
-    with t2: st.metric("TAKE-PROFIT (TP)", f"{tp_price:.2f} €", f"+{((tp_price/det['cp'])-1)*100:.2f}%")
-    with t3: st.metric("RISIKO PRO AKTIE", f"{abs(det['cp'] - sl_price):.2f} €", "ATR-Basis")
-    with t4: st.metric("CRV (ZIEL)", f"{crv:.2f}", "Chance/Risiko")
-
+    with t2: st.metric("CRV (ZIEL)", f"{crv:.2f}", "Chance/Risiko")
+    with t3: st.metric("TAKE-PROFIT (TP)", f"{tp_price:.2f} €", f"+{((tp_price/det['cp'])-1)*100:.2f}%")
+    with t4: st.metric("RISIKO PRO AKTIE", f"{abs(det['cp'] - sl_price):.2f} €", "ATR-Basis")
 
     # CHART MIT HANDELSLINIEN
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
