@@ -9,7 +9,6 @@ from datetime import datetime
 
 # --- 1. KONFIGURATION & REFRESH (5 MINUTEN) ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
-# Intervall: 5 * 60 * 1000 = 300.000 ms
 st_autorefresh(interval=5 * 60 * 1000, key="fscounter")
 
 # --- 2. TICKER-MAPPING ---
@@ -24,20 +23,19 @@ TICKER_NAMES = {
 }
 STOCKS_ONLY = list(TICKER_NAMES.keys())
 
-# --- 3. DESIGN (MAXIMALER KONTRAST & SCHRIFTGRÖSSE) ---
+# --- 3. DESIGN (DUNKELBLAUER KONTRAST & SCHRIFTGRÖSSE) ---
 st.markdown("""
     <style>
-    /* Haupt-Hintergrund Dunkelblau */
     .stApp { background-color: #0B0E14; color: #FFFFFF; }
     
-    /* Metrik-Werte (Zahlen) - Verkleinert auf 1.5rem gegen Abschneiden */
+    /* Metrik-Werte (Zahlen) - Optimiert gegen Abschneiden */
     [data-testid="stMetricValue"] { 
         font-size: 1.5rem !important; 
         font-weight: 800 !important; 
         color: #FFFFFF !important; 
     }
     
-    /* Metrik-Labels (Überschriften) - Hellweiß & Lesbar */
+    /* Metrik-Labels (Überschriften) - Hellweiß */
     [data-testid="stMetricLabel"] { 
         font-size: 0.95rem !important; 
         color: #F8FAFC !important; 
@@ -81,7 +79,7 @@ def get_live_index_data(symbol):
 def get_extended_stock_analysis(symbol):
     try:
         tk = yf.Ticker(symbol)
-        df = tk.history(period="1y") # 1 Jahr für 250-Tage Werte
+        df = tk.history(period="1y") 
         if df.empty: return None
         
         cp = df["Close"].iloc[-1]
@@ -91,24 +89,10 @@ def get_extended_stock_analysis(symbol):
         # 250 Tage Hoch / Tief
         h250 = df["High"].max()
         l250 = df["Low"].min()
-
-        # REIHE 3: TRADING MARKEN (STOP-LOSS & TAKE-PROFIT)
-        # Berechnung basierend auf ATR (1.5x ATR für SL, 3.0x ATR für TP)
-        atr_factor_sl = 1.5
-        atr_factor_tp = 3.0
-
-        # Richtung bestimmen für Call/Put
-        direction = 1 if det['chg'] >= 0 else -1
-        sl_price = det['cp'] - (det['atr'] * atr_factor_sl * direction)
-        tp_price = det['cp'] + (det['atr'] * atr_factor_tp * direction)
-        crv = abs(tp_price - det['cp']) / abs(det['cp'] - sl_price) if abs(det['cp'] - sl_price) > 0 else 0
-
-        t1, t2, t3, t4 = st.columns(4)
-        with t1: st.metric("STOP-LOSS (SL)", f"{sl_price:.2f} €", f"{((sl_price/det['cp'])-1)*100:.2f}%", delta_color="inverse")
-        with t2: st.metric("TAKE-PROFIT (TP)", f"{tp_price:.2f} €", f"+{((tp_price/det['cp'])-1)*100:.2f}%")
-        with t3: st.metric("RISIKO PRO AKTIE", f"{abs(det['cp'] - sl_price):.2f} €", "Basiert auf ATR")
-        with t4: st.metric("CHANCE-RISIKO (CRV)", f"{crv:.2f}", "Ziel-Verhältnis")
-
+        
+        # ATR für SL/TP Berechnung
+        df['TR'] = np.maximum(df['High'] - df['Low'], np.maximum(abs(df['High'] - df['Close'].shift(1)), abs(df['Low'] - df['Close'].shift(1))))
+        atr = df['TR'].tail(14).mean()
         
         # Volumen-Kennzahlen
         curr_vol = df["Volume"].iloc[-1]
@@ -118,7 +102,7 @@ def get_extended_stock_analysis(symbol):
         vol_chg = ((curr_vol / prev_vol) - 1) * 100 if prev_vol > 0 else 0
         
         return {
-            "cp": cp, "chg": chg, "h250": h250, "l250": l250,
+            "cp": cp, "chg": chg, "h250": h250, "l250": l250, "atr": atr,
             "vol": curr_vol, "vol_rel": vol_rel, "vol_chg": vol_chg,
             "df": df, "chance": round(52.0000 + (vol_rel * 1.5) + (abs(chg) * 0.4), 4)
         }
@@ -163,14 +147,14 @@ df_top = pd.DataFrame(top_list).sort_values(by="Chance (%)", ascending=False)
 df_top["Chance (%)"] = df_top["Chance (%)"].map("{:.4f}".format)
 st.table(df_top)
 
-# 5.4 DETAIL-ANALYSE: VOLUMEN & 250-TAGE-TREND
+# 5.4 DETAIL-ANALYSE MIT 3 METRIK-ZEILEN
 st.divider()
-st.subheader("🔍 Detail-Analyse: Volumen & 250-Tage Band")
+st.subheader("🔍 Smart-Entry: Detail-Analyse & Trading-Setup")
 selected = st.selectbox("Aktie wählen:", STOCKS_ONLY, format_func=lambda x: TICKER_NAMES[x])
 det = get_extended_stock_analysis(selected)
 
 if det:
-    # REIHE 1: VOLUMEN-KENNZAHLEN
+    # ZEILE 1: VOLUMEN-INFOS
     v1, v2, v3, v4 = st.columns(4)
     with v1: st.metric("VOLUMEN AKTUELL", f"{det['vol']:,.0f}")
     with v2: st.metric("VOL-TREND (REL)", f"{det['vol_rel']:.2f}x", "vs. 20D Ø")
@@ -179,25 +163,41 @@ if det:
         pos_in_range = (det['cp'] - det['l250']) / (det['h250'] - det['l250']) * 100
         st.metric("LAGE IM JAHRESBAND", f"{pos_in_range:.1f}%", "0=Tief / 100=Hoch")
 
-    # REIHE 2: 250-TAGE HOCH / TIEF
+    # ZEILE 2: 250-TAGE HOCH / TIEF
     r1, r2, r3, r4 = st.columns(4)
     with r1: st.metric("250T HOCH", f"{det['h250']:.2f} €", f"{((det['cp']/det['h250'])-1)*100:.1f}% Abstand")
     with r2: st.metric("250T TIEF", f"{det['l250']:.2f} €", f"+{((det['cp']/det['l250'])-1)*100:.1f}% Abstand")
     with r3: st.metric("JAHRES-SPANNE", f"{det['h250'] - det['l250']:.2f} €", "H vs L")
     with r4: st.metric("KURS AKTUELL", f"{det['cp']:.2f} €", f"{det['chg']:.2f}%")
 
-    # CHART
+    # ZEILE 3: TRADING SETUP (SL / TP)
+    direction = 1 if det['chg'] >= 0 else -1
+    sl_price = det['cp'] - (1.5 * det['atr'] * direction)
+    tp_price = det['cp'] + (3.0 * det['atr'] * direction)
+    crv = abs(tp_price - det['cp']) / abs(det['cp'] - sl_price) if abs(det['cp'] - sl_price) > 0 else 0
+
+    t1, t2, t3, t4 = st.columns(4)
+    with t1: st.metric("STOP-LOSS (SL)", f"{sl_price:.2f} €", f"{((sl_price/det['cp'])-1)*100:.2f}%", delta_color="inverse")
+    with t2: st.metric("TAKE-PROFIT (TP)", f"{tp_price:.2f} €", f"+{((tp_price/det['cp'])-1)*100:.2f}%")
+    with t3: st.metric("RISIKO PRO AKTIE", f"{abs(det['cp'] - sl_price):.2f} €", "Basiert auf ATR")
+    with t4: st.metric("CRV (ZIEL)", f"{crv:.2f}", "Chance/Risiko")
+
+    # CHART MIT HANDELSLINIEN
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
     fig.add_trace(go.Candlestick(x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'], name="Kurs"), row=1, col=1)
     
-    # Volumen-Bars
+    # SL/TP Linien einzeichnen
+    fig.add_hline(y=sl_price, line_dash="dash", line_color="#FF4B4B", annotation_text="SL", row=1, col=1)
+    fig.add_hline(y=tp_price, line_dash="dash", line_color="#00FFA3", annotation_text="TP", row=1, col=1)
+    fig.add_hline(y=det['cp'], line_dash="dot", line_color="#FFFFFF", annotation_text="ENTRY", row=1, col=1)
+
     v_colors = ['#00FFA3' if c >= o else '#FF4B4B' for o, c in zip(det['df']['Open'], det['df']['Close'])]
     fig.add_trace(go.Bar(x=det['df'].index, y=det['df']['Volume'], marker_color=v_colors, name="Volumen"), row=2, col=1)
     
-    fig.update_layout(height=600, template="plotly_dark", xaxis_rangeslider_visible=False, paper_bgcolor='#0B0E14', plot_bgcolor='#0B0E14', showlegend=False)
+    fig.update_layout(height=650, template="plotly_dark", xaxis_rangeslider_visible=False, paper_bgcolor='#0B0E14', plot_bgcolor='#0B0E14', showlegend=False)
     st.plotly_chart(fig, use_container_width=True)
 
-# --- ERGÄNZUNG: AUSKLAPPBARE WERT-BESCHREIBUNG ---
+# 5.5 AUSKLAPPBARE HILFE
 with st.expander("ℹ️ Erläuterung der Analyse-Werte (Trading-Guide)"):
     st.markdown("""
     ### 📊 Volumen-Kennzahlen
