@@ -23,25 +23,40 @@ TICKER_NAMES = {
 }
 STOCKS_ONLY = list(TICKER_NAMES.keys())
 
-# --- 3. DESIGN (MAXIMALER KONTRAST) ---
+# --- 3. DESIGN (STARKER KONTRAST & FARB-DOTS) ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: #FFFFFF; }
-    [data-testid="stMetricValue"] { font-size: 2.2rem !important; font-weight: 800 !important; color: #F8FAFC !important; }
-    [data-testid="stMetricLabel"] { font-size: 1rem !important; color: #94A3B8 !important; text-transform: uppercase; }
-    div[data-testid="stMetric"] { background: #1A1C24; border: 1px solid #334155; padding: 20px; border-radius: 12px; }
-    .stTable td { color: #FFFFFF !important; background-color: #11141C !important; border: 1px solid #1F2937 !important; font-size: 1.1rem !important; }
-    .stTable th { background-color: #1E90FF !important; color: #FFFFFF !important; font-weight: 900 !important; }
-    .update-info { font-size: 1.1rem; color: #38BDF8; font-weight: bold; margin-bottom: 20px; }
+    
+    /* Metrik-Werte in Platin-Weiß */
+    [data-testid="stMetricValue"] { 
+        font-size: 2.2rem !important; 
+        font-weight: 800 !important; 
+        color: #F8FAFC !important; 
+    }
+    
+    /* Hintergrund der Kacheln */
+    div[data-testid="stMetric"] { 
+        background: #1A1C24; 
+        border: 1px solid #334155; 
+        padding: 20px; 
+        border-radius: 12px; 
+    }
+
+    /* Tabellen-Styling */
+    .stTable td { color: #FFFFFF !important; background-color: #11141C !important; border: 1px solid #1F2937 !important; }
+    .stTable th { background-color: #1E90FF !important; color: #FFFFFF !important; }
+
+    .update-info { font-size: 1rem; color: #38BDF8; font-weight: bold; margin-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 4. FUNKTIONEN ---
-def get_weather_icon(chg):
-    """Individuelles Wetter pro Wert"""
-    if chg > 0.5: return "☀️" # Sonnig / Call
-    if chg < -0.5: return "⛈️" # Gewitter / Put
-    return "☁️" # Bewölkt / Neutral
+def get_signal_dot(chg):
+    """Logik für Aktionspunkte: Blau (Put), Grau (Neutral), Grün (Call)"""
+    if chg > 0.4: return "🟢" # Call
+    if chg < -0.4: return "🔵" # Put
+    return "⚪" # Neutral
 
 @st.cache_data(ttl=290)
 def get_live_data(symbol):
@@ -53,26 +68,14 @@ def get_live_data(symbol):
         return cp, chg
     except: return 0, 0
 
-@st.cache_data(ttl=290)
-def get_stock_analysis(symbol):
-    try:
-        tk = yf.Ticker(symbol)
-        df = tk.history(period="60d")
-        cp = df["Close"].iloc[-1]
-        chg = ((cp / df["Close"].iloc[-2]) - 1) * 100
-        vol_rel = df["Volume"].iloc[-1] / df["Volume"].tail(20).mean()
-        chance = 52.0000 + (vol_rel * 1.5) + (abs(chg) * 0.4)
-        return {"cp": cp, "chg": chg, "vol_rel": vol_rel, "df": df, "chance": round(chance, 4)}
-    except: return None
-
 # --- 5. DASHBOARD LAYOUT ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
-# 5.1 UPDATE-INFO (JETZT OHNE GLOBAL-WETTER)
+# 5.1 UPDATE-INFO
 now = datetime.now().strftime('%H:%M:%S')
 st.markdown(f'<div class="update-info">🕒 Letztes Update: {now} | Intervall: 5 Min. | Status: 🟢 Synchronisiert</div>', unsafe_allow_html=True)
 
-# 5.2 INDICES GRID (MIT INDIVIDUELLEM WETTER)
+# 5.2 INDICES GRID (MIT FARB-LOGIK)
 idx_keys = list(INDEX_MAPPING.keys())
 rows = [idx_keys[:3], idx_keys[3:]]
 
@@ -80,10 +83,11 @@ for row in rows:
     cols = st.columns(3)
     for sym, col in zip(row, cols):
         val, chg = get_live_data(sym)
-        weather = get_weather_icon(chg)
+        dot = get_signal_dot(chg) # Punkt-Logik
         fmt = "{:.5f}" if "EURUSD" in sym else "{:,.2f}"
-        # Wetter wird hier direkt in das Label integriert
-        col.metric(f"{weather} {INDEX_MAPPING[sym]}", fmt.format(val), f"{chg:.2f}%")
+        
+        # Der Punkt wird direkt vor den Namen im Label gesetzt
+        col.metric(f"{dot} {INDEX_MAPPING[sym]}", fmt.format(val), f"{chg:.2f}%")
 
 st.divider()
 
@@ -91,33 +95,23 @@ st.divider()
 st.subheader("📊 Top Markt-Chancen (Vola-Analyse)")
 top_list = []
 for t in STOCKS_ONLY:
-    d = get_stock_analysis(t)
-    if d:
-        weather = get_weather_icon(d['chg'])
-        if d['chg'] > 0.4: signal = "🟢 CALL"
-        elif d['chg'] < -0.4: signal = "🔵 PUT"
-        else: signal = "⚪ NEUTRAL"
+    tk = yf.Ticker(t)
+    df = tk.history(period="60d")
+    if not df.empty:
+        cp = df["Close"].iloc[-1]
+        chg = ((cp / df["Close"].iloc[-2]) - 1) * 100
+        vol_rel = df["Volume"].iloc[-1] / df["Volume"].tail(20).mean()
+        chance = 52.0000 + (vol_rel * 1.5) + (abs(chg) * 0.4)
+        dot = get_signal_dot(chg)
         
         top_list.append({
-            "Aktie": f"{weather} {TICKER_NAMES[t]}", # Wetter direkt beim Namen
-            "Signal (C/P)": signal,
-            "Chance (%)": d['chance'],
-            "Kurs (€)": f"{d['cp']:.2f}",
-            "Vol-Rel": f"{d['vol_rel']:.2f}x"
+            "Aktie": TICKER_NAMES[t],
+            "Signal (C/P)": f"{dot} {'CALL' if chg > 0.4 else 'PUT' if chg < -0.4 else 'NEUTRAL'}",
+            "Chance (%)": round(chance, 4),
+            "Kurs (€)": f"{cp:.2f}",
+            "Vol-Rel": f"{vol_rel:.2f}x"
         })
 
 df_top = pd.DataFrame(top_list).sort_values(by="Chance (%)", ascending=False)
 df_top["Chance (%)"] = df_top["Chance (%)"].map("{:.4f}".format)
 st.table(df_top)
-
-# 5.4 DETAIL-ANALYSE
-st.divider()
-selected = st.selectbox("🔍 Detail-Analyse wählen:", STOCKS_ONLY, format_func=lambda x: TICKER_NAMES[x])
-det = get_stock_analysis(selected)
-if det:
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
-    fig.add_trace(go.Candlestick(x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'], name="Kurs"), row=1, col=1)
-    v_colors = ['#00FFA3' if c >= o else '#FF4B4B' for o, c in zip(det['df']['Open'], det['df']['Close'])]
-    fig.add_trace(go.Bar(x=det['df'].index, y=det['df']['Volume'], marker_color=v_cols, name="Volumen"), row=2, col=1)
-    fig.update_layout(height=500, template="plotly_dark", xaxis_rangeslider_visible=False, showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
