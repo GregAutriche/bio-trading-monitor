@@ -122,18 +122,24 @@ render_row(indices_r1)
 render_row(indices_r2)
 st.divider()
 
-# --- 7. EUR/USD ANALYSE ---
+# --- 7. EUR/USD LIVE-ANALYSE (REPARIERT) ---
 st.subheader("💱 EUR/USD Live-Analyse")
 fx_res_list = get_analysis({"EURUSD=X": "EUR/USD"}, intervall, True, konto, risiko)
+
 if fx_res_list:
-    res = fx_res_list
+    # FEHLERBEHEBUNG: Wir nehmen das erste Element der Liste [0]
+    res = fx_res_list[0] 
+    
+    # Jetzt kann die Grafik korrekt gezeichnet werden
     plot_advanced_chart(res)
-    # Metriken UNTER Chart
+    
+    # Metriken UNTER dem Chart
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Kurs", f"{res['Kurs']:.5f}")
     m2.metric("Chance", res['Chance'])
     m3.metric("Richtung", res['Typ'])
     m4.metric("CRV", f"({res['CRV']})")
+
 
 st.divider()
 
