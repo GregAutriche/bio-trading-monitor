@@ -186,19 +186,18 @@ st.subheader("📊 Top 7 Markt-Chancen (Vola-Analyse)")
 # Daten für alle Aktien sammeln
 top_list = []
 for t in STOCKS_ONLY:
-    d = get_extended_stock_analysis(t) # Nutzt die Funktion aus dem vorigen Schritt
+    d = get_extended_stock_analysis(t)  # Nutzt deine bestehende Analyse-Funktion
     if d:
-        # Signal-Logik (Call/Put/Neutral)
-        if d['chg'] > 0.4: signal = "🟢 CALL"
-        elif d['chg'] < -0.4: signal = "🔵 PUT"
-        else: signal = "⚪ NEUTRAL"
-        
-        # Wetter-Icon für die Aktie bestimmen
+        # Wetter & Action-Icon Logik für die Aktie
         weather = "☀️" if d['chg'] > 0.5 else "⛈️" if d['chg'] < -0.5 else "☁️"
+        dot = "🟢" if d['chg'] > 0.4 else "🔵" if d['chg'] < -0.4 else "⚪"
+        
+        # Signal Text (Call / Put / Neutral)
+        signal_text = "CALL" if d['chg'] > 0.4 else "PUT" if d['chg'] < -0.4 else "NEUTRAL"
         
         top_list.append({
             "Aktie": f"{weather} {TICKER_NAMES[t]}",
-            "Signal (C/P)": signal,
+            "Signal (C/P)": f"{dot} {signal_text}",
             "Chance (%)": d['chance'],
             "Kurs (€)": f"{d['cp']:.2f}",
             "Vol-Rel": f"{d['vol_rel']:.2f}x"
