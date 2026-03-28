@@ -34,7 +34,7 @@ with col_h1:
 with col_h2:
     st.markdown(f"<h3 style='text-align:right;'>Basis: <span style='color:#00d4ff;'>{intervall}</span></h3>", unsafe_allow_html=True)
 
-# --- 4. ANALYSE-LOGIK (FIXIERTE SL/TP DISTANZ) ---
+# --- 4. ANALYSE-LOGIK MIT CRV ---
 def get_analysis(ticker_dict, timeframe, is_fx=False, kontostand=25000, risiko_val=500):
     data_list = []
     for symbol, name in ticker_dict.items():
@@ -44,62 +44,61 @@ def get_analysis(ticker_dict, timeframe, is_fx=False, kontostand=25000, risiko_v
             if hist.empty or len(hist) < 20: continue
             
             cp = hist['Close'].iloc[-1]
+            prev_close = hist['Close'].iloc[-2]
+            chg_pct = ((cp / prev_close) - 1) * 100
             sma20 = hist['Close'].rolling(20).mean().iloc[-1]
             is_bullish = cp > sma20
             
-            # Wetter-Logik
-            chg_pct = ((cp / hist['Close'].iloc[-2]) - 1) * 100
             weather = "☀️" if is_bullish and chg_pct > 0.2 else "☁️" if is_bullish else "⛈️"
             
-            # FIX: SL-Distanz basierend auf Volatilität begrenzen
+            # SL-Berechnung & 100% Sicherung
             vol = hist['High'].rolling(14).std().iloc[-1]
-            sl_dist = vol * 2 if vol > 0 else cp * 0.003
-            
-            # Kapital-Sicherung
+            sl_dist_raw = vol * 2 if vol > 0 else cp * 0.005
             min_sl_dist = (risiko_val * cp) / kontostand if not is_fx else (risiko_val * cp) / (kontostand / 100)
-            final_dist = max(sl_dist, min_sl_dist)
+            final_dist = max(sl_dist_raw, min_sl_dist)
             
             sl = cp - final_dist if is_bullish else cp + final_dist
             tp = cp + (final_dist * 2.5) if is_bullish else cp - (final_dist * 2.5)
             
+            # CRV Berechnung
+            crv = abs(tp - cp) / abs(cp - sl)
+            
             data_list.append({
                 "Name": name, "Symbol": symbol, "Typ": "CALL 🟢" if is_bullish else "PUT 🔴",
                 "Chance": f"{75 if is_bullish else 45}%", "Kurs": cp, "Change": chg_pct,
-                "SL": sl, "TP": tp, "Hist": hist, "is_fx": is_fx, "Wetter": weather
+                "SL": sl, "TP": tp, "CRV": round(crv, 2), "Hist": hist, "is_fx": is_fx, "Wetter": weather
             })
         except: continue
     return data_list
 
-# --- 5. GRAFIK-FUNKTION (DUAL AXIS MIT KORREKTER SKALIERUNG) ---
+# --- 5. GRAFIK-FUNKTION (DUAL AXIS MIT KORREKTER TRENNUNG) ---
 def plot_dual_axis_chart(item):
-    # Erstelle Subplot mit zwei Y-Achsen
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
-    # Candlesticks auf linker Achse (Werte)
+    # Candlesticks auf linker Achse (Primär)
     fig.add_trace(go.Candlestick(
         x=item['Hist'].index, open=item['Hist']['Open'], high=item['Hist']['High'],
         low=item['Hist']['Low'], close=item['Hist']['Close'], name="Kurs"
     ), secondary_y=False)
     
-    # Prozent-Achse Rechts
+    # Prozent-Skala auf rechter Achse (Sekundär)
     current_price = item['Kurs']
     pct_trace = ((item['Hist']['Close'] / current_price) - 1) * 100
     fig.add_trace(go.Scatter(x=item['Hist'].index, y=pct_trace, line=dict(color='rgba(0,0,0,0)'), showlegend=False), secondary_y=True)
     
-    # Trading-Linien (Fixiert auf Kurs-Achse)
+    # Trading-Linien
     dec = 5 if item['is_fx'] else 2
     fig.add_hline(y=item['TP'], line_dash="dash", line_color="#00ff00", annotation_text=f"Ziel {item['TP']:.{dec}f}")
     fig.add_hline(y=item['SL'], line_dash="dash", line_color="#ff4b4b", annotation_text=f"Stopp {item['SL']:.{dec}f}")
     fig.add_hline(y=current_price, line_color="#00d4ff", annotation_text=f"Entry {current_price:.{dec}f}")
 
-    # Achsen-Anpassung: Links Wert, Rechts Prozent
     fig.update_yaxes(title_text="<b>Kurs-Wert (Links)</b>", secondary_y=False, autorange=True, fixedrange=False)
     fig.update_yaxes(title_text="<b>Abweichung % (Rechts)</b>", secondary_y=True, showgrid=False)
     
     fig.update_layout(height=500, template="plotly_dark", paper_bgcolor="#001f3f", plot_bgcolor="#001f3f", margin=dict(l=0,r=0,t=10,b=0), xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
 
-# --- 6. INDEX-HEATMAP ---
+# --- 6. INDEX-HEATMAP (2 ZEILEN) ---
 st.subheader("🌍 Index-Heatmap")
 indices_r1 = {"^GDAXI": "DAX", "^IXIC": "NASDAQ"}
 indices_r2 = {"^STOXX50E": "EURO STOXX", "^NSEI": "NIFTY", "XU100.IS": "BIST 100"}
@@ -126,17 +125,18 @@ st.subheader("💱 EUR/USD Live-Analyse")
 fx_res_list = get_analysis({"EURUSD=X": "EUR/USD"}, intervall, True, konto, risiko)
 if fx_res_list:
     res = fx_res_list[0]
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     c1.metric("Kurs", f"{res['Kurs']:.5f}", f"{res['Wetter']} Stimmung")
     c2.metric("Chance", res['Chance'])
     c3.metric("Richtung", res['Typ'].replace("🟢", "").replace("🔴", "").strip())
+    c4.metric("CRV", res['CRV'])
     plot_dual_axis_chart(res)
 
 st.divider()
 
 # --- 8. TOP 5 AKTIEN ---
 st.subheader("🔥 Top 5 Aktien-Chancen")
-stocks = {"ADS.DE": "Adidas", "SAP.DE": "SAP", "NVDA": "Nvidia", "RHM.DE": "Rheinmetall", "TSLA": "Tesla", "AAPL": "Apple"}
+stocks = {"ADS.DE": "Adidas", "SAP.DE": "SAP", "NVDA": "Nvidia", "RHM.DE": "Rheinmetall", "TSLA": "Tesla", "AAPL": "Apple", "MSFT": "Microsoft"}
 stock_results = get_analysis(stocks, intervall, False, konto, risiko)
 
 if stock_results:
@@ -144,13 +144,20 @@ if stock_results:
     l, r = st.columns(2)
     with l:
         st.success("Top 5 CALL (Long)")
-        st.table(df[df['Typ'] == "CALL 🟢"].head(5)[["Name", "Chance", "Wetter", "Kurs"]])
+        calls = df[df['Typ'] == "CALL 🟢"].sort_values("Chance", ascending=False).head(5)
+        st.table(calls[["Name", "Chance", "CRV", "Kurs"]])
     with r:
         st.error("Top 5 PUT (Short)")
-        st.table(df[df['Typ'] == "PUT 🔴"].head(5)[["Name", "Chance", "Wetter", "Kurs"]])
+        puts = df[df['Typ'] == "PUT 🔴"].sort_values("Chance", ascending=False).head(5)
+        st.table(puts[["Name", "Chance", "CRV", "Kurs"]])
 
-    st.subheader("🔍 Detail-Ansicht")
+    st.subheader("🔍 Aktien Detail-Ansicht")
     selection = st.selectbox("Aktie wählen:", df['Name'].tolist())
     if selection:
         sel_item = next(x for x in stock_results if x['Name'] == selection)
+        d1, d2, d3, d4 = st.columns(4)
+        d1.metric("Kurs", f"{sel_item['Kurs']:.2f}")
+        d2.metric("Chance", sel_item['Chance'])
+        d3.metric("Richtung", sel_item['Typ'].replace("🟢", "").replace("🔴", "").strip())
+        d4.metric("CRV", sel_item['CRV'])
         plot_dual_axis_chart(sel_item)
