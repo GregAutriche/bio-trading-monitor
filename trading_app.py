@@ -5,7 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from streamlit_autorefresh import st_autorefresh
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # --- 1. KONFIGURATION & REFRESH (5 MINUTEN) ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
@@ -16,51 +16,53 @@ INDEX_MAPPING = {
     "^GDAXI": "DAX 40", "^NDX": "NASDAQ 100", "EURUSD=X": "EUR/USD",
     "^STOXX50E": "EuroStoxx 50", "XU100.IS": "BIST 100", "^NSEI": "Nifty 50"
 }
-TICKER_NAMES = {"BAS.DE": "DE BASF", "SAP.DE": "DE SAP", "AIR.DE": "DE Airbus", "DBK.DE": "DE Deutsche Bank", "ADS.DE": "DE Adidas", "BMW.DE": "DE BMW", "ALV.DE": "DE Allianz", "VOW3.DE": "DE VW"}
+TICKER_NAMES = {
+    "BAS.DE": "DE BASF", "SAP.DE": "DE SAP", "AIR.DE": "DE Airbus", 
+    "DBK.DE": "DE Deutsche Bank", "ADS.DE": "DE Adidas", "BMW.DE": "DE BMW",
+    "ALV.DE": "DE Allianz", "VOW3.DE": "DE VW"
+}
 STOCKS_ONLY = list(TICKER_NAMES.keys())
 
-# --- 3. DESIGN (2 ZEILEN LAYOUT & KONTRAST) ---
+# --- 3. DESIGN (STARKER KONTRAST & FARB-DOTS) ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: #FFFFFF; }
     
-    /* Metrik Label (DAX 40 etc.) - HELLWEISS & LESBAR */
-    [data-testid="stMetricLabel"] { 
-        font-size: 1.1rem !important; 
-        color: #F8FAFC !important; /* Maximale Sichtbarkeit */
-        font-weight: 700 !important;
-    }
-    
-    /* Metrik Wert (Die große Zahl) */
+    /* Metrik-Werte in Platin-Weiß */
     [data-testid="stMetricValue"] { 
         font-size: 2.2rem !important; 
         font-weight: 800 !important; 
-        color: #FFFFFF !important; 
+        color: #F8FAFC !important; 
     }
     
-    /* Kachel-Design */
+    /* Hintergrund der Kacheln */
     div[data-testid="stMetric"] { 
         background: #1A1C24; 
         border: 1px solid #334155; 
-        padding: 20px !important; 
+        padding: 20px; 
         border-radius: 12px; 
     }
 
-    .update-info { font-size: 1rem; color: #38BDF8; font-weight: bold; margin-bottom: 25px; }
+    /* Tabellen-Styling */
+    .stTable td { color: #FFFFFF !important; background-color: #11141C !important; border: 1px solid #1F2937 !important; }
+    .stTable th { background-color: #1E90FF !important; color: #FFFFFF !important; }
+
+    .update-info { font-size: 1rem; color: #38BDF8; font-weight: bold; margin-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 4. FUNKTIONEN ---
-def get_status(chg):
-    if chg > 0.4: return "☀️ 🟢" # Call
-    if chg < -0.4: return "⛈️ 🔵" # Put
-    return "☁️ ⚪" # Neutral
+def get_signal_dot(chg):
+    """Logik für Aktionspunkte: Blau (Put), Grau (Neutral), Grün (Call)"""
+    if chg > 0.4: return "🟢" # Call
+    if chg < -0.4: return "🔵" # Put
+    return "⚪" # Neutral
 
 @st.cache_data(ttl=290)
 def get_live_data(symbol):
     try:
         tk = yf.Ticker(symbol)
-        df = tk.history(period="2d")
+        df = tk.history(period="5d")
         cp = df["Close"].iloc[-1]
         chg = ((cp / df["Close"].iloc[-2]) - 1) * 100
         return cp, chg
@@ -69,29 +71,23 @@ def get_live_data(symbol):
 # --- 5. DASHBOARD LAYOUT ---
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
-# 5.1 TIMER & UPDATE INFO
+# 5.1 UPDATE-INFO
 now = datetime.now().strftime('%H:%M:%S')
-st.markdown(f'<div class="update-info">🕒 Letztes Update: {now} | Intervall: 5 Min.</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="update-info">🕒 Letztes Update: {now} | Intervall: 5 Min. | Status: 🟢 Synchronisiert</div>', unsafe_allow_html=True)
 
-# 5.2 INDIZES IN 2 ZEILEN (3 SPALTEN PRO ZEILE)
+# 5.2 INDICES GRID (MIT FARB-LOGIK)
 idx_keys = list(INDEX_MAPPING.keys())
+rows = [idx_keys[:3], idx_keys[3:]]
 
-# Zeile 1: DAX 40, NASDAQ 100, EUR/USD
-row1_cols = st.columns(3)
-for i in range(3):
-    sym = idx_keys[i]
-    val, chg = get_live_data(sym)
-    status = get_status(chg)
-    fmt = "{:.5f}" if "EURUSD" in sym else "{:,.0f}" # Kurze Ansicht wie im Screenshot
-    row1_cols[i].metric(f"{status} {INDEX_MAPPING[sym]}", fmt.format(val), f"{chg:.2f}%")
-
-# Zeile 2: EuroStoxx 50, BIST 100, Nifty 50
-row2_cols = st.columns(3)
-for i in range(3):
-    sym = idx_keys[i+3]
-    val, chg = get_live_data(sym)
-    status = get_status(chg)
-    row2_cols[i].metric(f"{status} {INDEX_MAPPING[sym]}", f"{val:,.0f}", f"{chg:.2f}%")
+for row in rows:
+    cols = st.columns(3)
+    for sym, col in zip(row, cols):
+        val, chg = get_live_data(sym)
+        dot = get_signal_dot(chg) # Punkt-Logik
+        fmt = "{:.5f}" if "EURUSD" in sym else "{:,.2f}"
+        
+        # Der Punkt wird direkt vor den Namen im Label gesetzt
+        col.metric(f"{dot} {INDEX_MAPPING[sym]}", fmt.format(val), f"{chg:.2f}%")
 
 st.divider()
 
