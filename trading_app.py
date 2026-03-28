@@ -26,37 +26,26 @@ STOCKS_ONLY = list(TICKER_NAMES.keys())
 # --- 3. DESIGN (MAXIMALER KONTRAST & LESBARKEIT) ---
 st.markdown("""
     <style>
-    .stApp { background-color: #0E1117; color: #FFFFFF; }
+    /* Haupt-Hintergrund Dunkelblau */
+    .stApp { background-color: #0B0E14; color: #FFFFFF; }
     
-    /* 1. Metric Label (Überschrift der Kachel) - WEISS & LESBAR */
-    [data-testid="stMetricLabel"] { 
-        font-size: 1.1rem !important; 
-        color: #FFFFFF !important;  /* Reinweiß für volle Lesbarkeit */
-        font-weight: 600 !important;
-        text-transform: none !important;
-        letter-spacing: 0.5px;
-    }
-    
-    /* 2. Metric Value (Die große Zahl) */
-    [data-testid="stMetricValue"] { 
-        font-size: 2.4rem !important; 
-        font-weight: 800 !important; 
-        color: #FFFFFF !important; 
-        padding-top: 5px;
-    }
-    
-    /* 3. Metric Container (Die Kachel) */
+    /* Metrik-Kacheln (Indices) */
     div[data-testid="stMetric"] { 
-        background: #1C1F26; 
-        border: 1px solid #334155; 
-        padding: 25px !important; 
-        border-radius: 15px; 
+        background: #161B22; 
+        border: 1px solid #1F2937; 
+        padding: 20px !important; 
+        border-radius: 12px; 
     }
-
-    /* Tabellen-Styling */
-    .stTable td { color: #FFFFFF !important; background-color: #11141C !important; border: 1px solid #1F2937 !important; font-size: 1.1rem !important; }
+    [data-testid="stMetricLabel"] { font-size: 1.1rem !important; color: #F8FAFC !important; font-weight: 700 !important; }
+    [data-testid="stMetricValue"] { font-size: 2.2rem !important; font-weight: 800 !important; color: #FFFFFF !important; }
+    
+    /* Tabellen-Optik */
+    .stTable td { color: #FFFFFF !important; background-color: #0B0E14 !important; border: 1px solid #1F2937 !important; font-size: 1.1rem !important; }
     .stTable th { background-color: #1E90FF !important; color: #FFFFFF !important; font-weight: 900 !important; }
-    .update-info { font-size: 1rem; color: #38BDF8; font-weight: bold; margin-bottom: 20px; }
+    
+    /* Execution Box */
+    .execution-box { background: rgba(30, 144, 255, 0.1); border: 2px solid #1E90FF; padding: 20px; border-radius: 15px; margin-top: 10px; }
+    .update-info { font-size: 1rem; color: #38BDF8; font-weight: bold; margin-bottom: 25px; }
     </style>
     """, unsafe_allow_html=True)
 
