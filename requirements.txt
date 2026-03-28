@@ -2,6 +2,7 @@ streamlit
 seaborn
 yfinance
 pandas
+pandas_ta
 openpyxl
 plotly
 numpy
