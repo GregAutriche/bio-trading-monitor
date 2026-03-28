@@ -74,16 +74,16 @@ idx_data = get_analysis(indices, "1d", False, konto, risiko)
 if idx_data:
     cols = st.columns(len(idx_data))
     for i, item in enumerate(idx_data):
+        # Farbauswahl: Grün bei Plus, Rot bei Minus
         bg_color = "#008000" if item['Change'] >= 0 else "#800000"
         with cols[i]:
             st.markdown(f"""
                 <div style="background-color: {bg_color}; border: 1px solid #0074D9; border-radius: 10px; padding: 12px; text-align: center;">
                     <span style="color: #b0c4de; font-size: 0.8rem; display: block; margin-bottom: 2px;">{item['Name']}</span>
-                    <span style="color: #ffffff; font-size: 1.1rem; font-weight: bold; display: block;">{item['Kurs']:,.0f} Pkt</span>
+                    <span style="color: #ffffff; font-size: 1.2rem; font-weight: bold; display: block;">{item['Kurs']:,.0f}</span>
                     <span style="color: #ffffff; font-size: 0.9rem; opacity: 0.9;">{item['Change']:.2f}%</span>
                 </div>
             """, unsafe_allow_html=True)
-
 st.divider()
 
 # --- 5. EUR/USD VISUALISIERUNG ---
