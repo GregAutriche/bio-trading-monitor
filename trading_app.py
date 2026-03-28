@@ -51,15 +51,16 @@ def get_analysis(ticker_dict, timeframe, is_fx=False, kontostand=25000, risiko_v
             
             weather = "☀️" if is_bullish and chg_pct > 0.2 else "☁️" if is_bullish else "⛈️"
             
+            # SL-Berechnung (Volatilitätsbasiert)
             vol = hist['High'].rolling(14).std().iloc[-1]
             sl_dist_raw = vol * 2 if vol > 0 else cp * 0.005
-            min_sl_dist = (risiko_val * cp) / kontostand if not is_fx else (risiko_val * cp) / (kontostand / 100)
+            
+            # 100% Kapital-Sicherung: Verhindert extreme Skalierung (die linke Seite im Bild)
+            min_sl_dist = (risiko_val * cp) / kontostand if not is_fx else (risiko_val * cp) / (kontostand / 50)
             final_dist = max(sl_dist_raw, min_sl_dist)
             
             sl = cp - final_dist if is_bullish else cp + final_dist
             tp = cp + (final_dist * 2.5) if is_bullish else cp - (final_dist * 2.5)
-            
-            # CRV Berechnung
             crv = abs(tp - cp) / abs(cp - sl)
             
             data_list.append({
@@ -70,7 +71,7 @@ def get_analysis(ticker_dict, timeframe, is_fx=False, kontostand=25000, risiko_v
         except: continue
     return data_list
 
-# --- 5. INDEX-HEATMAP (2 ZEILEN MIT CRV IN KLAMMERN) ---
+# --- 5. INDEX-HEATMAP (2 ZEILEN) ---
 st.subheader("🌍 Index-Heatmap")
 indices_r1 = {"^GDAXI": "DAX", "^IXIC": "NASDAQ"}
 indices_r2 = {"^STOXX50E": "EURO STOXX", "^NSEI": "NIFTY", "XU100.IS": "BIST 100"}
@@ -93,24 +94,32 @@ render_row(indices_r2)
 
 st.divider()
 
-# --- 6. GRAFIK-FUNKTION (DUAL AXIS) ---
+# --- 6. GRAFIK-FUNKTION (DUAL AXIS FIX: WERT LINKS / PROZENT RECHTS) ---
 def plot_dual_axis_chart(item):
     fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig.add_trace(go.Candlestick(x=item['Hist'].index, open=item['Hist']['Open'], high=item['Hist']['High'],
-                    low=item['Hist']['Low'], close=item['Hist']['Close'], name="Kurs"), secondary_y=False)
     
+    # Echte Candlesticks auf linker Achse (Primär)
+    fig.add_trace(go.Candlestick(
+        x=item['Hist'].index, open=item['Hist']['Open'], high=item['Hist']['High'],
+        low=item['Hist']['Low'], close=item['Hist']['Close'], name="Kurs"
+    ), secondary_y=False)
+    
+    # Prozent-Skala auf rechter Achse (Sekundär)
     current_price = item['Kurs']
     pct_trace = ((item['Hist']['Close'] / current_price) - 1) * 100
     fig.add_trace(go.Scatter(x=item['Hist'].index, y=pct_trace, line=dict(color='rgba(0,0,0,0)'), showlegend=False), secondary_y=True)
     
+    # Trading-Linien (Exakt am Kurs links orientiert)
     dec = 5 if item['is_fx'] else 2
-    fig.add_hline(y=item['TP'], line_dash="dash", line_color="#00ff00", annotation_text=f"Ziel {item['TP']:.{dec}f}")
-    fig.add_hline(y=item['SL'], line_dash="dash", line_color="#ff4b4b", annotation_text=f"Stopp {item['SL']:.{dec}f}")
-    fig.add_hline(y=current_price, line_color="#00d4ff", annotation_text=f"Entry {current_price:.{dec}f}")
+    fig.add_hline(y=item['TP'], line_dash="dash", line_color="#00ff00", annotation_text=f"Ziel {item['TP']:.{dec}f}", secondary_y=False)
+    fig.add_hline(y=item['SL'], line_dash="dash", line_color="#ff4b4b", annotation_text=f"Stopp {item['SL']:.{dec}f}", secondary_y=False)
+    fig.add_hline(y=current_price, line_color="#00d4ff", annotation_text=f"Entry {current_price:.{dec}f}", secondary_y=False)
 
-    fig.update_yaxes(title_text="<b>Kurs-Wert (Links)</b>", secondary_y=False, autorange=True)
+    # WICHTIG: Autorange fixiert die Kerzen in der Mitte und löst das Problem aus dem Bild
+    fig.update_yaxes(title_text="<b>Kurs-Wert (Links)</b>", secondary_y=False, autorange=True, fixedrange=False)
     fig.update_yaxes(title_text="<b>Abweichung % (Rechts)</b>", secondary_y=True, showgrid=False)
-    fig.update_layout(height=450, template="plotly_dark", paper_bgcolor="#001f3f", plot_bgcolor="#001f3f", margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
+    
+    fig.update_layout(height=500, template="plotly_dark", paper_bgcolor="#001f3f", plot_bgcolor="#001f3f", margin=dict(l=0,r=0,t=20,b=0), xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
 
 # --- 7. EUR/USD ---
@@ -127,9 +136,9 @@ if fx_res_list:
 
 st.divider()
 
-# --- 8. TOP 5 AKTIEN ---
+# --- 8. TOP 5 AKTIEN & DETAIL-ANALYSE ---
 st.subheader("🔥 Top 5 Aktien-Chancen")
-stocks = {"ADS.DE": "Adidas", "SAP.DE": "SAP", "NVDA": "Nvidia", "RHM.DE": "Rheinmetall", "TSLA": "Tesla", "AAPL": "Apple", "MSFT": "Microsoft"}
+stocks = {"ADS.DE": "Adidas", "SAP.DE": "SAP", "NVDA": "Nvidia", "RHM.DE": "Rheinmetall", "TSLA": "Tesla", "AAPL": "Apple"}
 stock_results = get_analysis(stocks, intervall, False, konto, risiko)
 
 if stock_results:
@@ -144,13 +153,8 @@ if stock_results:
         puts = df[df['Typ'] == "PUT 🔴"].sort_values("CRV", ascending=False).head(5)
         st.table(puts[["Name", "Chance", "CRV", "Kurs"]])
 
-    st.subheader("🔍 Detail-Ansicht")
+    st.subheader("🔍 Aktien Detail-Ansicht")
     selection = st.selectbox("Aktie wählen:", df['Name'].tolist())
     if selection:
         sel_item = next(x for x in stock_results if x['Name'] == selection)
-        d1, d2, d3, d4 = st.columns(4)
-        d1.metric("Kurs", f"{sel_item['Kurs']:.2f}")
-        d2.metric("Chance", sel_item['Chance'])
-        d3.metric("Richtung", sel_item['Typ'].replace("🟢", "").replace("🔴", "").strip())
-        d4.metric("CRV", f"({sel_item['CRV']})")
         plot_dual_axis_chart(sel_item)
