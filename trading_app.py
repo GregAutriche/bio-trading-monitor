@@ -5,41 +5,25 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime
 
-# --- 1. DESIGN & FARBLOGIK (MIDNIGHT BLUE / SILBER / WEISS) ---
+# --- 1. DESIGN & FARBLOGIK (MIDNIGHT BLUE) ---
 st.set_page_config(page_title="Trading-Terminal 2026", layout="wide")
 
 st.markdown("""
     <style>
     .stApp { background-color: #001f3f; color: #ffffff; } 
-    
-    /* Metrik-Boxen */
-    [data-testid="stMetric"] { 
-        background-color: #002b55; 
-        padding: 20px; 
-        border-radius: 12px; 
-        border: 1px solid #0074D9; 
-    }
-    [data-testid="stMetricLabel"] { color: #b0c4de !important; font-size: 1rem !important; }
-    [data-testid="stMetricValue"] { color: #ffffff !important; font-weight: bold; }
-
-    /* Tabellen-Styling */
     div[data-testid="stTable"] { background-color: #002b55 !important; border-radius: 10px; }
-    .stTable td, .stTable th { 
-        color: #ffffff !important; 
-        background-color: #002b55 !important; 
-        border-bottom: 1px solid #0074D9 !important;
-    }
-    
-    /* Button & Sidebar */
+    .stTable td, .stTable th { color: #ffffff !important; background-color: #002b55 !important; border-bottom: 1px solid #0074D9 !important; }
+    [data-testid="stMetric"] { background-color: #002b55; border: 1px solid #0074D9; border-radius: 10px; }
+    [data-testid="stMetricLabel"] { color: #b0c4de !important; font-size: 0.9rem !important; }
+    [data-testid="stMetricValue"] { color: #ffffff !important; }
     .stButton>button { background-color: #0074D9; color: white; font-weight: bold; width: 100%; border: none; }
-    .stSidebar { background-color: #00152b; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. SIDEBAR PARAMETER ---
+# --- 2. SIDEBAR ---
 st.sidebar.header("🛡️ Risikomanagement")
-konto = st.sidebar.number_input("Gesamtkapital (EUR)", value=25000, step=1000)
-risiko = st.sidebar.number_input("Risiko pro Trade (EUR)", value=500, step=50)
+konto = st.sidebar.number_input("Gesamtkapital (EUR)", value=25000)
+risiko = st.sidebar.number_input("Risiko pro Trade (EUR)", value=500)
 intervall = st.sidebar.selectbox("Intervall wählen", ["1d", "1h", "15m", "5m"], index=0)
 
 # --- 3. HEADER: UPDATE & BASIS ---
@@ -68,7 +52,7 @@ def get_analysis(ticker_dict, timeframe, is_fx=False, kontostand=25000, risiko_v
             # Wetter-Logik
             weather = "☀️" if is_bullish and chg_pct > 0.2 else "☁️" if is_bullish else "⛈️"
             
-            # Dynamischer SL/TP + 100% Kapital-Sicherung
+            # SL/TP & 100% Sicherung
             vol = hist['High'].rolling(14).std().iloc[-1]
             sl_dist_raw = vol * 2 if vol > 0 else cp * 0.005
             min_sl_dist = (risiko_val * cp) / kontostand if not is_fx else (risiko_val * cp) / (kontostand / 100)
@@ -78,15 +62,11 @@ def get_analysis(ticker_dict, timeframe, is_fx=False, kontostand=25000, risiko_v
             tp = cp + (final_dist * 2.5) if is_bullish else cp - (final_dist * 2.5)
             
             chance_val = 75 if is_bullish else 45
-            risk_unit = abs(cp - sl)
-            lots = round(risiko_val / (risk_unit * 10000), 4) if is_fx else int(risiko_val / risk_unit)
-            kap_pct = ((lots * 100000 * cp if is_fx else lots * cp) / kontostand) * 100
 
             data_list.append({
                 "Name": name, "Symbol": symbol, "Typ": "CALL 🟢" if is_bullish else "PUT 🔴",
                 "Chance": f"{chance_val}%", "Chance_Val": chance_val, "Kurs": cp, "Change": chg_pct,
-                "Kapitaleinsatz": f"{min(kap_pct, 100.0):.2f}%", "SL": sl, "TP": tp, 
-                "Hist": hist, "is_fx": is_fx, "Wetter": weather
+                "SL": sl, "TP": tp, "Hist": hist, "is_fx": is_fx, "Wetter": weather
             })
         except: continue
     return data_list
@@ -118,16 +98,13 @@ def plot_dual_axis_chart(item):
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(go.Candlestick(x=item['Hist'].index, open=item['Hist']['Open'], high=item['Hist']['High'],
                     low=item['Hist']['Low'], close=item['Hist']['Close'], name="Kurs"), secondary_y=False)
-    
-    # Prozent-Skala (Rechts)
     pct_trace = ((item['Hist']['Close'] / item['Kurs']) - 1) * 100
     fig.add_trace(go.Scatter(x=item['Hist'].index, y=pct_trace, line=dict(color='rgba(0,0,0,0)'), showlegend=False), secondary_y=True)
     
-    # Linien
     dec = 5 if item['is_fx'] else 2
     fig.add_hline(y=item['TP'], line_dash="dash", line_color="#00ff00", annotation_text=f"Ziel {item['TP']:.{dec}f}")
     fig.add_hline(y=item['SL'], line_dash="dash", line_color="#ff4b4b", annotation_text=f"Stopp {item['SL']:.{dec}f}")
-    fig.add_hline(y=item['Kurs'], line_color="#00d4ff", annotation_text=f"Entry {item['Kurs']:.{dec}f}")
+    fig.add_hline(y=item['Kurs'], line_color="#00d4ff", annotation_text="Entry")
 
     fig.update_yaxes(title_text="<b>Kurs-Wert (Links)</b>", secondary_y=False, autorange=True)
     fig.update_yaxes(title_text="<b>Abweichung % (Rechts)</b>", secondary_y=True, showgrid=False)
@@ -136,20 +113,21 @@ def plot_dual_axis_chart(item):
 
 # --- 7. EUR/USD LIVE-ANALYSE ---
 st.subheader("💱 EUR/USD Analyse")
-fx_res = get_analysis({"EURUSD=X": "EUR/USD"}, intervall, True, konto, risiko)
-if fx_res:
-    res = fx_res[0]
+fx_res_list = get_analysis({"EURUSD=X": "EUR/USD"}, intervall, True, konto, risiko)
+if fx_res_list:
+    res = fx_res_list[0]
     c1, c2, c3 = st.columns(3)
     c1.metric("Kurs", f"{res['Kurs']:.5f}", f"{res['Wetter']} Stimmung")
     c2.metric("Chance", res['Chance'])
-    c3.metric("Richtung", res['Typ'].split(" ")[0])
+    # HIER DIE ÄNDERUNG: Statt Einsatz % wird nun CALL/PUT angezeigt
+    c3.metric("Richtung", res['Typ'].replace("🟢", "").replace("🔴", "").strip())
     plot_dual_axis_chart(res)
 
 st.divider()
 
 # --- 8. TOP 5 AKTIEN & DETAIL-ANALYSE ---
 st.subheader("🔥 Top 5 Aktien-Chancen")
-stocks = {"ADS.DE": "Adidas", "SAP.DE": "SAP", "NVDA": "Nvidia", "RHM.DE": "Rheinmetall", "TSLA": "Tesla", "AAPL": "Apple", "MSFT": "Microsoft"}
+stocks = {"ADS.DE": "Adidas", "SAP.DE": "SAP", "NVDA": "Nvidia", "RHM.DE": "Rheinmetall", "TSLA": "Tesla", "AAPL": "Apple"}
 stock_results = get_analysis(stocks, intervall, False, konto, risiko)
 
 if stock_results:
@@ -166,10 +144,9 @@ if stock_results:
     selection = st.selectbox("Aktie wählen:", df['Name'].tolist())
     if selection:
         sel_item = next(x for x in stock_results if x['Name'] == selection)
-        c_d1, c_d2 = st.columns([1, 3])
-        with c_d1:
-            st.metric("Kurs", f"{sel_item['Kurs']:.2f}")
-            st.metric("Chance", sel_item['Chance'])
-            st.metric("Einsatz %", sel_item['Kapitaleinsatz'])
-        with c_d2:
-            plot_dual_axis_chart(sel_item)
+        c_d1, c_d2, c_d3 = st.columns(3)
+        c_d1.metric("Kurs", f"{sel_item['Kurs']:.2f}")
+        c_d2.metric("Chance", sel_item['Chance'])
+        # HIER AUCH FÜR AKTIEN DIE RICHTUNG
+        c_d3.metric("Richtung", sel_item['Typ'].replace("🟢", "").replace("🔴", "").strip())
+        plot_dual_axis_chart(sel_item)
