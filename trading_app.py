@@ -204,3 +204,46 @@ if all_stock_results:
         v2.metric("Volumen", f"{sel_item['Volumen']:,.0f}", f"{sel_item['Vol_Trend']:+.1f}% vs Ø")
         v3.metric("Richtung", sel_item['Typ'])
         v4.metric("CRV", f"({sel_item['CRV']})")
+
+# --- 8. AKTIEN DETAIL-ANALYSE ---
+st.subheader("🔍 Aktien Detail-Analyse & Options-Board")
+
+# Vervollständigung deiner Liste
+stocks = {
+    "SAP.DE": "🇩🇪 SAP", "DTE.DE": "🇩🇪 Deutsche Telekom", 
+    "ADS.DE": "🇩🇪 Adidas", "AIR.DE": "🇩🇪 Airbus", 
+    "DBK.DE": "🇩🇪 Deutsche Bank", "VOW3.DE": "🇩🇪 VW"
+}
+
+selected_stock = st.selectbox("Aktie für Tiefenanalyse wählen", list(stocks.keys()), format_func=lambda x: stocks[x])
+
+if selected_stock:
+    # Analyse für die gewählte Aktie
+    stock_data = get_analysis({selected_stock: stocks[selected_stock]}, intervall, False, konto, risiko)
+    
+    if stock_data:
+        item = stock_data[0]
+        plot_advanced_chart(item)
+        
+        # Options-Board anzeigen
+        col_c, col_p = st.columns(2)
+        calls, puts = get_top_options(selected_stock)
+        
+        with col_c:
+            st.markdown("### 🟢 Top 5 Calls (Open Interest)")
+            if calls is not None:
+                st.table(calls.style.format({"strike": "{:.2f}", "lastPrice": "{:.2f}"}))
+            else:
+                st.info("Keine Optionsdaten für dieses Symbol verfügbar.")
+                
+        with col_p:
+            st.markdown("### 🔴 Top 5 Puts (Open Interest)")
+            if puts is not None:
+                st.table(puts.style.format({"strike": "{:.2f}", "lastPrice": "{:.2f}"}))
+            else:
+                st.info("Keine Optionsdaten verfügbar.")
+
+# --- 9. FOOTER ---
+st.markdown("---")
+st.caption("Datenquelle: Yahoo Finance | Alle Angaben ohne Gewähr. Trading birgt Risiken.")
+
