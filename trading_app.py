@@ -163,7 +163,7 @@ def get_extended_stock_analysis(symbol):
 st.title("🚀 Trading Monitor 🚀")
 
 # 5.1 HEADER INFO
-now = datetime.now().strftime('%H:%M:%S')
+now = (datetime.utcnow() + timedelta(hours=2)).strftime("%H:%M:%S")
 st.markdown(f'<div class="update-info">🕒 Letztes Update: {now} | Intervall: 5 Min. | Status: 🟢 Synchronisiert</div>', unsafe_allow_html=True)
 
 # 5.2 INDICES IN 2 ZEILEN
