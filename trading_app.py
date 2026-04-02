@@ -5,7 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from streamlit_autorefresh import st_autorefresh
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # --- 1. KONFIGURATION & REFRESH (5 MINUTEN) ---
 st.set_page_config(page_title="Trading Monitor", layout="wide")
