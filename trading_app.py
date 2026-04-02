@@ -106,7 +106,6 @@ st.markdown("""
     /* Tabellen-Optik */
     .stTable td { color: #FFFFFF !important; background-color: #0B0E14 !important; border: 1px solid #1F2937 !important; font-size: 1.1rem !important; }
     .stTable th { background-color: #1E90FF !important; color: #FFFFFF !important; font-weight: 900 !important; }
-    
     .update-info { font-size: 1rem; color: #38BDF8; font-weight: bold; margin-bottom: 25px; }
     </style>
     """, unsafe_allow_html=True)
@@ -177,13 +176,10 @@ for i in range(0, 6, 3):
         status = get_status_info(chg)
         fmt = "{:.5f}" if "EURUSD" in sym else "{:,.0f}"
         cols[j].metric(f"{status} {INDEX_MAPPING[sym]}", fmt.format(val), f"{chg:.2f}%")
-
 st.divider()
 
 # 5.3 TOP MARKT-CHANCEN TABELLE
 st.subheader("📊 Top 7 Markt-Chancen (Vola-Analyse)")
-
-# Daten für alle Aktien sammeln
 top_list = []
 for t in STOCKS_ONLY:
     d = get_extended_stock_analysis(t)  # Nutzt deine bestehende Analyse-Funktion
@@ -205,9 +201,6 @@ for t in STOCKS_ONLY:
 
 # DataFrame erstellen
 df_top = pd.DataFrame(top_list)
-
-# 1. Sortieren nach Chance (Absteigend)
-# 2. Nur die Top 7 Werte auswählen
 df_top = df_top.sort_values(by="Chance (%)", ascending=False).head(7)
 # Formatierung der Chance auf 2 Nachkommastellen (wie besprochen)
 df_top["Chance (%)"] = df_top["Chance (%)"].map("{:.2f}".format)
@@ -221,7 +214,6 @@ st.subheader("🔍 Smart-Entry: Detail-Analyse & Trading-Setup")
 selected = st.selectbox("Aktie wählen:", STOCKS_ONLY, format_func=lambda x: TICKER_NAMES[x])
 det = get_extended_stock_analysis(selected)
 
-# --- SMART-ENTRY: DETAIL-ANALYSE & TRADING-SETUP ---
 # --- SMART-ENTRY: DETAIL-ANALYSE & TRADING-SETUP (OPTIMIERT) ---
 if det:
     # 1. BASIS-LOGIK FÜR SIGNALE
