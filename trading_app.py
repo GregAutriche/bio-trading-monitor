@@ -5,7 +5,8 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 # --- 1. KONFIGURATION & MARKT-DATEN ---
-# Beispielwerte für EUR/USD und Indizes (inkl. 3-Tage-Änderung für die Wetter-Logik)
+EUR_USD_RATE = 1.084255  
+
 MARKET_DATA = {
     "EURUSD": {"val": 1.084255, "chg_3d": -0.45},
     "DAX": {"val": 24338.63, "chg_3d": -1.32},
@@ -44,10 +45,12 @@ def get_swing_analysis(ticker):
         
         weather, dot = get_logic_icons(chg_3d)
         signal = "CALL" if chg_3d > 0.4 else "PUT" if chg_3d < -0.4 else "NEUTRAL"
-        chance = 50.0 + (15 if is_bullish else -10) + (abs(chg_3d) * 0.8)
+        
+        # Berechnung Wahrscheinlichkeit gerundet auf 2 Stellen
+        chance = round(50.0 + (15 if is_bullish else -10) + (abs(chg_3d) * 0.8), 2)
         
         return {
-            "cp": cp, "chg_3d": chg_3d, "atr": atr, "df": df, "chance": round(chance, 2),
+            "cp": cp, "chg_3d": chg_3d, "atr": atr, "df": df, "chance": chance,
             "weather": weather, "dot": dot, "signal": signal
         }
     except: return None
@@ -55,17 +58,16 @@ def get_swing_analysis(ticker):
 # --- 4. UI LAYOUT ---
 st.set_page_config(page_title="Trading Monitor Pro", layout="wide")
 
-# 4.1 EUR / USD Header mit Logik
+# 4.1 EUR / USD Header
 eu_data = MARKET_DATA["EURUSD"]
 eu_w, eu_d = get_logic_icons(eu_data['chg_3d'])
 st.markdown(f"<h1 style='text-align: center; color: #5DADE2;'>{eu_w} EUR / USD: {eu_data['val']:.6f} {eu_d}</h1>", unsafe_allow_html=True)
 st.divider()
 
-# 4.2 GLOBALE INDIZES IN 2 ZEILEN (mit Icons)
+# 4.2 GLOBALE INDIZES IN 2 ZEILEN
 st.subheader("🌍 Globale Markt-Indikation")
 idx_list = ["DAX", "EUROSTOXX 50", "NASDAQ 100", "BIST 100", "NIFTY 50"]
 
-# Zeile 1
 row1 = st.columns(3)
 for i in range(3):
     name = idx_list[i]
@@ -74,7 +76,6 @@ for i in range(3):
     row1[i].metric(f"{w} {name}", f"{d['val']:,.2f}", f"{dot} {d['chg_3d']:.2f}%", 
                    delta_color="normal" if d['chg_3d'] >= 0 else "inverse")
 
-# Zeile 2
 row2 = st.columns(3)
 for i in range(3, 5):
     name = idx_list[i]
@@ -94,7 +95,7 @@ for t in ALL_TICKERS:
         rank_list.append({
             "Aktie": f"{res['weather']} {TICKER_TO_NAME[t]}",
             "Signal": f"{res['dot']} {res['signal']}",
-            "Wahrscheinlichkeit (%)": res['chance'],
+            "Wahrscheinlichkeit (%)": f"{res['chance']:.2f}", # Erzwungene 2 Nachkommastellen
             "Trend 3D": f"{res['chg_3d']:.2f}%",
             "Kurs": f"{res['cp']:.2f} €"
         })
@@ -119,7 +120,7 @@ if det:
     c1.metric("SIGNAL", f"{det['dot']} {det['signal']}", f"Wetter: {det['weather']}")
     c2.metric("STOP-LOSS (ATR)", f"{sl_price:.2f} €", f"{dist_pct*100:.2f}% Puffer")
     c3.metric("SMART HEBEL", f"x{opt_hebel:.1f}", "Risiko-Limit 25%")
-    c4.metric("DAUER", "3-5 Tage", delta="Swing-Trade")
+    c4.metric("WAHRSCH. (%)", f"{det['chance']:.2f}")
 
     # Chart
     fig = go.Figure(data=[go.Candlestick(x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'])])
