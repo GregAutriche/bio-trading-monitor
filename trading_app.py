@@ -47,7 +47,7 @@ ASSETS = {
     "ENEL.MI": "🇮🇹 Enel", "ENI.MI": "🇮🇹 Eni", "ISP.MI": "🇮🇹 Intesa Sanpaolo", "RACE.MI": "🇮🇹 Ferrari", "UCG.MI": "🇮🇹 UniCredit",
     # Belgien (🇧🇪), Irland (🇮🇪), Finnland (🇫🇮)
     "ABI.BR": "🇧🇪 Anheuser-Busch InBev", "CRH.AS": "🇮🇪 CRH", "FLTR.IR": "🇮🇪 Flutter Entertainment", "NOKIA.HE": "🇫🇮 Nokia"}
-}
+    }
 
 TICKER_TO_NAME = {ticker: name for region in ASSETS.values() for ticker, name in region.items()}
 ALL_TICKERS = list(TICKER_TO_NAME.keys())
