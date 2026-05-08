@@ -9,153 +9,112 @@ from datetime import datetime, timedelta
 st.set_page_config(page_title="Live Swing-Monitor", layout="wide")
 
 ASSETS = {
-    "DE": {
-        "SAP.DE": "SAP", "ALV.DE": "Allianz", "SIE.DE": "Siemens", "RHM.DE": "Rheinmetall",
-        "DTE.DE": "Telekom", "ADS.DE": "Adidas", "AIR.DE": "Airbus", "BMW.DE": "BMW"
-    },
-    "US": {
-        "AAPL": "Apple", "NVDA": "NVIDIA", "MSFT": "Microsoft", "TSLA": "Tesla",
-        "AMZN": "Amazon", "META": "Meta", "GOOGL": "Alphabet", "NFLX": "Netflix"
-    },
-    "EU": {
-        "MC.PA": "LVMH", "ASML": "ASML", "OR.PA": "L'Oréal", "AIR.PA": "Airbus (EU)",
-        "NESN.SW": "Nestlé", "LIN": "Linde"
-    }
+    "DE": {"SAP.DE": "SAP", "ALV.DE": "Allianz", "SIE.DE": "Siemens", "RHM.DE": "Rheinmetall", "DTE.DE": "Telekom", "ADS.DE": "Adidas", "AIR.DE": "Airbus", "BMW.DE": "BMW"},
+    "US": {"AAPL": "Apple", "NVDA": "NVIDIA", "MSFT": "Microsoft", "TSLA": "Tesla", "AMZN": "Amazon", "META": "Meta", "GOOGL": "Alphabet", "NFLX": "Netflix"},
+    "EU": {"MC.PA": "LVMH", "ASML": "ASML", "OR.PA": "L'Oréal", "AIR.PA": "Airbus (EU)", "NESN.SW": "Nestlé", "LIN": "Linde"}
 }
 
 TICKER_TO_NAME = {ticker: name for region in ASSETS.values() for ticker, name in region.items()}
 ALL_TICKERS = list(TICKER_TO_NAME.keys())
-INDEX_MAP = {
-    "^GDAXI": "DAX", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ", 
-    "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50"
-}
+INDEX_MAP = {"^GDAXI": "DAX", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50"}
 
-# --- 2. LOGIK-FUNKTIONEN ---
+# --- 2. SICHERHEITS-FUNKTIONEN (Verhindert den ValueError) ---
+def safe_float(val):
+    """Extrahiert sicher einen einzelnen Float-Wert aus Series oder Arrays."""
+    if isinstance(val, (pd.Series, np.ndarray, pd.DataFrame)):
+        return float(val.iloc[-1]) if hasattr(val, 'iloc') else float(val[0])
+    return float(val)
+
 def get_logic_icons(chg):
+    chg = safe_float(chg) # Sicherstellen, dass chg eine Zahl ist
     weather = "☀️" if chg > 0.5 else "⛈️" if chg < -0.5 else "☁️"
     dot = "🟢" if chg > 0.4 else "🔵" if chg < -0.4 else "⚪"
     return weather, dot
 
-@st.cache_data(ttl=300) # Cache für 5 Minuten
+@st.cache_data(ttl=300)
 def get_live_data(ticker, period="60d", interval="1d"):
     try:
         df = yf.download(ticker, period=period, interval=interval, progress=False)
-        if df.empty: return None
-        return df
+        return df if not df.empty else None
     except: return None
 
 def analyze_swing(ticker, df):
-    cp = df['Close'].iloc[-1]
-    prev_cp = df['Close'].iloc[-2]
-    # 3-Tage Änderung für Swing-Trend
-    chg_3d = ((cp / df['Close'].iloc[-4]) - 1) * 100
+    cp = safe_float(df['Close'].iloc[-1])
+    # 3-Tage Änderung (Swing)
+    prev_3d = safe_float(df['Close'].iloc[-4])
+    chg_3d = ((cp / prev_3d) - 1) * 100
     
-    # ATR für SL Puffer
-    df['TR'] = np.maximum(df['High'] - df['Low'], 
-               np.maximum(abs(df['High'] - df['Close'].shift(1)), 
-               abs(df['Low'] - df['Close'].shift(1))))
-    atr = df['TR'].tail(14).mean()
-    
-    # Trend-Check (SMA 20)
+    df['TR'] = np.maximum(df['High'] - df['Low'], np.maximum(abs(df['High'] - df['Close'].shift(1)), abs(df['Low'] - df['Close'].shift(1))))
+    atr = safe_float(df['TR'].tail(14).mean())
     df['SMA20'] = df['Close'].rolling(window=20).mean()
-    is_bullish = cp > df['SMA20'].iloc[-1]
+    is_bullish = cp > safe_float(df['SMA20'].iloc[-1])
     
     weather, dot = get_logic_icons(chg_3d)
     chance = round(50.0 + (15 if is_bullish else -10) + (abs(chg_3d) * 0.8), 2)
-    
-    return {
-        "cp": cp, "chg_3d": chg_3d, "atr": atr, "weather": weather, 
-        "dot": dot, "chance": chance, "df": df, "is_bullish": is_bullish
-    }
+    return {"cp": cp, "chg_3d": chg_3d, "atr": atr, "weather": weather, "dot": dot, "chance": chance, "df": df}
 
-# --- 3. HEADER: EUR/USD & INDIZES ---
-# EUR/USD 6 Nachkommastellen
+# --- 3. HEADER: EUR/USD ---
 eurusd_df = get_live_data("EURUSD=X", period="5d")
-if eurusd_df is not None and not eurusd_df.empty:
-    try:
-        # Sicherer Zugriff auf den letzten Wert als Zahl
-        eu_cp = float(eurusd_df['Close'].iloc[-1].iloc[0]) if isinstance(eurusd_df['Close'].iloc[-1], pd.Series) else float(eurusd_df['Close'].iloc[-1])
-        eu_prev = float(eurusd_df['Close'].iloc[-2].iloc[0]) if isinstance(eurusd_df['Close'].iloc[-2], pd.Series) else float(eurusd_df['Close'].iloc[-2])
-        
-        eu_chg = ((eu_cp / eu_prev) - 1) * 100
-        w, dot = get_logic_icons(eu_chg)
-        st.markdown(f"<h1 style='text-align: center; color: #5DADE2;'>{w} EUR / USD: {eu_cp:.6f} {dot}</h1>", unsafe_allow_html=True)
-    except Exception as e:
-        st.error(f"Fehler bei EUR/USD Konvertierung: {e}")
-
+if eurusd_df is not None:
+    cp = safe_float(eurusd_df['Close'].iloc[-1])
+    prev = safe_float(eurusd_df['Close'].iloc[-2])
+    chg = ((cp / prev) - 1) * 100
+    w, dot = get_logic_icons(chg)
+    st.markdown(f"<h1 style='text-align: center; color: #5DADE2;'>{w} EUR / USD: {cp:.6f} {dot}</h1>", unsafe_allow_html=True)
 st.divider()
 
-# Indizes in 2 Zeilen
-idx_keys = list(INDEX_MAP.keys())
+# --- 4. INDIZES ---
 st.subheader("🌍 Globale Markt-Indikation")
+idx_keys = list(INDEX_MAP.keys())
 r1 = st.columns(3)
 for i in range(3):
-    sym = idx_keys[i]
-    df = get_live_data(sym, period="5d")
+    sym = idx_keys[i]; df = get_live_data(sym, period="5d")
     if df is not None:
-        cp, chg = df['Close'].iloc[-1], ((df['Close'].iloc[-1]/df['Close'].iloc[-2])-1)*100
-        w, dot = get_logic_icons(chg)
+        cp = safe_float(df['Close'].iloc[-1]); prev = safe_float(df['Close'].iloc[-2])
+        chg = ((cp / prev) - 1) * 100; w, dot = get_logic_icons(chg)
         r1[i].metric(f"{w} {INDEX_MAP[sym]}", f"{cp:,.2f}", f"{dot} {chg:.2f}%", delta_color="normal" if chg >= 0 else "inverse")
 
 r2 = st.columns(3)
 for i in range(3, 5):
-    sym = idx_keys[i]
-    df = get_live_data(sym, period="5d")
+    sym = idx_keys[i]; df = get_live_data(sym, period="5d")
     if df is not None:
-        cp, chg = df['Close'].iloc[-1], ((df['Close'].iloc[-1]/df['Close'].iloc[-2])-1)*100
-        w, dot = get_logic_icons(chg)
+        cp = safe_float(df['Close'].iloc[-1]); prev = safe_float(df['Close'].iloc[-2])
+        chg = ((cp / prev) - 1) * 100; w, dot = get_logic_icons(chg)
         r2[i-3].metric(f"{w} {INDEX_MAP[sym]}", f"{cp:,.2f}", f"{dot} {chg:.2f}%", delta_color="normal" if chg >= 0 else "inverse")
 
 st.divider()
 
-# --- 4. TOP 7 CHANCEN ---
-st.subheader("📊 Top 7 Trading-Ideen (3-5 Tage Gültigkeit)")
+# --- 5. TOP 7 CHANCEN ---
 rank_list = []
 for t in ALL_TICKERS:
     df = get_live_data(t)
     if df is not None:
         res = analyze_swing(t, df)
-        rank_list.append({
-            "Aktie": f"{res['weather']} {TICKER_TO_NAME[t]}",
-            "Signal": f"{res['dot']} {'CALL' if res['chg_3d'] > 0 else 'PUT'}",
-            "Wahrscheinlichkeit (%)": f"{res['chance']:.2f}",
-            "Trend 3D": f"{res['chg_3d']:.2f}%",
-            "Kurs": f"{res['cp']:.2f} €"
-        })
+        rank_list.append({"Aktie": f"{res['weather']} {TICKER_TO_NAME[t]}", "Signal": f"{res['dot']} {'CALL' if res['chg_3d'] > 0 else 'PUT'}", 
+                          "Wahrscheinlichkeit (%)": f"{res['chance']:.2f}", "Trend 3D": f"{res['chg_3d']:.2f}%", "Kurs": f"{res['cp']:.2f} €"})
 
 if rank_list:
-    df_rank = pd.DataFrame(rank_list).sort_values(by="Wahrscheinlichkeit (%)", ascending=False).head(7)
-    st.table(df_rank)
+    st.table(pd.DataFrame(rank_list).sort_values(by="Wahrscheinlichkeit (%)", ascending=False).head(7))
 
-# --- 5. DETAIL-SETUP & ORDER-EXTENDER ---
+# --- 6. DETAIL & ORDER ---
 st.divider()
-st.subheader("🔍 Smart-Entry & Order-Extender")
-reg_choice = st.radio("Region wählen:", ["DE", "US", "EU"], horizontal=True)
-selected_ticker = st.selectbox("Aktie:", list(ASSETS[reg_choice].keys()), format_func=lambda x: ASSETS[reg_choice][x])
-
-df_sel = get_live_data(selected_ticker)
+reg = st.radio("Region:", ["DE", "US", "EU"], horizontal=True)
+sel = st.selectbox("Aktie:", list(ASSETS[reg].keys()), format_func=lambda x: ASSETS[reg][x])
+df_sel = get_live_data(sel)
 if df_sel is not None:
-    det = analyze_swing(selected_ticker, df_sel)
+    det = analyze_swing(sel, df_sel)
     direction = 1 if det['chg_3d'] > 0 else -1
-    sl_price = det['cp'] - (2.0 * det['atr'] * direction)
-    tp_price = det['cp'] + (4.0 * det['atr'] * direction)
-    dist_pct = abs((sl_price / det['cp']) - 1)
-    opt_hebel = 0.25 / dist_pct if dist_pct > 0 else 1.0
-
+    sl = det['cp'] - (2.0 * det['atr'] * direction)
+    tp = det['cp'] + (4.0 * det['atr'] * direction)
+    dist = abs((sl / det['cp']) - 1); opt_h = 0.25 / dist if dist > 0 else 1.0
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("SIGNAL", f"{det['dot']} {'CALL' if direction==1 else 'PUT'}", f"Wetter: {det['weather']}")
-    c2.metric("STOP-LOSS", f"{sl_price:.2f} €", f"{dist_pct*100:.2f}% Puffer")
-    c3.metric("SMART HEBEL", f"x{opt_hebel:.1f}", "Risiko-Limit 25%")
+    c2.metric("STOP-LOSS", f"{sl:.2f} €", f"{dist*100:.2f}% Puffer")
+    c3.metric("SMART HEBEL", f"x{opt_h:.1f}")
     c4.metric("WAHRSCH. (%)", f"{det['chance']:.2f}")
-
-    with st.expander("📝 Detaillierte Bestellung (Order-Details)", expanded=True):
-        st.write(f"**Typ:** {'🟢 CALL / LONG' if direction == 1 else '🔵 PUT / SHORT'}")
-        st.write(f"**Basiswert:** {selected_ticker} | **Kurs:** {det['cp']:.2f} €")
-        st.write(f"**Stop-Loss:** {sl_price:.2f} € | **Ziel (3-5T):** {tp_price:.2f} €")
-        st.write(f"**Hebel-Empfehlung:** x{opt_hebel:.1f}")
-
+    with st.expander("📝 Bestellung"):
+        st.write(f"**Basis:** {sel} | **Kurs:** {det['cp']:.2f} € | **Hebel:** x{opt_h:.1f} | **SL:** {sl:.2f} €")
     fig = go.Figure(data=[go.Candlestick(x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'])])
-    fig.add_hline(y=sl_price, line_dash="dash", line_color="red", annotation_text="SL")
-    fig.add_hline(y=tp_price, line_dash="dash", line_color="green", annotation_text="TP")
+    fig.add_hline(y=sl, line_dash="dash", line_color="red", annotation_text="SL")
     fig.update_layout(height=450, template="plotly_dark", xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
