@@ -161,6 +161,45 @@ if df_sel is not None:
     c2.metric("STOP-LOSS", f"{sl:.2f} €", f"{dist*100:.2f}% Puffer")
     c3.metric("SMART HEBEL", f"x{opt_h:.1f}")
     c4.metric("WAHRSCH. (%)", f"{det['chance']:.2f}")
+
+# --- DETAILLIERTE BESTELLUNG (ORDER-EXTENDER) ---
+with st.expander("📝 Detaillierte Handelsanweisung (Broker-Ready)", expanded=True):
+    st.markdown(f"### 🛒 Order-Ticket: {TICKER_TO_NAME[sel]}")
+    
+    # Unterteilung in zwei Spalten für bessere Lesbarkeit im Dashboard
+    col_o1, col_o2 = st.columns(2)
+    
+    with col_o1:
+        st.markdown("**Basis-Informationen:**")
+        st.write(f"🔹 **Richtung:** {'🟢 LONG / CALL' if direction == 1 else '🔵 SHORT / PUT'}")
+        st.write(f"🔹 **Asset:** {TICKER_TO_NAME[sel]} ({sel})")
+        st.write(f"🔹 **Referenzkurs:** {det['cp']:.2f} €")
+        st.write(f"🔹 **Markt-Wetter:** {det['weather']} (Trend-Status)")
+
+    with col_o2:
+        st.markdown("**Derivate-Parameter:**")
+        st.write(f"🎯 **Ziel-Hebel:** x{opt_h:.1f}")
+        st.write(f"🛑 **Stop-Loss (Basis):** {sl:.2f} €")
+        st.write(f"🏁 **Kursziel (Basis):** {tp:.2f} €")
+        st.write(f"⏳ **Haltedauer:** 3 - 5 Handelstage")
+
+    st.markdown("---")
+    
+    # Strategische Handlungsanweisung
+    st.info(f"""
+    **Strategie-Check & Execution:**
+    1. **Einstieg:** Markt-Order bei Bestätigung des Signals durch das aktuelle Wetter {det['weather']}.
+    2. **Risiko-Limit:** Der gewählte Hebel von x{opt_h:.1f} begrenzt das Verlustrisiko im Derivat auf ca. 25%, 
+       sollte der Stop-Loss bei {sl:.2f} € erreicht werden.
+    3. **Exit-Logik:** Position glattstellen bei Erreichen des Kursziels ({tp:.2f} €) oder nach Ablauf von 5 Handelstagen, 
+       falls der Trend stagniert.
+    """)
+    
+    # Optional: Ein Button zum schnellen Kopieren der wichtigsten Werte
+    order_text = f"ORDER: {TICKER_TO_NAME[sel]} | {('CALL' if direction==1 else 'PUT')} | Hebel x{opt_h:.1f} | SL: {sl:.2f} | TP: {tp:.2f}"
+    st.code(order_text, language="text")
+    
+    
     with st.expander("📝 Bestellung"):
         st.write(f"**Basis:** {sel} | **Kurs:** {det['cp']:.2f} € | **Hebel:** x{opt_h:.1f} | **SL:** {sl:.2f} €")
     fig = go.Figure(data=[go.Candlestick(x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'])])
