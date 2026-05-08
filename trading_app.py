@@ -4,9 +4,8 @@ import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
-# --- 1. KONFIGURATION & MARKT-DATEN ---
+# --- 1. MARKT-DATEN ---
 EUR_USD_RATE = 1.084255  
-
 MARKET_DATA = {
     "EURUSD": {"val": 1.084255, "chg_3d": -0.45},
     "DAX": {"val": 24338.63, "chg_3d": -1.32},
@@ -84,24 +83,9 @@ for t in ALL_TICKERS:
 df_rank = pd.DataFrame(rank_list).sort_values(by="Wahrscheinlichkeit (%)", ascending=False).head(7)
 st.table(df_rank)
 
-# --- 5. NEU: PERFORMANCE TRACKING (HISTORIE) ---
+# --- 5. DETAIL-ANALYSE & ORDER-EXTENDER ---
 st.divider()
-st.subheader("📜 Performance-Protokoll (Letzte Signale)")
-# Simulation historischer Daten
-history_data = [
-    {"Datum": "04.05.", "Aktie": "NVIDIA", "Typ": "🟢 CALL", "Entry": "115.20", "Exit": "128.40", "Ergebnis": "✅ +11.4%"},
-    {"Datum": "05.05.", "Aktie": "SAP", "Typ": "🟢 CALL", "Entry": "178.50", "Exit": "182.10", "Ergebnis": "✅ +2.0%"},
-    {"Datum": "05.05.", "Aktie": "ASML", "Typ": "🔵 PUT", "Entry": "890.00", "Exit": "912.00", "Ergebnis": "❌ -2.4%"},
-    {"Datum": "06.05.", "Aktie": "Rheinmetall", "Typ": "🟢 CALL", "Entry": "512.00", "Exit": "545.00", "Ergebnis": "✅ +6.4%"}
-]
-h_cols = st.columns(len(history_data))
-for i, trade in enumerate(history_data):
-    with h_cols[i]:
-        st.info(f"**{trade['Aktie']}** ({trade['Datum']})\n\n{trade['Typ']}\n\n**{trade['Ergebnis']}**")
-
-# --- 6. DETAIL-ANALYSE ---
-st.divider()
-st.subheader("🔍 Smart-Entry: Detail-Setup")
+st.subheader("🔍 Smart-Entry & Order-Extender")
 reg_choice = st.radio("Region:", ["DE", "US", "EU"], horizontal=True)
 selected = st.selectbox("Aktie wählen:", list(ASSETS[reg_choice].keys()), format_func=lambda x: ASSETS[reg_choice][x])
 
@@ -109,6 +93,7 @@ det = get_swing_analysis(selected)
 if det:
     direction = 1 if det['chg_3d'] > 0 else -1
     sl_price = det['cp'] - (2.0 * det['atr'] * direction)
+    tp_price = det['cp'] + (4.0 * det['atr'] * direction)
     dist_pct = abs((sl_price / det['cp']) - 1)
     opt_hebel = 0.25 / dist_pct if dist_pct > 0 else 1.0
 
@@ -118,7 +103,23 @@ if det:
     c3.metric("SMART HEBEL", f"x{opt_hebel:.1f}", "Risiko-Limit 25%")
     c4.metric("WAHRSCH. (%)", f"{det['chance']:.2f}")
 
+    # ORDER-EXTENDER BOX
+    with st.expander("📝 Detaillierte Bestellung (Order-Details)", expanded=True):
+        st.markdown(f"""
+        ### 🛒 Order-Zusammenfassung für {TICKER_TO_NAME[selected]}
+        *   **Typ:** {'🟢 CALL / LONG' if direction == 1 else '🔵 PUT / SHORT'}
+        *   **Basiswert:** {selected} ({TICKER_TO_NAME[selected]})
+        *   **Aktueller Kurs:** {det['cp']:.2f} €
+        *   **Empfohlener Hebel:** x{opt_hebel:.1f}
+        *   **Strategischer Stop-Loss:** **{sl_price:.2f} €**
+        *   **Kursziel (3-5 Tage):** **{tp_price:.2f} €**
+        *   **Strategie-Gültigkeit:** Bis {(datetime.now() + timedelta(days=5)).strftime('%d.%m.%Y')}
+        ---
+        *Hinweis: Der Stop-Loss basiert auf dem 2.0x ATR-Puffer, um das Wochenrauschen abzufangen.*
+        """)
+
     fig = go.Figure(data=[go.Candlestick(x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'])])
-    fig.add_hline(y=sl_price, line_dash="dash", line_color="#FF4B4B" if direction == 1 else "#5DADE2", annotation_text="SL")
+    fig.add_hline(y=sl_price, line_dash="dash", line_color="red", annotation_text="STOP LOSS")
+    fig.add_hline(y=tp_price, line_dash="dash", line_color="green", annotation_text="TARGET")
     fig.update_layout(height=450, template="plotly_dark", xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
