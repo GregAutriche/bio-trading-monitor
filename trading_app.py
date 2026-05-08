@@ -17,21 +17,20 @@ MARKET_DATA = {
 }
 
 ASSETS = {
-    "DE": {"SAP.DE": "SAP", "ALV.DE": "Allianz", "SIE.DE": "Siemens", "RHM.DE": "Rheinmetall", "DTE.DE": "Telekom"},
-    "US": {"AAPL": "Apple", "NVDA": "NVIDIA", "MSFT": "Microsoft", "TSLA": "Tesla", "AMZN": "Amazon"},
-    "EU": {"MC.PA": "LVMH", "ASML": "ASML", "AIR.PA": "Airbus", "OR.PA": "L'Oréal", "NESN.SW": "Nestlé"}
+    "DE": {"SAP.DE": "SAP", "ALV.DE": "Allianz", "SIE.DE": "Siemens", "RHM.DE": "Rheinmetall"},
+    "US": {"AAPL": "Apple", "NVDA": "NVIDIA", "MSFT": "Microsoft", "TSLA": "Tesla"},
+    "EU": {"MC.PA": "LVMH", "ASML": "ASML", "AIR.PA": "Airbus", "OR.PA": "L'Oréal"}
 }
 
 TICKER_TO_NAME = {ticker: name for region in ASSETS.values() for ticker, name in region.items()}
 ALL_TICKERS = list(TICKER_TO_NAME.keys())
 
-# --- 2. HILFSFUNKTION FÜR WETTER & DOTS ---
+# --- 2. HILFSFUNKTIONEN ---
 def get_logic_icons(chg):
     weather = "☀️" if chg > 0.5 else "⛈️" if chg < -0.5 else "☁️"
     dot = "🟢" if chg > 0.4 else "🔵" if chg < -0.4 else "⚪"
     return weather, dot
 
-# --- 3. ANALYSE-LOGIK (3-5 TAGE) ---
 def get_swing_analysis(ticker):
     try:
         df = pd.DataFrame(np.random.randn(60, 4), columns=['Open', 'High', 'Low', 'Close']).cumsum() + 150
@@ -39,54 +38,37 @@ def get_swing_analysis(ticker):
         cp = df['Close'].iloc[-1]
         chg_3d = ((cp / df['Close'].iloc[-4]) - 1) * 100
         is_bullish = cp > df['SMA20'].iloc[-1]
-        
         df['TR'] = np.maximum(df['High'] - df['Low'], np.maximum(abs(df['High'] - df['Close'].shift(1)), abs(df['Low'] - df['Close'].shift(1))))
         atr = df['TR'].tail(14).mean()
-        
         weather, dot = get_logic_icons(chg_3d)
         signal = "CALL" if chg_3d > 0.4 else "PUT" if chg_3d < -0.4 else "NEUTRAL"
-        
-        # Berechnung Wahrscheinlichkeit gerundet auf 2 Stellen
         chance = round(50.0 + (15 if is_bullish else -10) + (abs(chg_3d) * 0.8), 2)
-        
-        return {
-            "cp": cp, "chg_3d": chg_3d, "atr": atr, "df": df, "chance": chance,
-            "weather": weather, "dot": dot, "signal": signal
-        }
+        return {"cp": cp, "chg_3d": chg_3d, "atr": atr, "df": df, "chance": chance, "weather": weather, "dot": dot, "signal": signal}
     except: return None
 
-# --- 4. UI LAYOUT ---
+# --- 3. UI LAYOUT ---
 st.set_page_config(page_title="Trading Monitor Pro", layout="wide")
 
-# 4.1 EUR / USD Header
+# Header: EUR/USD
 eu_data = MARKET_DATA["EURUSD"]
 eu_w, eu_d = get_logic_icons(eu_data['chg_3d'])
 st.markdown(f"<h1 style='text-align: center; color: #5DADE2;'>{eu_w} EUR / USD: {eu_data['val']:.6f} {eu_d}</h1>", unsafe_allow_html=True)
 st.divider()
 
-# 4.2 GLOBALE INDIZES IN 2 ZEILEN
-st.subheader("🌍 Globale Markt-Indikation")
+# Indizes in 2 Zeilen
 idx_list = ["DAX", "EUROSTOXX 50", "NASDAQ 100", "BIST 100", "NIFTY 50"]
-
-row1 = st.columns(3)
+r1 = st.columns(3)
 for i in range(3):
-    name = idx_list[i]
-    d = MARKET_DATA[name]
-    w, dot = get_logic_icons(d['chg_3d'])
-    row1[i].metric(f"{w} {name}", f"{d['val']:,.2f}", f"{dot} {d['chg_3d']:.2f}%", 
-                   delta_color="normal" if d['chg_3d'] >= 0 else "inverse")
-
-row2 = st.columns(3)
+    name = idx_list[i]; d = MARKET_DATA[name]; w, dot = get_logic_icons(d['chg_3d'])
+    r1[i].metric(f"{w} {name}", f"{d['val']:,.2f}", f"{dot} {d['chg_3d']:.2f}%", delta_color="normal" if d['chg_3d'] >= 0 else "inverse")
+r2 = st.columns(3)
 for i in range(3, 5):
-    name = idx_list[i]
-    d = MARKET_DATA[name]
-    w, dot = get_logic_icons(d['chg_3d'])
-    row2[i-3].metric(f"{w} {name}", f"{d['val']:,.2f}", f"{dot} {d['chg_3d']:.2f}%", 
-                     delta_color="normal" if d['chg_3d'] >= 0 else "inverse")
+    name = idx_list[i]; d = MARKET_DATA[name]; w, dot = get_logic_icons(d['chg_3d'])
+    r2[i-3].metric(f"{w} {name}", f"{d['val']:,.2f}", f"{dot} {d['chg_3d']:.2f}%", delta_color="normal" if d['chg_3d'] >= 0 else "inverse")
 
 st.divider()
 
-# --- 5. TOP 7 MARKT-CHANCEN ---
+# --- 4. TOP 7 CHANCEN BOARD ---
 st.subheader("📊 Top 7 Trading-Chancen (3-5 Tage)")
 rank_list = []
 for t in ALL_TICKERS:
@@ -95,13 +77,27 @@ for t in ALL_TICKERS:
         rank_list.append({
             "Aktie": f"{res['weather']} {TICKER_TO_NAME[t]}",
             "Signal": f"{res['dot']} {res['signal']}",
-            "Wahrscheinlichkeit (%)": f"{res['chance']:.2f}", # Erzwungene 2 Nachkommastellen
+            "Wahrscheinlichkeit (%)": f"{res['chance']:.2f}",
             "Trend 3D": f"{res['chg_3d']:.2f}%",
             "Kurs": f"{res['cp']:.2f} €"
         })
-
 df_rank = pd.DataFrame(rank_list).sort_values(by="Wahrscheinlichkeit (%)", ascending=False).head(7)
 st.table(df_rank)
+
+# --- 5. NEU: PERFORMANCE TRACKING (HISTORIE) ---
+st.divider()
+st.subheader("📜 Performance-Protokoll (Letzte Signale)")
+# Simulation historischer Daten
+history_data = [
+    {"Datum": "04.05.", "Aktie": "NVIDIA", "Typ": "🟢 CALL", "Entry": "115.20", "Exit": "128.40", "Ergebnis": "✅ +11.4%"},
+    {"Datum": "05.05.", "Aktie": "SAP", "Typ": "🟢 CALL", "Entry": "178.50", "Exit": "182.10", "Ergebnis": "✅ +2.0%"},
+    {"Datum": "05.05.", "Aktie": "ASML", "Typ": "🔵 PUT", "Entry": "890.00", "Exit": "912.00", "Ergebnis": "❌ -2.4%"},
+    {"Datum": "06.05.", "Aktie": "Rheinmetall", "Typ": "🟢 CALL", "Entry": "512.00", "Exit": "545.00", "Ergebnis": "✅ +6.4%"}
+]
+h_cols = st.columns(len(history_data))
+for i, trade in enumerate(history_data):
+    with h_cols[i]:
+        st.info(f"**{trade['Aktie']}** ({trade['Datum']})\n\n{trade['Typ']}\n\n**{trade['Ergebnis']}**")
 
 # --- 6. DETAIL-ANALYSE ---
 st.divider()
@@ -122,7 +118,6 @@ if det:
     c3.metric("SMART HEBEL", f"x{opt_hebel:.1f}", "Risiko-Limit 25%")
     c4.metric("WAHRSCH. (%)", f"{det['chance']:.2f}")
 
-    # Chart
     fig = go.Figure(data=[go.Candlestick(x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'])])
     fig.add_hline(y=sl_price, line_dash="dash", line_color="#FF4B4B" if direction == 1 else "#5DADE2", annotation_text="SL")
     fig.update_layout(height=450, template="plotly_dark", xaxis_rangeslider_visible=False)
