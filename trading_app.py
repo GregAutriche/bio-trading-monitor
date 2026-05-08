@@ -71,11 +71,17 @@ def analyze_swing(ticker, df):
 # --- 3. HEADER: EUR/USD & INDIZES ---
 # EUR/USD 6 Nachkommastellen
 eurusd_df = get_live_data("EURUSD=X", period="5d")
-if eurusd_df is not None:
-    eu_cp = float(eurusd_df['Close'].iloc[-1])
-    eu_chg = float(((eu_cp / eurusd_df['Close'].iloc[-2]) - 1) * 100)
-    w, dot = get_logic_icons(eu_chg)
-    st.markdown(f"<h1 style='text-align: center; color: #5DADE2;'>{w} EUR / USD: {eu_cp:.6f} {dot}</h1>", unsafe_allow_html=True)
+if eurusd_df is not None and not eurusd_df.empty:
+    try:
+        # Sicherer Zugriff auf den letzten Wert als Zahl
+        eu_cp = float(eurusd_df['Close'].iloc[-1].iloc[0]) if isinstance(eurusd_df['Close'].iloc[-1], pd.Series) else float(eurusd_df['Close'].iloc[-1])
+        eu_prev = float(eurusd_df['Close'].iloc[-2].iloc[0]) if isinstance(eurusd_df['Close'].iloc[-2], pd.Series) else float(eurusd_df['Close'].iloc[-2])
+        
+        eu_chg = ((eu_cp / eu_prev) - 1) * 100
+        w, dot = get_logic_icons(eu_chg)
+        st.markdown(f"<h1 style='text-align: center; color: #5DADE2;'>{w} EUR / USD: {eu_cp:.6f} {dot}</h1>", unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"Fehler bei EUR/USD Konvertierung: {e}")
 
 st.divider()
 
