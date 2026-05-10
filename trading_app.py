@@ -148,63 +148,96 @@ if rank_list:
     st.table(pd.DataFrame(rank_list).sort_values(by="Wahrscheinlichkeit (%)", ascending=False).head(7))
 
 # --- 6. DETAIL & ORDER ---
+# --- 6. DETAIL & ORDER MIT RISK MANAGEMENT ---
+st.divider()
+st.subheader("🎯 Trade-Planer & Risikokalkulation")
+
+# Risiko-Parameter in der Sidebar oder direkt über dem Tool
+with st.sidebar:
+    st.header("🛡️ Konto-Einstellungen")
+    account_size = st.number_input("Kontogröße (€)", value=10000, step=1000)
+    risk_per_trade_pct = st.slider("Risiko pro Trade (%)", 0.5, 5.0, 1.0)
+    max_loss_amount = account_size * (risk_per_trade_pct / 100)
+
+reg = st.radio("Region wählen:", ["DE", "US", "EU", "BIO"], horizontal=True)
+sel = st.selectbox("Asset für Detail-Analyse:", list(ASSETS[reg].keys()), format_func=lambda x: ASSETS[reg][x])
+
 if sel in all_data:
     df_sel = all_data[sel]
     det = analyze_swing(sel, df_sel)
     
-    # --- RISIKO-KALKULATION ---
+    # --- MATHEMATISCHES RISK-MANAGEMENT ---
     direction = 1 if det['chg_3d'] > 0 else -1
     
-    # 1. Volatilitäts-Stopp (2x ATR)
+    # 1. Stop-Loss basierend auf 2x ATR (Marktrauschen)
     stop_distance = 2.0 * det['atr']
     sl_price = det['cp'] - (stop_distance * direction)
     tp_price = det['cp'] + (4.0 * det['atr'] * direction) # CRV 2:1
     
-    # 2. Prozentualer Abstand zum Stop
-    risk_pct = abs(sl_price / det['cp'] - 1)
+    # 2. Risiko-Metriken
+    risk_pct = abs(sl_price / det['cp'] - 1) # Prozentualer Abstand zum Stop
     
-    # 3. Positionsgröße (Wie viele Aktien/Zertifikate?)
-    # Formel: Risikobetrag / (Einstieg - Stop)
     if risk_pct > 0:
-        position_size_euro = max_loss_amount / risk_pct
-        # Sicherstellen, dass wir nicht mehr setzen als wir haben (Margin/Hebel außen vor)
-        position_size_euro = min(position_size_euro, account_size * 2) 
-        
-        # Optimaler Hebel, um das Risiko auf den Stop-Loss zu legen
-        # Wenn der Markt 5% gegen uns läuft, soll das Derivat 100% verlieren (Knock-out)
-        smart_leverage = 1.0 / risk_pct if risk_pct > 0 else 1.0
+        # Positionsgröße: Wieviel Euro bewegen, damit bei SL genau 'max_loss_amount' verloren geht
+        pos_size_euro = max_loss_amount / risk_pct
+        # Smart Hebel: Der Hebel, bei dem der SL einem Totalverlust des eingesetzten Kapitals entspräche
+        smart_leverage = 1.0 / risk_pct
     else:
-        position_size_euro = 0
+        pos_size_euro = 0
         smart_leverage = 1.0
 
-    # --- UI DARSTELLUNG ---
+    # --- UI METRIKEN ---
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("POSITIONSGRÖSSE", f"{position_size_euro:,.2f} €", "Empfohlenes Volumen")
+    c1.metric("POSITIONSGRÖSSE", f"{pos_size_euro:,.2f} €", "Empf. Volumen")
     c2.metric("STOP-LOSS", f"{sl_price:.2f} €", f"-{risk_pct*100:.2f}% Risiko")
-    c3.metric("MAX. VERLUST", f"{max_loss_amount:.2f} €", f"{risk_per_trade*100}% vom Konto")
+    c3.metric("MAX. VERLUST", f"{max_loss_amount:.2f} €", f"{risk_per_trade_pct}% vom Konto")
     c4.metric("SMART HEBEL", f"x{min(smart_leverage, 20):.1f}", "Max. empfohlen")
 
-    # --- VERBESSERTES ORDER TICKET ---
-    with st.expander("🛡️ Professionelles Risk-Shield Ticket", expanded=True):
-        st.write(f"### Strategie: {'Bullisch' if direction == 1 else 'Bearisch'} @ {det['cp']:.2f} €")
+    # --- DETAILLIERTE BESTELLUNG (ORDER-EXTENDER) ---
+    with st.expander("📝 Professionelles Risk-Shield Ticket", expanded=True):
+        st.markdown(f"### 🛒 Order-Ticket: {TICKER_TO_NAME[sel]}")
         
-        col_risk1, col_risk2 = st.columns(2)
-        with col_risk1:
-            st.info(f"""
-            **Positionsaufbau:**
-            - **Kaufbetrag:** {position_size_euro:,.2f} €
-            - **Stückzahl (ca.):** {int(position_size_euro / det['cp'])} Stk.
-            - **Hebel-Limit:** x{min(smart_leverage, 10):.1f}
-            """)
-        
-        with col_risk2:
-            st.warning(f"""
-            **Exit-Plan:**
-            - **Hard Stop:** {sl_price:.2f} € (Sofortiger Ausstieg)
-            - **Kursziel:** {tp_price:.2f} €
-            - **CRV:** 2.0 (Chance-Risiko-Verhältnis)
-            """)
+        col_o1, col_o2 = st.columns(2)
+        with col_o1:
+            st.markdown("**Strategie-Details:**")
+            st.write(f"🔹 **Richtung:** {'🟢 LONG / CALL' if direction == 1 else '🔵 SHORT / PUT'}")
+            st.write(f"🔹 **Aktueller Kurs:** {det['cp']:.2f} €")
+            st.write(f"🔹 **Stückzahl (ca.):** {int(pos_size_euro / det['cp'])} Stück")
+            st.write(f"🔹 **Einsatz Kapital:** {min(pos_size_euro, account_size):,.2f} €")
 
-        # Dynamischer Warnhinweis
-        if risk_pct > 0.10:
-            st.error("⚠️ WARNUNG: Extrem hohe Volatilität. Positionsgröße reduzieren!")
+        with col_o2:
+            st.markdown("**Exit-Parameter:**")
+            st.write(f"🛑 **Hard Stop-Loss:** {sl_price:.2f} €")
+            st.write(f"🎯 **Kursziel (Take Profit):** {tp_price:.2f} €")
+            st.write(f"⚖️ **CRV:** 2.0")
+            st.write(f"⚡ **Hebel-Limit:** x{min(smart_leverage, 15):.1f}")
+
+        st.markdown("---")
+        # Broker-Copy Code
+        order_text = f"ORDER: {TICKER_TO_NAME[sel]} | {('CALL' if direction==1 else 'PUT')} | VOL: {pos_size_euro:.0f}€ | SL: {sl_price:.2f} | TP: {tp_price:.2f}"
+        st.code(order_text, language="text")
+        
+        if risk_pct > 0.08:
+            st.warning("⚠️ Achtung: Hohe Volatilität! Der Stop-Loss ist weit entfernt. Positionsgröße strikt einhalten.")
+
+    # --- CHARTING ---
+    fig = go.Figure(data=[go.Candlestick(
+        x=det['df'].index,
+        open=det['df']['Open'],
+        high=det['df']['High'],
+        low=det['df']['Low'],
+        close=det['df']['Close'],
+        name="Kurs"
+    )])
+    
+    # Stop-Loss und Take-Profit Linien
+    fig.add_hline(y=sl_price, line_dash="dash", line_color="red", annotation_text="STOP-LOSS")
+    fig.add_hline(y=tp_price, line_dash="dash", line_color="green", annotation_text="ZIEL (TP)")
+    
+    fig.update_layout(
+        height=500, 
+        template="plotly_dark", 
+        xaxis_rangeslider_visible=False,
+        margin=dict(l=10, r=10, t=10, b=10)
+    )
+    st.plotly_chart(fig, use_container_width=True)
