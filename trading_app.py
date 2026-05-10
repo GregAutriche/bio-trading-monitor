@@ -148,6 +148,7 @@ if rank_list:
     st.table(pd.DataFrame(rank_list).sort_values(by="Wahrscheinlichkeit (%)", ascending=False).head(7))
 
 # --- 6. DETAIL & ORDER ---
+all_data = load_all_market_data()
 # --- 6. DETAIL & ORDER MIT RISK MANAGEMENT ---
 st.divider()
 st.subheader("🎯 Trade-Planer & Risikokalkulation")
