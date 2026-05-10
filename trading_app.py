@@ -148,7 +148,6 @@ if rank_list:
     st.table(pd.DataFrame(rank_list).sort_values(by="Wahrscheinlichkeit (%)", ascending=False).head(7))
 
 # --- 6. DETAIL & ORDER ---
-st.divider()
 if sel in all_data:
     df_sel = all_data[sel]
     det = analyze_swing(sel, df_sel)
