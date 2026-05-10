@@ -152,59 +152,63 @@ st.divider()
 reg = st.radio("Region:", ["DE", "US", "EU"], horizontal=True)
 sel = st.selectbox("Aktie:", list(ASSETS[reg].keys()), format_func=lambda x: ASSETS[reg][x])
 df_sel = get_live_data(sel)
-if df_sel is not None:
+if sel in all_data:
+    df_sel = all_data[sel]
     det = analyze_swing(sel, df_sel)
+    
+    # --- RISIKO-KALKULATION ---
     direction = 1 if det['chg_3d'] > 0 else -1
-    sl = det['cp'] - (2.0 * det['atr'] * direction)
-    tp = det['cp'] + (4.0 * det['atr'] * direction)
-    dist = abs((sl / det['cp']) - 1); opt_h = 0.25 / dist if dist > 0 else 1.0
+    
+    # 1. Volatilitäts-Stopp (2x ATR)
+    stop_distance = 2.0 * det['atr']
+    sl_price = det['cp'] - (stop_distance * direction)
+    tp_price = det['cp'] + (4.0 * det['atr'] * direction) # CRV 2:1
+    
+    # 2. Prozentualer Abstand zum Stop
+    risk_pct = abs(sl_price / det['cp'] - 1)
+    
+    # 3. Positionsgröße (Wie viele Aktien/Zertifikate?)
+    # Formel: Risikobetrag / (Einstieg - Stop)
+    if risk_pct > 0:
+        position_size_euro = max_loss_amount / risk_pct
+        # Sicherstellen, dass wir nicht mehr setzen als wir haben (Margin/Hebel außen vor)
+        position_size_euro = min(position_size_euro, account_size * 2) 
+        
+        # Optimaler Hebel, um das Risiko auf den Stop-Loss zu legen
+        # Wenn der Markt 5% gegen uns läuft, soll das Derivat 100% verlieren (Knock-out)
+        smart_leverage = 1.0 / risk_pct if risk_pct > 0 else 1.0
+    else:
+        position_size_euro = 0
+        smart_leverage = 1.0
+
+    # --- UI DARSTELLUNG ---
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("SIGNAL", f"{det['dot']} {'CALL' if direction==1 else 'PUT'}", f"Wetter: {det['weather']}")
-    c2.metric("STOP-LOSS", f"{sl:.2f} €", f"{dist*100:.2f}% Puffer")
-    c3.metric("SMART HEBEL", f"x{opt_h:.1f}")
-    c4.metric("WAHRSCH. (%)", f"{det['chance']:.2f}")
+    c1.metric("POSITIONSGRÖSSE", f"{position_size_euro:,.2f} €", "Empfohlenes Volumen")
+    c2.metric("STOP-LOSS", f"{sl_price:.2f} €", f"-{risk_pct*100:.2f}% Risiko")
+    c3.metric("MAX. VERLUST", f"{max_loss_amount:.2f} €", f"{risk_per_trade*100}% vom Konto")
+    c4.metric("SMART HEBEL", f"x{min(smart_leverage, 20):.1f}", "Max. empfohlen")
 
-# --- DETAILLIERTE BESTELLUNG (ORDER-EXTENDER) ---
-with st.expander("📝 Detaillierte Handelsanweisung (Broker-Ready)", expanded=True):
-    st.markdown(f"### 🛒 Order-Ticket: {TICKER_TO_NAME[sel]}")
-    
-    # Unterteilung in zwei Spalten für bessere Lesbarkeit im Dashboard
-    col_o1, col_o2 = st.columns(2)
-    
-    with col_o1:
-        st.markdown("**Basis-Informationen:**")
-        st.write(f"🔹 **Richtung:** {'🟢 LONG / CALL' if direction == 1 else '🔵 SHORT / PUT'}")
-        st.write(f"🔹 **Asset:** {TICKER_TO_NAME[sel]} ({sel})")
-        st.write(f"🔹 **Referenzkurs:** {det['cp']:.2f} €")
-        st.write(f"🔹 **Markt-Wetter:** {det['weather']} (Trend-Status)")
+    # --- VERBESSERTES ORDER TICKET ---
+    with st.expander("🛡️ Professionelles Risk-Shield Ticket", expanded=True):
+        st.write(f"### Strategie: {'Bullisch' if direction == 1 else 'Bearisch'} @ {det['cp']:.2f} €")
+        
+        col_risk1, col_risk2 = st.columns(2)
+        with col_risk1:
+            st.info(f"""
+            **Positionsaufbau:**
+            - **Kaufbetrag:** {position_size_euro:,.2f} €
+            - **Stückzahl (ca.):** {int(position_size_euro / det['cp'])} Stk.
+            - **Hebel-Limit:** x{min(smart_leverage, 10):.1f}
+            """)
+        
+        with col_risk2:
+            st.warning(f"""
+            **Exit-Plan:**
+            - **Hard Stop:** {sl_price:.2f} € (Sofortiger Ausstieg)
+            - **Kursziel:** {tp_price:.2f} €
+            - **CRV:** 2.0 (Chance-Risiko-Verhältnis)
+            """)
 
-    with col_o2:
-        st.markdown("**Derivate-Parameter:**")
-        st.write(f"🎯 **Ziel-Hebel:** x{opt_h:.1f}")
-        st.write(f"🛑 **Stop-Loss (Basis):** {sl:.2f} €")
-        st.write(f"🏁 **Kursziel (Basis):** {tp:.2f} €")
-        st.write(f"⏳ **Haltedauer:** 3 - 5 Handelstage")
-
-    st.markdown("---")
-    
-    # Strategische Handlungsanweisung
-    st.info(f"""
-    **Strategie-Check & Execution:**
-    1. **Einstieg:** Markt-Order bei Bestätigung des Signals durch das aktuelle Wetter {det['weather']}.
-    2. **Risiko-Limit:** Der gewählte Hebel von x{opt_h:.1f} begrenzt das Verlustrisiko im Derivat auf ca. 25%, 
-       sollte der Stop-Loss bei {sl:.2f} € erreicht werden.
-    3. **Exit-Logik:** Position glattstellen bei Erreichen des Kursziels ({tp:.2f} €) oder nach Ablauf von 5 Handelstagen, 
-       falls der Trend stagniert.
-    """)
-    
-    # Optional: Ein Button zum schnellen Kopieren der wichtigsten Werte
-    order_text = f"ORDER: {TICKER_TO_NAME[sel]} | {('CALL' if direction==1 else 'PUT')} | Hebel x{opt_h:.1f} | SL: {sl:.2f} | TP: {tp:.2f}"
-    st.code(order_text, language="text")
-    
-    
-    with st.expander("📝 Bestellung"):
-        st.write(f"**Basis:** {sel} | **Kurs:** {det['cp']:.2f} € | **Hebel:** x{opt_h:.1f} | **SL:** {sl:.2f} €")
-    fig = go.Figure(data=[go.Candlestick(x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'])])
-    fig.add_hline(y=sl, line_dash="dash", line_color="red", annotation_text="SL")
-    fig.update_layout(height=450, template="plotly_dark", xaxis_rangeslider_visible=False)
-    st.plotly_chart(fig, use_container_width=True)
+        # Dynamischer Warnhinweis
+        if risk_pct > 0.10:
+            st.error("⚠️ WARNUNG: Extrem hohe Volatilität. Positionsgröße reduzieren!")
