@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-# import finnhub as fh
-import yfinance as yf
+import finnhub as fh
+finnhub_client = finnhub.Client(api_key=api_key)
+#import yfinance as yf
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
@@ -84,7 +85,7 @@ def get_logic_icons(chg):
 @st.cache_data(ttl=300)
 def get_live_data(ticker, period="60d", interval="1d"):
     try:
-        df = yf.download(ticker, period=period, interval=interval, progress=False)
+        df = fh.download(ticker, period=period, interval=interval, progress=False)
         return df if not df.empty else None
     except: return None
 
