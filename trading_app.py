@@ -149,9 +149,6 @@ if rank_list:
 
 # --- 6. DETAIL & ORDER ---
 st.divider()
-reg = st.radio("Region:", ["DE", "US", "EU"], horizontal=True)
-sel = st.selectbox("Aktie:", list(ASSETS[reg].keys()), format_func=lambda x: ASSETS[reg][x])
-df_sel = get_live_data(sel)
 if sel in all_data:
     df_sel = all_data[sel]
     det = analyze_swing(sel, df_sel)
