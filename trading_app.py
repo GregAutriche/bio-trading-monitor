@@ -252,10 +252,79 @@ if df_sel is not None and len(df_sel) > 20:
         order_text = f"ORDER: {TICKER_TO_NAME[sel]} | {('CALL' if direction==1 else 'PUT')} | Hebel x{opt_h:.1f} | SL: {sl:.2f} | TP: {tp:.2f}"
         st.code(order_text, language="text")
         
-    with st.expander("📝 Bestellung"):
-        st.write(f"**Basis:** {sel} | **Kurs:** {det['cp']:.2f} € | **Hebel:** x{opt_h:.1f} | **SL:** {sl:.2f} €")
-        fig = go.Figure(data=[go.Candlestick(x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'])])
-        fig.add_hline(y=sl, line_dash="dash", line_color="red", annotation_text="SL")
-        fig.add_hline(y=tp, line_dash="dash", line_color="green", annotation_text="TP")
-        fig.update_layout(height=450, template="plotly_dark", xaxis_rangeslider_visible=False)
+# --- AB HIER ERSETZEN: VISUALISIERUNG & TRADING-LOGBUCH ---
+    with st.expander("📊 Chart-Analyse & RSI", expanded=True):
+        st.write(f"**Basis:** {sel} | **Kurs:** {det['cp']:.2f} € | **Hebel:** x{opt_h:.1f}")
+        
+        # Subplots erstellen: Oben Candlesticks, Unten RSI
+        from plotly.subplots import make_subplots
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
+                            vertical_spacing=0.05, row_heights=[0.7, 0.3])
+        
+        # 1. Candlestick-Chart (Oben)
+        fig.add_trace(go.Candlestick(
+            x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], 
+            low=det['df']['Low'], close=det['df']['Close'], name="Kurs"
+        ), row=1, col=1)
+        
+        # Indikatoren-Linien im Hauptchart
+        fig.add_trace(go.Scatter(x=det['df'].index, y=det['df']['SMA20'], name="SMA 20", line=dict(color='orange', width=1)), row=1, col=1)
+        fig.add_trace(go.Scatter(x=det['df'].index, y=det['df']['SMA200'], name="SMA 200", line=dict(color='magenta', width=1.5)), row=1, col=1)
+        
+        # Stop-Loss und Take-Profit Linien
+        fig.add_hline(y=sl, line_dash="dash", line_color="red", annotation_text="SL", row=1, col=1)
+        fig.add_hline(y=tp, line_dash="dash", line_color="green", annotation_text="TP", row=1, col=1)
+        
+        # 2. RSI-Chart (Unten)
+        fig.add_trace(go.Scatter(x=det['df'].index, y=det['df']['RSI'], name="RSI (14)", line=dict(color='cyan', width=1.5)), row=2, col=1)
+        
+        # RSI Schwellenwerte (30, 50, 70 oder deine Logik 45/55)
+        fig.add_hline(y=70, line_dash="dot", line_color="gray", row=2, col=1)
+        fig.add_hline(y=50, line_dash="dash", line_color="dimgray", row=2, col=1)
+        fig.add_hline(y=30, line_dash="dot", line_color="gray", row=2, col=1)
+        
+        fig.update_layout(height=600, template="plotly_dark", xaxis_rangeslider_visible=False)
         st.plotly_chart(fig, use_container_width=True)
+
+    # --- NEU: VIRTUELLES LOGBUCH & BACKTEST-SIMULATOR ---
+    st.divider()
+    st.subheader("📓 Virtuelles Trading-Logbuch")
+    
+    # Session State für das Logbuch initialisieren falls nicht vorhanden
+    if 'trading_journal' not in st.session_state:
+        st.session_state['trading_journal'] = []
+        
+    log_c1, log_c2 = st.columns([1, 2])
+    
+    with log_c1:
+        st.markdown("**Trade zu Logbuch hinzufügen:**")
+        position_size = st.number_input("Einsatz (€):", value=500, step=50)
+        
+        if st.button("🚀 Position simulieren & loggen"):
+            new_trade = {
+                "Datum": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "Asset": TICKER_TO_NAME[sel],
+                "Ticker": sel,
+                "Typ": 'CALL (Long)' if direction == 1 else 'PUT (Short)',
+                "Einstieg (€)": round(det['cp'], 2),
+                "Hebel": round(opt_h, 1),
+                "Stop-Loss (€)": round(sl, 2),
+                "Take-Profit (€)": round(tp, 2),
+                "Einsatz (€)": position_size,
+                "Status": "Offen ⏳"
+            }
+            st.session_state['trading_journal'].append(new_trade)
+            st.success(f"Erfolgreich geloggt: {TICKER_TO_NAME[sel]} {new_trade['Typ']}")
+
+    with log_c2:
+        st.markdown("**Aktive & Vergangene Simulationen:**")
+        if st.session_state['trading_journal']:
+            journal_df = pd.DataFrame(st.session_state['trading_journal'])
+            st.dataframe(journal_df, use_container_width=True)
+            
+            if st.button("🗑️ Logbuch zurücksetzen"):
+                st.session_state['trading_journal'] = []
+                st.rerun()
+        else:
+            st.info("Noch keine simulierten Trades im Logbuch vorhanden. Nutze den Button links, um Starbucks oder andere Signale zu testen!")
+   
