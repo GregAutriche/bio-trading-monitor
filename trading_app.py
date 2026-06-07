@@ -70,6 +70,7 @@ ALL_TICKERS = list(TICKER_TO_NAME.keys())
 INDEX_MAP = {"^GDAXI": "DAX", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50"}
 
 # --- 2. SICHERHEITS-FUNKTIONEN (Verhindert den ValueError) ---
+# --- 2. SICHERHEITS-FUNKTIONEN & INDIKATOREN ---
 def safe_float(val):
     """Extrahiert sicher einen einzelnen Float-Wert aus Series oder Arrays."""
     if isinstance(val, (pd.Series, np.ndarray, pd.DataFrame)):
@@ -77,32 +78,64 @@ def safe_float(val):
     return float(val)
 
 def get_logic_icons(chg):
-    chg = safe_float(chg) # Sicherstellen, dass chg eine Zahl ist
-    weather = "☀️" if chg > 0.5 else "⛈️" if chg < -0.5 else "☁️"
-    dot = "🟢" if chg > 0.4 else "🔵" if chg < -0.4 else "⚪"
+    chg = safe_float(chg)
+    weather = "☀️" if chg > 0.5 else "⛈️" if chg < -0.5 else "☁️" 
+    dot = "🟢" if chg > 0.4 else "🔴" if chg < -0.4 else "⚪"
     return weather, dot
+
+def calculate_rsi(df, periods=14):
+    """Berechnet den Relative Strength Index (RSI)."""
+    delta = df['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=periods).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=periods).mean()
+    rs = gain / loss
+    return 100 - (100 / (1:rs))
 
 @st.cache_data(ttl=300)
 def get_live_data(ticker, period="60d", interval="1d"):
     try:
         df = yf.download(ticker, period=period, interval=interval, progress=False)
         return df if not df.empty else None
-    except: return None
+    except: 
+        return None
 
 def analyze_swing(ticker, df):
     cp = safe_float(df['Close'].iloc[-1])
-    # 3-Tage Änderung (Swing)
     prev_3d = safe_float(df['Close'].iloc[-4])
     chg_3d = ((cp / prev_3d) - 1) * 100
     
+    # 1. Volatilität (ATR)
     df['TR'] = np.maximum(df['High'] - df['Low'], np.maximum(abs(df['High'] - df['Close'].shift(1)), abs(df['Low'] - df['Close'].shift(1))))
     atr = safe_float(df['TR'].tail(14).mean())
-    df['SMA20'] = df['Close'].rolling(window=20).mean()
-    is_bullish = cp > safe_float(df['SMA20'].iloc[-1])
     
+    # 2. Trend & Momentum-Filter (SMA200 & RSI)
+    df['SMA20'] = df['Close'].rolling(window=20).mean()
+    df['SMA200'] = df['Close'].rolling(window=200).mean() if len(df) >= 200 else df['Close'].rolling(window=20).mean()
+    df['RSI'] = calculate_rsi(df)
+    
+    last_rsi = safe_float(df['RSI'].iloc[-1])
+    is_bullish = cp > safe_float(df['SMA20'].iloc[-1])
+    market_trend_long = cp > safe_float(df['SMA200'].iloc[-1])
+    
+    # NEUE STRATEGIE: Swing-Trading sucht Mean Reversion (Überverkauft im Bullenmarkt)
+    # Ein CALL wird generiert, wenn die Aktie im langfristigen Aufwärtstrend korrigiert (RSI < 45)
+    # Ein PUT wird generiert, wenn die Aktie im langfristigen Abwärtstrend überhitzt ist (RSI > 55)
+    if market_trend_long and last_rsi < 45:
+        direction = 1  # CALL
+        chance = 65.0 + (abs(50 - last_rsi) * 0.5)
+    elif not market_trend_long and last_rsi > 55:
+        direction = -1 # PUT
+        chance = 60.0 + (abs(last_rsi - 50) * 0.5)
+    else:
+        direction = 1 if chg_3d > 0 else -1
+        chance = 45.0 + (abs(chg_3d) * 0.2) # Geringere Wahrscheinlichkeit für reines Rauschen
+        
     weather, dot = get_logic_icons(chg_3d)
-    chance = round(50.0 + (15 if is_bullish else -10) + (abs(chg_3d) * 0.8), 2)
-    return {"cp": cp, "chg_3d": chg_3d, "atr": atr, "weather": weather, "dot": dot, "chance": chance, "df": df}
+    
+    return {
+        "cp": cp, "chg_3d": chg_3d, "atr": atr, "weather": weather, 
+        "dot": dot, "chance": chance, "direction": direction, "df": df
+    }
 
 # --- 3. HEADER: EUR/USD ---
 eurusd_df = get_live_data("EURUSD=X", period="5d")
@@ -126,24 +159,29 @@ for i in range(3):
         r1[i].metric(f"{w} {INDEX_MAP[sym]}", f"{cp:,.2f}", f"{dot} {chg:.2f}%", delta_color="normal" if chg >= 0 else "inverse")
 
 r2 = st.columns(3)
-for i in range(3, 5):
+# Dynamischer Schutz gegen Index-Länge
+available_indices = len(idx_keys)
+for i in range(3, min(6, available_indices)):
     sym = idx_keys[i]; df = get_live_data(sym, period="5d")
     if df is not None:
         cp = safe_float(df['Close'].iloc[-1]); prev = safe_float(df['Close'].iloc[-2])
         chg = ((cp / prev) - 1) * 100; w, dot = get_logic_icons(chg)
         r2[i-3].metric(f"{w} {INDEX_MAP[sym]}", f"{cp:,.2f}", f"{dot} {chg:.2f}%", delta_color="normal" if chg >= 0 else "inverse")
-
 st.divider()
 
 # --- 5. TOP 7 CHANCEN ---
 rank_list = []
 for t in ALL_TICKERS:
-    df = get_live_data(t)
-    if df is not None:
+    df = get_live_data(t, period="200d") # Erhöht auf 200d für SMA200-Berechnung
+    if df is not None and len(df) > 20:
         res = analyze_swing(t, df)
-        rank_list.append({"Aktie": f"{res['weather']} {TICKER_TO_NAME[t]}", "Signal": f"{res['dot']} {'CALL' if res['chg_3d'] > 0 else 'PUT'}", 
-                          "Wahrscheinlichkeit (%)": f"{res['chance']:.2f}", "Trend 3D": f"{res['chg_3d']:.2f}%", "Kurs": f"{res['cp']:.2f} €"})
-
+        rank_list.append({
+            "Aktie": f"{res['weather']} {TICKER_TO_NAME[t]}", 
+            "Signal": f"{res['dot']} {'CALL' if res['direction']==1 else 'PUT'}", 
+            "Wahrscheinlichkeit (%)": f"{res['chance']:.2f}", 
+            "Trend 3D": f"{res['chg_3d']:.2f}%", 
+            "Kurs": f"{res['cp']:.2f} €"
+        })
 if rank_list:
     st.table(pd.DataFrame(rank_list).sort_values(by="Wahrscheinlichkeit (%)", ascending=False).head(7))
 
@@ -151,60 +189,61 @@ if rank_list:
 st.divider()
 reg = st.radio("Region:", ["DE", "US", "EU"], horizontal=True)
 sel = st.selectbox("Aktie:", list(ASSETS[reg].keys()), format_func=lambda x: ASSETS[reg][x])
-df_sel = get_live_data(sel)
-if df_sel is not None:
+df_sel = get_live_data(sel, period="200d")
+
+if df_sel is not None and len(df_sel) > 20:
     det = analyze_swing(sel, df_sel)
-    direction = 1 if det['chg_3d'] > 0 else -1
-    sl = det['cp'] - (2.0 * det['atr'] * direction)
-    tp = det['cp'] + (4.0 * det['atr'] * direction)
-    dist = abs((sl / det['cp']) - 1); opt_h = 0.25 / dist if dist > 0 else 1.0
+    direction = det['direction']
+    
+    # Mathematisch korrekte SL/TP-Logik für Long UND Short
+    if direction == 1:
+        sl = det['cp'] - (2.0 * det['atr'])
+        tp = det['cp'] + (4.0 * det['atr']) # Ergibt CRV von 2:1
+    else:
+        sl = det['cp'] + (2.0 * det['atr'])
+        tp = det['cp'] - (4.0 * det['atr']) # Ergibt CRV von 2:1
+        
+    dist = abs((sl / det['cp']) - 1)
+    opt_h = 0.20 / dist if dist > 0 else 1.0 # Konservativerer Hebel-Faktor (Max 20% Derivatrisiko)
+    
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("SIGNAL", f"{det['dot']} {'CALL' if direction==1 else 'PUT'}", f"Wetter: {det['weather']}")
     c2.metric("STOP-LOSS", f"{sl:.2f} €", f"{dist*100:.2f}% Puffer")
     c3.metric("SMART HEBEL", f"x{opt_h:.1f}")
     c4.metric("WAHRSCH. (%)", f"{det['chance']:.2f}")
-
-# --- DETAILLIERTE BESTELLUNG (ORDER-EXTENDER) ---
-with st.expander("📝 Detaillierte Handelsanweisung (Broker-Ready)", expanded=True):
-    st.markdown(f"### 🛒 Order-Ticket: {TICKER_TO_NAME[sel]}")
     
-    # Unterteilung in zwei Spalten für bessere Lesbarkeit im Dashboard
-    col_o1, col_o2 = st.columns(2)
-    
-    with col_o1:
-        st.markdown("**Basis-Informationen:**")
-        st.write(f"🔹 **Richtung:** {'🟢 LONG / CALL' if direction == 1 else '🔵 SHORT / PUT'}")
-        st.write(f"🔹 **Asset:** {TICKER_TO_NAME[sel]} ({sel})")
-        st.write(f"🔹 **Referenzkurs:** {det['cp']:.2f} €")
-        st.write(f"🔹 **Markt-Wetter:** {det['weather']} (Trend-Status)")
-
-    with col_o2:
-        st.markdown("**Derivate-Parameter:**")
-        st.write(f"🎯 **Ziel-Hebel:** x{opt_h:.1f}")
-        st.write(f"🛑 **Stop-Loss (Basis):** {sl:.2f} €")
-        st.write(f"🏁 **Kursziel (Basis):** {tp:.2f} €")
-        st.write(f"⏳ **Haltedauer:** 3 - 5 Handelstage")
-
-    st.markdown("---")
-    
-    # Strategische Handlungsanweisung
-    st.info(f"""
-    **Strategie-Check & Execution:**
-    1. **Einstieg:** Markt-Order bei Bestätigung des Signals durch das aktuelle Wetter {det['weather']}.
-    2. **Risiko-Limit:** Der gewählte Hebel von x{opt_h:.1f} begrenzt das Verlustrisiko im Derivat auf ca. 25%, 
-       sollte der Stop-Loss bei {sl:.2f} € erreicht werden.
-    3. **Exit-Logik:** Position glattstellen bei Erreichen des Kursziels ({tp:.2f} €) oder nach Ablauf von 5 Handelstagen, 
-       falls der Trend stagniert.
-    """)
-    
-    # Optional: Ein Button zum schnellen Kopieren der wichtigsten Werte
-    order_text = f"ORDER: {TICKER_TO_NAME[sel]} | {('CALL' if direction==1 else 'PUT')} | Hebel x{opt_h:.1f} | SL: {sl:.2f} | TP: {tp:.2f}"
-    st.code(order_text, language="text")
-    
-    
+    with st.expander("📝 Detaillierte Handelsanweisung (Broker-Ready)", expanded=True):
+        st.markdown(f"### Order-Ticket: {TICKER_TO_NAME[sel]}")
+        col_o1, col_o2 = st.columns(2)
+        
+        with col_o1:
+            st.markdown("**Basis-Informationen:**")
+            st.write(f"🔹 **Richtung:** {'🟢 LONG / CALL' if direction == 1 else '🔵 SHORT / PUT'}")
+            st.write(f"🔹 **Asset:** {TICKER_TO_NAME[sel]} ({sel})")
+            st.write(f"🔹 **Referenzkurs:** {det['cp']:.2f} €")
+            st.write(f"🔹 **Markt-Wetter:** {det['weather']}")
+        with col_o2:
+            st.markdown("**Derivate-Parameter:**")
+            st.write(f"🎯 **Ziel-Hebel:** x{opt_h:.1f}")
+            st.write(f"🛑 **Stop-Loss (Basis):** {sl:.2f} €")
+            st.write(f"🏁 **Kursziel (Basis):** {tp:.2f} €")
+            st.write(f"⏳ **Haltedauer:** 3 - 5 Handelstage")
+        st.markdown("---")
+        
+        st.info(f"""
+        **Strategie-Check & Execution:**
+        1. **Einstieg:** Limit- oder Markt-Order. Das Signal basiert auf einer statistischen Überdehnung (RSI).
+        2. **Risiko-Limit:** Der Hebel von x{opt_h:.1f} stellt sicher, dass deine Position bei Erreichen des Stop-Loss geschützt bleibt.
+        3. **Exit-Logik:** Konsequent glattstellen bei {tp:.2f} € oder {sl:.2f} €. Keine emotionalen Anpassungen!
+        """)
+        
+        order_text = f"ORDER: {TICKER_TO_NAME[sel]} | {('CALL' if direction==1 else 'PUT')} | Hebel x{opt_h:.1f} | SL: {sl:.2f} | TP: {tp:.2f}"
+        st.code(order_text, language="text")
+        
     with st.expander("📝 Bestellung"):
         st.write(f"**Basis:** {sel} | **Kurs:** {det['cp']:.2f} € | **Hebel:** x{opt_h:.1f} | **SL:** {sl:.2f} €")
-    fig = go.Figure(data=[go.Candlestick(x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'])])
-    fig.add_hline(y=sl, line_dash="dash", line_color="red", annotation_text="SL")
-    fig.update_layout(height=450, template="plotly_dark", xaxis_rangeslider_visible=False)
-    st.plotly_chart(fig, use_container_width=True)
+        fig = go.Figure(data=[go.Candlestick(x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'])])
+        fig.add_hline(y=sl, line_dash="dash", line_color="red", annotation_text="SL")
+        fig.add_hline(y=tp, line_dash="dash", line_color="green", annotation_text="TP")
+        fig.update_layout(height=450, template="plotly_dark", xaxis_rangeslider_visible=False)
+        st.plotly_chart(fig, use_container_width=True)
