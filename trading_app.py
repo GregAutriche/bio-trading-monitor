@@ -170,19 +170,25 @@ for i in range(3, min(6, available_indices)):
 st.divider()
 
 # --- 5. TOP 7 CHANCEN ---
+# --- 5. TOP 7 CHANCEN ---
 rank_list = []
 for t in ALL_TICKERS:
-    df = get_live_data(t, period="200d") # Erhöht auf 200d für SMA200-Berechnung
+    df = get_live_data(t, period="200d") 
     if df is not None and len(df) > 20:
         res = analyze_swing(t, df)
+        # NEU: Hole den aktuellen RSI-Wert für die Anzeige
+        last_rsi = safe_float(res['df']['RSI'].iloc[-1])
+        
         rank_list.append({
             "Aktie": f"{res['weather']} {TICKER_TO_NAME[t]}", 
             "Signal": f"{res['dot']} {'CALL' if res['direction']==1 else 'PUT'}", 
+            "RSI (14)": f"{last_rsi:.1f}", # NEUE SICHTBARE SPALTE
             "Wahrscheinlichkeit (%)": f"{res['chance']:.2f}", 
             "Trend 3D": f"{res['chg_3d']:.2f}%", 
             "Kurs": f"{res['cp']:.2f} €"
         })
 if rank_list:
+    # Sortierung nach Wahrscheinlichkeit
     st.table(pd.DataFrame(rank_list).sort_values(by="Wahrscheinlichkeit (%)", ascending=False).head(7))
 
 # --- 6. DETAIL & ORDER ---
