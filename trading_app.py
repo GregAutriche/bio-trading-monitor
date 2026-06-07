@@ -170,7 +170,6 @@ for i in range(3, min(6, available_indices)):
 st.divider()
 
 # --- 5. TOP 7 CHANCEN ---
-# --- 5. TOP 7 CHANCEN ---
 rank_list = []
 for t in ALL_TICKERS:
     df = get_live_data(t, period="200d") 
@@ -201,22 +200,29 @@ if df_sel is not None and len(df_sel) > 20:
     det = analyze_swing(sel, df_sel)
     direction = det['direction']
     
-    # Mathematisch korrekte SL/TP-Logik für Long UND Short
+    # Werte für die Anzeige extrahieren
+    last_rsi = safe_float(det['df']['RSI'].iloc[-1])
+    sma200_val = safe_float(det['df']['SMA200'].iloc[-1])
+    market_trend_long = det['cp'] > sma200_val
+    trend_status = "📈 Bullish (Über SMA200)" if market_trend_long else "📉 Bearish (Unter SMA200)"
+    
     if direction == 1:
         sl = det['cp'] - (2.0 * det['atr'])
-        tp = det['cp'] + (4.0 * det['atr']) # Ergibt CRV von 2:1
+        tp = det['cp'] + (4.0 * det['atr']) 
     else:
         sl = det['cp'] + (2.0 * det['atr'])
-        tp = det['cp'] - (4.0 * det['atr']) # Ergibt CRV von 2:1
+        tp = det['cp'] - (4.0 * det['atr']) 
         
     dist = abs((sl / det['cp']) - 1)
-    opt_h = 0.20 / dist if dist > 0 else 1.0 # Konservativerer Hebel-Faktor (Max 20% Derivatrisiko)
+    opt_h = 0.20 / dist if dist > 0 else 1.0 
     
-    c1, c2, c3, c4 = st.columns(4)
+    # NEU: Aufteilung in 5 Spalten statt 4 für maximale optische Transparenz
+    c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("SIGNAL", f"{det['dot']} {'CALL' if direction==1 else 'PUT'}", f"Wetter: {det['weather']}")
-    c2.metric("STOP-LOSS", f"{sl:.2f} €", f"{dist*100:.2f}% Puffer")
-    c3.metric("SMART HEBEL", f"x{opt_h:.1f}")
-    c4.metric("WAHRSCH. (%)", f"{det['chance']:.2f}")
+    c2.metric("MOMENTUM (RSI)", f"{last_rsi:.1f}", "Überverkauft < 45" if direction==1 else "Überkauft > 55")
+    c3.metric("STOP-LOSS", f"{sl:.2f} €", f"{dist*100:.2f}% Puffer")
+    c4.metric("SMART HEBEL", f"x{opt_h:.1f}")
+    c5.metric("WAHRSCH. (%)", f"{det['chance']:.2f}")
     
     with st.expander("📝 Detaillierte Handelsanweisung (Broker-Ready)", expanded=True):
         st.markdown(f"### Order-Ticket: {TICKER_TO_NAME[sel]}")
@@ -227,7 +233,7 @@ if df_sel is not None and len(df_sel) > 20:
             st.write(f"🔹 **Richtung:** {'🟢 LONG / CALL' if direction == 1 else '🔵 SHORT / PUT'}")
             st.write(f"🔹 **Asset:** {TICKER_TO_NAME[sel]} ({sel})")
             st.write(f"🔹 **Referenzkurs:** {det['cp']:.2f} €")
-            st.write(f"🔹 **Markt-Wetter:** {det['weather']}")
+            st.write(f"🔹 **Langzeittrend:** {trend_status}") # NEUE ANZEIGE IN DER NAVIGATION
         with col_o2:
             st.markdown("**Derivate-Parameter:**")
             st.write(f"🎯 **Ziel-Hebel:** x{opt_h:.1f}")
@@ -238,9 +244,9 @@ if df_sel is not None and len(df_sel) > 20:
         
         st.info(f"""
         **Strategie-Check & Execution:**
-        1. **Einstieg:** Limit- oder Markt-Order. Das Signal basiert auf einer statistischen Überdehnung (RSI).
-        2. **Risiko-Limit:** Der Hebel von x{opt_h:.1f} stellt sicher, dass deine Position bei Erreichen des Stop-Loss geschützt bleibt.
-        3. **Exit-Logik:** Konsequent glattstellen bei {tp:.2f} € oder {sl:.2f} €. Keine emotionalen Anpassungen!
+        1. **Einstieg:** Signal basiert auf RSI ({last_rsi:.1f}) im Kontext des Langzeittrends ({trend_status}).
+        2. **Risiko-Limit:** Der Hebel von x{opt_h:.1f} basiert auf der ATR-Volatilität ({det['atr']:.2f} €).
+        3. **Exit-Logik:** Konsequent glattstellen bei {tp:.2f} € (Ziel) oder {sl:.2f} € (Stopp).
         """)
         
         order_text = f"ORDER: {TICKER_TO_NAME[sel]} | {('CALL' if direction==1 else 'PUT')} | Hebel x{opt_h:.1f} | SL: {sl:.2f} | TP: {tp:.2f}"
