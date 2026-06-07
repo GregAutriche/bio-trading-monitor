@@ -70,6 +70,27 @@ ALL_TICKERS = list(TICKER_TO_NAME.keys())
 INDEX_MAP = {"^GDAXI": "DAX", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50"}
 
 # --- 2. SICHERHEITS-FUNKTIONEN (Verhindert den ValueError) ---
+def check_market_regime(ticker="^GSPC"):
+    """Prüft, ob der Gesamtmarkt im Bullen- oder Bärenmarkt ist."""
+    data = yf.download(ticker, period="1y", interval="1d")
+    if data.empty:
+        return True # Fallback
+    
+    # Berechnung des 200-Tage-Durchschnitts
+    data['EMA200'] = data['Close'].ewm(span=200, adjust=False).mean()
+    
+    last_close = data['Close'].iloc[-1]
+    last_ema = data['EMA200'].iloc[-1]
+    
+    # Gibt True zurück, wenn der Kurs ÜBER dem EMA200 steht (Bullenmarkt)
+    return bool(last_close > last_ema)
+
+# Nutzung im Dashboard
+market_is_bullish = check_market_regime("^GSPC")
+
+if not market_is_bullish:
+    st.warning("⚠️ ACHTUNG: Der Gesamtmarkt befindet sich im Abwärtstrend. Erhöhe die Cash-Quote oder filtere Long-Signale strenger!")
+
 def safe_float(val):
     """Extrahiert sicher einen einzelnen Float-Wert aus Series oder Arrays."""
     if isinstance(val, (pd.Series, np.ndarray, pd.DataFrame)):
