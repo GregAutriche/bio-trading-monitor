@@ -89,7 +89,7 @@ def calculate_rsi(df, periods=14):
     gain = (delta.where(delta > 0, 0)).rolling(window=periods).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=periods).mean()
     rs = gain / loss
-    return 100 - (100 / (1:rs))
+    return 100 - (100 / (1 + rs))
 
 @st.cache_data(ttl=300)
 def get_live_data(ticker, period="60d", interval="1d"):
