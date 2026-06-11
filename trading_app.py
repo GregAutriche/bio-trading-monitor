@@ -4,8 +4,7 @@ import numpy as np
 import yfinance as yf
 import plotly.graph_objects as go
 
-# --- 1. KONFIGURATION & UNTERNEHMENSLISTE ---
-st.set_page_config(page_title="Live Market-Maker Flow Monitor", layout="wide")
+st.set_page_config(page_title="Market-Maker Flow Monitor", layout="wide")
 
 # Komprimierte Asset-Auswahl, um das API-Limit von Yahoo Finance zu schonen
 ASSETS = {
@@ -35,16 +34,10 @@ def safe_float(val):
         return float(val.iloc[-1]) if hasattr(val, 'iloc') else float(val)
     return float(val)
 
-def get_logic_icons(chg):
-    chg = safe_float(chg)
-    weather = "☀️" if chg > 0.5 else "⛈️" if chg < -0.5 else "☁️"
-    dot = "🟢" if chg > 0.4 else "🔴" if chg < -0.4 else "⚪"
-    return weather, dot
-
 @st.cache_data(ttl=300)
-def get_live_data(ticker, period="60d", interval="1d"):
+def get_live_data(ticker):
     try:
-        df = yf.download(ticker, period=period, interval=interval, progress=False, multi_level_index=False)
+        df = yf.download(ticker, period="60d", interval="1d", progress=False, multi_level_index=False)
         if df is not None and not df.empty:
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
@@ -53,139 +46,62 @@ def get_live_data(ticker, period="60d", interval="1d"):
     except:
         return None
 
-# --- 3. CORE LOGIC: MARKET MAKER & INSTITUTIONAL FLOW ---
 def analyze_market_maker_flow(ticker, df):
     cp = safe_float(df['Close'].iloc[-1])
     prev_3d = safe_float(df['Close'].iloc[-4])
     chg_3d = ((cp / prev_3d) - 1) * 100
-    
-    # 1. Volatilität (ATR)
     df['TR'] = np.maximum(df['High'] - df['Low'], np.maximum(abs(df['High'] - df['Close'].shift(1)), abs(df['Low'] - df['Close'].shift(1))))
     atr = safe_float(df['TR'].tail(14).mean())
-    
-    # 2. Institutionelles Volumen tracken
     df['Vol_SMA20'] = df['Volume'].rolling(window=20).mean()
-    current_vol = safe_float(df['Volume'].iloc[-1])
-    avg_vol = safe_float(df['Vol_SMA20'].iloc[-1])
-    high_volume_break = current_vol > (avg_vol * 1.3)
-    
-    # 3. Liquiditäts-Pools definieren (20-Tage Extremwerte)
+    high_volume_break = safe_float(df['Volume'].iloc[-1]) > (safe_float(df['Vol_SMA20'].iloc[-1]) * 1.3)
     liquidity_pool_high = safe_float(df['High'].tail(20).max())
     liquidity_pool_low = safe_float(df['Low'].tail(20).min())
-    
     dist_to_low = (cp - liquidity_pool_low) / cp
     dist_to_high = (liquidity_pool_high - cp) / cp
     
-    # Signal-Entscheidung
     if dist_to_low < 0.02 and high_volume_break:
-        direction = 1  
-        chance = 75.0 + (abs(chg_3d) * 0.1)
-        signal_type = "Liquidity Grab (Buy)"
+        direction, chance, signal_type = 1, 75.0, "Liquidity Grab (Buy)"
     elif dist_to_high < 0.02 and high_volume_break:
-        direction = -1  
-        chance = 70.0 + (abs(chg_3d) * 0.1)
-        signal_type = "Liquidity Grab (Sell)"
+        direction, chance, signal_type = -1, 70.0, "Liquidity Grab (Sell)"
     else:
-        direction = 1 if chg_3d > 0 else -1
-        chance = 45.0 + (abs(chg_3d) * 0.2)
-        signal_type = "Standard Order Flow"
-        
-    weather, dot = get_logic_icons(chg_3d)
+        direction, chance, signal_type = (1, 45.0, "Standard Order Flow") if chg_3d > 0 else (-1, 45.0, "Standard Order Flow")
     
-    return {
-        "cp": cp, "chg_3d": chg_3d, "atr": atr, "weather": weather, 
-        "dot": dot, "chance": chance, "direction": direction, "df": df,
-        "pool_high": liquidity_pool_high, "pool_low": liquidity_pool_low, "type": signal_type
-    }
+    return {"cp": cp, "atr": atr, "chance": chance, "direction": direction, "df": df, "pool_high": liquidity_pool_high, "pool_low": liquidity_pool_low, "type": signal_type}
 
-# --- 4. HEADER: FX INDIKATION ---
-eurusd_df = get_live_data("EURUSD=X", period="5d")
+st.subheader("🌐 Markt-Indikation")
+eurusd_df = get_live_data("EURUSD=X")
 if eurusd_df is not None:
-    cp = safe_float(eurusd_df['Close'].iloc[-1])
-    prev = safe_float(eurusd_df['Close'].iloc[-2])
-    chg = ((cp / prev) - 1) * 100
-    w, dot = get_logic_icons(chg)
-    st.markdown(f"<h1 style='text-align: center; color: #5DADE2;'>{w} EUR / USD: {cp:.5f} {dot}</h1>", unsafe_allow_html=True)
+    st.metric("EUR / USD", f"{safe_float(eurusd_df['Close'].iloc[-1]):.5f}")
 
 st.divider()
 
-# --- 5. GLOBALE INDIZES ---
-st.subheader("🌐 Globale Markt-Indikation")
-idx_keys = list(INDEX_MAP.keys())
-r1 = st.columns(3)
-for i in range(3):
-    sym = idx_keys[i]
-    df_idx = get_live_data(sym, period="5d")
-    if df_idx is not None:
-        cp = safe_float(df_idx['Close'].iloc[-1])
-        prev = safe_float(df_idx['Close'].iloc[-2])
-        chg = ((cp / prev) - 1) * 100
-        w, dot = get_logic_icons(chg)
-        r1[i].metric(f"{w} {INDEX_MAP[sym]}", f"{cp:,.2f}", f"{dot} {chg:.2f}%", delta_color="normal" if chg >= 0 else "inverse")
-
-st.divider()
-
-# --- 6. REGIONS-AUSWAHL & DETAIL-ANALYSE ---
-# Das Menü steuert direkt die Detail-Analyse an, um API-Anfragen zu sparen
 reg = st.radio("Region auswählen:", ["DE", "US", "EU"], horizontal=True)
 sel = st.selectbox("Aktie analysieren:", list(ASSETS[reg].keys()), format_func=lambda x: ASSETS[reg][x])
 
-# Definiere explizit 'df_sel' genau hier vor der Bedingung
-df_sel = get_live_data(sel, period="60d")
+# Das MUSS exakt hier vor Zeile 62 stehen
+df_sel = get_live_data(sel)
 
 if df_sel is not None and len(df_sel) > 20:
     det = analyze_market_maker_flow(sel, df_sel)
     direction = det['direction']
-    
-    if direction == 1:
-        sl = det['pool_low'] - (0.5 * det['atr'])
-        tp = det['pool_high']
-    else:
-        sl = det['pool_high'] + (0.5 * det['atr'])
-        tp = det['pool_low']
-        
+    sl = det['pool_low'] - (0.5 * det['atr']) if direction == 1 else det['pool_high'] + (0.5 * det['atr'])
+    tp = det['pool_high'] if direction == 1 else det['pool_low']
     dist = abs((sl / det['cp']) - 1)
     opt_h = 0.15 / dist if dist > 0 else 1.0
     
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("SETUP TYP", det['type'], f"Impuls: {det['weather']}")
-    c2.metric("MM-STOP-LOSS", f"{sl:.2f} €", f"{dist*100:.2f}% Zone")
-    c3.metric("INSTITUTIONELLER HEBEL", f"x{opt_h:.1f}")
+    c1.metric("SETUP TYP", det['type'])
+    c2.metric("MM-STOP-LOSS", f"{sl:.2f} €")
+    c3.metric("HEBEL", f"x{opt_h:.1f}")
     c4.metric("KONFIDENZ (%)", f"{det['chance']:.2f}")
     
-    with st.expander("📋 Detaillierte Handelsanweisung (Smart Money Execution)", expanded=True):
-        st.markdown(f"### Order-Ticket: {TICKER_TO_NAME[sel]}")
-        col_o1, col_o2 = st.columns(2)
-        
-        with col_o1:
-            st.markdown("**Basis-Informationen:**")
-            st.write(f"🔹 **Richtung:** {'LONG / CALL (Absorption)' if direction == 1 else 'SHORT / PUT (Distribution)'}")
-            st.write(f"🔹 **Asset / Ticker:** {TICKER_TO_NAME[sel]} ({sel})")
-            st.write(f"🔹 **Referenzkurs:** {det['cp']:.2f} €")
-            st.write(f"🔹 **Oberer Pool (Retail-Stops):** {det['pool_high']:.2f} €")
-            st.write(f"🔹 **Unterer Pool (Retail-Stops):** {det['pool_low']:.2f} €")
-        
-        with col_o2:
-            st.markdown("**Risiko- & Derivate-Parameter:**")
-            st.write(f"🎯 **Ziel-Hebel:** x{opt_h:.1f}")
-            st.write(f"🛑 **Stop-Loss (Hinter Struktur):** {sl:.2f} €")
-            st.write(f"🏁 **Kursziel (Gegenüberliegende Liquidität):** {tp:.2f} €")
-            st.write(f"⏳ **Erwartete Haltedauer:** 2 - 5 Handelstage")
-            
-        st.markdown("---")
-        order_text = f"ORDER: {TICKER_TO_NAME[sel]} | {('CALL_ABSORPTION' if direction==1 else 'PUT_DISTRIBUTION')} | Hebel x{opt_h:.1f} | SL: {sl:.2f} | TP: {tp:.2f}"
-        st.code(order_text, language="text")
-        
-    # CHART GENERIERUNG
-    fig = go.Figure(data=[go.Candlestick(
-        x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'], name="Kurs"
-    )])
+    fig = go.Figure(data=[go.Candlestick(x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'], name="Kurs")])
     fig.add_hline(y=det['pool_high'], line_dash="solid", line_color="orange", line_width=2, annotation_text="Retail Buy Stops")
     fig.add_hline(y=det['pool_low'], line_dash="solid", line_color="orange", line_width=2, annotation_text="Retail Sell Stops")
-    fig.add_hline(y=sl, line_dash="dash", line_color="red", line_width=1.5, annotation_text="Smart SL")
-    fig.add_hline(y=tp, line_dash="dash", line_color="green", line_width=1.5, annotation_text="Smart TP")
+    fig.add_hline(y=sl, line_dash="dash", line_color="red", annotation_text="Smart SL")
+    fig.add_hline(y=tp, line_dash="dash", line_color="green", annotation_text="Smart TP")
     fig.update_layout(height=500, template="plotly_dark", xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
-
 else:
-    st.error(f"⚠️ Keine Live-Daten für {TICKER_TO_NAME.get(sel, sel)} ({sel}) empfangen. Bitte überprüfe deine Internetverbindung oder versuche es gleich erneut.")
+    st.error("⚠️ Keine Live-Daten empfangen. Bitte lade die Seite neu.")
+    
