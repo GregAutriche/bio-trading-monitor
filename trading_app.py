@@ -81,9 +81,18 @@ def get_logic_icons(chg):
 @st.cache_data(ttl=300)
 def get_live_data(ticker, period="60d", interval="1d"):
     try:
-        df = yf.download(ticker, period=period, interval=interval, progress=False)
-        return df if not df.empty else None
-    except:
+        # multi_level_index=False zwingt yfinance zu klassischen, flachen Spalten
+        df = yf.download(ticker, period=period, interval=interval, progress=False, multi_level_index=False)
+        
+        if df is not None and not df.empty:
+            # Sicherheitsnetz: Falls Spalten trotzdem ein MultiIndex sind, plattmachen
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            return df
+        return None
+    except Exception as e:
+        # Hilfreich für das Streamlit-Protokoll im Hintergrund
+        print(f"Fehler beim Laden von {ticker}: {e}")
         return None
 
 # --- 3. CORE LOGIC: MARKET MAKER & INSTITUTIONAL FLOW ---
