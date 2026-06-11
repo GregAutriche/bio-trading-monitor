@@ -200,8 +200,64 @@ st.divider()
 reg = st.radio("Region auswählen:", ["DE", "US", "EU"], horizontal=True)
 sel = st.selectbox("Aktie analysieren:", list(ASSETS[reg].keys()), format_func=lambda x: ASSETS[reg][x])
 
-df_sel = get_live_data(sel, period="60d")
+ddf_sel = get_live_data(sel, period="60d")
+
 if df_sel is not None and len(df_sel) > 20:
     det = analyze_market_maker_flow(sel, df_sel)
     direction = det['direction']
     
+    # Smart-Money SL/TP Platzierung
+    if direction == 1:
+        sl = det['pool_low'] - (0.5 * det['atr'])
+        tp = det['pool_high']
+    else:
+        sl = det['pool_high'] + (0.5 * det['atr'])
+        tp = det['pool_low']
+        
+    dist = abs((sl / det['cp']) - 1)
+    opt_h = 0.15 / dist if dist > 0 else 1.0
+    
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("SETUP TYP", det['type'], f"Impuls: {det['weather']}")
+    c2.metric("MM-STOP-LOSS", f"{sl:.2f} €", f"{dist*100:.2f}% Zone")
+    c3.metric("INSTITUTIONELLER HEBEL", f"x{opt_h:.1f}")
+    c4.metric("KONFIDENZ (%)", f"{det['chance']:.2f}")
+    
+    with st.expander("📋 Detaillierte Handelsanweisung (Smart Money Execution)", expanded=True):
+        st.markdown(f"### Order-Ticket: {TICKER_TO_NAME[sel]}")
+        col_o1, col_o2 = st.columns(2)
+        
+        with col_o1:
+            st.markdown("**Basis-Informationen:**")
+            st.write(f"🔹 **Richtung:** {'LONG / CALL (Absorption)' if direction == 1 else 'SHORT / PUT (Distribution)'}")
+            st.write(f"🔹 **Asset / Ticker:** {TICKER_TO_NAME[sel]} ({sel})")
+            st.write(f"🔹 **Referenzkurs:** {det['cp']:.2f} €")
+            st.write(f"🔹 **Oberer Pool (Retail-Stops):** {det['pool_high']:.2f} €")
+            st.write(f"🔹 **Unterer Pool (Retail-Stops):** {det['pool_low']:.2f} €")
+        
+        with col_o2:
+            st.markdown("**Risiko- & Derivate-Parameter:**")
+            st.write(f"🎯 **Ziel-Hebel:** x{opt_h:.1f}")
+            st.write(f"🛑 **Stop-Loss (Hinter Struktur):** {sl:.2f} €")
+            st.write(f"🏁 **Kursziel (Gegenüberliegende Liquidität):** {tp:.2f} €")
+            st.write(f"⏳ **Erwartete Haltedauer:** 2 - 5 Handelstage")
+            
+        st.markdown("---")
+        order_text = f"ORDER: {TICKER_TO_NAME[sel]} | {('CALL_ABSORPTION' if direction==1 else 'PUT_DISTRIBUTION')} | Hebel x{opt_h:.1f} | SL: {sl:.2f} | TP: {tp:.2f}"
+        st.code(order_text, language="text")
+        
+    # CHART GENERIERUNG
+    fig = go.Figure(data=[go.Candlestick(
+        x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'], name="Kurs"
+    )])
+    fig.add_hline(y=det['pool_high'], line_dash="solid", line_color="orange", line_width=2, annotation_text="Retail Buy Stops")
+    fig.add_hline(y=det['pool_low'], line_dash="solid", line_color="orange", line_width=2, annotation_text="Retail Sell Stops")
+    fig.add_hline(y=sl, line_dash="dash", line_color="red", line_width=1.5, annotation_text="Smart SL")
+    fig.add_hline(y=tp, line_dash="dash", line_color="green", line_width=1.5, annotation_text="Smart TP")
+    fig.update_layout(height=500, template="plotly_dark", xaxis_rangeslider_visible=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+else:
+    # Das fängt die gähnende Leere ab und gibt sofort Feedback
+    st.error(f"⚠️ Keine Live-Daten für {ASSETS[reg][sel]} ({sel}) empfangen. Bitte überprüfe deine Internetverbindung oder versuche es in wenigen Sekunden erneut (Yahoo-Limit).")
+
