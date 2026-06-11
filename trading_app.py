@@ -198,10 +198,14 @@ st.divider()
 
 # --- 7. DETAIL-ANALYSE & INSTITUTIONELLES ORDER-TICKET ---
 reg = st.radio("Region auswählen:", ["DE", "US", "EU"], horizontal=True)
+
+# Hier wird 'sel' über das Auswahlmenü definiert
 sel = st.selectbox("Aktie analysieren:", list(ASSETS[reg].keys()), format_func=lambda x: ASSETS[reg][x])
 
-ddf_sel = get_live_data(sel, period="60d")
+# HIER WIRD 'df_sel' DEFINIERT - Das hat gefehlt und den NameError verursacht!
+df_sel = get_live_data(sel, period="60d")
 
+# Erst jetzt wird die Variable geprüft
 if df_sel is not None and len(df_sel) > 20:
     det = analyze_market_maker_flow(sel, df_sel)
     direction = det['direction']
@@ -258,6 +262,4 @@ if df_sel is not None and len(df_sel) > 20:
     st.plotly_chart(fig, use_container_width=True)
 
 else:
-    # Das fängt die gähnende Leere ab und gibt sofort Feedback
-    st.error(f"⚠️ Keine Live-Daten für {ASSETS[reg][sel]} ({sel}) empfangen. Bitte überprüfe deine Internetverbindung oder versuche es in wenigen Sekunden erneut (Yahoo-Limit).")
-
+    st.error(f"⚠️ Keine Live-Daten für {TICKER_TO_NAME.get(sel, sel)} ({sel}) empfangen. Bitte überprüfe deine Internetverbindung oder versuche es gleich erneut.")
