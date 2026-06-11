@@ -84,24 +84,67 @@ df_sel = get_live_data(sel)
 if df_sel is not None and len(df_sel) > 20:
     det = analyze_market_maker_flow(sel, df_sel)
     direction = det['direction']
-    sl = det['pool_low'] - (0.5 * det['atr']) if direction == 1 else det['pool_high'] + (0.5 * det['atr'])
-    tp = det['pool_high'] if direction == 1 else det['pool_low']
+    
+    # 1. Smart-Money SL/TP Platzierung
+    if direction == 1:
+        sl = det['pool_low'] - (0.5 * det['atr'])
+        tp = det['pool_high']
+    else:
+        sl = det['pool_high'] + (0.5 * det['atr'])
+        tp = det['pool_low']
+        
+    # 2. Hebel-Berechnung korrigieren (Mindestens Hebel x1.0 erzwingen)
     dist = abs((sl / det['cp']) - 1)
     opt_h = 0.15 / dist if dist > 0 else 1.0
+    if opt_h < 1.0:
+        opt_h = 1.0  # Verhindert Hebel unter x1
     
-    c1, c2, c3, c4 = st.columns(4)
+    # 3. UI-Spalten-Layout optimieren (Mehr Platz gegen das Abschneiden "Standar...")
+    c1, c2, c3, c4 = st.columns([1.5, 1, 1, 1])
     c1.metric("SETUP TYP", det['type'])
     c2.metric("MM-STOP-LOSS", f"{sl:.2f} €")
     c3.metric("HEBEL", f"x{opt_h:.1f}")
     c4.metric("KONFIDENZ (%)", f"{det['chance']:.2f}")
     
-    fig = go.Figure(data=[go.Candlestick(x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'], name="Kurs")])
+    # 4. Visueller Hinweis im Dashboard, falls kein aktiver Grab stattfindet
+    if "Standard" in det['type']:
+        st.warning("ℹ️ **Keine akute Liquiditäts-Jagd:** Der Kurs befindet sich in der normalen Handelsspanne. Es liegt kein extremes Übertreibungsmuster vor. Institutionelle Positionen werden aktuell nur im normalen Trendverlauf bedient.")
+    else:
+        st.success(f"🎯 **Achtung, Market Maker Aktivität!** Ein {det['type']} wurde detektiert. Die Institutionellen greifen an den Zonen an.")
+    
+    with st.expander("📋 Detaillierte Handelsanweisung (Smart Money Execution)", expanded=True):
+        st.markdown(f"### Order-Ticket: {TICKER_TO_NAME[sel]}")
+        col_o1, col_o2 = st.columns(2)
+        
+        with col_o1:
+            st.markdown("**Basis-Informationen:**")
+            st.write(f"🔹 **Richtung:** {'LONG / CALL (Absorption)' if direction == 1 else 'SHORT / PUT (Distribution)'}")
+            st.write(f"🔹 **Asset / Ticker:** {TICKER_TO_NAME[sel]} ({sel})")
+            st.write(f"🔹 **Referenzkurs:** {det['cp']:.2f} €")
+            st.write(f"🔹 **Oberer Pool (Retail-Stops):** {det['pool_high']:.2f} €")
+            st.write(f"🔹 **Unterer Pool (Retail-Stops):** {det['pool_low']:.2f} €")
+        
+        with col_o2:
+            st.markdown("**Risiko- & Derivate-Parameter:**")
+            st.write(f"🎯 **Ziel-Hebel:** x{opt_h:.1f}")
+            st.write(f"🛑 **Stop-Loss (Hinter Struktur):** {sl:.2f} €")
+            st.write(f"🏁 **Kursziel (Gegenüberliegende Liquidität):** {tp:.2f} €")
+            st.write(f"⏳ **Erwartete Haltedauer:** 2 - 5 Handelstage")
+            
+        st.markdown("---")
+        order_text = f"ORDER: {TICKER_TO_NAME[sel]} | {('CALL_ABSORPTION' if direction==1 else 'PUT_DISTRIBUTION')} | Hebel x{opt_h:.1f} | SL: {sl:.2f} | TP: {tp:.2f}"
+        st.code(order_text, language="text")
+        
+    # CHART GENERIERUNG
+    fig = go.Figure(data=[go.Candlestick(
+        x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'], name="Kurs"
+    )])
     fig.add_hline(y=det['pool_high'], line_dash="solid", line_color="orange", line_width=2, annotation_text="Retail Buy Stops")
     fig.add_hline(y=det['pool_low'], line_dash="solid", line_color="orange", line_width=2, annotation_text="Retail Sell Stops")
-    fig.add_hline(y=sl, line_dash="dash", line_color="red", annotation_text="Smart SL")
-    fig.add_hline(y=tp, line_dash="dash", line_color="green", annotation_text="Smart TP")
+    fig.add_hline(y=sl, line_dash="dash", line_color="red", line_width=1.5, annotation_text="Smart SL")
+    fig.add_hline(y=tp, line_dash="dash", line_color="green", line_width=1.5, annotation_text="Smart TP")
     fig.update_layout(height=500, template="plotly_dark", xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
+
 else:
-    st.error("⚠️ Keine Live-Daten empfangen. Bitte lade die Seite neu.")
-    
+    st.error(f"⚠️ Keine Live-Daten für {TICKER_TO_NAME.get(sel, sel)} ({sel}) empfangen. Bitte überprüfe deine Internetverbindung.")
