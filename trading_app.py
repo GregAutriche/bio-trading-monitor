@@ -1,150 +1,210 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+# import finnhub as fh
+# finnhub_client = finnhub.Client(api_key=api_key)
 import yfinance as yf
 import plotly.graph_objects as go
+from datetime import datetime, timedelta
 
-st.set_page_config(page_title="Market-Maker Flow Monitor", layout="wide")
+# --- 1. KONFIGURATION ---
+st.set_page_config(page_title="Live Swing-Monitor", layout="wide")
 
-# Komprimierte Asset-Auswahl, um das API-Limit von Yahoo Finance zu schonen
 ASSETS = {
-    "DE": {
-        "ADS.DE": "Adidas", "AIR.DE": "Airbus", "ALV.DE": "Allianz", "BAS.DE": "BASF",
-        "BAYN.DE": "Bayer", "BMW.DE": "BMW", "DBK.DE": "Deutsche Bank", "DTE.DE": "Deutsche Telekom",
-        "RHM.DE": "Rheinmetall", "SAP.DE": "SAP", "SIE.DE": "Siemens", "VOW3.DE": "Volkswagen"
-    },
-    "US": {
-        "AAPL": "Apple", "MSFT": "Microsoft", "GOOGL": "Alphabet", "AMZN": "Amazon", 
-        "META": "Meta", "NVDA": "Nvidia", "TSLA": "Tesla", "AMD": "AMD", 
-        "NFLX": "Netflix", "PLTR": "Palantir", "COST": "Costco", "WMT": "Walmart"
-    },
-    "EU": {
-        "AI.PA": "Air Liquide", "AIR.PA": "Airbus", "BNP.PA": "BNP Paribas", "MC.PA": "LVMH", 
-        "OR.PA": "L'Oréal", "TTE.PA": "TotalEnergies", "ASML.AS": "ASML Holding", "INGA.AS": "ING Groep",
-        "SAN.MC": "Banco Santander", "RACE.MI": "Ferrari", "UCG.MI": "UniCredit", "NOKIA.HE": "Nokia"
-    }
+    "DE": {"ADS.DE": "🇩🇪 Adidas", "AIR.DE": "🇩🇪 Airbus", "ALV.DE": "🇩🇪 Allianz", "BAS.DE": "🇩🇪 BASF",
+    "BAYN.DE": "🇩🇪 Bayer", "BEI.DE": "🇩🇪 Beiersdorf", "BMW.DE": "🇩🇪 BMW", "BNR.DE": "🇩🇪 Brenntag",
+    "CBK.DE": "🇩🇪 Commerzbank", "CON.DE": "🇩🇪 Continental", "1COV.DE": "🇩🇪 Covestro",
+    "DTG.DE": "🇩🇪 Daimler Truck", "DBK.DE": "🇩🇪 Deutsche Bank", "DB1.DE": "🇩🇪 Deutsche Börse",
+    "DHL.DE": "🇩🇪 DHL Group", "DTE.DE": "🇩🇪 Deutsche Telekom", "EOAN.DE": "🇩🇪 E.ON",
+    "FRE.DE": "🇩🇪 Fresenius", "FME.DE": "🇩🇪 Fresenius Medical Care", "G1A.DE": "🇩🇪 GEA Group", "HEI.DE": "🇩🇪 Heidelberg Materials", "HNR1.DE": "🇩🇪 Hannover Rück", "HEN3.DE": "🇩🇪 Henkel", "IFX.DE": "🇩🇪 Infineon", "MBG.DE": "🇩🇪 Mercedes-Benz", "MRK.DE": "🇩🇪 Merck",
+    "MTX.DE": "🇩🇪 MTU Aero Engines", "MUV2.DE": "🇩🇪 Münchener Rück", "PAH3.DE": "🇩🇪 Porsche SE",
+    "PUM.DE": "🇩🇪 Puma", "QIA.DE": "🇩🇪 Qiagen", "RHM.DE": "🇩🇪 Rheinmetall", "RWE.DE": "🇩🇪 RWE",
+    "SAP.DE": "🇩🇪 SAP", "SRT3.DE": "🇩🇪 Sartorius", "G24.DE": "🇩🇪 Scout24", "SIE.DE": "🇩🇪 Siemens", "ENR.DE": "🇩🇪 Siemens Energy", "SHL.DE": "🇩🇪 Siemens Healthineers", "SY1.DE": "🇩🇪 Symrise",
+    "TKA.DE": "🇩🇪 Thyssenkrupp", "VOW3.DE": "🇩🇪 Volkswagen", "VNA.DE": "🇩🇪 Vonovia", "ZAL.DE": "🇩🇪 Zalando"},
+
+    "US": {"AAPL": "🇺🇸 Apple", "MSFT": "🇺🇸 Microsoft", "GOOGL": "🇺🇸 Alphabet (A)", "GOOG": "🇺🇸 Alphabet (C)",
+    "AMZN": "🇺🇸 Amazon", "META": "🇺🇸 Meta", "NVDA": "🇺🇸 Nvidia", "TSLA": "🇺🇸 Tesla",
+    # Halbleiter & Hardware
+    "AMD": "🇺🇸 AMD", "AVGO": "🇺🇸 Broadcom", "INTC": "🇺🇸 Intel", "QCOM": "🇺🇸 Qualcomm", 
+    "TXN": "🇺🇸 Texas Instruments", "AMAT": "🇺🇸 Applied Materials", "LRCX": "🇺🇸 Lam Research",
+    "MU": "🇺🇸 Micron", "ADI": "🇺🇸 Analog Devices", "KLAC": "🇺🇸 KLA Corp", "ASML": "🇺🇸 ASML (ADS)",
+    "ARM": "🇺🇸 ARM Holdings", "MPWR": "🇺🇸 Monolithic Power", "STX": "🇺🇸 Seagate", "WDC": "🇺🇸 Western Digital",
+    # Software & Cloud
+    "ADBE": "🇺🇸 Adobe", "CRM": "🇺🇸 Salesforce", "ORCL": "🇺🇸 Oracle", "INTU": "🇺🇸 Intuit", 
+    "PANW": "🇺🇸 Palo Alto", "SNPS": "🇺🇸 Synopsys", "CDNS": "🇺🇸 Cadence", "WDAY": "🇺🇸 Workday", 
+    "ROP": "🇺🇸 Roper", "ADSK": "🇺🇸 Autodesk", "TEAM": "🇺🇸 Atlassian", "DDOG": "🇺🇸 Datadog",
+    "ZS": "🇺🇸 Zscaler", "CRWD": "🇺🇸 CrowdStrike", "PLTR": "🇺🇸 Palantir", "APP": "🇺🇸 AppLovin",
+    # Internet, Media & E-Commerce
+    "NFLX": "🇺🇸 Netflix", "BKNG": "🇺🇸 Booking", "ABNB": "🇺🇸 Airbnb", "PDD": "🇺🇸 PDD Holdings",
+    "MELI": "🇺🇸 MercadoLibre", "JD": "🇺🇸 JD.com", "PYPL": "🇺🇸 PayPal", "EBAY": "🇺🇸 eBay",
+    "DASH": "🇺🇸 DoorDash", "GOOG": "🇺🇸 Alphabet", "WBD": "🇺🇸 Warner Bros", "CHTR": "🇺🇸 Charter",
+    # Healthcare & Biotech
+    "AMGN": "🇺🇸 Amgen", "GILD": "🇺🇸 Gilead", "VRTX": "🇺🇸 Vertex", "REGN": "🇺🇸 Regeneron", 
+    "ISRG": "🇺🇸 Intuitive Surg.", "IDXX": "🇺🇸 IDEXX Labs", "MRNA": "🇺🇸 Moderna", "BIIB": "🇺🇸 Biogen",
+    "ALNY": "🇺🇸 Alnylam", "INSM": "🇺🇸 Insmed", "GEHC": "🇺🇸 GE HealthCare",
+    # Consumer, Retail & Others
+    "COST": "🇺🇸 Costco", "PEP": "🇺🇸 PepsiCo", "KO": "🇺🇸 Coca-Cola", "WMT": "🇺🇸 Walmart",
+    "SBUX": "🇺🇸 Starbucks", "MDLZ": "🇺🇸 Mondelez", "MNST": "🇺🇸 Monster", "KDP": "🇺🇸 Keurig Dr Pepper",
+    "KHC": "🇺🇸 Kraft Heinz", "MAR": "🇺🇸 Marriott", "ORLY": "🇺🇸 O'Reilly", "ROST": "🇺🇸 Ross Stores",
+    "LULU": "🇺🇸 Lululemon", "TGT": "🇺🇸 Target", "CSX": "🇺🇸 CSX Corp", "CPRT": "🇺🇸 Copart",
+    "FAST": "🇺🇸 Fastenal", "PAYX": "🇺🇸 Paychex", "CTAS": "🇺🇸 Cintas", "ADP": "🇺🇸 ADP",
+    "MCHP": "🇺🇸 Microchip", "AXON": "🇺🇸 Axon Enterprise", "FER": "🇺🇸 Ferrovial", "CEG": "🇺🇸 Constellation",
+    "ODFL": "🇺🇸 Old Dominion", "ON": "🇺🇸 ON Semi", "EXC": "🇺🇸 Exelon", "BKR": "🇺🇸 Baker Hughes", "TTD": "🇺🇸 Trade Desk",
+    # Sonstige Werte
+    "ADI": "🇺🇸 Analog Devices", "ANSS": "🇺🇸 Ansys", "CDNS": "🇺🇸 Cadence", "CPRT": "🇺🇸 Copart", "CTAS": "🇺🇸 Cintas", "CSX": "🇺🇸 CSX Corp", "DLTR": "🇺🇸 Dollar Tree", "DXCM": "🇺🇸 DexCom", "FAST": "🇺🇸 Fastenal", "IDXX": "🇺🇸 IDEXX Labs", "KDP": "🇺🇸 Keurig Dr Pepper", "MAR": "🇺🇸 Marriott", "ODFL": "🇺🇸 Old Dominion", "PAYX": "🇺🇸 Paychex", "VRSK": "🇺🇸 Verisk"},
+
+    "EU": # Frankreich (🇫🇷)
+    {"AI.PA": "🇫🇷 Air Liquide", "AIR.PA": "🇫🇷 Airbus", "CS.PA": "🇫🇷 AXA", "BNP.PA": "🇫🇷 BNP Paribas",  "BN.PA": "🇫🇷 Danone", "EL.PA": "🇫🇷 EssilorLuxottica", "RMS.PA": "🇫🇷 Hermès", "OR.PA": "🇫🇷 L'Oréal", "MC.PA": "🇫🇷 LVMH", "RI.PA": "🇫🇷 Pernod Ricard", "SAF.PA": "🇫🇷 Safran", "SAN.PA": "🇫🇷 Sanofi", "SU.PA": "🇫🇷 Schneider Electric", "TTE.PA": "🇫🇷 TotalEnergies", "DG.PA": "🇫🇷 Vinci",
+    # Niederlande (🇳🇱)
+    "ASML.AS": "🇳🇱 ASML Holding", "INGA.AS": "🇳🇱 ING Groep", "PRX.AS": "🇳🇱 Prosus", "AD.AS": "🇳🇱 Ahold Delhaize", "STLAM.MI": "🇳🇱 Stellantis", # (Stellantis oft via Mailand)
+    # Spanien (🇪🇸)
+    "BBVA.MC": "🇪🇸 BBVA", "IBE.MC": "🇪🇸 Iberdrola", "ITX.MC": "🇪🇸 Inditex", "SAN.MC": "🇪🇸 Banco Santander",
+    # Italien (🇮🇹)
+    "ENEL.MI": "🇮🇹 Enel", "ENI.MI": "🇮🇹 Eni", "ISP.MI": "🇮🇹 Intesa Sanpaolo", "RACE.MI": "🇮🇹 Ferrari", "UCG.MI": "🇮🇹 UniCredit",
+    # Belgien (🇧🇪), Irland (🇮🇪), Finnland (🇫🇮)
+    "ABI.BR": "🇧🇪 Anheuser-Busch InBev", "CRH.AS": "🇮🇪 CRH", "FLTR.IR": "🇮🇪 Flutter Entertainment", "NOKIA.HE": "🇫🇮 Nokia"}
 }
 
 TICKER_TO_NAME = {ticker: name for region in ASSETS.values() for ticker, name in region.items()}
-INDEX_MAP = {"^GDAXI": "DAX", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ"}
+ALL_TICKERS = list(TICKER_TO_NAME.keys())
+INDEX_MAP = {"^GDAXI": "DAX", "^STOXX50E": "EUROSTOXX 50", "^IXIC": "NASDAQ", "XU100.IS": "BIST 100", "^NSEI": "NIFTY 50"}
 
-# --- 2. HILFSFUNKTIONEN & SICHERHEITSELEMENTE ---
+# --- 2. SICHERHEITS-FUNKTIONEN (Verhindert den ValueError) ---
 def safe_float(val):
+    """Extrahiert sicher einen einzelnen Float-Wert aus Series oder Arrays."""
     if isinstance(val, (pd.Series, np.ndarray, pd.DataFrame)):
-        return float(val.iloc[-1]) if hasattr(val, 'iloc') else float(val)
+        return float(val.iloc[-1]) if hasattr(val, 'iloc') else float(val[0])
     return float(val)
 
-@st.cache_data(ttl=300)
-def get_live_data(ticker):
-    try:
-        df = yf.download(ticker, period="60d", interval="1d", progress=False, multi_level_index=False)
-        if df is not None and not df.empty:
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
-            return df
-        return None
-    except:
-        return None
+def get_logic_icons(chg):
+    chg = safe_float(chg) # Sicherstellen, dass chg eine Zahl ist
+    weather = "☀️" if chg > 0.5 else "⛈️" if chg < -0.5 else "☁️"
+    dot = "🟢" if chg > 0.4 else "🔵" if chg < -0.4 else "⚪"
+    return weather, dot
 
-def analyze_market_maker_flow(ticker, df):
+@st.cache_data(ttl=300)
+def get_live_data(ticker, period="60d", interval="1d"):
+    try:
+        df = yf.download(ticker, period=period, interval=interval, progress=False)
+        return df if not df.empty else None
+    except: return None
+
+def analyze_swing(ticker, df):
     cp = safe_float(df['Close'].iloc[-1])
+    # 3-Tage Änderung (Swing)
     prev_3d = safe_float(df['Close'].iloc[-4])
     chg_3d = ((cp / prev_3d) - 1) * 100
+    
     df['TR'] = np.maximum(df['High'] - df['Low'], np.maximum(abs(df['High'] - df['Close'].shift(1)), abs(df['Low'] - df['Close'].shift(1))))
     atr = safe_float(df['TR'].tail(14).mean())
-    df['Vol_SMA20'] = df['Volume'].rolling(window=20).mean()
-    high_volume_break = safe_float(df['Volume'].iloc[-1]) > (safe_float(df['Vol_SMA20'].iloc[-1]) * 1.3)
-    liquidity_pool_high = safe_float(df['High'].tail(20).max())
-    liquidity_pool_low = safe_float(df['Low'].tail(20).min())
-    dist_to_low = (cp - liquidity_pool_low) / cp
-    dist_to_high = (liquidity_pool_high - cp) / cp
+    df['SMA20'] = df['Close'].rolling(window=20).mean()
+    is_bullish = cp > safe_float(df['SMA20'].iloc[-1])
     
-    if dist_to_low < 0.02 and high_volume_break:
-        direction, chance, signal_type = 1, 75.0, "Liquidity Grab (Buy)"
-    elif dist_to_high < 0.02 and high_volume_break:
-        direction, chance, signal_type = -1, 70.0, "Liquidity Grab (Sell)"
-    else:
-        direction, chance, signal_type = (1, 45.0, "Standard Order Flow") if chg_3d > 0 else (-1, 45.0, "Standard Order Flow")
-    
-    return {"cp": cp, "atr": atr, "chance": chance, "direction": direction, "df": df, "pool_high": liquidity_pool_high, "pool_low": liquidity_pool_low, "type": signal_type}
+    weather, dot = get_logic_icons(chg_3d)
+    chance = round(50.0 + (15 if is_bullish else -10) + (abs(chg_3d) * 0.8), 2)
+    return {"cp": cp, "chg_3d": chg_3d, "atr": atr, "weather": weather, "dot": dot, "chance": chance, "df": df}
 
-st.subheader("🌐 Markt-Indikation")
-eurusd_df = get_live_data("EURUSD=X")
+# --- 3. HEADER: EUR/USD ---
+eurusd_df = get_live_data("EURUSD=X", period="5d")
 if eurusd_df is not None:
-    st.metric("EUR / USD", f"{safe_float(eurusd_df['Close'].iloc[-1]):.5f}")
+    cp = safe_float(eurusd_df['Close'].iloc[-1])
+    prev = safe_float(eurusd_df['Close'].iloc[-2])
+    chg = ((cp / prev) - 1) * 100
+    w, dot = get_logic_icons(chg)
+    st.markdown(f"<h1 style='text-align: center; color: #5DADE2;'>{w} EUR / USD: {cp:.6f} {dot}</h1>", unsafe_allow_html=True)
+st.divider()
+
+# --- 4. INDIZES ---
+st.subheader("🌍 Globale Markt-Indikation")
+idx_keys = list(INDEX_MAP.keys())
+r1 = st.columns(3)
+for i in range(3):
+    sym = idx_keys[i]; df = get_live_data(sym, period="5d")
+    if df is not None:
+        cp = safe_float(df['Close'].iloc[-1]); prev = safe_float(df['Close'].iloc[-2])
+        chg = ((cp / prev) - 1) * 100; w, dot = get_logic_icons(chg)
+        r1[i].metric(f"{w} {INDEX_MAP[sym]}", f"{cp:,.2f}", f"{dot} {chg:.2f}%", delta_color="normal" if chg >= 0 else "inverse")
+
+r2 = st.columns(3)
+for i in range(3, 5):
+    sym = idx_keys[i]; df = get_live_data(sym, period="5d")
+    if df is not None:
+        cp = safe_float(df['Close'].iloc[-1]); prev = safe_float(df['Close'].iloc[-2])
+        chg = ((cp / prev) - 1) * 100; w, dot = get_logic_icons(chg)
+        r2[i-3].metric(f"{w} {INDEX_MAP[sym]}", f"{cp:,.2f}", f"{dot} {chg:.2f}%", delta_color="normal" if chg >= 0 else "inverse")
 
 st.divider()
 
-reg = st.radio("Region auswählen:", ["DE", "US", "EU"], horizontal=True)
-sel = st.selectbox("Aktie analysieren:", list(ASSETS[reg].keys()), format_func=lambda x: ASSETS[reg][x])
+# --- 5. TOP 7 CHANCEN ---
+rank_list = []
+for t in ALL_TICKERS:
+    df = get_live_data(t)
+    if df is not None:
+        res = analyze_swing(t, df)
+        rank_list.append({"Aktie": f"{res['weather']} {TICKER_TO_NAME[t]}", "Signal": f"{res['dot']} {'CALL' if res['chg_3d'] > 0 else 'PUT'}", 
+                          "Wahrscheinlichkeit (%)": f"{res['chance']:.2f}", "Trend 3D": f"{res['chg_3d']:.2f}%", "Kurs": f"{res['cp']:.2f} €"})
 
-# Das MUSS exakt hier vor Zeile 62 stehen
+if rank_list:
+    st.table(pd.DataFrame(rank_list).sort_values(by="Wahrscheinlichkeit (%)", ascending=False).head(7))
+
+# --- 6. DETAIL & ORDER ---
+st.divider()
+reg = st.radio("Region:", ["DE", "US", "EU"], horizontal=True)
+sel = st.selectbox("Aktie:", list(ASSETS[reg].keys()), format_func=lambda x: ASSETS[reg][x])
 df_sel = get_live_data(sel)
+if df_sel is not None:
+    det = analyze_swing(sel, df_sel)
+    direction = 1 if det['chg_3d'] > 0 else -1
+    sl = det['cp'] - (2.0 * det['atr'] * direction)
+    tp = det['cp'] + (4.0 * det['atr'] * direction)
+    dist = abs((sl / det['cp']) - 1); opt_h = 0.25 / dist if dist > 0 else 1.0
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("SIGNAL", f"{det['dot']} {'CALL' if direction==1 else 'PUT'}", f"Wetter: {det['weather']}")
+    c2.metric("STOP-LOSS", f"{sl:.2f} €", f"{dist*100:.2f}% Puffer")
+    c3.metric("SMART HEBEL", f"x{opt_h:.1f}")
+    c4.metric("WAHRSCH. (%)", f"{det['chance']:.2f}")
 
-if df_sel is not None and len(df_sel) > 20:
-    det = analyze_market_maker_flow(sel, df_sel)
-    direction = det['direction']
+# --- DETAILLIERTE BESTELLUNG (ORDER-EXTENDER) ---
+with st.expander("📝 Detaillierte Handelsanweisung (Broker-Ready)", expanded=True):
+    st.markdown(f"### 🛒 Order-Ticket: {TICKER_TO_NAME[sel]}")
     
-    # 1. Smart-Money SL/TP Platzierung
-    if direction == 1:
-        sl = det['pool_low'] - (0.5 * det['atr'])
-        tp = det['pool_high']
-    else:
-        sl = det['pool_high'] + (0.5 * det['atr'])
-        tp = det['pool_low']
-        
-    # 2. Hebel-Berechnung korrigieren (Mindestens Hebel x1.0 erzwingen)
-    dist = abs((sl / det['cp']) - 1)
-    opt_h = 0.15 / dist if dist > 0 else 1.0
-    if opt_h < 1.0:
-        opt_h = 1.0  # Verhindert Hebel unter x1
+    # Unterteilung in zwei Spalten für bessere Lesbarkeit im Dashboard
+    col_o1, col_o2 = st.columns(2)
     
-    # 3. UI-Spalten-Layout optimieren (Mehr Platz gegen das Abschneiden "Standar...")
-    c1, c2, c3, c4 = st.columns([1.5, 1, 1, 1])
-    c1.metric("SETUP TYP", det['type'])
-    c2.metric("MM-STOP-LOSS", f"{sl:.2f} €")
-    c3.metric("HEBEL", f"x{opt_h:.1f}")
-    c4.metric("KONFIDENZ (%)", f"{det['chance']:.2f}")
+    with col_o1:
+        st.markdown("**Basis-Informationen:**")
+        st.write(f"🔹 **Richtung:** {'🟢 LONG / CALL' if direction == 1 else '🔵 SHORT / PUT'}")
+        st.write(f"🔹 **Asset:** {TICKER_TO_NAME[sel]} ({sel})")
+        st.write(f"🔹 **Referenzkurs:** {det['cp']:.2f} €")
+        st.write(f"🔹 **Markt-Wetter:** {det['weather']} (Trend-Status)")
+
+    with col_o2:
+        st.markdown("**Derivate-Parameter:**")
+        st.write(f"🎯 **Ziel-Hebel:** x{opt_h:.1f}")
+        st.write(f"🛑 **Stop-Loss (Basis):** {sl:.2f} €")
+        st.write(f"🏁 **Kursziel (Basis):** {tp:.2f} €")
+        st.write(f"⏳ **Haltedauer:** 3 - 5 Handelstage")
+
+    st.markdown("---")
     
-    # 4. Visueller Hinweis im Dashboard, falls kein aktiver Grab stattfindet
-    if "Standard" in det['type']:
-        st.warning("ℹ️ **Keine akute Liquiditäts-Jagd:** Der Kurs befindet sich in der normalen Handelsspanne. Es liegt kein extremes Übertreibungsmuster vor. Institutionelle Positionen werden aktuell nur im normalen Trendverlauf bedient.")
-    else:
-        st.success(f"🎯 **Achtung, Market Maker Aktivität!** Ein {det['type']} wurde detektiert. Die Institutionellen greifen an den Zonen an.")
+    # Strategische Handlungsanweisung
+    st.info(f"""
+    **Strategie-Check & Execution:**
+    1. **Einstieg:** Markt-Order bei Bestätigung des Signals durch das aktuelle Wetter {det['weather']}.
+    2. **Risiko-Limit:** Der gewählte Hebel von x{opt_h:.1f} begrenzt das Verlustrisiko im Derivat auf ca. 25%, 
+       sollte der Stop-Loss bei {sl:.2f} € erreicht werden.
+    3. **Exit-Logik:** Position glattstellen bei Erreichen des Kursziels ({tp:.2f} €) oder nach Ablauf von 5 Handelstagen, 
+       falls der Trend stagniert.
+    """)
     
-    with st.expander("📋 Detaillierte Handelsanweisung (Smart Money Execution)", expanded=True):
-        st.markdown(f"### Order-Ticket: {TICKER_TO_NAME[sel]}")
-        col_o1, col_o2 = st.columns(2)
-        
-        with col_o1:
-            st.markdown("**Basis-Informationen:**")
-            st.write(f"🔹 **Richtung:** {'LONG / CALL (Absorption)' if direction == 1 else 'SHORT / PUT (Distribution)'}")
-            st.write(f"🔹 **Asset / Ticker:** {TICKER_TO_NAME[sel]} ({sel})")
-            st.write(f"🔹 **Referenzkurs:** {det['cp']:.2f} €")
-            st.write(f"🔹 **Oberer Pool (Retail-Stops):** {det['pool_high']:.2f} €")
-            st.write(f"🔹 **Unterer Pool (Retail-Stops):** {det['pool_low']:.2f} €")
-        
-        with col_o2:
-            st.markdown("**Risiko- & Derivate-Parameter:**")
-            st.write(f"🎯 **Ziel-Hebel:** x{opt_h:.1f}")
-            st.write(f"🛑 **Stop-Loss (Hinter Struktur):** {sl:.2f} €")
-            st.write(f"🏁 **Kursziel (Gegenüberliegende Liquidität):** {tp:.2f} €")
-            st.write(f"⏳ **Erwartete Haltedauer:** 2 - 5 Handelstage")
-            
-        st.markdown("---")
-        order_text = f"ORDER: {TICKER_TO_NAME[sel]} | {('CALL_ABSORPTION' if direction==1 else 'PUT_DISTRIBUTION')} | Hebel x{opt_h:.1f} | SL: {sl:.2f} | TP: {tp:.2f}"
-        st.code(order_text, language="text")
-        
-    # CHART GENERIERUNG
-    fig = go.Figure(data=[go.Candlestick(
-        x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'], name="Kurs"
-    )])
-    fig.add_hline(y=det['pool_high'], line_dash="solid", line_color="orange", line_width=2, annotation_text="Retail Buy Stops")
-    fig.add_hline(y=det['pool_low'], line_dash="solid", line_color="orange", line_width=2, annotation_text="Retail Sell Stops")
-    fig.add_hline(y=sl, line_dash="dash", line_color="red", line_width=1.5, annotation_text="Smart SL")
-    fig.add_hline(y=tp, line_dash="dash", line_color="green", line_width=1.5, annotation_text="Smart TP")
-    fig.update_layout(height=500, template="plotly_dark", xaxis_rangeslider_visible=False)
+    # Optional: Ein Button zum schnellen Kopieren der wichtigsten Werte
+    order_text = f"ORDER: {TICKER_TO_NAME[sel]} | {('CALL' if direction==1 else 'PUT')} | Hebel x{opt_h:.1f} | SL: {sl:.2f} | TP: {tp:.2f}"
+    st.code(order_text, language="text")
+    
+    
+    with st.expander("📝 Bestellung"):
+        st.write(f"**Basis:** {sel} | **Kurs:** {det['cp']:.2f} € | **Hebel:** x{opt_h:.1f} | **SL:** {sl:.2f} €")
+    fig = go.Figure(data=[go.Candlestick(x=det['df'].index, open=det['df']['Open'], high=det['df']['High'], low=det['df']['Low'], close=det['df']['Close'])])
+    fig.add_hline(y=sl, line_dash="dash", line_color="red", annotation_text="SL")
+    fig.update_layout(height=450, template="plotly_dark", xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
-
-else:
-    st.error(f"⚠️ Keine Live-Daten für {TICKER_TO_NAME.get(sel, sel)} ({sel}) empfangen. Bitte überprüfe deine Internetverbindung.")
