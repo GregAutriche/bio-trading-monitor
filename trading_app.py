@@ -89,7 +89,7 @@ def calculate_windschatten_strategy(df, lookback_span=90, validity_days=6):
 
 
 # --- Testlauf und Demonstration ---
-if name == "main":
+if __name__ == "__main__":
     # Watchlist mit Standard-Tickern und deinen ungarischen/bulgarischen Suffixen (.BU / .SO)
     watchlist = ["AAPL", "OTP.BU", "A4L.SO"]
 
@@ -103,7 +103,7 @@ if name == "main":
             data = fetch_extended_data(ticker, period="6mo")
             if data.empty:
                 print(f"-> Keine Daten für {ticker} empfangen.\n")
-continue
+                continue
 
             processed = calculate_windschatten_strategy(data, validity_days=6)
             latest = processed.iloc[-1]
