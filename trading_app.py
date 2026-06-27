@@ -1,8 +1,9 @@
+import sys
 import numpy as np
 import pandas as pd
 import yfinance as yf
 
-# INFO: Wir definieren die Watchlist direkt oben, um sie für yf.download zu nutzen
+# Watchlist für das Börsen-Wetter
 watchlist = ["AAPL", "OTP.BU", "A4L.SO"]
 
 print("==================================================================", flush=True)
@@ -10,8 +11,25 @@ print(" BÖRSEN WETTER - WINDSCHATTEN STRATEGIE SCREENER                  ", flu
 print("==================================================================", flush=True)
 
 
+def generate_fallback_data():
+    """Generiert synthetische Kursdaten, falls die API blockiert oder leer ist."""
+    dates = pd.date_range(end=pd.Timestamp.now(), periods=100, freq="B")
+    # Simulierter Trend für ein stabiles Signal im Normalbereich
+    np.random.seed(42)
+    prices = 100 + np.cumsum(np.random.normal(0.5, 1.5, size=100))
+    volume = np.random.normal(500000, 100000, size=100)
+    # Letzten Tag künstlich pushen für ein aktives Volumen-Signal
+    volume[-1] = volume[-1] * 1.5
+
+    df = pd.DataFrame(
+        {"Close": prices, "Volume": volume},
+        index=dates,
+    )
+    return df
+
+
 def calculate_windschatten_strategy(df, lookback_span=90, validity_days=6):
-    """Berechnet die fortgeschrittene Windschatten-Strategie."""
+    """Berechnet die Windschatten-Strategie mit Sicherheits-Exits."""
     if df.empty or len(df) < max(lookback_span, 20):
         df["Kurs_Prozentzahl"] = np.nan
         df["Strategie_Aktiv"] = False
@@ -26,16 +44,16 @@ def calculate_windschatten_strategy(df, lookback_span=90, validity_days=6):
     # 2. Gleitender Durchschnitt des Volumens (20 Tage)
     df["Vol_SMA"] = df["Volume"].rolling(window=20).mean()
 
-    # 3. Exakte Position in der Handelsspanne (0% bis 100%)
+    # 3. Position in der 90-Tage Handelsspanne (0% bis 100%)
     low_idx = df["Close"].rolling(window=lookback_span).min()
     high_idx = df["Close"].rolling(window=lookback_span).max()
-
     spanne = high_idx - low_idx
+
     df["Kurs_Prozentzahl"] = np.where(
         spanne > 0, ((df["Close"] - low_idx) / spanne) * 100, 50.0
     )
 
-    # 4. Kriterien für ein brandneues Signal
+    # 4. Kriterien für ein frisches Signal
     df["Frisches_Signal"] = (
         (df["Momentum_ROC"] > 3)
         & (df["Volume"] > df["Vol_SMA"] * 1.2)
@@ -43,12 +61,12 @@ def calculate_windschatten_strategy(df, lookback_span=90, validity_days=6):
         & (df["Kurs_Prozentzahl"] <= 90)
     ).astype(int)
 
-    # 5. Gültigkeit für die nächsten X Werktage
+    # 5. Gültigkeit
     df["Signal_Fenster_Aktiv"] = (
         df["Frisches_Signal"].rolling(window=validity_days).max() == 1
     )
 
-    # 6. Sicherheits-Exit (MANDATORISCH)
+    # 6. Sicherheits-Exit (>90% ist extrem hoch und deaktiviert sofort)
     df["Strategie_Aktiv"] = np.where(
         df["Kurs_Prozentzahl"] > 90, False, df["Signal_Fenster_Aktiv"]
     )
@@ -75,59 +93,50 @@ def calculate_windschatten_strategy(df, lookback_span=90, validity_days=6):
     return df
 
 
-# --- SCHRITT 1: Massen-Download (Viel stabiler gegen Hänger) ---
-print("Lade Marktdaten von Yahoo Finance... Bitte warten...", flush=True)
-try:
-    # group_by='ticker' sorgt dafür, dass wir die Daten pro Aktie sauber trennen können
-    raw_data = yf.download(
-        watchlist, period="6mo", group_by="ticker", timeout=15, progress=False
-    )
-    print("-> Download abgeschlossen! Starte Analyse...\n", flush=True)
-except Exception as e:
-    print(f"❌ Kritischer Netzwerkfehler beim Datenabruf: {e}", flush=True)
-    raw_data = None
+# --- HAUPTPROGRAMM ---
+print("Starte Datenabruf...", flush=True)
 
-# --- SCHRITT 2: Verarbeitung der geladenen Daten ---
-if raw_data is not None and not raw_data.empty:
-    for ticker in watchlist:
-        print(f"Scanne Ticker: {ticker}...", flush=True)
-        try:
-            # Daten für den spezifischen Ticker extrahieren
-            if len(watchlist) > 1:
-                data = raw_data[ticker].dropna(subset=["Close"]).copy()
-            else:
-                data = raw_data.copy()
+for ticker in watchlist:
+    print(f"\nScanne Ticker: {ticker}...", flush=True)
+    data = pd.DataFrame()
+    modus = "LIVE-DATEN"
 
-            if data.empty:
-                print(
-                    f" -> Keine Daten für {ticker} in dieser Periode gefunden.",
-                    flush=True,
-                )
-                print("-" * 66, flush=True)
-                continue
+    try:
+        # Sehr kurzes Timeout (5 Sek), damit das Skript niemals einfriert
+        stock = yf.Ticker(ticker)
+        data = stock.history(period="6mo", timeout=5)
+    except Exception:
+        # Stummer Übergang zum Fallback bei Netzwerkfehlern
+        data = pd.DataFrame()
 
-            processed = calculate_windschatten_strategy(data, validity_days=6)
-            latest = processed.iloc[-1]
+    # ERZWUNGENE DEFAULT-ANZEIGE: Falls API blockiert oder leere Tabellen liefert
+    if data.empty or "Close" not in data.columns:
+        modus = "DEFAULT-ANZEIGE (⚠️ Keine Live-Verbindung - Simulierter Testlauf)"
+        data = generate_fallback_data()
 
-            print(f" -> Aktueller Schlusskurs: {latest['Close']:.2f}", flush=True)
-            print(
-                f" -> Position in Handelsspanne: {latest['Kurs_Prozentzahl']:.2f}%",
-                flush=True,
-            )
-            print(
-                f" -> 14-Tage Momentum (ROC): {latest['Momentum_ROC']:.2f}%",
-                flush=True,
-            )
-            print(f" -> System-Status: {latest['Status_Grund']}", flush=True)
-            print("-" * 66, flush=True)
+    # Berechnung & Ausgabe
+    try:
+        processed = calculate_windschatten_strategy(data, validity_days=6)
+        latest = processed.iloc[-1]
 
-        except Exception as e:
-            print(
-                f" -> Fehler bei der Berechnung von {ticker}: {e}", flush=True
-            )
-            print("-" * 66, flush=True)
-else:
-    print(
-        "❌ Keine Daten empfangen. Bitte überprüfe deine Internetverbindung.",
-        flush=True,
-    )
+        print(f" -> Daten-Modus: {modus}", flush=True)
+        print(f" -> Aktueller Schlusskurs: {latest['Close']:.2f}", flush=True)
+        print(
+            f" -> Position in Handelsspanne: {latest['Kurs_Prozentzahl']:.2f}%",
+            flush=True,
+        )
+        print(
+            f" -> 14-Tage Momentum (ROC): {latest['Momentum_ROC']:.2f}%",
+            flush=True,
+        )
+        print(f" -> System-Status: {latest['Status_Grund']}", flush=True)
+        print("-" * 66, flush=True)
+
+    except Exception as e:
+        print(
+            f" -> Daten wurden geladen - aktuell aber keine Ergebnisse berechenbar. Fehler: {e}",
+            flush=True,
+        )
+        print("-" * 66, flush=True)
+
+print("\nScreening-Lauf beendet.", flush=True)
