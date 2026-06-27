@@ -2,13 +2,12 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
+# INFO: Wir definieren die Watchlist direkt oben, um sie für yf.download zu nutzen
+watchlist = ["AAPL", "OTP.BU", "A4L.SO"]
 
-def fetch_extended_data(ticker, period="6mo"):
-    """Holt historische Marktdaten für den gewählten Ticker über Yahoo Finance."""
-    stock = yf.Ticker(ticker)
-    # timeout=10 verhindert, dass das Skript endlos hängen bleibt
-    df = stock.history(period=period, timeout=10)
-    return df
+print("==================================================================", flush=True)
+print(" BÖRSEN WETTER - WINDSCHATTEN STRATEGIE SCREENER                  ", flush=True)
+print("==================================================================", flush=True)
 
 
 def calculate_windschatten_strategy(df, lookback_span=90, validity_days=6):
@@ -16,7 +15,7 @@ def calculate_windschatten_strategy(df, lookback_span=90, validity_days=6):
     if df.empty or len(df) < max(lookback_span, 20):
         df["Kurs_Prozentzahl"] = np.nan
         df["Strategie_Aktiv"] = False
-        df["Status_Grund"] = "⚠️ Ungenügende Datenhistorie für diesen Zeitraum."
+        df["Status_Grund"] = "⚠️ Ungenügende Datenhistorie."
         return df
 
     # 1. Windschatten-Momentum (14 Tage Rate of Change)
@@ -76,40 +75,59 @@ def calculate_windschatten_strategy(df, lookback_span=90, validity_days=6):
     return df
 
 
-# ==================================================================
-# DIREKTER AUSFÜHRUNGS-BLOCK (Ohne __main__ Bedingung)
-# ==================================================================
-watchlist = ["AAPL", "OTP.BU", "A4L.SO"]
+# --- SCHRITT 1: Massen-Download (Viel stabiler gegen Hänger) ---
+print("Lade Marktdaten von Yahoo Finance... Bitte warten...", flush=True)
+try:
+    # group_by='ticker' sorgt dafür, dass wir die Daten pro Aktie sauber trennen können
+    raw_data = yf.download(
+        watchlist, period="6mo", group_by="ticker", timeout=15, progress=False
+    )
+    print("-> Download abgeschlossen! Starte Analyse...\n", flush=True)
+except Exception as e:
+    print(f"❌ Kritischer Netzwerkfehler beim Datenabruf: {e}", flush=True)
+    raw_data = None
 
-print("==================================================================")
-print(" BÖRSEN WETTER - WINDSCHATTEN STRATEGIE SCREENER                  ")
-print("==================================================================")
+# --- SCHRITT 2: Verarbeitung der geladenen Daten ---
+if raw_data is not None and not raw_data.empty:
+    for ticker in watchlist:
+        print(f"Scanne Ticker: {ticker}...", flush=True)
+        try:
+            # Daten für den spezifischen Ticker extrahieren
+            if len(watchlist) > 1:
+                data = raw_data[ticker].dropna(subset=["Close"]).copy()
+            else:
+                data = raw_data.copy()
 
-for ticker in watchlist:
-    print(f"Scanne Ticker: {ticker}...")
-    try:
-        data = fetch_extended_data(ticker, period="6mo")
+            if data.empty:
+                print(
+                    f" -> Keine Daten für {ticker} in dieser Periode gefunden.",
+                    flush=True,
+                )
+                print("-" * 66, flush=True)
+                continue
 
-        if data.empty or "Close" not in data.columns:
-            print(f"-> Keine validen Daten für {ticker} empfangen.\n")
-            print("-" * 66)
-            continue
+            processed = calculate_windschatten_strategy(data, validity_days=6)
+            latest = processed.iloc[-1]
 
-        processed = calculate_windschatten_strategy(data, validity_days=6)
-        latest = processed.iloc[-1]
+            print(f" -> Aktueller Schlusskurs: {latest['Close']:.2f}", flush=True)
+            print(
+                f" -> Position in Handelsspanne: {latest['Kurs_Prozentzahl']:.2f}%",
+                flush=True,
+            )
+            print(
+                f" -> 14-Tage Momentum (ROC): {latest['Momentum_ROC']:.2f}%",
+                flush=True,
+            )
+            print(f" -> System-Status: {latest['Status_Grund']}", flush=True)
+            print("-" * 66, flush=True)
 
-        # Falls Daten da sind, aber die Historie für Berechnungen zu kurz war
-        if pd.isna(latest["Kurs_Prozentzahl"]):
-            print(f" -> System-Status: {latest['Status_Grund']}")
-            print("-" * 66)
-            continue
-
-        print(f" -> Aktueller Schlusskurs: {latest['Close']:.2f}")
-        print(f" -> Position in Handelsspanne: {latest['Kurs_Prozentzahl']:.2f}%")
-        print(f" -> 14-Tage Momentum (ROC): {latest['Momentum_ROC']:.2f}%")
-        print(f" -> System-Status: {latest['Status_Grund']}")
-        print("-" * 66)
-
-    except Exception as e:
-        print(f"-> Kritischer Fehler bei {ticker}: {e}\n")
-        print("-" * 66)
+        except Exception as e:
+            print(
+                f" -> Fehler bei der Berechnung von {ticker}: {e}", flush=True
+            )
+            print("-" * 66, flush=True)
+else:
+    print(
+        "❌ Keine Daten empfangen. Bitte überprüfe deine Internetverbindung.",
+        flush=True,
+    )
