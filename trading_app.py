@@ -249,11 +249,15 @@ else:
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.metric(
-                label=f"Aktueller Kurs ({selected_label})",
-                value=f"{current_price:,.2f}",
-                delta=f"{price_chg_pct:+.2f}%",
-            )
+            # SPALTE 1 ABSICHERN: Ersatz für Kurs-Metrik via HTML Markdown
+            st.markdown(f"<p style='font-size:14px; margin-bottom:0px; color:rgba(250, 250, 250, 0.6);'>Aktueller Kurs ({selected_label})</p>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='margin-top:0px; margin-bottom:0px; font-weight:bold;'>{current_price:,.2f}</h2>", unsafe_allow_html=True)
+            
+            # Farbiger Text je nach Kursentwicklung
+            if price_chg_pct >= 0:
+                st.markdown(f"<p style='color:#00cc66; font-size:14px; margin-top:2px;'>▲ {price_chg_pct:+.2f}%</p>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<p style='color:#ff4d4d; font-size:14px; margin-top:2px;'>▼ {price_chg_pct:+.2f}%</p>", unsafe_allow_html=True)
 
         with col2:
             # Deine festgelegte 10/90-Regel anwenden
@@ -264,11 +268,10 @@ else:
             else:
                 status_text = "⚖️ Normalbereich"
 
-            # 100% FEHLERFREIER ERSATZ:
-            # Wir nutzen HTML/Markdown, um den Fehler in st.metric komplett zu umgehen.
+            # SPALTE 2 ABSICHERN: Ersatz für Fear & Greed Metrik via HTML Markdown
             st.markdown(f"<p style='font-size:14px; margin-bottom:0px; color:rgba(250, 250, 250, 0.6);'>Fear & Greed Index ({status_text})</p>", unsafe_allow_html=True)
             st.markdown(f"<h2 style='margin-top:0px; margin-bottom:0px; font-weight:bold;'>{fg_index:.1f} %</h2>", unsafe_allow_html=True)
-            st.caption("Indikator: RSI & SMA200")
+            st.markdown("<p style='color:rgba(250, 250, 250, 0.4); font-size:14px; margin-top:2px;'>Indikator: RSI & SMA200</p>", unsafe_allow_html=True)
 
         with col3:
             # Windschatten-Trading Status
