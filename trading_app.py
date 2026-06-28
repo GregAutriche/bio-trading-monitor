@@ -36,11 +36,16 @@ TICKER_DICTS = {
 
 def calculate_rsi(df, window=14):
     """Berechnet den Standard Relative Strength Index (RSI)."""
-    if len(df) < window:
+    if "Close" not in df.columns or len(df) < window:
         df["RSI"] = 50.0
         return df
 
-    delta = df["Close"].diff()
+    # Sicherstellen, dass es sich um eine eindimensionale Reihe handelt
+    close_series = df["Close"].squeeze()
+    if isinstance(close_series, pd.DataFrame):
+        close_series = close_series.iloc[:, 0]
+
+    delta = close_series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
     rs = gain / (loss + 1e-9)
@@ -54,15 +59,23 @@ def calculate_custom_fear_greed(df):
 
     RSI, Abstand zur 200-Tage-Linie und deiner 10/90-Regel.
     """
-    if len(df) < 200:
-        return 50.0  # Fallback bei zu wenig Historie
+    if "Close" not in df.columns or len(df) < 200:
+        return 50.0
 
-    # Komponente 1: RSI (0 bis 100)
-    rsi_val = float(df["RSI"].iloc[-1])
+    close_series = df["Close"].squeeze()
+    if isinstance(close_series, pd.DataFrame):
+        close_series = close_series.iloc[:, 0]
 
-    # Komponente 2: Abstand zur SMA 200 (prozentual skaliert)
-    sma_200 = df["Close"].rolling(window=200).mean()
-    current_close = float(df["Close"].iloc[-1])
+    rsi_series = df["RSI"].squeeze()
+    if isinstance(rsi_series, pd.DataFrame):
+        rsi_series = rsi_series.iloc[:, 0]
+
+    # Komponente 1: RSI
+    rsi_val = float(rsi_series.iloc[-1])
+
+    # Komponente 2: Abstand zur SMA 200
+    sma_200 = close_series.rolling(window=200).mean()
+    current_close = float(close_series.iloc[-1])
     current_sma200 = float(sma_200.iloc[-1])
 
     if current_sma200 == 0:
@@ -70,10 +83,9 @@ def calculate_custom_fear_greed(df):
     else:
         distance_pct = ((current_close - current_sma200) / current_sma200) * 100
 
-    # Skalierung des Abstands auf eine 0-100er Ratio (+-15% Abweichung sind Extrembereiche)
+    # Skalierung (+-15% Abweichung repräsentieren die Extremzonen)
     distance_score = np.clip((distance_pct + 15) / 30 * 100, 0, 100)
 
-    # Kombinierter Score (50% RSI, 50% Trendabstand)
     fg_score = (rsi_val * 0.5) + (distance_score * 0.5)
     return float(np.clip(fg_score, 0, 100))
 
@@ -83,16 +95,26 @@ def find_elliott_pivots(df, window=7):
 
     zur Visualisierung potenzieller Elliott-Wellen-Strukturen.
     """
-    if len(df) < window:
+    if "Close" not in df.columns or len(df) < window:
         df["Pivot_High"] = np.nan
         df["Pivot_Low"] = np.nan
         return df
 
-    df["Pivot_High"] = df["Close"][
-        (df["Close"] == df["Close"].rolling(window=window, center=True).max())
+    close_series = df["Close"].squeeze()
+    if isinstance(close_series, pd.DataFrame):
+        close_series = close_series.iloc[:, 0]
+
+    df["Pivot_High"] = close_series[
+        (
+            close_series
+            == close_series.rolling(window=window, center=True).max()
+        )
     ]
-    df["Pivot_Low"] = df["Close"][
-        (df["Close"] == df["Close"].rolling(window=window, center=True).min())
+    df["Pivot_Low"] = close_series[
+        (
+            close_series
+            == close_series.rolling(window=window, center=True).min()
+        )
     ]
     return df
 
@@ -102,14 +124,12 @@ def find_elliott_pivots(df, window=7):
 # ==========================================
 st.sidebar.header("🔧 Dashboard Steuerung")
 
-# Kategorie-Auswahl
 category = st.sidebar.selectbox("Kategorie wählen", list(TICKER_DICTS.keys()))
 selected_label = st.sidebar.selectbox(
     "Asset auswählen", list(TICKER_DICTS[category].keys())
 )
 ticker = TICKER_DICTS[category][selected_label]
 
-# Historie-Slider für das Hauptfenster
 history_days = st.sidebar.slider(
     "Betrachtungszeitraum Chart (Tage)",
     min_value=5,
@@ -118,24 +138,43 @@ history_days = st.sidebar.slider(
     step=5,
 )
 
+# ==========================================
+# 4. DATENBESCHAFFUNG (RADIKAL BEREINIGT & KUGELSICHER)
+# ==========================================
 
-# ==========================================
-# 4. DATENBESCHAFFUNG (CACHE-OPTIMIERT & ABGESICHERT)
-# ==========================================
+
 @st.cache_data(ttl=3600)
 def load_market_data(ticker_symbol):
-    # Wir laden 2 Jahre für eine saubere Berechnung des SMA 200
     data = yf.download(ticker_symbol, period="2y")
 
     if data.empty:
         return pd.DataFrame()
 
-    # Wichtig: Absicherung gegen die neue yfinance MultiIndex-Spaltenstruktur
+    # MultiIndex-Strukturen auflösen
     if isinstance(data.columns, pd.MultiIndex):
-        if "Price" in data.columns.levels[0]:
-            data = data.xs("Price", axis=1, level=0)
+        for level in range(data.columns.nlevels):
+            columns_at_level = data.columns.get_level_values(level)
+            if "Close" in columns_at_level or "Adj Close" in columns_at_level:
+                data.columns = columns_at_level
+                break
+
+    # Eindeutige Zuweisung der Schlusskursspalte
+    if "Adj Close" in data.columns:
+        data["Close"] = data["Adj Close"]
+    elif "Close" in data.columns:
+        pass
+    else:
+        # Fallback bei Kleinschreibung
+        data.columns = [str(col).lower() for col in data.columns]
+        if "adj close" in data.columns:
+            data["Close"] = data["adj close"]
+        elif "close" in data.columns:
+            data["Close"] = data["close"]
         else:
-            data.columns = data.columns.get_level_values(1)
+            return pd.DataFrame()
+
+    # Eventuell doppelt erzeugte Spalten eliminieren
+    data = data.loc[:, ~data.columns.duplicated()]
 
     # Technische Indikatoren berechnen
     data = calculate_rsi(data)
@@ -148,33 +187,33 @@ df_raw = load_market_data(ticker)
 # ==========================================
 # 5. PLAUSIBILITÄTS-CHECK & LOGIK-AUSFÜHRUNG
 # ==========================================
-if df_raw.empty:
+if df_raw.empty or "Close" not in df_raw.columns:
     st.error(
-        f"🚨 Keine Daten für '{selected_label}' ({ticker}) empfangen. Bitte überprüfe die Verbindung oder das Kürzel."
+        f"🚨 Keine validen Kursdaten für '{selected_label}' ({ticker}) empfangen. Bitte überprüfe das Symbol."
     )
 elif len(df_raw) < 2:
     st.warning(
-        f"⚠️ Zu wenige historische Zeilen für '{selected_label}' vorhanden, um Berechnungen anzustellen."
+        f"⚠️ Zu wenige historische Zeilen für '{selected_label}' vorhanden."
     )
 else:
-    # Ausschnitt filtern basierend auf dem Slider
     df_display = df_raw.tail(history_days)
 
     if len(df_display) < 2:
         st.info(
-            "Bitte erhöhe den 'Betrachtungszeitraum Chart' in der Sidebar, um genügend Handelstage zu analysieren."
+            "Bitte erhöhe den 'Betrachtungszeitraum Chart' in der Sidebar."
         )
     else:
-        # Hier greifen wir nun absolut absturzsicher auf die Werte zu
-        current_price = float(df_display["Close"].iloc[-1])
-        previous_price = float(df_display["Close"].iloc[-2])
+        # Werte sicher als native Typen extrahieren
+        close_display = df_display["Close"].squeeze()
+        current_price = float(close_display.iloc[-1])
+        previous_price = float(close_display.iloc[-2])
+
         price_chg = current_price - previous_price
         price_chg_pct = (price_chg / previous_price) * 100
 
-        # Fear & Greed Sentiment ermitteln
         fg_index = calculate_custom_fear_greed(df_raw)
 
-        # UI Spalten für die Metriken aufbauen
+        # UI Spalten aufbauen
         col1, col2, col3 = st.columns(3)
 
         with col1:
@@ -185,13 +224,13 @@ else:
             )
 
         with col2:
-            # Anwendung deiner festgelegten 10/90-Regel
+            # Deine 10/90-Regel anwenden
             if fg_index > 90:
                 status = "🔥 Extrem hoch (Gier)"
-                color = "inverse"  # Rot/Orange-Warnung in Streamlit
+                color = "inverse"
             elif fg_index < 10:
                 status = "❄️ Extrem tief (Angst)"
-                color = "normal"  # Grüne Kaufzone/Angst-Indikator
+                color = "normal"
             else:
                 status = "⚖️ Normalbereich"
                 color = "off"
@@ -205,9 +244,12 @@ else:
 
         with col3:
             # Windschatten-Trading Status
-            rsi_now = float(df_raw["RSI"].iloc[-1])
-            rsi_prev = float(df_raw["RSI"].iloc[-2])
-            sma_20 = float(df_raw["Close"].rolling(20).mean().iloc[-1])
+            rsi_series = df_raw["RSI"].squeeze()
+            close_raw_series = df_raw["Close"].squeeze()
+
+            rsi_now = float(rsi_series.iloc[-1])
+            rsi_prev = float(rsi_series.iloc[-2])
+            sma_20 = float(close_raw_series.rolling(20).mean().iloc[-1])
 
             if rsi_now > rsi_prev and current_price > sma_20:
                 ws_status = "🟩 Signal: Aktiver Windschatten (Kaufimpuls)"
@@ -224,24 +266,24 @@ else:
 
         fig = go.Figure()
 
-        # Hauptkurs-Linie (Schlusskurs)
+        # Hauptkurs-Linie
         fig.add_trace(
             go.Scatter(
                 x=df_display.index,
-                y=df_display["Close"],
+                y=close_display,
                 mode="lines",
                 name="Schlusskurs",
                 line=dict(color="#1f77b4", width=2),
             )
         )
 
-        # Elliott-Wellen: Lokale Pivot-Hochs einzeichnen
+        # Elliott-Wellen: Lokale Pivot-Hochs
         high_pivots = df_display[df_display["Pivot_High"].notna()]
         if not high_pivots.empty:
             fig.add_trace(
                 go.Scatter(
                     x=high_pivots.index,
-                    y=high_pivots["Pivot_High"],
+                    y=high_pivots["Pivot_High"].squeeze(),
                     mode="markers+text",
                     name="Elliott-Welle (Hoch)",
                     marker=dict(color="red", size=10, symbol="triangle-up"),
@@ -250,13 +292,13 @@ else:
                 )
             )
 
-        # Elliott-Wellen: Lokale Pivot-Tiefs einzeichnen
+        # Elliott-Wellen: Lokale Pivot-Tiefs
         low_pivots = df_display[df_display["Pivot_Low"].notna()]
         if not low_pivots.empty:
             fig.add_trace(
                 go.Scatter(
                     x=low_pivots.index,
-                    y=low_pivots["Pivot_Low"],
+                    y=low_pivots["Pivot_Low"].squeeze(),
                     mode="markers+text",
                     name="Elliott-Welle (Tief)",
                     marker=dict(color="green", size=10, symbol="triangle-down"),
