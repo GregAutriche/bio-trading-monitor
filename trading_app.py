@@ -5,12 +5,12 @@ import streamlit as st
 import yfinance as yf
 
 # ==========================================
-# 1. SETUP & TICKER-ERWEITERUNG
+# 1. KONFIGURATION
 # ==========================================
 st.set_page_config(page_title="Börsen Wetter", layout="wide")
 st.title("🌦️ Börsen Wetter & Trading Dashboard")
 
-# Erweiterte Konfiguration
+# Hier sind alle Ticker explizit definiert
 TICKER_DICTS = {
     "Indizes": {
         "DAX": "^GDAXI", 
@@ -27,23 +27,19 @@ TICKER_DICTS = {
 }
 
 # ==========================================
-# 2. LOGIK & TYP-KONVERTIERUNG
+# 2. LOGIK
 # ==========================================
 
-def get_clean_float(val):
-    """Erzwingt saubere Python-Floats."""
-    try:
-        return float(val)
-    except:
-        return 0.0
-
+@st.cache_data(ttl=600) # Cache-Zeit verkürzt für schnellere Aktualisierung
 def load_data(ticker):
-    # Zeitraum auf 1y für saubere Indikatoren
-    data = yf.download(ticker, period="1y")
+    # 'yfinance' benötigt bei manchen Ticker-Formaten explizite Zeiträume
+    data = yf.download(ticker, period="1y", interval="1d")
     if data.empty: return pd.DataFrame()
     
+    # Sicherstellung, dass Close als Float vorliegt
     df = pd.DataFrame(index=data.index)
-    # yfinance liefert manchmal Tuples bei MultiIndex, wir extrahieren den ersten 'Close'
+    
+    # Umgang mit MultiIndex bei yfinance (tritt bei manchen Symbolen auf)
     if isinstance(data.columns, pd.MultiIndex):
         df["Close"] = data.iloc[:, 0].astype(float)
     else:
@@ -58,38 +54,29 @@ def load_data(ticker):
     return df
 
 # ==========================================
-# 3. DASHBOARD (TYP-SICHER)
+# 3. SIDEBAR & RENDERING
 # ==========================================
 cat = st.sidebar.selectbox("Kategorie", list(TICKER_DICTS.keys()))
-tick = st.sidebar.selectbox("Asset", list(TICKER_DICTS[cat].keys()))
-df = load_data(TICKER_DICTS[cat][tick])
+tick_name = st.sidebar.selectbox("Asset", list(TICKER_DICTS[cat].keys()))
+ticker_symbol = TICKER_DICTS[cat][tick_name]
+
+df = load_data(ticker_symbol)
 
 if not df.empty:
-    curr = get_clean_float(df["Close"].iloc[-1])
-    prev = get_clean_float(df["Close"].iloc[-2])
+    curr = float(df["Close"].iloc[-1])
+    prev = float(df["Close"].iloc[-2])
     chg = ((curr - prev) / prev) * 100
+    rsi = float(df["RSI"].iloc[-1])
     
+    # UI Layout
     c1, c2, c3 = st.columns(3)
+    c1.metric(f"Kurs {tick_name}", f"{curr:,.4f}", f"{chg:+.2f}%")
+    c2.metric("Fear & Greed (RSI)", f"{rsi:.1f} %")
+    c3.info(f"System bereit für {tick_name}")
     
-    with c1:
-        st.write(f"### {tick} Kurs")
-        st.markdown(f"## {curr:,.4f}") # 4 Nachkommastellen für FX
-        st.write(f"Veränderung: {chg:+.2f}%")
-        
-    with c2:
-        st.write("### Fear & Greed (RSI)")
-        val = get_clean_float(df["RSI"].iloc[-1])
-        st.markdown(f"## {val:.1f} %")
-        # Visualisierungshilfe für RSI-Verständnis
-        if val > 70: st.warning("Überkauft")
-        elif val < 30: st.success("Überverkauft")
-        
-    with c3:
-        st.write("### Status")
-        st.info("System bereit")
-
-    fig = go.Figure(go.Scatter(x=df.index[-60:], y=df["Close"].iloc[-60:]))
-    fig.update_layout(template="plotly_dark", title=f"Chartverlauf: {tick}")
+    # Chart
+    fig = go.Figure(go.Scatter(x=df.index[-60:], y=df["Close"].iloc[-60:], line=dict(color='#00CC96')))
+    fig.update_layout(template="plotly_dark", title=f"Historie: {tick_name}")
     st.plotly_chart(fig, use_container_width=True)
 else:
-    st.error("Daten konnten nicht geladen werden.")
+    st.error(f"Daten für {tick_name} konnten nicht geladen werden. Bitte prüfen Sie die Internetverbindung.")
