@@ -245,7 +245,7 @@ else:
         if np.isnan(fg_index):
             fg_index = 50.0
 
-        # UI Spalten aufbauen
+        # UI Spalten aufbauen (Wir nutzen 3 gleich große Spalten)
         col1, col2, col3 = st.columns(3)
 
         with col1:
@@ -264,12 +264,12 @@ else:
             else:
                 status_text = "⚖️ Normalbereich"
 
-            # Absicherung: Label und Delta-Werte strikt in Strings umwandeln
+            # Radikale Vereinfachung: Wir verzichten auf das fehleranfällige st.metric-Delta 
+            # und übergeben einen absolut sauberen, vordefinierten String an das Value-Feld.
             st.metric(
-                label=f"Fear & Greed Index ({str(status_text)})",
-                value=f"{float(fg_index):.1f} %",
-                delta="Basis: RSI & SMA200",
-                delta_color="off",
+                label=f"Fear & Greed Index ({status_text})",
+                value=f"{fg_index:.1f} %",
+                delta="Indikator: RSI & SMA200"
             )
 
         with col3:
