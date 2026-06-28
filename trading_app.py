@@ -173,4 +173,158 @@ def load_market_data(ticker_symbol):
         else:
             return pd.DataFrame()
 
-    # Eventuell
+    # Eventuell doppelt erzeugte Spalten eliminieren
+    data = data.loc[:, ~data.columns.duplicated()]
+
+    # Technische Indikatoren berechnen
+    data = calculate_rsi(data)
+    data = find_elliott_pivots(data)
+    return data
+
+
+df_raw = load_market_data(ticker)
+
+# ==========================================
+# 5. PLAUSIBILITÄTS-CHECK & LOGIK-AUSFÜHRUNG
+# ==========================================
+if df_raw.empty or "Close" not in df_raw.columns:
+    st.error(
+        f"🚨 Keine validen Kursdaten für '{selected_label}' ({ticker}) empfangen. Bitte überprüfe das Symbol."
+    )
+elif len(df_raw) < 2:
+    st.warning(
+        f"⚠️ Zu wenige historische Zeilen für '{selected_label}' vorhanden."
+    )
+else:
+    df_display = df_raw.tail(history_days)
+
+    if len(df_display) < 2:
+        st.info(
+            "Bitte erhöhe den 'Betrachtungszeitraum Chart' in der Sidebar."
+        )
+    else:
+        # Werte sicher als native Typen extrahieren
+        close_display = df_display["Close"].squeeze()
+        current_price = float(close_display.iloc[-1])
+        previous_price = float(close_display.iloc[-2])
+
+        price_chg = current_price - previous_price
+        price_chg_pct = (price_chg / previous_price) * 100
+
+        fg_index = calculate_custom_fear_greed(df_raw)
+
+        # UI Spalten aufbauen
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric(
+                label=f"Aktueller Kurs ({selected_label})",
+                value=f"{current_price:,.2f}",
+                delta=f"{price_chg_pct:+.2f}%",
+            )
+
+        with col2:
+            # Anwendung deiner festgelegten 10/90-Regel für das Sentiment
+            if fg_index > 90:
+                status_text = "🔥 Extrem hoch (Gier)"
+            elif fg_index < 10:
+                status_text = "❄️ Extrem tief (Angst)"
+            else:
+                status_text = "⚖️ Normalbereich"
+
+            # Hier nutzen wir das Label für den Statustext, um den TypeError im Delta zu umgehen
+            st.metric(
+                label=f"Fear & Greed Index ({status_text})",
+                value=f"{fg_index:.1f} %",
+                delta="Basis: RSI & SMA200",
+                delta_color="off",
+            )
+
+        with col3:
+            # Windschatten-Trading Status
+            rsi_series = df_raw["RSI"].squeeze()
+            close_raw_series = df_raw["Close"].squeeze()
+
+            rsi_now = float(rsi_series.iloc[-1])
+            rsi_prev = float(rsi_series.iloc[-2])
+            sma_20 = float(close_raw_series.rolling(20).mean().iloc[-1])
+
+            if rsi_now > rsi_prev and current_price > sma_20:
+                ws_status = "🟩 Signal: Aktiver Windschatten (Kaufimpuls)"
+            else:
+                ws_status = "⬛ Kein Windschatten-Momentum"
+            st.info(f"**Windschatten-Taktik:**\n{ws_status}")
+
+        # ==========================================
+        # 6. CHART-VISUALISIERUNG (PLOTLY-CHARTS)
+        # ==========================================
+        st.subheader(
+            f"📈 Chart-Analyse: {selected_label} (Letzte {history_days} Handelstage)"
+        )
+
+        fig = go.Figure()
+
+        # Hauptkurs-Linie
+        fig.add_trace(
+            go.Scatter(
+                x=df_display.index,
+                y=close_display,
+                mode="lines",
+                name="Schlusskurs",
+                line=dict(color="#1f77b4", width=2),
+            )
+        )
+
+        # Elliott-Wellen: Lokale Pivot-Hochs
+        high_pivots = df_display[df_display["Pivot_High"].notna()]
+        if not high_pivots.empty:
+            fig.add_trace(
+                go.Scatter(
+                    x=high_pivots.index,
+                    y=high_pivots["Pivot_High"].squeeze(),
+                    mode="markers+text",
+                    name="Elliott-Welle (Hoch)",
+                    marker=dict(color="red", size=10, symbol="triangle-up"),
+                    text=["▲ High"] * len(high_pivots),
+                    textposition="top center",
+                )
+            )
+
+        # Elliott-Wellen: Lokale Pivot-Tiefs
+        low_pivots = df_display[df_display["Pivot_Low"].notna()]
+        if not low_pivots.empty:
+            fig.add_trace(
+                go.Scatter(
+                    x=low_pivots.index,
+                    y=low_pivots["Pivot_Low"].squeeze(),
+                    mode="markers+text",
+                    name="Elliott-Welle (Tief)",
+                    marker=dict(color="green", size=10, symbol="triangle-down"),
+                    text=["▼ Low"] * len(low_pivots),
+                    textposition="bottom center",
+                )
+            )
+
+        # Layout-Styling (Dunkles Theme)
+        fig.update_layout(
+            template="plotly_dark",
+            xaxis_title="Datum",
+            yaxis_title="Kurs",
+            margin=dict(l=20, r=20, t=20, b=20),
+            legend=dict(
+                orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
+            ),
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        # ==========================================
+        # 7. DASHBOARD DETAILANZEIGE & EXPANDER
+        # ==========================================
+        expander = st.expander("📊 Daten-Tabelle & Rohwerte einsehen")
+        with expander:
+            st.dataframe(
+                df_display[["Close", "RSI", "Pivot_High", "Pivot_Low"]].tail(
+                    10
+                )
+            )
