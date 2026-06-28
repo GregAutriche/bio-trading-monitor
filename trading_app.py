@@ -5,22 +5,33 @@ import streamlit as st
 import yfinance as yf
 
 # ==========================================
-# 1. KONFIGURATION & TICKER
+# 1. KONFIGURATION (FOKUS: DAX)
 # ==========================================
 st.set_page_config(page_title="Börsen Wetter", layout="wide")
 st.title("🌦️ Börsen Wetter & Trading Dashboard")
 
+# Hier sind nur die für dich relevanten DAX-Werte und Indizes
 TICKER_DICTS = {
-    "Indizes": {"DAX": "^GDAXI", "Nasdaq 100": "^NDX", "S&P 500": "^GSPC"},
-    "Währungen": {"EUR/USD": "EURUSD=X"},
-    "Osteuropa": {"OTP Bank": "OTP.BU", "MOL": "MOL.BU"}
+    "Indizes": {
+        "DAX": "^GDAXI", 
+        "Nasdaq 100": "^NDX"
+    },
+    "DAX Champions": {
+        "SAP": "SAP.DE",
+        "Siemens": "SIE.DE",
+        "Allianz": "ALV.DE",
+        "Deutsche Telekom": "DTE.DE"
+    },
+    "Währungen": {
+        "EUR/USD": "EURUSD=X"
+    }
 }
 
 # ==========================================
 # 2. LOGIK: BÖRSENWETTER & INDIKATOREN
 # ==========================================
 def calculate_metrics(df):
-    """Berechnet RSI und Fear & Greed Score."""
+    """Berechnet RSI und Fear & Greed Score basierend auf SMA200."""
     close = df["Close"].squeeze()
     delta = close.diff()
     gain = delta.where(delta > 0, 0).rolling(14).mean()
@@ -31,6 +42,7 @@ def calculate_metrics(df):
     # Fear & Greed (Deine 10/90 Regel)
     sma200 = close.rolling(200).mean()
     dist = ((close - sma200) / sma200) * 100
+    # Skalierung: +15% Abweichung = 100%, -15% Abweichung = 0%
     fg_score = np.clip((dist + 15) / 30 * 100, 0, 100)
     
     return rsi.iloc[-1], fg_score.iloc[-1]
@@ -56,10 +68,10 @@ rsi, fg_score = calculate_metrics(df)
 curr = float(df["Close"].iloc[-1])
 c1, c2, c3 = st.columns(3)
 
-c1.metric("Aktueller Kurs", f"{curr:,.4f}")
-c2.metric("Börsenwetter (Fear & Greed)", f"{fg_score:.1f} %")
+c1.metric("Aktueller Kurs", f"{curr:,.2f}")
+c2.metric("Börsenwetter Score", f"{fg_score:.1f} %")
 
-# Windschatten-Taktik Logik
+# Windschatten-Taktik Logik (Die 10/90 Regel)
 if fg_score > 90:
     c3.error("🔥 Extrem hoch (Gier) - Vorsicht!")
 elif fg_score < 10:
@@ -68,6 +80,6 @@ else:
     c3.info("⚖️ Normalbereich")
 
 # Chart
-fig = go.Figure(go.Scatter(x=df.index[-60:], y=df["Close"].iloc[-60:]))
+fig = go.Figure(go.Scatter(x=df.index[-60:], y=df["Close"].iloc[-60:], line=dict(color='#00CC96')))
 fig.update_layout(template="plotly_dark", title=f"Historie: {tick_name}")
 st.plotly_chart(fig, use_container_width=True)
