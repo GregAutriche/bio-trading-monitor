@@ -77,7 +77,7 @@ with st.expander("ℹ️ Erläuterung der Trading-Logik"):
     st.markdown("""
     * **Kaufen / Halten**: Kurs über SMA 200 und RSI > 50. Der Windschatten-Trend ist intakt.
     * **Warten / Verkaufen (Cash-Position)**: Der Kurs ist unter den SMA 200 gefallen. Sicherheit geht vor: Kapital in Cash wandeln und an der Seitenlinie auf bessere Zeiten warten.
-    * **Cash-Postion Das ist deine „Sicherheits-Zone“. Wenn das Dashboard „Warten/Verkaufen“ anzeigt und als Horizont „Cash-Position“ nennt, bedeutet das: Baue deine Aktien-Positionen ab oder halte sie nicht weiter. Du „parkst“ dein Kapital in Bargeld (auf dem Verrechnungskonto), um nicht im fallenden Markt (unter dem SMA 200) weiter an Wert zu verlieren. Du wartest in Ruhe an der Seitenlinie, bis sich das „Wetter“ wieder bessert.
+    * **Cash-Postion** Das ist deine „Sicherheits-Zone“. Wenn das Dashboard „Warten/Verkaufen“ anzeigt und als Horizont „Cash-Position“ nennt, bedeutet das: Baue deine Aktien-Positionen ab oder halte sie nicht weiter. Du „parkst“ dein Kapital in Bargeld (auf dem Verrechnungskonto), um nicht im fallenden Markt (unter dem SMA 200) weiter an Wert zu verlieren. Du wartest in Ruhe an der Seitenlinie, bis sich das „Wetter“ wieder bessert.
     * **Haltehorizonte**: 
         * *Mittelfristig*: Für Aktien (Wochen/Monate).
         * *Kurzfristig*: Für volatile Währungspaare (Intraday/Swing).
