@@ -36,7 +36,7 @@ TICKER_DICTS = {
 
 def calculate_rsi(df, window=14):
     """Berechnet den Standard Relative Strength Index (RSI)."""
-    if "Close" not in df.columns or len(df) < window:
+    if df is None or df.empty or "Close" not in df.columns or len(df) < window:
         df["RSI"] = 50.0
         return df
 
@@ -59,7 +59,7 @@ def calculate_custom_fear_greed(df):
 
     RSI, Abstand zur 200-Tage-Linie und deiner 10/90-Regel.
     """
-    if "Close" not in df.columns or len(df) < 200:
+    if df is None or df.empty or "Close" not in df.columns or len(df) < 200:
         return 50.0
 
     close_series = df["Close"].squeeze()
@@ -95,9 +95,10 @@ def find_elliott_pivots(df, window=7):
 
     zur Visualisierung potenzieller Elliott-Wellen-Strukturen.
     """
-    if "Close" not in df.columns or len(df) < window:
-        df["Pivot_High"] = np.nan
-        df["Pivot_Low"] = np.nan
+    if df is None or df.empty or "Close" not in df.columns or len(df) < window:
+        if df is not None and not df.empty:
+            df["Pivot_High"] = np.nan
+            df["Pivot_Low"] = np.nan
         return df
 
     close_series = df["Close"].squeeze()
@@ -145,9 +146,12 @@ history_days = st.sidebar.slider(
 
 @st.cache_data(ttl=3600)
 def load_market_data(ticker_symbol):
-    data = yf.download(ticker_symbol, period="2y")
+    try:
+        data = yf.download(ticker_symbol, period="2y")
+    except Exception:
+        return pd.DataFrame()
 
-    if data.empty:
+    if data is None or data.empty:
         return pd.DataFrame()
 
     # MultiIndex-Strukturen auflösen
@@ -187,9 +191,9 @@ df_raw = load_market_data(ticker)
 # ==========================================
 # 5. PLAUSIBILITÄTS-CHECK & LOGIK-AUSFÜHRUNG
 # ==========================================
-if df_raw.empty or "Close" not in df_raw.columns:
+if df_raw is None or df_raw.empty or "Close" not in df_raw.columns:
     st.error(
-        f"🚨 Keine validen Kursdaten für '{selected_label}' ({ticker}) empfangen. Bitte überprüfe das Symbol."
+        f"🚨 Keine validen Kursdaten für '{selected_label}' ({ticker}) empfangen. Bitte überprüfe das Symbol oder versuche es später erneut (z.B. wegen Wochenend-Datenpausen)."
     )
 elif len(df_raw) < 2:
     st.warning(
@@ -232,7 +236,6 @@ else:
             else:
                 status_text = "⚖️ Normalbereich"
 
-            # Hier nutzen wir das Label für den Statustext, um den TypeError im Delta zu umgehen
             st.metric(
                 label=f"Fear & Greed Index ({status_text})",
                 value=f"{fg_index:.1f} %",
