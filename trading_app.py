@@ -28,7 +28,7 @@ def get_trading_advice(curr, sma200, rsi, category):
         horizont = "Mittelfristig" if category != "Währungen" else "Kurzfristig"
     elif curr < sma200:
         signal = "Warten / Verkaufen"
-        horizont = "Cash-Position"
+        horizont = "Cash-Position (Seitenlinie)"
     else:
         signal = "Neutral"
         horizont = "Beobachten"
@@ -60,26 +60,24 @@ sma200 = float(df["SMA200"].iloc[-1])
 rsi = float(df["RSI"].iloc[-1])
 signal, horizont = get_trading_advice(curr, sma200, rsi, cat)
 
-# Metriken
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Kurs", f"{curr:,.4f}")
 c2.metric("Empfehlung", signal)
 c3.metric("Horizont", horizont)
 c4.metric("SMA 200", f"{sma200:,.4f}")
 
-# Chart
 fig = go.Figure()
 fig.add_trace(go.Scatter(x=df.index[-200:], y=df["Close"].iloc[-200:], name="Kurs"))
 fig.add_trace(go.Scatter(x=df.index[-200:], y=df["SMA200"].iloc[-200:], name="SMA 200", line=dict(dash='dash')))
 fig.update_layout(template="plotly_dark", title=f"Analyse: {tick_name}")
 st.plotly_chart(fig, use_container_width=True)
 
-# Infoblock
-with st.expander("ℹ️ Erläuterung der Trading-Logik & Horizonte"):
+# Erweiterter Infoblock
+with st.expander("ℹ️ Erläuterung der Trading-Logik"):
     st.markdown("""
-    * **Kaufen / Halten**: Kurs liegt über SMA 200 und RSI > 50. Der bullische Trend ist aktiv.
-    * **Warten / Verkaufen**: Kurs ist unter den SMA 200 gefallen. Kein Windschatten mehr vorhanden.
+    * **Kaufen / Halten**: Kurs über SMA 200 und RSI > 50. Der Windschatten-Trend ist intakt.
+    * **Warten / Verkaufen (Cash-Position)**: Der Kurs ist unter den SMA 200 gefallen. Sicherheit geht vor: Kapital in Cash wandeln und an der Seitenlinie auf bessere Zeiten warten.
     * **Haltehorizonte**: 
-        * *Mittelfristig*: Für Aktien-Trends (Wochen/Monate).
+        * *Mittelfristig*: Für Aktien (Wochen/Monate).
         * *Kurzfristig*: Für volatile Währungspaare (Intraday/Swing).
     """)
