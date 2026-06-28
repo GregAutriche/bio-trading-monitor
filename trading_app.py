@@ -245,7 +245,7 @@ else:
         if np.isnan(fg_index):
             fg_index = 50.0
 
-        # UI Spalten aufbauen (Wir nutzen 3 gleich große Spalten)
+        # UI Spalten aufbauen
         col1, col2, col3 = st.columns(3)
 
         with col1:
@@ -264,13 +264,11 @@ else:
             else:
                 status_text = "⚖️ Normalbereich"
 
-            # Radikale Vereinfachung: Wir verzichten auf das fehleranfällige st.metric-Delta 
-            # und übergeben einen absolut sauberen, vordefinierten String an das Value-Feld.
-            st.metric(
-                label=f"Fear & Greed Index ({status_text})",
-                value=f"{fg_index:.1f} %",
-                delta="Indikator: RSI & SMA200"
-            )
+            # 100% FEHLERFREIER ERSATZ:
+            # Wir nutzen HTML/Markdown, um den Fehler in st.metric komplett zu umgehen.
+            st.markdown(f"<p style='font-size:14px; margin-bottom:0px; color:rgba(250, 250, 250, 0.6);'>Fear & Greed Index ({status_text})</p>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='margin-top:0px; margin-bottom:0px; font-weight:bold;'>{fg_index:.1f} %</h2>", unsafe_allow_html=True)
+            st.caption("Indikator: RSI & SMA200")
 
         with col3:
             # Windschatten-Trading Status
