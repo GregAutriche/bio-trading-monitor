@@ -20,11 +20,9 @@ TICKER_DICTS = {
 }
 
 # ==========================================
-# 2. LOGIK & TRADING-BERATUNG
+# 2. LOGIK
 # ==========================================
-
 def get_trading_advice(curr, sma200, rsi, category):
-    """Generiert regelbasierte Empfehlungen."""
     if curr > sma200 and rsi > 50:
         signal = "Kaufen / Halten"
         horizont = "Mittelfristig" if category != "Währungen" else "Kurzfristig"
@@ -42,7 +40,6 @@ def load_data(ticker):
     df = pd.DataFrame(index=data.index)
     df["Close"] = data.iloc[:, 0].astype(float)
     df["SMA200"] = df["Close"].rolling(window=200).mean()
-    # RSI Berechnung
     delta = df["Close"].diff()
     gain = delta.where(delta > 0, 0).rolling(14).mean()
     loss = -delta.where(delta < 0, 0).rolling(14).mean()
@@ -61,16 +58,14 @@ df = load_data(ticker)
 curr = float(df["Close"].iloc[-1])
 sma200 = float(df["SMA200"].iloc[-1])
 rsi = float(df["RSI"].iloc[-1])
-
-# Trading-Beratung aufrufen (jetzt definiert!)
 signal, horizont = get_trading_advice(curr, sma200, rsi, cat)
 
-# Dashboard Metriken
+# Metriken
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("Kurs", f"{curr:,.2f}")
+c1.metric("Kurs", f"{curr:,.4f}")
 c2.metric("Empfehlung", signal)
 c3.metric("Horizont", horizont)
-c4.metric("SMA 200", f"{sma200:,.2f}")
+c4.metric("SMA 200", f"{sma200:,.4f}")
 
 # Chart
 fig = go.Figure()
@@ -78,3 +73,13 @@ fig.add_trace(go.Scatter(x=df.index[-200:], y=df["Close"].iloc[-200:], name="Kur
 fig.add_trace(go.Scatter(x=df.index[-200:], y=df["SMA200"].iloc[-200:], name="SMA 200", line=dict(dash='dash')))
 fig.update_layout(template="plotly_dark", title=f"Analyse: {tick_name}")
 st.plotly_chart(fig, use_container_width=True)
+
+# Infoblock
+with st.expander("ℹ️ Erläuterung der Trading-Logik & Horizonte"):
+    st.markdown("""
+    * **Kaufen / Halten**: Kurs liegt über SMA 200 und RSI > 50. Der bullische Trend ist aktiv.
+    * **Warten / Verkaufen**: Kurs ist unter den SMA 200 gefallen. Kein Windschatten mehr vorhanden.
+    * **Haltehorizonte**: 
+        * *Mittelfristig*: Für Aktien-Trends (Wochen/Monate).
+        * *Kurzfristig*: Für volatile Währungspaare (Intraday/Swing).
+    """)
