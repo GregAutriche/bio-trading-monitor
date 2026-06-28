@@ -36,7 +36,6 @@ TICKER_DICTS = {
 
 def calculate_rsi(df, window=14):
     """Berechnet den Standard Relative Strength Index (RSI)."""
-    # Sicherheitskopie erstellen, um SettingWithCopyErros zu vermeiden
     df = df.copy()
 
     if df is None or df.empty or "Close" not in df.columns or len(df) < window:
@@ -69,6 +68,9 @@ def calculate_custom_fear_greed(df):
     if isinstance(close_series, pd.DataFrame):
         close_series = close_series.iloc[:, 0]
 
+    if "RSI" not in df.columns:
+        return 50.0
+
     rsi_series = df["RSI"].squeeze()
     if isinstance(rsi_series, pd.DataFrame):
         rsi_series = rsi_series.iloc[:, 0]
@@ -81,7 +83,7 @@ def calculate_custom_fear_greed(df):
     current_close = float(close_series.iloc[-1])
     current_sma200 = float(sma_200.iloc[-1])
 
-    if current_sma200 == 0:
+    if current_sma200 == 0 or np.isnan(current_sma200):
         distance_pct = 0
     else:
         distance_pct = ((current_close - current_sma200) / current_sma200) * 100
@@ -90,6 +92,10 @@ def calculate_custom_fear_greed(df):
     distance_score = np.clip((distance_pct + 15) / 30 * 100, 0, 100)
 
     fg_score = (rsi_val * 0.5) + (distance_score * 0.5)
+    
+    if np.isnan(fg_score):
+        return 50.0
+        
     return float(np.clip(fg_score, 0, 100))
 
 
@@ -193,7 +199,7 @@ def load_market_data(ticker_symbol):
     if isinstance(cleaned_df["Close"], pd.DataFrame):
         cleaned_df["Close"] = cleaned_df["Close"].iloc[:, 0]
 
-    # Zuweisung der berechneten Tabellen (Wichtig: Rückgabewerte auffangen!)
+    # Zuweisung der berechneten Tabellen
     cleaned_df = calculate_rsi(cleaned_df)
     cleaned_df = find_elliott_pivots(cleaned_df)
 
@@ -234,7 +240,10 @@ else:
         price_chg = current_price - previous_price
         price_chg_pct = (price_chg / previous_price) * 100
 
+        # Berechnen und Absichern des F&G Scores vor dem Rendern
         fg_index = calculate_custom_fear_greed(df_raw)
+        if np.isnan(fg_index):
+            fg_index = 50.0
 
         # UI Spalten aufbauen
         col1, col2, col3 = st.columns(3)
@@ -247,7 +256,7 @@ else:
             )
 
         with col2:
-            # Deine 10/90-Regel
+            # Deine festgelegte 10/90-Regel anwenden
             if fg_index > 90:
                 status_text = "🔥 Extrem hoch (Gier)"
             elif fg_index < 10:
@@ -255,9 +264,10 @@ else:
             else:
                 status_text = "⚖️ Normalbereich"
 
+            # Absicherung: Label und Delta-Werte strikt in Strings umwandeln
             st.metric(
-                label=f"Fear & Greed Index ({status_text})",
-                value=f"{fg_index:.1f} %",
+                label=f"Fear & Greed Index ({str(status_text)})",
+                value=f"{float(fg_index):.1f} %",
                 delta="Basis: RSI & SMA200",
                 delta_color="off",
             )
