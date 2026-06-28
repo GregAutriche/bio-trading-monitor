@@ -37,7 +37,8 @@ TICKER_DICTS = {
 def calculate_rsi(df, window=14):
     """Berechnet den Standard Relative Strength Index (RSI)."""
     if df is None or df.empty or "Close" not in df.columns or len(df) < window:
-        df["RSI"] = 50.0
+        if df is not None and not df.empty:
+            df["RSI"] = 50.0
         return df
 
     # Sicherstellen, dass es sich um eine eindimensionale Reihe handelt
@@ -140,19 +141,22 @@ history_days = st.sidebar.slider(
 )
 
 # ==========================================
-# 4. DATENBESCHAFFUNG (RADIKAL BEREINIGT & KUGELSICHER)
+# 4. DATENBESCHAFFUNG (EVALUIERT ALS ECHTE KOPIE)
 # ==========================================
 
 
 @st.cache_data(ttl=3600)
 def load_market_data(ticker_symbol):
     try:
+        # Als echte, unabhängige Kopie laden, um SettingWithCopy-Probleme zu vermeiden
         data = yf.download(ticker_symbol, period="2y")
     except Exception:
         return pd.DataFrame()
 
     if data is None or data.empty:
         return pd.DataFrame()
+
+    data = data.copy()
 
     # MultiIndex-Strukturen auflösen
     if isinstance(data.columns, pd.MultiIndex):
@@ -193,7 +197,7 @@ df_raw = load_market_data(ticker)
 # ==========================================
 if df_raw is None or df_raw.empty or "Close" not in df_raw.columns:
     st.error(
-        f"🚨 Keine validen Kursdaten für '{selected_label}' ({ticker}) empfangen. Bitte überprüfe das Symbol oder versuche es später erneut (z.B. wegen Wochenend-Datenpausen)."
+        f"🚨 Keine validen Kursdaten für '{selected_label}' ({ticker}) empfangen. Bitte überprüfe das Symbol oder versuche es später erneut."
     )
 elif len(df_raw) < 2:
     st.warning(
