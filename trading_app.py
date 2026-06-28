@@ -12,7 +12,7 @@ st.set_page_config(
 )
 st.title("🌦️ Börsen Wetter & Trading Dashboard")
 
-# Ausgelagerte Ticker-Konfiguration (inkl. Osteuropa-Suffixe)
+# Ticker-Konfiguration
 TICKER_DICTS = {
     "Indizes / Champions": {
         "DAX": "^GDAXI",
@@ -30,334 +30,92 @@ TICKER_DICTS = {
 }
 
 # ==========================================
-# 2. MATHEMATISCHE & ANALYTISCHE FUNKTIONEN
+# 2. ANALYTISCHE FUNKTIONEN (TYP-SICHER)
 # ==========================================
 
-
 def calculate_rsi(df, window=14):
-    """Berechnet den Standard Relative Strength Index (RSI)."""
     df = df.copy()
-
-    if df is None or df.empty or "Close" not in df.columns or len(df) < window:
+    if df is None or df.empty or "Close" not in df.columns:
         df["RSI"] = 50.0
         return df
-
+    
+    # Sicherstellen, dass Close ein Series-Objekt mit Float-Werten ist
     close_series = df["Close"].squeeze()
     if isinstance(close_series, pd.DataFrame):
         close_series = close_series.iloc[:, 0]
-
+    
     delta = close_series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
     rs = gain / (loss + 1e-9)
-
     df["RSI"] = 100 - (100 / (1 + rs))
     df["RSI"] = df["RSI"].fillna(50.0)
     return df
 
-
 def calculate_custom_fear_greed(df):
-    """Berechnet einen mathematischen Fear & Greed Score (0-100) basierend auf
-
-    RSI, Abstand zur 200-Tage-Linie und deiner 10/90-Regel.
-    """
     if df is None or df.empty or "Close" not in df.columns or len(df) < 200:
         return 50.0
-
-    close_series = df["Close"].squeeze()
-    if isinstance(close_series, pd.DataFrame):
-        close_series = close_series.iloc[:, 0]
-
-    if "RSI" not in df.columns:
-        return 50.0
-
-    rsi_series = df["RSI"].squeeze()
-    if isinstance(rsi_series, pd.DataFrame):
-        rsi_series = rsi_series.iloc[:, 0]
-
-    # Komponente 1: RSI
-    rsi_val = float(rsi_series.iloc[-1])
-
-    # Komponente 2: Abstand zur SMA 200
-    sma_200 = close_series.rolling(window=200).mean()
-    current_close = float(close_series.iloc[-1])
-    current_sma200 = float(sma_200.iloc[-1])
-
-    if current_sma200 == 0 or np.isnan(current_sma200):
-        distance_pct = 0
-    else:
-        distance_pct = ((current_close - current_sma200) / current_sma200) * 100
-
-    # Skalierung (+-15% Abweichung repräsentieren die Extremzonen)
-    distance_score = np.clip((distance_pct + 15) / 30 * 100, 0, 100)
-
-    fg_score = (rsi_val * 0.5) + (distance_score * 0.5)
     
-    if np.isnan(fg_score):
-        return 50.0
-        
+    # Explizite Umwandlung in natives Python-Float
+    rsi_val = float(df["RSI"].iloc[-1])
+    current_close = float(df["Close"].iloc[-1])
+    sma_200 = float(df["Close"].rolling(window=200).mean().iloc[-1])
+    
+    distance_pct = ((current_close - sma_200) / sma_200) * 100 if sma_200 != 0 else 0
+    distance_score = np.clip((distance_pct + 15) / 30 * 100, 0, 100)
+    
+    fg_score = (rsi_val * 0.5) + (distance_score * 0.5)
     return float(np.clip(fg_score, 0, 100))
 
-
-def find_elliott_pivots(df, window=7):
-    """Identifiziert lokale Minima und Maxima (Pivot-Punkte)
-
-    zur Visualisierung potenzieller Elliott-Wellen-Strukturen.
-    """
-    df = df.copy()
-
-    if df is None or df.empty or "Close" not in df.columns or len(df) < window:
-        df["Pivot_High"] = np.nan
-        df["Pivot_Low"] = np.nan
-        return df
-
-    close_series = df["Close"].squeeze()
-    if isinstance(close_series, pd.DataFrame):
-        close_series = close_series.iloc[:, 0]
-
-    df["Pivot_High"] = close_series[
-        (
-            close_series
-            == close_series.rolling(window=window, center=True).max()
-        )
-    ]
-    df["Pivot_Low"] = close_series[
-        (
-            close_series
-            == close_series.rolling(window=window, center=True).min()
-        )
-    ]
-    return df
-
-
 # ==========================================
-# 3. SIDEBAR / USERSIGNALE & SLIDER
+# 3. DATENBESCHAFFUNG
 # ==========================================
-st.sidebar.header("🔧 Dashboard Steuerung")
-
-category = st.sidebar.selectbox("Kategorie wählen", list(TICKER_DICTS.keys()))
-selected_label = st.sidebar.selectbox(
-    "Asset auswählen", list(TICKER_DICTS[category].keys())
-)
-ticker = TICKER_DICTS[category][selected_label]
-
-history_days = st.sidebar.slider(
-    "Betrachtungszeitraum Chart (Tage)",
-    min_value=5,
-    max_value=120,
-    value=20,
-    step=5,
-)
-
-# ==========================================
-# 4. DATENBESCHAFFUNG (STRUKTURELL ABSOLUT STABIL)
-# ==========================================
-
 
 @st.cache_data(ttl=3600)
 def load_market_data(ticker_symbol):
     try:
         data = yf.download(ticker_symbol, period="2y")
-    except Exception:
-        return pd.DataFrame()
-
-    if data is None or data.empty:
-        return pd.DataFrame()
-
-    # Neues, flaches DataFrame aufbauen, um MultiIndex-Konflikte zu vermeiden
-    cleaned_df = pd.DataFrame(index=data.index)
-
-    # MultiIndex auflösen oder Spalten direkt extrahieren
-    if isinstance(data.columns, pd.MultiIndex):
-        if "Adj Close" in data.columns.levels[0]:
-            cleaned_df["Close"] = data["Adj Close"].squeeze()
-        elif "Close" in data.columns.levels[0]:
-            cleaned_df["Close"] = data["Close"].squeeze()
+        if data.empty: return pd.DataFrame()
+        
+        # Flaches DataFrame erzwingen
+        df = pd.DataFrame(index=data.index)
+        if isinstance(data.columns, pd.MultiIndex):
+            df["Close"] = data.iloc[:, 0]
         else:
-            try:
-                cleaned_df["Close"] = data.xs(
-                    "Close", axis=1, level=0
-                ).squeeze()
-            except Exception:
-                return pd.DataFrame()
-    else:
-        if "Adj Close" in data.columns:
-            cleaned_df["Close"] = data["Adj Close"]
-        elif "Close" in data.columns:
-            cleaned_df["Close"] = data["Close"]
-        else:
-            lower_cols = {str(c).lower(): c for c in data.columns}
-            if "adj close" in lower_cols:
-                cleaned_df["Close"] = data[lower_cols["adj close"]]
-            elif "close" in lower_cols:
-                cleaned_df["Close"] = data[lower_cols["close"]]
-            else:
-                return pd.DataFrame()
-
-    # Spalte in eindimensionale Form bringen
-    cleaned_df["Close"] = cleaned_df["Close"].squeeze()
-    if isinstance(cleaned_df["Close"], pd.DataFrame):
-        cleaned_df["Close"] = cleaned_df["Close"].iloc[:, 0]
-
-    # Zuweisung der berechneten Tabellen
-    cleaned_df = calculate_rsi(cleaned_df)
-    cleaned_df = find_elliott_pivots(cleaned_df)
-
-    return cleaned_df
-
-
-df_raw = load_market_data(ticker)
-
-# ==========================================
-# 5. PLAUSIBILITÄTS-CHECK & LOGIK-AUSFÜHRUNG
-# ==========================================
-if (
-    df_raw is None
-    or df_raw.empty
-    or "Close" not in df_raw.columns
-    or "RSI" not in df_raw.columns
-):
-    st.error(
-        f"🚨 Keine validen Kursdaten für '{selected_label}' ({ticker}) empfangen. Bitte überprüfe das Symbol."
-    )
-elif len(df_raw) < 2:
-    st.warning(
-        f"⚠️ Zu wenige historische Zeilen für '{selected_label}' vorhanden."
-    )
-else:
-    df_display = df_raw.tail(history_days)
-
-    if len(df_display) < 2:
-        st.info(
-            "Bitte erhöhe den 'Betrachtungszeitraum Chart' in der Sidebar."
-        )
-    else:
-        # Werte extrahieren
-        close_display = df_display["Close"].squeeze()
-        current_price = float(close_display.iloc[-1])
-        previous_price = float(close_display.iloc[-2])
-
-        price_chg = current_price - previous_price
-        price_chg_pct = (price_chg / previous_price) * 100
-
-        # Berechnen und Absichern des F&G Scores vor dem Rendern
-        fg_index = calculate_custom_fear_greed(df_raw)
-        if np.isnan(fg_index):
-            fg_index = 50.0
-
-        # UI Spalten aufbauen
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            # SPALTE 1 ABSICHERN: Ersatz für Kurs-Metrik via HTML Markdown
-            st.markdown(f"<p style='font-size:14px; margin-bottom:0px; color:rgba(250, 250, 250, 0.6);'>Aktueller Kurs ({selected_label})</p>", unsafe_allow_html=True)
-            st.markdown(f"<h2 style='margin-top:0px; margin-bottom:0px; font-weight:bold;'>{current_price:,.2f}</h2>", unsafe_allow_html=True)
+            df["Close"] = data["Close"]
             
-            # Farbiger Text je nach Kursentwicklung
-            if price_chg_pct >= 0:
-                st.markdown(f"<p style='color:#00cc66; font-size:14px; margin-top:2px;'>▲ {price_chg_pct:+.2f}%</p>", unsafe_allow_html=True)
-            else:
-                st.markdown(f"<p style='color:#ff4d4d; font-size:14px; margin-top:2px;'>▼ {price_chg_pct:+.2f}%</p>", unsafe_allow_html=True)
+        df = calculate_rsi(df)
+        return df.astype(float) # Alles in einfache Floats erzwingen
+    except:
+        return pd.DataFrame()
 
-        with col2:
-            # Deine festgelegte 10/90-Regel anwenden
-            if fg_index > 90:
-                status_text = "🔥 Extrem hoch (Gier)"
-            elif fg_index < 10:
-                status_text = "❄️ Extrem tief (Angst)"
-            else:
-                status_text = "⚖️ Normalbereich"
+# ==========================================
+# 4. DASHBOARD LOGIK
+# ==========================================
+category = st.sidebar.selectbox("Kategorie", list(TICKER_DICTS.keys()))
+ticker = st.sidebar.selectbox("Asset", list(TICKER_DICTS[category].keys()))
+df = load_market_data(TICKER_DICTS[category][ticker])
 
-            # SPALTE 2 ABSICHERN: Ersatz für Fear & Greed Metrik via HTML Markdown
-            st.markdown(f"<p style='font-size:14px; margin-bottom:0px; color:rgba(250, 250, 250, 0.6);'>Fear & Greed Index ({status_text})</p>", unsafe_allow_html=True)
-            st.markdown(f"<h2 style='margin-top:0px; margin-bottom:0px; font-weight:bold;'>{fg_index:.1f} %</h2>", unsafe_allow_html=True)
-            st.markdown("<p style='color:rgba(250, 250, 250, 0.4); font-size:14px; margin-top:2px;'>Indikator: RSI & SMA200</p>", unsafe_allow_html=True)
-
-        with col3:
-            # Windschatten-Trading Status
-            rsi_series = df_raw["RSI"].squeeze()
-            close_raw_series = df_raw["Close"].squeeze()
-
-            rsi_now = float(rsi_series.iloc[-1])
-            rsi_prev = float(rsi_series.iloc[-2])
-            sma_20 = float(close_raw_series.rolling(20).mean().iloc[-1])
-
-            if rsi_now > rsi_prev and current_price > sma_20:
-                ws_status = "🟩 Signal: Aktiver Windschatten (Kaufimpuls)"
-            else:
-                ws_status = "⬛ Kein Windschatten-Momentum"
-            st.info(f"**Windschatten-Taktik:**\n{ws_status}")
-
-        # ==========================================
-        # 6. CHART-VISUALISIERUNG (PLOTLY-CHARTS)
-        # ==========================================
-        st.subheader(
-            f"📈 Chart-Analyse: {selected_label} (Letzte {history_days} Handelstage)"
-        )
-
-        fig = go.Figure()
-
-        # Hauptkurs-Linie
-        fig.add_trace(
-            go.Scatter(
-                x=df_display.index,
-                y=close_display,
-                mode="lines",
-                name="Schlusskurs",
-                line=dict(color="#1f77b4", width=2),
-            )
-        )
-
-        # Elliott-Wellen: Lokale Pivot-Hochs
-        high_pivots = df_display[df_display["Pivot_High"].notna()]
-        if not high_pivots.empty:
-            fig.add_trace(
-                go.Scatter(
-                    x=high_pivots.index,
-                    y=high_pivots["Pivot_High"].squeeze(),
-                    mode="markers+text",
-                    name="Elliott-Welle (Hoch)",
-                    marker=dict(color="red", size=10, symbol="triangle-up"),
-                    text=["▲ High"] * len(high_pivots),
-                    textposition="top center",
-                )
-            )
-
-        # Elliott-Wellen: Lokale Pivot-Tiefs
-        low_pivots = df_display[df_display["Pivot_Low"].notna()]
-        if not low_pivots.empty:
-            fig.add_trace(
-                go.Scatter(
-                    x=low_pivots.index,
-                    y=low_pivots["Pivot_Low"].squeeze(),
-                    mode="markers+text",
-                    name="Elliott-Welle (Tief)",
-                    marker=dict(color="green", size=10, symbol="triangle-down"),
-                    text=["▼ Low"] * len(low_pivots),
-                    textposition="bottom center",
-                )
-            )
-
-        # Layout-Styling (Dunkles Theme)
-        fig.update_layout(
-            template="plotly_dark",
-            xaxis_title="Datum",
-            yaxis_title="Kurs",
-            margin=dict(l=20, r=20, t=20, b=20),
-            legend=dict(
-                orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
-            ),
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-
-        # ==========================================
-        # 7. DASHBOARD DETAILANZEIGE & EXPANDER
-        # ==========================================
-        expander = st.expander("📊 Daten-Tabelle & Rohwerte einsehen")
-        with expander:
-            st.dataframe(
-                df_display[["Close", "RSI", "Pivot_High", "Pivot_Low"]].tail(
-                    10
-                )
-            )
+if not df.empty:
+    current_price = float(df["Close"].iloc[-1])
+    prev_price = float(df["Close"].iloc[-2])
+    chg = ((current_price - prev_price) / prev_price) * 100
+    fg_val = calculate_custom_fear_greed(df)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    # Saubere, typ-sichere Ausgabe
+    with col1:
+        st.markdown(f"**Aktueller Kurs**")
+        st.write(f"# {current_price:,.2f}")
+        st.write(f"{chg:+.2f}%")
+        
+    with col2:
+        st.markdown(f"**Fear & Greed**")
+        st.write(f"# {fg_val:.1f} %")
+        st.write("Indikator: RSI & SMA")
+        
+    # Chart (Plotly)
+    st.plotly_chart(go.Figure(data=go.Scatter(x=df.index[-50:], y=df["Close"].iloc[-50:])), use_container_width=True)
+else:
+    st.error("Daten konnten nicht geladen werden.")
