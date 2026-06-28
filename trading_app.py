@@ -5,117 +5,73 @@ import streamlit as st
 import yfinance as yf
 
 # ==========================================
-# 1. INITIALISIERUNG & SETUP
+# 1. SETUP
 # ==========================================
-st.set_page_config(
-    page_title="Börsen Wetter Dashboard", page_icon="🌦️", layout="wide"
-)
-st.title("🌦️ Börsen Wetter & Trading Dashboard")
+st.set_page_config(page_title="Börsen Wetter", layout="wide")
+st.title("🌦️ Börsen Wetter Dashboard")
 
-# Ticker-Konfiguration
 TICKER_DICTS = {
-    "Indizes / Champions": {
-        "DAX": "^GDAXI",
-        "Nasdaq 100": "^NDX",
-        "S&P 500": "^GSPC",
-        "Euro Stoxx 50": "^STOXX50E",
-    },
-    "Bulgarien & Ungarn": {
-        "OTP Bank (Ungarn)": "OTP.BU",
-        "MOL (Ungarn)": "MOL.BU",
-        "Richter Gedeon (Ungarn)": "RICHT.BU",
-        "Sopharma (Bulgarien)": "SOPH.SO",
-        "Eurohold (Bulgarien)": "EUBG.SO",
-    },
+    "Indizes": {"DAX": "^GDAXI", "Nasdaq": "^NDX", "S&P 500": "^GSPC"},
+    "Osteuropa": {"OTP Bank": "OTP.BU", "MOL": "MOL.BU", "Sopharma": "SOPH.SO"}
 }
 
 # ==========================================
-# 2. ANALYTISCHE FUNKTIONEN (TYP-SICHER)
+# 2. LOGIK & TYP-KONVERTIERUNG
 # ==========================================
 
-def calculate_rsi(df, window=14):
-    df = df.copy()
-    if df is None or df.empty or "Close" not in df.columns:
-        df["RSI"] = 50.0
-        return df
+def get_clean_float(val):
+    """Erzwingt einen sauberen Python-Float ohne NumPy-Altlasten."""
+    return float(val) if not np.isnan(val) else 0.0
+
+def load_data(ticker):
+    data = yf.download(ticker, period="1y")
+    if data.empty: return pd.DataFrame()
     
-    # Sicherstellen, dass Close ein Series-Objekt mit Float-Werten ist
-    close_series = df["Close"].squeeze()
-    if isinstance(close_series, pd.DataFrame):
-        close_series = close_series.iloc[:, 0]
+    # Sicherstellen, dass die Spalten nackte Floats sind
+    df = pd.DataFrame(index=data.index)
+    df["Close"] = data["Close"].squeeze().astype(float)
     
-    delta = close_series.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+    # RSI
+    delta = df["Close"].diff()
+    gain = delta.where(delta > 0, 0).rolling(14).mean()
+    loss = -delta.where(delta < 0, 0).rolling(14).mean()
     rs = gain / (loss + 1e-9)
-    df["RSI"] = 100 - (100 / (1 + rs))
-    df["RSI"] = df["RSI"].fillna(50.0)
+    df["RSI"] = (100 - (100 / (1 + rs))).fillna(50.0).astype(float)
     return df
 
-def calculate_custom_fear_greed(df):
-    if df is None or df.empty or "Close" not in df.columns or len(df) < 200:
-        return 50.0
-    
-    # Explizite Umwandlung in natives Python-Float
-    rsi_val = float(df["RSI"].iloc[-1])
-    current_close = float(df["Close"].iloc[-1])
-    sma_200 = float(df["Close"].rolling(window=200).mean().iloc[-1])
-    
-    distance_pct = ((current_close - sma_200) / sma_200) * 100 if sma_200 != 0 else 0
-    distance_score = np.clip((distance_pct + 15) / 30 * 100, 0, 100)
-    
-    fg_score = (rsi_val * 0.5) + (distance_score * 0.5)
-    return float(np.clip(fg_score, 0, 100))
-
 # ==========================================
-# 3. DATENBESCHAFFUNG
+# 3. DASHBOARD (TYP-SICHER)
 # ==========================================
-
-@st.cache_data(ttl=3600)
-def load_market_data(ticker_symbol):
-    try:
-        data = yf.download(ticker_symbol, period="2y")
-        if data.empty: return pd.DataFrame()
-        
-        # Flaches DataFrame erzwingen
-        df = pd.DataFrame(index=data.index)
-        if isinstance(data.columns, pd.MultiIndex):
-            df["Close"] = data.iloc[:, 0]
-        else:
-            df["Close"] = data["Close"]
-            
-        df = calculate_rsi(df)
-        return df.astype(float) # Alles in einfache Floats erzwingen
-    except:
-        return pd.DataFrame()
-
-# ==========================================
-# 4. DASHBOARD LOGIK
-# ==========================================
-category = st.sidebar.selectbox("Kategorie", list(TICKER_DICTS.keys()))
-ticker = st.sidebar.selectbox("Asset", list(TICKER_DICTS[category].keys()))
-df = load_market_data(TICKER_DICTS[category][ticker])
+cat = st.sidebar.selectbox("Kategorie", list(TICKER_DICTS.keys()))
+tick = st.sidebar.selectbox("Asset", list(TICKER_DICTS[cat].keys()))
+df = load_data(TICKER_DICTS[cat][tick])
 
 if not df.empty:
-    current_price = float(df["Close"].iloc[-1])
-    prev_price = float(df["Close"].iloc[-2])
-    chg = ((current_price - prev_price) / prev_price) * 100
-    fg_val = calculate_custom_fear_greed(df)
+    # Hier erzwingen wir die Konvertierung in native Python-Typen
+    curr = get_clean_float(df["Close"].iloc[-1])
+    prev = get_clean_float(df["Close"].iloc[-2])
+    chg = ((curr - prev) / prev) * 100
     
-    col1, col2, col3 = st.columns(3)
+    # UI-Ausgabe OHNE st.metric, um jeglichen Typ-Fehler zu vermeiden
+    c1, c2, c3 = st.columns(3)
     
-    # Saubere, typ-sichere Ausgabe
-    with col1:
-        st.markdown(f"**Aktueller Kurs**")
-        st.write(f"# {current_price:,.2f}")
-        st.write(f"{chg:+.2f}%")
+    with c1:
+        st.write("### Aktueller Kurs")
+        st.markdown(f"## {curr:,.2f}")
+        st.write(f"Veränderung: {chg:+.2f}%")
         
-    with col2:
-        st.markdown(f"**Fear & Greed**")
-        st.write(f"# {fg_val:.1f} %")
-        st.write("Indikator: RSI & SMA")
+    with c2:
+        st.write("### Fear & Greed (RSI)")
+        val = get_clean_float(df["RSI"].iloc[-1])
+        st.markdown(f"## {val:.1f} %")
         
-    # Chart (Plotly)
-    st.plotly_chart(go.Figure(data=go.Scatter(x=df.index[-50:], y=df["Close"].iloc[-50:])), use_container_width=True)
+    with c3:
+        st.write("### Status")
+        st.info("System stabil")
+
+    # Plot
+    fig = go.Figure(go.Scatter(x=df.index[-50:], y=df["Close"].iloc[-50:]))
+    fig.update_layout(template="plotly_dark")
+    st.plotly_chart(fig, use_container_width=True)
 else:
-    st.error("Daten konnten nicht geladen werden.")
+    st.error("Datenfehler.")
