@@ -5,53 +5,31 @@ import streamlit as st
 import yfinance as yf
 
 # ==========================================
-# 1. KONFIGURATION (FOKUS: DAX)
+# 1. KONFIGURATION
 # ==========================================
 st.set_page_config(page_title="Börsen Wetter", layout="wide")
 st.title("🌦️ Börsen Wetter & Trading Dashboard")
 
-# Hier sind nur die für dich relevanten DAX-Werte und Indizes
 TICKER_DICTS = {
-    "Indizes": {
-        "DAX": "^GDAXI", 
-        "Nasdaq 100": "^NDX"
-    },
+    "Indizes": {"DAX": "^GDAXI", "Nasdaq 100": "^NDX"},
     "DAX Champions": {
         "SAP": "SAP.DE",
         "Siemens": "SIE.DE",
         "Allianz": "ALV.DE",
         "Deutsche Telekom": "DTE.DE"
-    },
-    "Währungen": {
-        "EUR/USD": "EURUSD=X"
     }
 }
 
 # ==========================================
-# 2. LOGIK: BÖRSENWETTER & INDIKATOREN
+# 2. LOGIK MIT SMA 200
 # ==========================================
-def calculate_metrics(df):
-    """Berechnet RSI und Fear & Greed Score basierend auf SMA200."""
-    close = df["Close"].squeeze()
-    delta = close.diff()
-    gain = delta.where(delta > 0, 0).rolling(14).mean()
-    loss = -delta.where(delta < 0, 0).rolling(14).mean()
-    rs = gain / (loss + 1e-9)
-    rsi = 100 - (100 / (1 + rs))
-    
-    # Fear & Greed (Deine 10/90 Regel)
-    sma200 = close.rolling(200).mean()
-    dist = ((close - sma200) / sma200) * 100
-    # Skalierung: +15% Abweichung = 100%, -15% Abweichung = 0%
-    fg_score = np.clip((dist + 15) / 30 * 100, 0, 100)
-    
-    return rsi.iloc[-1], fg_score.iloc[-1]
-
 @st.cache_data(ttl=600)
 def load_data(ticker):
     data = yf.download(ticker, period="2y")
     df = pd.DataFrame(index=data.index)
     df["Close"] = data.iloc[:, 0].astype(float)
+    # SMA 200 berechnen
+    df["SMA200"] = df["Close"].rolling(window=200).mean()
     return df
 
 # ==========================================
@@ -62,24 +40,24 @@ tick_name = st.sidebar.selectbox("Asset", list(TICKER_DICTS[cat].keys()))
 ticker = TICKER_DICTS[cat][tick_name]
 
 df = load_data(ticker)
-rsi, fg_score = calculate_metrics(df)
-
-# BÖRSENWETTER ANZEIGE
 curr = float(df["Close"].iloc[-1])
-c1, c2, c3 = st.columns(3)
+sma200 = float(df["SMA200"].iloc[-1])
 
+# Metrik anzeigen
+c1, c2 = st.columns(2)
 c1.metric("Aktueller Kurs", f"{curr:,.2f}")
-c2.metric("Börsenwetter Score", f"{fg_score:.1f} %")
+c2.metric("SMA 200 (Trend)", f"{sma200:,.2f}")
 
-# Windschatten-Taktik Logik (Die 10/90 Regel)
-if fg_score > 90:
-    c3.error("🔥 Extrem hoch (Gier) - Vorsicht!")
-elif fg_score < 10:
-    c3.success("❄️ Extrem tief (Angst) - Chance!")
-else:
-    c3.info("⚖️ Normalbereich")
+# Chart mit SMA 200 Linie
+fig = go.Figure()
+fig.add_trace(go.Scatter(x=df.index[-200:], y=df["Close"].iloc[-200:], name="Kurs", line=dict(color='#00CC96')))
+fig.add_trace(go.Scatter(x=df.index[-200:], y=df["SMA200"].iloc[-200:], name="SMA 200", line=dict(color='#FFD700', dash='dash')))
 
-# Chart
-fig = go.Figure(go.Scatter(x=df.index[-60:], y=df["Close"].iloc[-60:], line=dict(color='#00CC96')))
-fig.update_layout(template="plotly_dark", title=f"Historie: {tick_name}")
+fig.update_layout(template="plotly_dark", title=f"Trend-Analyse: {tick_name}")
 st.plotly_chart(fig, use_container_width=True)
+
+# Windschatten-Check
+if curr > sma200:
+    st.success(f"✅ {tick_name} ist über dem SMA 200: Bullischer Windschatten aktiv.")
+else:
+    st.warning(f"⚠️ {tick_name} ist unter dem SMA 200: Vorsicht, kein Windschatten-Momentum.")
