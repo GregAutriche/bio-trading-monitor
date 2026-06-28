@@ -1,147 +1,249 @@
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as [cite: 12]
+import streamlit as st
 import yfinance as yf
 
-# ==================================================================
-# CONFIGURATION & WATCHLIST
-# ==================================================================
-# Enthält Standard-Ticker und deine ungarischen/bulgarischen Suffixe
-watchlist = ["AAPL", "OTP.BU", "A4L.SO"]
+# ==========================================
+# 1. INITIALISIERUNG & SETUP
+# ==========================================
+st.set_page_config(
+    page_title="Börsen Wetter Dashboard", page_icon="🌦️", layout="wide"
+)
+st.title("🌦️ Börsen Wetter & Trading Dashboard")
 
-print("==================================================================", flush=True)
-print(" BÖRSEN WETTER - WINDSCHATTEN STRATEGIE SCREENER                  ", flush=True)
-print("==================================================================", flush=True)
+# Ausgelagerte Ticker-Konfiguration (inkl. Osteuropa-Suffixe)
+TICKER_DICTS = {
+    "Indizes / Champions": {
+        "DAX": "^GDAXI",
+        "Nasdaq 100": "^NDX",
+        "S&P 500": "^GSPC",
+        "Euro Stoxx 50": "^STOXX50E",
+    },
+    "Bulgarien & Ungarn": {
+        "OTP Bank (Ungarn)": "OTP.BU",
+        "MOL (Ungarn)": "MOL.BU",
+        "Richter Gedeon (Ungarn)": "RICHT.BU",
+        "Sopharma (Bulgarien)": "SOPH.SO",
+        "Eurohold (Bulgarien)": "EUBG.SO",
+    },
+}
 
 
-# ==================================================================
-# FALLBACK-LOGIK (MANDATORISCH FÜR DEFAULT-ANZEIGE)
-# ==================================================================
-def generate_fallback_data():
-    """Generiert synthetische Kursdaten, falls die Live-API blockiert."""
-    dates = pd.date_range(end=pd.Timestamp.now(), periods=100, freq="B")
-    np.random.seed(42)
-    # Simulierter stabiler Aufwärtstrend im Normalbereich
-    prices = 100 + np.cumsum(np.random.normal(0.4, 1.2, size=100))
-    volume = np.random.normal(500000, 100000, size=100)
-    # Letzten Tag für Volumen-Ausreißer künstlich pushen
-    volume[-1] = volume[-1] * 1.5
-
-    df = pd.DataFrame({"Close": prices, "Volume": volume}, index=dates)
+# ==========================================
+# 2. MATHEMATISCHE & ANALYTISCHE FUNKTIONEN
+# ==========================================
+def calculate_rsi(df, window=14):
+    """Berechnet den Standard Relative Strength Index (RSI)."""
+    delta = df["Close"].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+    rs = gain / (loss + 1e-9)
+    df["RSI"] = 100 - (100 / (1 + rs))
     return df
 
 
-# ==================================================================
-# STRATEGIE-BERECHNUNG (WINDSCHATTEN-LOGIK)
-# ==================================================================
-def calculate_windschatten_strategy(df, lookback_span=90, validity_days=6):
-    """Berechnet die fortgeschrittene Windschatten-Strategie.
-    
-    1. Momentum (14 Tage Rate of Change)
-    2. Volumen-Ausreißer (Vergleich mit 20-Tage SMA)
-    3. Position in der 90-Tage Handelsspanne (0% bis 100%)
-    4. 5-7 Werktage Gültigkeit (Lookback auf frische Signale)
-    5. Sicherheits-Exit (Sofortiges Erlöschen bei Kursen > 90%)
+def calculate_custom_fear_greed(df):
+    """Berechnet einen mathematischen Fear & Greed Score (0-100) basierend auf
+
+    RSI, Abstand zur 200-Tage-Linie und kurzfristiger Volatilität.
     """
-    if df.empty or len(df) < max(lookback_span, 20):
-        df["Kurs_Prozentzahl"] = np.nan
-        df["Strategie_Aktiv"] = False
-        df["Status_Grund"] = "⚠️ Ungenügende Datenhistorie für Berechnungen."
-        return df
+    if len(df) < 200:
+        return 50.0  # Fallback bei zu wenig Historie
 
-    # 1. Windschatten-Momentum (14 Tage Rate of Change)
-    df["Momentum_ROC"] = (
-        (df["Close"] - df["Close"].shift(14)) / df["Close"].shift(14)
-    ) * 100
+    # Komponente 1: RSI (0 bis 100)
+    rsi_val = df["RSI"].iloc[-1]
 
-    # 2. Gleitender Durchschnitt des Volumens (20 Tage)
-    df["Vol_SMA"] = df["Volume"].rolling(window=20).mean()
+    # Komponente 2: Abstand zur SMA 200 (prozentual skaliert)
+    sma_200 = df["Close"].rolling(window=200).mean()
+    current_close = df["Close"].iloc[-1]
+    current_sma200 = sma_200.iloc[-1]
+    distance_pct = ((current_close - current_sma200) / current_sma200) * 100
 
-    # 3. Exakte Position in der Handelsspanne (0% bis 100%)
-    low_idx = df["Close"].rolling(window=lookback_span).min()
-    high_idx = df["Close"].rolling(window=lookback_span).max()
-    spanne = high_idx - low_idx
-    
-    df["Kurs_Prozentzahl"] = np.where(
-        spanne > 0, ((df["Close"] - low_idx) / spanne) * 100, 50.0
-    )
+    # Skalierung des Abstands auf eine 0-100er Ratio (Annahme: +-15% Abweichung sind extrem)
+    distance_score = np.clip((distance_pct + 15) / 30 * 100, 0, 100)
 
-    # 4. Kriterien für ein brandneues Signal am Tag des Entstehens
-    df["Frisches_Signal"] = (
-        (df["Momentum_ROC"] > 3)
-        & (df["Volume"] > df["Vol_SMA"] * 1.2)
-        & (df["Kurs_Prozentzahl"] >= 70)
-        & (df["Kurs_Prozentzahl"] <= 90)
-    ).astype(int)
+    # Kombinierter Score (50% RSI, 50% Trendabstand)
+    fg_score = (rsi_val * 0.5) + (distance_score * 0.5)
+    return float(np.clip(fg_score, 0, 100))
 
-    # 5. Gültigkeit für die nächsten X Werktage herbeiführen
-    df["Signal_Fenster_Aktiv"] = (
-        df["Frisches_Signal"].rolling(window=validity_days).max() == 1
-    )
 
-    # 6. Sicherheits-Exit (MANDATORISCH): Deaktivierung bei Extremwerten (>90%)
-    df["Strategie_Aktiv"] = np.where(
-        df["Kurs_Prozentzahl"] > 90, False, df["Signal_Fenster_Aktiv"]
-    )
+def find_elliott_pivots(df, window=7):
+    """Identifiziert lokale Minima und Maxima (Pivot-Punkte)
 
-    # 7. Status-Text für die Auswertung generieren
-    status_conditions = [
-        (df["Kurs_Prozentzahl"] > 90),
-        (df["Kurs_Prozentzahl"] < 10),
-        (df["Strategie_Aktiv"] == True) & (df["Frisches_Signal"] == 1),
-        (df["Strategie_Aktiv"] == True) & (df["Frisches_Signal"] == 0),
+    zur Visualisierung potenzieller Elliott-Wellen-Strukturen.
+    """
+    # Lokale Hochs und Tiefs bestimmen (rolling window Methode)
+    df["Pivot_High"] = df["Close"][
+        (df["Close"] == df["Close"].rolling(window=window, center=True).max())
     ]
-    status_outputs = [
-        "⚠️ Extrem Hoch (>90%) - Überhitzungsgefahr / Sicherheits-Exit greift!",
-        "❄️ Extrem Tief (<10%) - Kein Windschatten-Sog vorhanden.",
-        "🔥 MATCH: Signal HEUTE frisch generiert! Gültig für die nächsten 5-7 Werktage.",
-        "✅ AKTIV: Signal läuft im Gültigkeitsfenster (Kurs stabil im Normalbereich).",
+    df["Pivot_Low"] = df["Close"][
+        (df["Close"] == df["Close"].rolling(window=window, center=True).min())
     ]
-    df["Status_Grund"] = np.select(
-        status_conditions,
-        status_outputs,
-        default="⚪ Normalbereich - Kein aktives Signal vorhanden.",
-    )
-
     return df
 
 
-# ==================================================================
-# HAUPTPROGRAMM / AUSFÜHRUNG
-# ==================================================================
-print("Starte Datenabruf...", flush=True)
+# ==========================================
+# 3. SIDEBAR / USERSIGNALE & SLIDER
+# ==========================================
+st.sidebar.header("🔧 Dashboard Steuerung")
 
-for ticker in watchlist:
-    print(f"\nScanne Ticker: {ticker}...", flush=True)
-    data = pd.DataFrame()
-    modus = "LIVE-DATEN"
+# Kategorie-Auswahl
+category = st.sidebar.selectbox("Kategorie wählen", list(TICKER_DICTS.keys()))
+selected_label = st.sidebar.selectbox(
+    "Asset auswählen", list(TICKER_DICTS[category].keys())
+)
+ticker = TICKER_DICTS[category][selected_label]
 
-    try:
-        # Kurzer Timeout (5 Sek), damit das Skript bei Netzwerk-Deadlocks nicht einfriert
-        stock = yf.Ticker(ticker)
-        data = stock.history(period="6mo", timeout=5)
-    except Exception:
-        # Falls die API fehlschlägt, fangen wir den Fehler lautlos ab
-        data = pd.DataFrame()
+# Dein bewährter 20-Tage-Historie-Slider (und erweiterter Bereich für Indikatoren)
+history_days = st.sidebar.slider(
+    "Betrachtungszeitraum Chart (Tage)",
+    min_value=5,
+    max_value=120,
+    value=20,
+    step=5,
+)
 
-    # ERZWUNGENE DEFAULT-ANZEIGE: Falls keine Verbindung oder leere Tabellen geliefert werden
-    if data.empty or "Close" not in data.columns:
-        modus = "DEFAULT-ANZEIGE (⚠️ Daten geladen - aktuell keine Live-Ergebnisse)"
-        data = generate_fallback_data()
+# ==========================================
+# 4. DATENBESCHAFFUNG (CACHE-OPTIMIERT)
+# ==========================================
+@st.cache_data(ttl=3600)
+def load_market_data(ticker_symbol):
+    # Wir laden 1,5 Jahre, um den SMA 200 sauber berechnen zu können
+    data = yf.download(ticker_symbol, period="2y")
+    if data.empty:
+        return pd.DataFrame()
+    # Multi-Index-Spalten von yfinance bereinigen, falls vorhanden
+    if isinstance(data.columns, pd.MultiIndex):
+        data.columns = data.columns.get_level_values(0)
+    data = calculate_rsi(data)
+    data = find_elliott_pivots(data)
+    return data
 
-    # Verarbeitung und sofortige Textausgabe
-    try:
-        processed = calculate_windschatten_strategy(data, validity_days=6)
-        latest = processed.iloc[-1]
 
-        print(f" -> Status: {modus}", flush=True)
-        print(f" -> Aktueller Schlusskurs: {latest['Close']:.2f}", flush=True)
-        print(f" -> Position in Handelsspanne: {latest['Kurs_Prozentzahl']:.2f}%", flush=True)
-        print(f" -> 14-Tage Momentum (ROC): {latest['Momentum_ROC']:.2f}%", flush=True)
-        print(f" -> System-Status: {latest['Status_Grund']}", flush=True)
-        print("-" * 66, flush=True)
+df_raw = load_market_data(ticker)
 
-    except Exception as e:
-        print(f" -> Daten wurden geladen - aktuell keine Ergebnisse berechenbar. (Fehler: {e})", flush=True)
-        print("-" * 66, flush=True)
+if df_raw.empty:
+    st.error(
+        f"Fehler beim Laden der Daten für {ticker}. Bitte überprüfe das Ticker-Symbol."
+    )
+else:
+    # Filterung für die Anzeige basierend auf dem Slider
+    df_display = df_raw.tail(history_days)
 
-print("\nScreening-Lauf beendet.", flush=True)
+    # Aktuelle Werte extrahieren
+    current_price = df_display["Close"].iloc[-1]
+    previous_price = df_display["Close"].iloc[-2]
+    price_chg = current_price - previous_price
+    price_chg_pct = (price_chg / previous_price) * 100
+
+    # ==========================================
+    # 5. METRIKEN & FEAR AND GREED KPI
+    # ==========================================
+    fg_index = calculate_custom_fear_greed(df_raw)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric(
+            label=f"Aktueller Kurs ({selected_label})",
+            value=f"{current_price:,.2f}",
+            delta=f"{price_chg_pct:+.2f}%",
+        )
+
+    with col2:
+        # Auswertung nach deiner 10/90-Regel
+        if fg_index > 90:
+            status = "🔥 Extrem hoch (Gier)"
+            color = "inverse"
+        elif fg_index < 10:
+            status = "❄️ Extrem tief (Angst)"
+            color = "normal"
+        else:
+            status = "⚖️ Normalbereich"
+            color = "off"
+
+        st.metric(
+            label="Fear & Greed Sentiment-Score",
+            value=f"{fg_index:.1f} %",
+            delta=status,
+            delta_color=color,
+        )
+
+    with col3:
+        # Windschatten-Trading Status
+        # Logik: Zieht der Kurzfrist-Trend (z.B. RSI steigt) im Windschatten des Haupttrends an?
+        rsi_now = df_raw["RSI"].iloc[-1]
+        rsi_prev = df_raw["RSI"].iloc[-2]
+        if rsi_now > rsi_prev and current_price > df_raw["Close"].rolling(20).mean().iloc[-1]:
+            ws_status = "🟩 Signal: Aktiver Windschatten (Kaufimpuls)"
+        else:
+            ws_status = "⬛ Kein Windschatten-Momentum"
+        st.info(f"**Windschatten-Taktik:**\n{ws_status}")
+
+    # ==========================================
+    # 6. CHART-VISUALISIERUNG (ELLIOTT-WELLEN & CHART)
+    # ==========================================
+    st.subheader(f"📈 Chart-Analyse: {selected_label} (Letzte {history_days} Handelstage)")
+
+    fig = graph_objects.Figure()
+
+    # Hauptkurs-Linie
+    fig.add_trace(
+        graph_objects.Scatter(
+            x=df_display.index,
+            y=df_display["Close"],
+            mode="lines",
+            name="Schlusskurs",
+            line=dict(color="#1f77b4", width=2),
+        )
+    )
+
+    # Elliott-Wellen: Pivot Hochs einzeichnen
+    high_pivots = df_display[df_display["Pivot_High"].notna()]
+    fig.add_trace(
+        graph_objects.Scatter(
+            x=high_pivots.index,
+            y=high_pivots["Pivot_High"],
+            mode="markers+text",
+            name="Elliott-Welle (Hoch)",
+            marker=dict(color="red", size=10, symbol="triangle-up"),
+            text=["▲ High"] * len(high_pivots),
+            textposition="top center",
+        )
+    )
+
+    # Elliott-Wellen: Pivot Tiefs einzeichnen
+    low_pivots = df_display[df_display["Pivot_Low"].notna()]
+    fig.add_trace(
+        graph_objects.Scatter(
+            x=low_pivots.index,
+            y=low_pivots["Pivot_Low"],
+            mode="markers+text",
+            name="Elliott-Welle (Tief)",
+            marker=dict(color="green", size=10, symbol="triangle-down"),
+            text=["▼ Low"] * len(low_pivots),
+            textposition="bottom center",
+        )
+    )
+
+    # Layout-Optimierungen
+    fig.update_layout(
+        template="plotly_dark",
+        xaxis_title="Datum",
+        yaxis_title="Kurs",
+        margin=dict(l=20, r=20, t=20, b=20),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ==========================================
+    # 7. DASHBOARD DETAILANZEIGE & REGELWERK
+    # ==========================================
+    expander = st.expander("📊 Daten-Tabelle & Rohwerte einsehen")
+    with expander:
+        st.dataframe(
+            df_display[
+                ["Close", "RSI", "Pivot_High", "Pivot_Low"]
+            ].tail(10)
+        )
