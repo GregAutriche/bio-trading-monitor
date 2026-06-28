@@ -5,18 +5,24 @@ import streamlit as st
 import yfinance as yf
 
 # ==========================================
-# 1. KONFIGURATION
+# 1. KONFIGURATION (JETZT MIT ALLEM)
 # ==========================================
 st.set_page_config(page_title="Börsen Wetter", layout="wide")
 st.title("🌦️ Börsen Wetter & Trading Dashboard")
 
 TICKER_DICTS = {
-    "Indizes": {"DAX": "^GDAXI", "Nasdaq 100": "^NDX"},
+    "Indizes": {
+        "DAX": "^GDAXI", 
+        "Nasdaq 100": "^NDX"
+    },
     "DAX Champions": {
         "SAP": "SAP.DE",
         "Siemens": "SIE.DE",
         "Allianz": "ALV.DE",
         "Deutsche Telekom": "DTE.DE"
+    },
+    "Währungen": {
+        "EUR/USD": "EURUSD=X"
     }
 }
 
@@ -27,8 +33,8 @@ TICKER_DICTS = {
 def load_data(ticker):
     data = yf.download(ticker, period="2y")
     df = pd.DataFrame(index=data.index)
+    # Sicherstellen, dass wir eine flache Spalte haben
     df["Close"] = data.iloc[:, 0].astype(float)
-    # SMA 200 berechnen
     df["SMA200"] = df["Close"].rolling(window=200).mean()
     return df
 
@@ -45,10 +51,10 @@ sma200 = float(df["SMA200"].iloc[-1])
 
 # Metrik anzeigen
 c1, c2 = st.columns(2)
-c1.metric("Aktueller Kurs", f"{curr:,.2f}")
-c2.metric("SMA 200 (Trend)", f"{sma200:,.2f}")
+c1.metric("Aktueller Kurs", f"{curr:,.4f}")
+c2.metric("SMA 200 (Trend)", f"{sma200:,.4f}")
 
-# Chart mit SMA 200 Linie
+# Chart mit SMA 200
 fig = go.Figure()
 fig.add_trace(go.Scatter(x=df.index[-200:], y=df["Close"].iloc[-200:], name="Kurs", line=dict(color='#00CC96')))
 fig.add_trace(go.Scatter(x=df.index[-200:], y=df["SMA200"].iloc[-200:], name="SMA 200", line=dict(color='#FFD700', dash='dash')))
