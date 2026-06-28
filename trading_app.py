@@ -141,14 +141,13 @@ history_days = st.sidebar.slider(
 )
 
 # ==========================================
-# 4. DATENBESCHAFFUNG (EVALUIERT ALS ECHTE KOPIE)
+# 4. DATENBESCHAFFUNG (RADIKAL BEREINIGT & NEU STRUKTURIERT)
 # ==========================================
 
 
 @st.cache_data(ttl=3600)
 def load_market_data(ticker_symbol):
     try:
-        # Als echte, unabhängige Kopie laden, um SettingWithCopy-Probleme zu vermeiden
         data = yf.download(ticker_symbol, period="2y")
     except Exception:
         return pd.DataFrame()
@@ -156,38 +155,55 @@ def load_market_data(ticker_symbol):
     if data is None or data.empty:
         return pd.DataFrame()
 
-    data = data.copy()
+    # Wir bauen ein komplett neues, flaches Wunsch-DataFrame auf,
+    # um jeglichen MultiIndex- oder Ansichts-Konflikten zu entgehen.
+    cleaned_df = pd.DataFrame(index=data.index)
 
-    # MultiIndex-Strukturen auflösen
+    # MultiIndex auflösen oder Spalten direkt herausziehen
     if isinstance(data.columns, pd.MultiIndex):
-        for level in range(data.columns.nlevels):
-            columns_at_level = data.columns.get_level_values(level)
-            if "Close" in columns_at_level or "Adj Close" in columns_at_level:
-                data.columns = columns_at_level
-                break
-
-    # Eindeutige Zuweisung der Schlusskursspalte
-    if "Adj Close" in data.columns:
-        data["Close"] = data["Adj Close"]
-    elif "Close" in data.columns:
-        pass
-    else:
-        # Fallback bei Kleinschreibung
-        data.columns = [str(col).lower() for col in data.columns]
-        if "adj close" in data.columns:
-            data["Close"] = data["adj close"]
-        elif "close" in data.columns:
-            data["Close"] = data["close"]
+        # Fall 1: Suchen nach 'Adj Close' in den Hauptebenen
+        if "Adj Close" in data.columns.levels[0]:
+            cleaned_df["Close"] = data["Adj Close"].squeeze()
+        elif "Close" in data.columns.levels[0]:
+            cleaned_df["Close"] = data["Close"].squeeze()
         else:
-            return pd.DataFrame()
+            # Fallback: Versuchen, die erste verfügbare Kursebene zu flach zu klopfen
+            try:
+                cleaned_df["Close"] = data.xs(
+                    "Close", axis=1, level=0
+                ).squeeze()
+            except Exception:
+                return pd.DataFrame()
+    else:
+        # Fall 2: Flaches DataFrame von yfinance
+        if "Adj Close" in data.columns:
+            cleaned_df["Close"] = data["Adj Close"]
+        elif "Close" in data.columns:
+            cleaned_df["Close"] = data["Close"]
+        else:
+            # Überprüfung auf Kleinschreibung
+            lower_cols = {str(c).lower(): c for c in data.columns}
+            if "adj close" in lower_cols:
+                cleaned_df["Close"] = data[lower_cols["adj close"]]
+            elif "close" in lower_cols:
+                cleaned_df["Close"] = data[lower_cols["close"]]
+            else:
+                return pd.DataFrame()
 
-    # Eventuell doppelt erzeugte Spalten eliminieren
-    data = data.loc[:, ~data.columns.duplicated()]
+    # Sicherstellen, dass die Spalte eine eindimensionale Series ist
+    cleaned_df["Close"] = cleaned_df["Close"].squeeze()
 
-    # Technische Indikatoren berechnen
-    data = calculate_rsi(data)
-    data = find_elliott_pivots(data)
-    return data
+    # Falls durch das Squeeze immer noch ein DataFrame existiert (z.B. doppelte Ticker)
+    if isinstance(cleaned_df["Close"], pd.DataFrame):
+        cleaned_df["Close"] = cleaned_df["Close"].iloc[:, 0]
+
+    # Datenreihe kopieren, um jegliche "SettingWithCopy" Fehler im Keim zu ersticken
+    cleaned_df = cleaned_df.copy()
+
+    # Technische Indikatoren auf dem sauberen DataFrame berechnen
+    cleaned_df = calculate_rsi(cleaned_df)
+    cleaned_df = find_elliott_pivots(cleaned_df)
+    return cleaned_df
 
 
 df_raw = load_market_data(ticker)
