@@ -36,12 +36,13 @@ TICKER_DICTS = {
 
 def calculate_rsi(df, window=14):
     """Berechnet den Standard Relative Strength Index (RSI)."""
+    # Sicherheitskopie erstellen, um SettingWithCopyErros zu vermeiden
+    df = df.copy()
+
     if df is None or df.empty or "Close" not in df.columns or len(df) < window:
-        if df is not None and not df.empty:
-            df["RSI"] = 50.0
+        df["RSI"] = 50.0
         return df
 
-    # Sicherstellen, dass es sich um eine eindimensionale Reihe handelt
     close_series = df["Close"].squeeze()
     if isinstance(close_series, pd.DataFrame):
         close_series = close_series.iloc[:, 0]
@@ -50,6 +51,7 @@ def calculate_rsi(df, window=14):
     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
     rs = gain / (loss + 1e-9)
+
     df["RSI"] = 100 - (100 / (1 + rs))
     df["RSI"] = df["RSI"].fillna(50.0)
     return df
@@ -96,10 +98,11 @@ def find_elliott_pivots(df, window=7):
 
     zur Visualisierung potenzieller Elliott-Wellen-Strukturen.
     """
+    df = df.copy()
+
     if df is None or df.empty or "Close" not in df.columns or len(df) < window:
-        if df is not None and not df.empty:
-            df["Pivot_High"] = np.nan
-            df["Pivot_Low"] = np.nan
+        df["Pivot_High"] = np.nan
+        df["Pivot_Low"] = np.nan
         return df
 
     close_series = df["Close"].squeeze()
@@ -141,7 +144,7 @@ history_days = st.sidebar.slider(
 )
 
 # ==========================================
-# 4. DATENBESCHAFFUNG (RADIKAL BEREINIGT & NEU STRUKTURIERT)
+# 4. DATENBESCHAFFUNG (STRUKTURELL ABSOLUT STABIL)
 # ==========================================
 
 
@@ -155,19 +158,16 @@ def load_market_data(ticker_symbol):
     if data is None or data.empty:
         return pd.DataFrame()
 
-    # Wir bauen ein komplett neues, flaches Wunsch-DataFrame auf,
-    # um jeglichen MultiIndex- oder Ansichts-Konflikten zu entgehen.
+    # Neues, flaches DataFrame aufbauen, um MultiIndex-Konflikte zu vermeiden
     cleaned_df = pd.DataFrame(index=data.index)
 
-    # MultiIndex auflösen oder Spalten direkt herausziehen
+    # MultiIndex auflösen oder Spalten direkt extrahieren
     if isinstance(data.columns, pd.MultiIndex):
-        # Fall 1: Suchen nach 'Adj Close' in den Hauptebenen
         if "Adj Close" in data.columns.levels[0]:
             cleaned_df["Close"] = data["Adj Close"].squeeze()
         elif "Close" in data.columns.levels[0]:
             cleaned_df["Close"] = data["Close"].squeeze()
         else:
-            # Fallback: Versuchen, die erste verfügbare Kursebene zu flach zu klopfen
             try:
                 cleaned_df["Close"] = data.xs(
                     "Close", axis=1, level=0
@@ -175,13 +175,11 @@ def load_market_data(ticker_symbol):
             except Exception:
                 return pd.DataFrame()
     else:
-        # Fall 2: Flaches DataFrame von yfinance
         if "Adj Close" in data.columns:
             cleaned_df["Close"] = data["Adj Close"]
         elif "Close" in data.columns:
             cleaned_df["Close"] = data["Close"]
         else:
-            # Überprüfung auf Kleinschreibung
             lower_cols = {str(c).lower(): c for c in data.columns}
             if "adj close" in lower_cols:
                 cleaned_df["Close"] = data[lower_cols["adj close"]]
@@ -190,19 +188,15 @@ def load_market_data(ticker_symbol):
             else:
                 return pd.DataFrame()
 
-    # Sicherstellen, dass die Spalte eine eindimensionale Series ist
+    # Spalte in eindimensionale Form bringen
     cleaned_df["Close"] = cleaned_df["Close"].squeeze()
-
-    # Falls durch das Squeeze immer noch ein DataFrame existiert (z.B. doppelte Ticker)
     if isinstance(cleaned_df["Close"], pd.DataFrame):
         cleaned_df["Close"] = cleaned_df["Close"].iloc[:, 0]
 
-    # Datenreihe kopieren, um jegliche "SettingWithCopy" Fehler im Keim zu ersticken
-    cleaned_df = cleaned_df.copy()
-
-    # Technische Indikatoren auf dem sauberen DataFrame berechnen
+    # Zuweisung der berechneten Tabellen (Wichtig: Rückgabewerte auffangen!)
     cleaned_df = calculate_rsi(cleaned_df)
     cleaned_df = find_elliott_pivots(cleaned_df)
+
     return cleaned_df
 
 
@@ -211,9 +205,14 @@ df_raw = load_market_data(ticker)
 # ==========================================
 # 5. PLAUSIBILITÄTS-CHECK & LOGIK-AUSFÜHRUNG
 # ==========================================
-if df_raw is None or df_raw.empty or "Close" not in df_raw.columns:
+if (
+    df_raw is None
+    or df_raw.empty
+    or "Close" not in df_raw.columns
+    or "RSI" not in df_raw.columns
+):
     st.error(
-        f"🚨 Keine validen Kursdaten für '{selected_label}' ({ticker}) empfangen. Bitte überprüfe das Symbol oder versuche es später erneut."
+        f"🚨 Keine validen Kursdaten für '{selected_label}' ({ticker}) empfangen. Bitte überprüfe das Symbol."
     )
 elif len(df_raw) < 2:
     st.warning(
@@ -227,7 +226,7 @@ else:
             "Bitte erhöhe den 'Betrachtungszeitraum Chart' in der Sidebar."
         )
     else:
-        # Werte sicher als native Typen extrahieren
+        # Werte extrahieren
         close_display = df_display["Close"].squeeze()
         current_price = float(close_display.iloc[-1])
         previous_price = float(close_display.iloc[-2])
@@ -248,7 +247,7 @@ else:
             )
 
         with col2:
-            # Anwendung deiner festgelegten 10/90-Regel für das Sentiment
+            # Deine 10/90-Regel
             if fg_index > 90:
                 status_text = "🔥 Extrem hoch (Gier)"
             elif fg_index < 10:
