@@ -205,7 +205,7 @@ def get_analysis(ticker_symbol):
                 res["chance"] = 31.5  
                 
     except Exception as e:
-        print(f"Fehler bei {ticker_symbol}: {e}")
+        pass
         
     return res
 
