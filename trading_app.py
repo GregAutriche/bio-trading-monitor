@@ -16,7 +16,7 @@ TICKER_NAMES = {
     # Wetter (Forex & Indizes)
     "EURUSD=X": "💱 EUR/USD", "EURRUB=X": "💱 EUR/RUB",
     "^GDAXI": "📊 DAX 40", "^NDX": "📊 NASDAQ 100",
-    "^STOXX50E": "📊 EuroStoxx 50", "^NSEI": "📊 Nifty 50", "XU100.IS": "📊 BIST 100",
+    "XU100.IS": "📊 BIST 100",
     
     # Aktien DAX 40
     "ADS.DE": "🇩🇪 Adidas", "AIR.DE": "🇩🇪 Airbus", "ALV.DE": "🇩🇪 Allianz", "BAS.DE": "🇩🇪 BASF",
