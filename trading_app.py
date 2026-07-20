@@ -43,7 +43,6 @@ TICKER_NAMES = {
     "ABI.BR": "🇧🇪 Anheuser-Busch InBev", "CRH.AS": "🇮🇪 CRH", "FLTR.IR": "🇮🇪 Flutter Entertainment", "NOKIA.HE": "🇫🇮 Nokia"
 }
 
-# Begrenzung für den großen Scan, um Timeouts zu verhindern
 STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k and k != "XU100.IS"]
 EUROPE_STOCKS = [k for k in STOCKS_ONLY if any(k.endswith(ext) for ext in [".DE", ".PA", ".AS", ".MI", ".MC", ".BR", ".HE", ".IR"])]
 
@@ -59,14 +58,13 @@ st.markdown("""
  </style>
  """, unsafe_allow_html=True)
 
-# --- 4. ZENTRALE FUNKTION (Mit schnellem TTL Cache) ---
+# --- 4. ZENTRALE FUNKTION ---
 @st.cache_data(ttl=300)
 def get_analysis(ticker_symbol):
-    res = {"cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 50, "shadow_signal": "NEUTRAL", "df": None}
+    res = {"cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 50.0, "shadow_signal": "NEUTRAL", "df": None}
     try:
         df = yf.download(ticker_symbol, period="1y", progress=False, group_by="ticker")
         if not df.empty and len(df) > 1:
-            # Multi-Index Spalten fixen, falls vorhanden
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.droplevel(0)
             
@@ -78,22 +76,39 @@ def get_analysis(ticker_symbol):
             
             df['TR'] = df['High'] - df['Low']
             res["atr"] = float(df['TR'].tail(14).mean())
-            res["chance"] = 54.2 
             res["df"] = df
             
-            # Schattenfolge Logik
+            # --- SCHATTENFOLGE-LOGIK MIT DYNAMISCHER CHANCE ---
             last_candle = df.iloc[-1]
-            body = abs(float(last_candle["Close"]) - float(last_candle["Open"]))
-            upper_shadow = float(last_candle["High"]) - max(float(last_candle["Open"]), float(last_candle["Close"]))
-            lower_shadow = min(float(last_candle["Open"]), float(last_candle["Close"])) - float(last_candle["Low"])
+            high_p = float(last_candle["High"])
+            low_p = float(last_candle["Low"])
+            open_p = float(last_candle["Open"])
+            close_p = float(last_candle["Close"])
+            
+            total_range = high_p - low_p
+            body = abs(close_p - open_p)
+            upper_shadow = high_p - max(open_p, close_p)
+            lower_shadow = min(open_p, close_p) - low_p
             
             min_shadow_size = res["atr"] * 0.4
+            
+            # Berechnung der mathematischen Rebound-Stärke (Verhältnis Schatten zur Gesamtkerze)
+            if total_range > 0:
+                shadow_ratio = max(upper_shadow, lower_shadow) / total_range
+                # Skalierung der Chance zwischen 55% und 85% basierend auf der Schattengröße
+                dynamic_modifier = 55.0 + (shadow_ratio * 30.0)
+            else:
+                dynamic_modifier = 54.2
+            
             if lower_shadow > (body * 2) and lower_shadow > min_shadow_size:
                 res["shadow_signal"] = "LONG (Lunte)"
-                res["chance"] = 68.5  
+                res["chance"] = round(dynamic_modifier, 1)  # z.B. 72.4% Chance für Long-Rebound
             elif upper_shadow > (body * 2) and upper_shadow > min_shadow_size:
                 res["shadow_signal"] = "SHORT (Docht)"
-                res["chance"] = 31.5  
+                res["chance"] = round(100.0 - dynamic_modifier, 1)  # Invertiert für Short (fallend)
+            else:
+                res["chance"] = 54.2 # Standard-Dummy-Wert falls kein Signal vorliegt
+                
     except Exception:
         pass
     return res
@@ -119,7 +134,7 @@ for row in WEATHER_ROWS:
             icon, color, _ = get_style(res["chg"])
             st.markdown(f'<div class="weather-card" style="border-color:{color};"><b>{TICKER_NAMES.get(t,t)} {icon}</b><br>{res["cp"]:,.2f} ({res["chg"]:+.2f}%)</div>', unsafe_allow_html=True)
 
-# 5b. DETAIL-ANALYSE (Zuerst rendern, um Blockaden zu vermeiden)
+# 5b. DETAIL-ANALYSE
 st.divider()
 sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
 sel_stock = st.selectbox("Aktie für Detail-Analyse wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
@@ -141,16 +156,20 @@ if res_d["cp"] > 0:
     c3.metric("250-T TIEF", f"{l250:,.2f}")
     c4.metric("ATR (14)", f"{atr:,.2f}")
 
-# 5c. EUROPA SCHATTENFOLGE MONITOR (Auf die wichtigsten 10 Werte beschränkt für Stabilität)
+# 5c. EUROPA SCHATTENFOLGE MONITOR (Dynamische Auswertung)
 st.divider()
 st.subheader("🇪🇺 Europäischer Schattenfolge-Monitor (Top Werte)")
 shadow_signals = []
 
-# Wir scannen eine kleinere, stabile Auswahl, um Blockaden zu verhindern
 for s in EUROPE_STOCKS[:15]:
     r = get_analysis(s)
     if r["cp"] > 0 and r["shadow_signal"] != "NEUTRAL":
-        shadow_signals.append({'Aktie': TICKER_NAMES.get(s, s), 'Signal': r["shadow_signal"], 'Kurs': f"{r['cp']:,.2f}", 'Chance': f"{r['chance']}%"})
+        shadow_signals.append({
+            'Aktie': TICKER_NAMES.get(s, s), 
+            'Signal': r["shadow_signal"], 
+            'Kurs': f"{r['cp']:,.2f}", 
+            'Chance': f"{r['chance']}%"
+        })
 
 if shadow_signals:
     st.dataframe(pd.DataFrame(shadow_signals), use_container_width=True, hide_index=True)
