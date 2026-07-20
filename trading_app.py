@@ -16,7 +16,7 @@ TICKER_NAMES = {
     # Wetter (Forex & Indizes)
     "EURUSD=X": "💱 EUR/USD", "EURRUB=X": "💱 EUR/RUB",
     "^GDAXI": "📊 DAX 40", "^NDX": "📊 NASDAQ 100",
-    "XU100.IS": "📊 BIST 100",
+    "^STOXX50E": "📊 EuroStoxx 50", "^NSEI": "📊 Nifty 50", "XU100.IS": "📊 BIST 100",
     
     # Aktien DAX 40
     "ADS.DE": "🇩🇪 Adidas", "AIR.DE": "🇩🇪 Airbus", "ALV.DE": "🇩🇪 Allianz", "BAS.DE": "🇩🇪 BASF",
@@ -93,7 +93,7 @@ TICKER_NAMES = {
 # Filter für Detail-Analyse (Keine Währungen/Indizes)
 STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k and k != "XU100.IS"]
 
-# STRATEGIE-FILTER: Nur europäische Werte für den Schattenfolge-Monitor extrahieren
+# STRATEGIE-FILTER: Nur europäische Endungen
 EUROPE_STOCKS = [
     k for k in STOCKS_ONLY 
     if any(k.endswith(ext) for ext in [".DE", ".PA", ".AS", ".MI", ".MC", ".BR", ".HE", ".IR"])
@@ -102,20 +102,17 @@ EUROPE_STOCKS = [
 # --- 3. DESIGN (DARK MODE & KONTRAST) ---
 st.markdown("""
  <style>
- /* 1. Haupt-Hintergrund & Basisschrift */
  .stApp { 
  background-color: #0E1117 !important; 
  color: #FFFFFF !important; 
  font-family: 'Inter', sans-serif;
  }
- /* 2. METRIKEN (Kurs, ATR, Chance etc.) */
  [data-testid="stMetricValue"] {
  font-size: 1.5rem !important; 
  font-weight: 800 !important; 
  color: #FFFFFF !important; 
  letter-spacing: -0.5px;
  }
- 
  [data-testid="stMetricLabel"] {
  font-size: 0.75rem !important;
  color: #8892b0 !important; 
@@ -129,7 +126,6 @@ st.markdown("""
  padding: 8px 12px !important;
  border-radius: 10px;
  }
- /* 3. SPEZIAL-BOX FÜR CRV */
  .crv-box {
  text-align: center;
  border: 1px solid #1E90FF;
@@ -138,7 +134,6 @@ st.markdown("""
  padding: 5px;
  height: 100%;
  }
- /* 4. MARKT-WETTER KARTEN */
  .weather-card { 
  text-align: center; 
  border-radius: 12px; 
@@ -147,7 +142,6 @@ st.markdown("""
  padding: 12px; 
  margin-bottom: 10px; 
  }
- /* 5. TABELLEN */
  thead tr th { 
  background-color: #2D3748 !important; 
  color: #FFFFFF !important; 
@@ -162,15 +156,6 @@ st.markdown("""
  border-bottom: 1px solid #30363D !important;
  font-size: 0.95rem !important;
  }
- /* 6. STATUS-BANNER */
- .status-banner {
- background: rgba(255,255,255,0.03); 
- padding: 12px; 
- border-radius: 12px; 
- border-left: 6px solid #1E90FF; 
- margin-bottom: 15px;
- }
- 
  ::-webkit-scrollbar { width: 5px; height: 5px; }
  ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
  </style>
@@ -196,11 +181,10 @@ def get_analysis(ticker_symbol):
             df['TR'] = df['High'] - df['Low']
             res["atr"] = float(df['TR'].tail(14).mean())
             
-            # Standard-Dummy-Chance
             res["chance"] = 54.2 
             res["df"] = df
             
-            # --- INTEGRIERTE SCHATTENFOLGE-STRATEGIE (STOP-HUNTING) ---
+            # --- SCHATTENFOLGE LOGIK ---
             last_candle = df.iloc[-1]
             open_p = float(last_candle["Open"])
             close_p = float(last_candle["Close"])
@@ -211,10 +195,27 @@ def get_analysis(ticker_symbol):
             upper_shadow = high_p - max(open_p, close_p)
             lower_shadow = min(open_p, close_p) - low_p
             
-            # Filter-Bedingung: Schatten ist mindestens 2x größer als der Körper 
-            # und signifikant im Vergleich zur aktuellen ATR
             min_shadow_size = res["atr"] * 0.4
             
             if lower_shadow > (body * 2) and lower_shadow > min_shadow_size:
                 res["shadow_signal"] = "LONG (Lunte/Stop-Hunt)"
-                res["chance"] = 68.5  # Anpassung der Konfidenz für Rebound-Setup
+                res["chance"] = 68.5  
+            elif upper_shadow > (body * 2) and upper_shadow > min_shadow_size:
+                res["shadow_signal"] = "SHORT (Docht/Abweisung)"
+                res["chance"] = 31.5  
+                
+    except Exception as e:
+        print(f"Fehler bei {ticker_symbol}: {e}")
+        
+    return res
+
+def get_style(chg):
+    if chg > 0.15: return "☀️", "#00FFA3", "🟢"
+    if chg < -0.15: return "⛈️", "#1E90FF", "🔵"
+    return "🌤️", "#8892b0", "⚪"
+
+# --- 5. DASHBOARD AUFBAU ---
+st.title("🚀 Bio-Trading Monitor Live PRO")
+
+now_fixed = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
+st.markdown(f"""
