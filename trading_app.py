@@ -78,7 +78,7 @@ def get_analysis(ticker_symbol):
             res["atr"] = float(df['TR'].tail(14).mean())
             res["df"] = df
             
-            # --- SCHATTENFOLGE-LOGIK MIT DYNAMISCHER CHANCE ---
+            # --- SCHATTENFOLGE-LOGIK MIT INTUITIVER SIGNALSTÄRKE ---
             last_candle = df.iloc[-1]
             high_p = float(last_candle["High"])
             low_p = float(last_candle["Low"])
@@ -92,22 +92,21 @@ def get_analysis(ticker_symbol):
             
             min_shadow_size = res["atr"] * 0.4
             
-            # Berechnung der mathematischen Rebound-Stärke (Verhältnis Schatten zur Gesamtkerze)
             if total_range > 0:
                 shadow_ratio = max(upper_shadow, lower_shadow) / total_range
-                # Skalierung der Chance zwischen 55% und 85% basierend auf der Schattengröße
-                dynamic_modifier = 55.0 + (shadow_ratio * 30.0)
+                # Skalierung der Signalstärke (55% bis 85%) je ausgeprägter der Schatten ist
+                signal_strength = 55.0 + (shadow_ratio * 30.0)
             else:
-                dynamic_modifier = 54.2
+                signal_strength = 54.2
             
             if lower_shadow > (body * 2) and lower_shadow > min_shadow_size:
                 res["shadow_signal"] = "LONG (Lunte)"
-                res["chance"] = round(dynamic_modifier, 1)  # z.B. 72.4% Chance für Long-Rebound
+                res["chance"] = round(signal_strength, 1)  # Höhere Zahl = Extremerer Liquiditätsabgriff unten
             elif upper_shadow > (body * 2) and upper_shadow > min_shadow_size:
                 res["shadow_signal"] = "SHORT (Docht)"
-                res["chance"] = round(100.0 - dynamic_modifier, 1)  # Invertiert für Short (fallend)
+                res["chance"] = round(signal_strength, 1)  # Höhere Zahl = Extremere Kursabweisung oben
             else:
-                res["chance"] = 54.2 # Standard-Dummy-Wert falls kein Signal vorliegt
+                res["chance"] = 54.2
                 
     except Exception:
         pass
@@ -145,10 +144,14 @@ if res_d["cp"] > 0:
     cp, atr, chance, chg = res_d["cp"], res_d["atr"], res_d["chance"], res_d["chg"]
     h250, l250 = res_d["h250"], res_d["l250"]
     
-    setup_type = f"SCHATTENFOLGE {res_d['shadow_signal']}" if res_d["shadow_signal"] != "NEUTRAL" else ("LONG (CALL)" if chance >= 50 else ("SHORT (PUT)"))
-    setup_color = "#00FFA3" if "LONG" in setup_type or "CALL" in setup_type else "#FF4B4B"
+    if res_d["shadow_signal"] != "NEUTRAL":
+        setup_type = f"SCHATTENFOLGE {res_d['shadow_signal']}"
+        setup_color = "#00FFA3" if "LONG" in setup_type else "#FF4B4B"
+    else:
+        setup_type = "LONG (CALL)" if chance >= 50 else "SHORT (PUT)"
+        setup_color = "#00FFA3" if chance >= 50 else "#FF4B4B"
     
-    st.markdown(f'<div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; border-left:6px solid {setup_color}; margin-bottom:15px;"><b>{setup_type} SETUP</b> | {chance}% Wahrscheinlichkeit</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; border-left:6px solid {setup_color}; margin-bottom:15px;"><b>{setup_type} SETUP</b> | {chance}% Signal-Konfidenz</div>', unsafe_allow_html=True)
     
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("KURS", f"{cp:,.2f}", f"{chg:+.2f}%")
@@ -156,7 +159,7 @@ if res_d["cp"] > 0:
     c3.metric("250-T TIEF", f"{l250:,.2f}")
     c4.metric("ATR (14)", f"{atr:,.2f}")
 
-# 5c. EUROPA SCHATTENFOLGE MONITOR (Dynamische Auswertung)
+# 5c. EUROPA SCHATTENFOLGE MONITOR
 st.divider()
 st.subheader("🇪🇺 Europäischer Schattenfolge-Monitor (Top Werte)")
 shadow_signals = []
@@ -168,7 +171,7 @@ for s in EUROPE_STOCKS[:15]:
             'Aktie': TICKER_NAMES.get(s, s), 
             'Signal': r["shadow_signal"], 
             'Kurs': f"{r['cp']:,.2f}", 
-            'Chance': f"{r['chance']}%"
+            'Signalstärke (Chance)': f"{r['chance']}%"
         })
 
 if shadow_signals:
