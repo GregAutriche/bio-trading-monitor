@@ -3,7 +3,6 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime, timedelta
 
@@ -13,7 +12,6 @@ st_autorefresh(interval=60000, limit=1000, key="fscounter")
 
 # --- 2. TICKER-MAPPING ---
 TICKER_NAMES = {
-    # Wetter (Forex & Indizes)
     "EURUSD=X": "💱 EUR/USD", "EURRUB=X": "💱 EUR/RUB",
     "^GDAXI": "📊 DAX 40", "^NDX": "📊 NASDAQ 100",
     "^STOXX50E": "📊 EuroStoxx 50", "^NSEI": "📊 Nifty 50", "XU100.IS": "📊 BIST 100",
@@ -33,180 +31,71 @@ TICKER_NAMES = {
     "ENR.DE": "🇩🇪 Siemens Energy", "SHL.DE": "🇩🇪 Siemens Healthineers", "SY1.DE": "🇩🇪 Symrise",
     "TKA.DE": "🇩🇪 Thyssenkrupp", "VOW3.DE": "🇩🇪 Volkswagen", "VNA.DE": "🇩🇪 Vonovia", "ZAL.DE": "🇩🇪 Zalando",
     
-    # Aktien EUROPA / EUROSTOXX ohne DEU
-    # Frankreich (FR)
+    # Aktien EUROPA
     "AI.PA": "🇫🇷 Air Liquide", "AIR.PA": "🇫🇷 Airbus", "CS.PA": "🇫🇷 AXA", "BNP.PA": "🇫🇷 BNP Paribas", 
     "BN.PA": "🇫🇷 Danone", "EL.PA": "🇫🇷 EssilorLuxottica", "RMS.PA": "🇫🇷 Hermès",
     "OR.PA": "🇫🇷 L'Oréal", "MC.PA": "🇫🇷 LVMH", "RI.PA": "🇫🇷 Pernod Ricard", "SAF.PA": "🇫🇷 Safran", 
     "SAN.PA": "🇫🇷 Sanofi", "SU.PA": "🇫🇷 Schneider Electric", "TTE.PA": "🇫🇷 TotalEnergies", "DG.PA": "🇫🇷 Vinci",
-    
-    # Niederlande (NL)
     "ASML.AS": "🇳🇱 ASML Holding", "INGA.AS": "🇳🇱 ING Groep", "PRX.AS": "🇳🇱 Prosus",
     "AD.AS": "🇳🇱 Ahold Delhaize", "STLAM.MI": "🇳🇱 Stellantis",
-    
-    # Spanien (ES)
     "BBVA.MC": "🇪🇸 BBVA", "IBE.MC": "🇪🇸 Iberdrola", "ITX.MC": "🇪🇸 Inditex", "SAN.MC": "🇪🇸 Banco Santander",
-    
-    # Italien (IT)
     "ENEL.MI": "🇮🇹 Enel", "ENI.MI": "🇮🇹 Eni", "ISP.MI": "🇮🇹 Intesa Sanpaolo", "RACE.MI": "🇮🇹 Ferrari", "UCG.MI": "🇮🇹 UniCredit",
-    
-    # Belgien (BE), Irland (IE), Finnland (FI)
-    "ABI.BR": "🇧🇪 Anheuser-Busch InBev", "CRH.AS": "🇮🇪 CRH", "FLTR.IR": "🇮🇪 Flutter Entertainment", "NOKIA.HE": "🇫🇮 Nokia",
-    
-    # Aktien US / NASDAQ
-    "AAPL": "🇺🇸 Apple", "MSFT": "🇺🇸 Microsoft", "GOOGL": "🇺🇸 Alphabet (A)", "GOOG": "🇺🇸 Alphabet (C)",
-    "AMZN": "🇺🇸 Amazon", "META": "🇺🇸 Meta", "NVDA": "🇺🇸 Nvidia", "TSLA": "🇺🇸 Tesla",
-    
-    # Halbleiter & Hardware
-    "AMD": "🇺🇸 AMD", "AVGO": "🇺🇸 Broadcom", "INTC": "🇺🇸 Intel", "QCOM": "🇺🇸 Qualcomm",
-    "TXN": "🇺🇸 Texas Instruments", "AMAT": "🇺🇸 Applied Materials", "LRCX": "🇺🇸 Lam Research",
-    "MU": "🇺🇸 Micron", "ADI": "🇺🇸 Analog Devices", "KLAC": "🇺🇸 KLA Corp", "ASML": "🇺🇸 ASML (ADS)",
-    "ARM": "🇺🇸 ARM Holdings", "MPWR": "🇺🇸 Monolithic Power", "STX": "🇺🇸 Seagate", "WDC": "🇺🇸 Western Digital",
-    
-    # Software & Cloud
-    "ADBE": "🇺🇸 Adobe", "CRM": "🇺🇸 Salesforce", "ORCL": "🇺🇸 Oracle", "INTU": "🇺🇸 Intuit",
-    "PANW": "🇺🇸 Palo Alto", "SNPS": "🇺🇸 Synopsys", "CDNS": "🇺🇸 Cadence", "WDAY": "🇺🇸 Workday",
-    "ROP": "🇺🇸 Roper", "ADSK": "🇺🇸 Autodesk", "TEAM": "🇺🇸 Atlassian", "DDOG": "🇺🇸 Datadog",
-    "ZS": "🇺🇸 Zscaler", "CRWD": "🇺🇸 CrowdStrike", "PLTR": "🇺🇸 Palantir", "APP": "🇺🇸 AppLovin",
-    
-    # Internet, Media & E-Commerce
-    "NFLX": "🇺🇸 Netflix", "BKNG": "🇺🇸 Booking", "ABNB": "🇺🇸 Airbnb", "PDD": "🇺🇸 PDD Holdings",
-    "MELI": "🇺🇸 MercadoLibre", "JD": "🇺🇸 JD.com", "PYPL": "🇺🇸 PayPal", "EBAY": "🇺🇸 eBay",
-    "DASH": "🇺🇸 DoorDash", "WBD": "🇺🇸 Warner Bros", "CHTR": "🇺🇸 Charter",
-    
-    # Healthcare & Biotech
-    "AMGN": "🇺🇸 Amgen", "GILD": "🇺🇸 Gilead", "VRTX": "🇺🇸 Vertex", "REGN": "🇺🇸 Regeneron",
-    "ISRG": "🇺🇸 Intuitive Surg.", "IDXX": "🇺🇸 IDEXX Labs", "MRNA": "🇺🇸 Moderna", "BIIB": "🇺🇸 Biogen",
-    "ALNY": "🇺🇸 Alnyam", "INSM": "🇺🇸 Insmed", "GEHC": "🇺🇸 GE HealthCare",
-    
-    # Consumer, Retail & Others
-    "COST": "🇺🇸 Costco", "PEP": "🇺🇸 PepsiCo", "KO": "🇺🇸 Coca-Cola", "WMT": "🇺🇸 Walmart",
-    "SBUX": "🇺🇸 Starbucks", "MDLZ": "🇺🇸 Mondelez", "MNST": "🇺🇸 Monster", "KDP": "🇺🇸 Keurig Dr Pepper",
-    "KHC": "🇺🇸 Kraft Heinz", "MAR": "🇺🇸 Marriott", "ORLY": "🇺🇸 O'Reilly", "ROST": "🇺🇸 Ross Stores",
-    "LULU": "🇺🇸 Lululemon", "TGT": "🇺🇸 Target", "CSX": "🇺🇸 CSX Corp", "CPRT": "🇺🇸 Copart",
-    "FAST": "🇺🇸 Fastenal", "PAYX": "🇺🇸 Paychex", "CTAS": "🇺🇸 Cintas", "ADP": "🇺🇸 ADP",
-    "MCHP": "🇺🇸 Microchip", "AXON": "🇺🇸 Axon Enterprise", "FER": "🇺🇸 Ferrovial", "CEG": "🇺🇸 Constellation",
-    "ODFL": "🇺🇸 Old Dominion", "ON": "🇺🇸 ON Semi", "EXC": "🇺🇸 Exelon", "BKR": "🇺🇸 Baker Hughes", "TTD": "🇺🇸 Trade Desk",
-    "ANSS": "🇺🇸 Ansys", "DLTR": "🇺🇸 Dollar Tree", "DXCM": "🇺🇸 DexCom", "VRSK": "🇺🇸 Verisk"
+    "ABI.BR": "🇧🇪 Anheuser-Busch InBev", "CRH.AS": "🇮🇪 CRH", "FLTR.IR": "🇮🇪 Flutter Entertainment", "NOKIA.HE": "🇫🇮 Nokia"
 }
 
-# Filter für Detail-Analyse (Keine Währungen/Indizes)
+# Begrenzung für den großen Scan, um Timeouts zu verhindern
 STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k and k != "XU100.IS"]
+EUROPE_STOCKS = [k for k in STOCKS_ONLY if any(k.endswith(ext) for ext in [".DE", ".PA", ".AS", ".MI", ".MC", ".BR", ".HE", ".IR"])]
 
-# STRATEGIE-FILTER: Nur europäische Endungen extrahieren
-EUROPE_STOCKS = [
-    k for k in STOCKS_ONLY 
-    if any(k.endswith(ext) for ext in [".DE", ".PA", ".AS", ".MI", ".MC", ".BR", ".HE", ".IR"])
-]
-
-# --- 3. DESIGN (DARK MODE & KONTRAST) ---
+# --- 3. DESIGN ---
 st.markdown("""
  <style>
- .stApp { 
- background-color: #0E1117 !important; 
- color: #FFFFFF !important; 
- font-family: 'Inter', sans-serif;
- }
- [data-testid="stMetricValue"] {
- font-size: 1.5rem !important; 
- font-weight: 800 !important; 
- color: #FFFFFF !important; 
- letter-spacing: -0.5px;
- }
- [data-testid="stMetricLabel"] {
- font-size: 0.75rem !important;
- color: #8892b0 !important; 
- text-transform: uppercase !important;
- letter-spacing: 1px !important;
- margin-bottom: -5px !important;
- }
- div[data-testid="stMetric"] {
- background: rgba(255,255,255,0.03);
- border: 1px solid rgba(255,255,255,0.05);
- padding: 8px 12px !important;
- border-radius: 10px;
- }
- .crv-box {
- text-align: center;
- border: 1px solid #1E90FF;
- background: rgba(30,144,255,0.1);
- border-radius: 10px;
- padding: 5px;
- height: 100%;
- }
- .weather-card { 
- text-align: center; 
- border-radius: 12px; 
- background: rgba(255,255,255,0.03); 
- border: 2px solid #333; 
- padding: 12px; 
- margin-bottom: 10px; 
- }
- thead tr th { 
- background-color: #2D3748 !important; 
- color: #FFFFFF !important; 
- font-weight: 900 !important; 
- font-size: 0.9rem !important;
- border-bottom: 3px solid #1E90FF !important;
- text-transform: uppercase !important;
- }
- tbody tr td { 
- color: #FFFFFF !important; 
- background-color: #161B22 !important;
- border-bottom: 1px solid #30363D !important;
- font-size: 0.95rem !important;
- }
- ::-webkit-scrollbar { width: 5px; height: 5px; }
- ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+ .stApp { background-color: #0E1117 !important; color: #FFFFFF !important; font-family: 'Inter', sans-serif; }
+ [data-testid="stMetricValue"] { font-size: 1.5rem !important; font-weight: 800 !important; color: #FFFFFF !important; }
+ [data-testid="stMetricLabel"] { font-size: 0.75rem !important; color: #8892b0 !important; text-transform: uppercase !important; }
+ div[data-testid="stMetric"] { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 8px 12px !important; border-radius: 10px; }
+ .crv-box { text-align: center; border: 1px solid #1E90FF; background: rgba(30,144,255,0.1); border-radius: 10px; padding: 5px; height: 100%; }
+ .weather-card { text-align: center; border-radius: 12px; background: rgba(255,255,255,0.03); border: 2px solid #333; padding: 12px; margin-bottom: 10px; }
  </style>
  """, unsafe_allow_html=True)
 
-# --- 4. ZENTRALE FUNKTION ---
-@st.cache_data(ttl=60)
+# --- 4. ZENTRALE FUNKTION (Mit schnellem TTL Cache) ---
+@st.cache_data(ttl=300)
 def get_analysis(ticker_symbol):
     res = {"cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 50, "shadow_signal": "NEUTRAL", "df": None}
-    
     try:
-        tk = yf.Ticker(ticker_symbol)
-        df = tk.history(period="1y") 
-        
+        df = yf.download(ticker_symbol, period="1y", progress=False, group_by="ticker")
         if not df.empty and len(df) > 1:
+            # Multi-Index Spalten fixen, falls vorhanden
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.droplevel(0)
+            
             res["cp"] = float(df["Close"].iloc[-1])
             res["vol"] = float(df["Volume"].iloc[-1])
             res["chg"] = ((df["Close"].iloc[-1] / df["Close"].iloc[-2]) - 1) * 100
-            
             res["h250"] = float(df["High"].max())
             res["l250"] = float(df["Low"].min())
             
             df['TR'] = df['High'] - df['Low']
             res["atr"] = float(df['TR'].tail(14).mean())
-            
             res["chance"] = 54.2 
             res["df"] = df
             
-            # --- SCHATTENFOLGE-LOGIK (STOP-HUNTING) ---
+            # Schattenfolge Logik
             last_candle = df.iloc[-1]
-            open_p = float(last_candle["Open"])
-            close_p = float(last_candle["Close"])
-            high_p = float(last_candle["High"])
-            low_p = float(last_candle["Low"])
-            
-            body = abs(close_p - open_p)
-            upper_shadow = high_p - max(open_p, close_p)
-            lower_shadow = min(open_p, close_p) - low_p
+            body = abs(float(last_candle["Close"]) - float(last_candle["Open"]))
+            upper_shadow = float(last_candle["High"]) - max(float(last_candle["Open"]), float(last_candle["Close"]))
+            lower_shadow = min(float(last_candle["Open"]), float(last_candle["Close"])) - float(last_candle["Low"])
             
             min_shadow_size = res["atr"] * 0.4
-            
             if lower_shadow > (body * 2) and lower_shadow > min_shadow_size:
-                res["shadow_signal"] = "LONG (Lunte/Stop-Hunt)"
+                res["shadow_signal"] = "LONG (Lunte)"
                 res["chance"] = 68.5  
             elif upper_shadow > (body * 2) and upper_shadow > min_shadow_size:
-                res["shadow_signal"] = "SHORT (Docht/Abweisung)"
+                res["shadow_signal"] = "SHORT (Docht)"
                 res["chance"] = 31.5  
-                
-    except Exception as e:
+    except Exception:
         pass
-        
     return res
 
 def get_style(chg):
@@ -218,3 +107,52 @@ def get_style(chg):
 st.title("🚀 Bio-Trading Monitor Live PRO")
 
 now_fixed = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
+st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update: <b>{now_fixed}</b></div>', unsafe_allow_html=True)
+
+# 5a. MARKT-WETTER
+WEATHER_ROWS = [["EURUSD=X", "^GDAXI", "^NDX"], ["^STOXX50E", "XU100.IS"]]
+for row in WEATHER_ROWS:
+    cols = st.columns(len(row))
+    for i, t in enumerate(row):
+        res = get_analysis(t)
+        if res["cp"] > 0:
+            icon, color, _ = get_style(res["chg"])
+            st.markdown(f'<div class="weather-card" style="border-color:{color};"><b>{TICKER_NAMES.get(t,t)} {icon}</b><br>{res["cp"]:,.2f} ({res["chg"]:+.2f}%)</div>', unsafe_allow_html=True)
+
+# 5b. DETAIL-ANALYSE (Zuerst rendern, um Blockaden zu vermeiden)
+st.divider()
+sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
+sel_stock = st.selectbox("Aktie für Detail-Analyse wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
+
+res_d = get_analysis(sel_stock)
+if res_d["cp"] > 0:
+    st.subheader(f"🔍 Detail-Analyse: {TICKER_NAMES.get(sel_stock, sel_stock)}")
+    cp, atr, chance, chg = res_d["cp"], res_d["atr"], res_d["chance"], res_d["chg"]
+    h250, l250 = res_d["h250"], res_d["l250"]
+    
+    setup_type = f"SCHATTENFOLGE {res_d['shadow_signal']}" if res_d["shadow_signal"] != "NEUTRAL" else ("LONG (CALL)" if chance >= 50 else ("SHORT (PUT)"))
+    setup_color = "#00FFA3" if "LONG" in setup_type or "CALL" in setup_type else "#FF4B4B"
+    
+    st.markdown(f'<div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; border-left:6px solid {setup_color}; margin-bottom:15px;"><b>{setup_type} SETUP</b> | {chance}% Wahrscheinlichkeit</div>', unsafe_allow_html=True)
+    
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("KURS", f"{cp:,.2f}", f"{chg:+.2f}%")
+    c2.metric("250-T HOCH", f"{h250:,.2f}")
+    c3.metric("250-T TIEF", f"{l250:,.2f}")
+    c4.metric("ATR (14)", f"{atr:,.2f}")
+
+# 5c. EUROPA SCHATTENFOLGE MONITOR (Auf die wichtigsten 10 Werte beschränkt für Stabilität)
+st.divider()
+st.subheader("🇪🇺 Europäischer Schattenfolge-Monitor (Top Werte)")
+shadow_signals = []
+
+# Wir scannen eine kleinere, stabile Auswahl, um Blockaden zu verhindern
+for s in EUROPE_STOCKS[:15]:
+    r = get_analysis(s)
+    if r["cp"] > 0 and r["shadow_signal"] != "NEUTRAL":
+        shadow_signals.append({'Aktie': TICKER_NAMES.get(s, s), 'Signal': r["shadow_signal"], 'Kurs': f"{r['cp']:,.2f}", 'Chance': f"{r['chance']}%"})
+
+if shadow_signals:
+    st.dataframe(pd.DataFrame(shadow_signals), use_container_width=True, hide_index=True)
+else:
+    st.info("Aktuell keine markanten Kerzenschatten im primären europäischen Raum erkannt.")
