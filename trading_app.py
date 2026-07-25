@@ -23,8 +23,6 @@ TICKER_NAMES = {
     "EURUSD=X": "💱 EUR/USD", "EURRUB=X": "💱 EUR/RUB",
     "^GDAXI": "📊 DAX 40", "^NDX": "📊 NASDAQ 100",
     "^STOXX50E": "📊 EuroStoxx 50", "^NSEI": "📊 Nifty 50", "XU100.IS": "📊 BIST 100",
- 
-    # Aktien DAX 40
     "ADS.DE": "🇩🇪 Adidas", "AIR.DE": "🇩🇪 Airbus", "ALV.DE": "🇩🇪 Allianz", "BAS.DE": "🇩🇪 BASF",
     "BAYN.DE": "🇩🇪 Bayer", "BEI.DE": "🇩🇪 Beiersdorf", "BMW.DE": "🇩🇪 BMW", "BNR.DE": "🇩🇪 Brenntag",
     "CBK.DE": "🇩🇪 Commerzbank", "CON.DE": "🇩🇪 Continental", "1COV.DE": "🇩🇪 Covestro",
@@ -38,8 +36,6 @@ TICKER_NAMES = {
     "SAP.DE": "🇩🇪 SAP", "SRT3.DE": "🇩🇪 Sartorius", "G24.DE": "🇩🇪 Scout24", "SIE.DE": "🇩🇪 Siemens", 
     "ENR.DE": "🇩🇪 Siemens Energy", "SHL.DE": "🇩🇪 Siemens Healthineers", "SY1.DE": "🇩🇪 Symrise",
     "TKA.DE": "🇩🇪 Thyssenkrupp", "VOW3.DE": "🇩🇪 Volkswagen", "VNA.DE": "🇩🇪 Vonovia", "ZAL.DE": "🇩🇪 Zalando",
- 
-    # Aktien EUROPA
     "AI.PA": "🇫🇷 Air Liquide", "AIR.PA": "🇫🇷 Airbus", "CS.PA": "🇫🇷 AXA", "BNP.PA": "🇫🇷 BNP Paribas", 
     "BN.PA": "🇫🇷 Danone", "EL.PA": "🇫🇷 EssilorLuxottica", "RMS.PA": "🇫🇷 Hermès",
     "OR.PA": "🇫🇷 L'Oréal", "MC.PA": "🇫🇷 LVMH", "RI.PA": "🇫🇷 Pernod Ricard", "SAF.PA": "🇫🇷 Safran", 
@@ -168,12 +164,18 @@ def get_style(chg):
     if chg < -0.15: return "⛈ 🔵", "#1E90FF"
     return "⚪", "#8892b0"
 
+def draw_weather_card(ticker_id):
+    if ticker_id in df_master.columns.levels:
+        res = analyze_dataframe(df_master[ticker_id], ticker_id)
+        if res["cp"] > 0:
+            icon, color = get_style(res["chg"])
+            st.markdown(f'<div class="weather-card" style="border-color:{color};"><b>{TICKER_NAMES.get(ticker_id, ticker_id)} {icon}</b><br>{res["cp"]:,.2f} ({res["chg"]:+.2f}%)</div>', unsafe_allow_html=True)
+
 # --- 6. DASHBOARD LAYOUT & LIVE MONITOREN ---
 st.title("Bio-Trading Monitor Live PRO")
 now_fixed = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update: <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
-# 6a. Vorab-Datenscan für Alarme und Signallisten
 high_confidence_alerts = []
 all_signals = []
 
@@ -190,13 +192,6 @@ for s in EUROPE_STOCKS:
             }
             all_signals.append(signal_data)
             if r["chance"] >= 90.0:
-                high_confidence_alerts.append(f"{TICKER_NAMES.get(s,s)} ({r['chance']}% Konfidenz: {r['infinity_signal']})")
+                high_confidence_alerts.append(f"{TICKER_NAMES.get(s,s)} ({r['chance']}% : {r['infinity_signal']})")
 
-# Render-Flashbanner bei extremen Kauf-/Verkaufssignalen
 if high_confidence_alerts:
-    alerts_text = " | ".join(high_confidence_alerts)
-    st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {alerts_text}</div>', unsafe_allow_html=True)
-
-# 6b. Markt-Wetter Gitter (SAUBER HIERARCHISCH EINGERÜCKT)
-WEATHER_ROWS = [["EURUSD=X", "^GDAXI"], ["^STOXX50E", "XU100.IS"]]
-for row in WEATHER_ROWS:
