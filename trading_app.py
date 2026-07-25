@@ -141,17 +141,16 @@ def analyze_dataframe(df_ticker, ticker_symbol):
         pass
     return res
 
-# --- 5. BATCH DOWNLOAD (1 MONAT FÜR STABILE ARITHMETIK) ---
+# --- 5. BATCH DOWNLOAD (HOHER DATENUMFANG FÜR WOCHENENDE) ---
 @st.cache_data(ttl=120)
 def download_all_data():
     all_tickers = list(TICKER_NAMES.keys())
-    # 1mo sichert genug historische Kerzen für RSI(14) und ATR(14) am Wochenende
     df_all = yf.download(all_tickers, period="1mo", progress=False, group_by="ticker")
     return df_all
 
 df_master = download_all_data()
 
-# Ticker-Verfügbarkeit präzise über die MultiIndex-Ebenen prüfen
+# Strukturierte Prüfung der Ticker-Verfügbarkeit
 available_tickers = []
 if hasattr(df_master.columns, 'levels') and len(df_master.columns.levels) > 0:
     available_tickers = list(df_master.columns.levels[0])
@@ -166,7 +165,7 @@ for s in EUROPE_STOCKS:
     if s in available_tickers:
         try:
             r = analyze_dataframe(df_master[s], s)
-            if r["cp"] > 0:
+            if r.get("cp", 0) > 0:
                 all_signals.append({
                     'Aktie': TICKER_NAMES[s], 
                     'Kerzen-Schatten': r["shadow_signal"], 
@@ -179,7 +178,7 @@ for s in EUROPE_STOCKS:
         except Exception:
             pass
 
-# --- 7. DASHBOARD MAIN LAYOUT ---
+# --- 7. DASHBOARD MAIN LAYOUT (EINRÜCKUNGSSICHER) ---
 st.title("Bio-Trading Monitor Live PRO")
 
 tz_europe = pytz.timezone('Europe/Berlin')
@@ -189,8 +188,8 @@ st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (
 if len(alerts_list) > 0:
     st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {" | ".join(alerts_list)}</div>', unsafe_allow_html=True)
 
-# Marktwetter Hilffunktion
+# ABSOLUT LINEARISIERTES MARKTWETTER OHNE JEDEN IF-EINSTIEG IN DIESER FUNKTION
 def draw_weather_card_flat(ticker_id):
-    if ticker_id in available_tickers:
-        res = analyze_dataframe(df_master[ticker_id], ticker_id)
-        if res["cp"] > 0:
+    res = analyze_dataframe(df_master[ticker_id], ticker_id)
+    chg_val = res.get("chg", 0.0)
+    cp_val = res.get("cp", 0.0)
