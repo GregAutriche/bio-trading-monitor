@@ -70,10 +70,9 @@ def calculate_rsi(series, period=14):
     rs = gain / (loss + 1e-10)
     return 100 - (100 / (1 + rs))
 
-# --- 4. ENGINE LOGIK MIT ERZWUNGENER STANDARD-ABSCHIRMUNG ---
+# --- 4. ENGINE LOGIK ---
 @st.cache_data(ttl=120)
 def get_ticker_analysis(ticker_symbol):
-    # Generische, logische Default-Werte falls Yahoo gar nichts liefert (Wochenend-Schutz)
     fallback_seed = int(abs(hash(ticker_symbol)) % 100)
     default_price = 100.0 + fallback_seed
     default_chance = 52.0 + (fallback_seed % 20)
@@ -87,7 +86,6 @@ def get_ticker_analysis(ticker_symbol):
     }
     
     try:
-        # Ermittlung des letzten Freitags für stabile Datensätze am Samstag/Sonntag
         today = datetime.now()
         start_date = today - timedelta(days=35)
         df = yf.download(ticker_symbol, start=start_date.strftime('%Y-%m-%d'), end=today.strftime('%Y-%m-%d'), progress=False)
@@ -178,7 +176,6 @@ st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (
 
 # --- 6. DATA SCANNER ---
 all_signals = []
-alerts_list = []
 
 for s in EUROPE_STOCKS[:15]:
     r = get_ticker_analysis(s)
@@ -189,7 +186,10 @@ for s in EUROPE_STOCKS[:15]:
         'Kurs': f"{r['cp']:,.2f}", 
         'Signal-Konfidenz': r["chance"]
     })
-    if r["chance"] >= 90.0:
-        alerts_list.append(f"{TICKER_NAMES[s]} ({r['chance']}% : {r['infinity_signal']})")
 
-if len(alerts_list) > 0:
+# --- 7. MARKTWETTER RENDERN ---
+res_w1 = get_ticker_analysis("EURUSD=X")
+chg_w1 = res_w1.get("chg", 0.0)
+st.markdown(f'<div class="weather-card" style="border-color:{"#00FFA3" if chg_w1 > 0.15 else ("#1E90FF" if chg_w1 < -0.15 else "#8892b0")};"><b>{TICKER_NAMES["EURUSD=X"]} {"☀️ 🟢" if chg_w1 > 0.15 else ("⛈ 🔵" if chg_w1 < -0.15 else "⚪")}</b> | {res_w1.get("cp", 0.0):,.4f} ({chg_w1:+.2f}%)</div>', unsafe_allow_html=True)
+
+res_w2 = get_ticker_analysis("^GDAXI")
