@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import pytz
 from streamlit_autorefresh import st_autorefresh
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # --- 1. KONFIGURATION & AUTOMATISCHER REFRESH ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
@@ -76,7 +76,7 @@ def analyze_dataframe(df_ticker, ticker_symbol):
     if df_ticker is None or df_ticker.empty or len(df_ticker) <= 15:
         return res
     try:
-        df = df_ticker.copy()
+        df = df_ticker.copy().dropna(subset=["Close"])
         res["cp"] = float(df["Close"].iloc[-1])
         res["vol"] = float(df["Volume"].iloc[-1])
         res["chg"] = ((df["Close"].iloc[-1] / df["Close"].iloc[-2]) - 1) * 100
@@ -141,28 +141,29 @@ def analyze_dataframe(df_ticker, ticker_symbol):
         pass
     return res
 
-# --- 5. AUTOMATISCHES WOCHENENDE-FALLBACK DOWNLOAD ---
+# --- 5. BATCH DOWNLOAD (1 MONAT FÜR STABILE ARITHMETIK) ---
 @st.cache_data(ttl=120)
 def download_all_data():
     all_tickers = list(TICKER_NAMES.keys())
-    # 5 Tage statt 1 Jahr sichert stabile Historie, auch am Wochenende
-    df_all = yf.download(all_tickers, period="5d", progress=False, group_by="ticker")
+    # 1mo sichert genug historische Kerzen für RSI(14) und ATR(14) am Wochenende
+    df_all = yf.download(all_tickers, period="1mo", progress=False, group_by="ticker")
     return df_all
 
 df_master = download_all_data()
 
-# Absolut sichere Spaltengenerierung unabhängig von MultiIndex-Verschiebungen
+# Ticker-Verfügbarkeit präzise über die MultiIndex-Ebenen prüfen
 available_tickers = []
-for ticker in TICKER_NAMES.keys():
-    if ticker in df_master.columns:
-        available_tickers.append(ticker)
+if hasattr(df_master.columns, 'levels') and len(df_master.columns.levels) > 0:
+    available_tickers = list(df_master.columns.levels[0])
+else:
+    available_tickers = list(df_master.columns)
 
 # --- 6. DATEN-AGREGATION ---
 all_signals = []
 alerts_list = []
 
 for s in EUROPE_STOCKS:
-    if s in df_master.columns:
+    if s in available_tickers:
         try:
             r = analyze_dataframe(df_master[s], s)
             if r["cp"] > 0:
@@ -178,10 +179,9 @@ for s in EUROPE_STOCKS:
         except Exception:
             pass
 
-# --- 7. DASHBOARD MAIN LAYOUT (ZEITZONEN-KORRIGIERT & HOCHVERFÜGBAR) ---
+# --- 7. DASHBOARD MAIN LAYOUT ---
 st.title("Bio-Trading Monitor Live PRO")
 
-# Exakte Zeitzonenberechnung für Europa (Berlin/Wien)
 tz_europe = pytz.timezone('Europe/Berlin')
 now_fixed = datetime.now(tz_europe).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (Europa/Berlin): <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
@@ -189,7 +189,8 @@ st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (
 if len(alerts_list) > 0:
     st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {" | ".join(alerts_list)}</div>', unsafe_allow_html=True)
 
-# Marktwetter Hilffunktion (Ohne try-except Verschachtelung)
+# Marktwetter Hilffunktion
 def draw_weather_card_flat(ticker_id):
-    if ticker_id in df_master.columns:
+    if ticker_id in available_tickers:
         res = analyze_dataframe(df_master[ticker_id], ticker_id)
+        if res["cp"] > 0:
