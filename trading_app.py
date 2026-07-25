@@ -5,7 +5,7 @@ import numpy as np
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime, timedelta
 
-# --- 1. KONFIGURATION & MULTI-REFRESH SIDEBAR ---
+# --- 1. KONFIGURATION & REFRESH ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 
 st.sidebar.title("🎛️ Monitor Steuerung")
@@ -50,7 +50,7 @@ TICKER_NAMES = {
 STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k and k != "XU100.IS"]
 EUROPE_STOCKS = [k for k in STOCKS_ONLY if any(k.endswith(ext) for ext in [".DE", ".PA", ".AS", ".MI", ".MC", ".BR", ".HE", ".IR"])]
 
-# --- 3. DESIGN ---
+# --- 3. CUSTOM CSS ---
 st.markdown("""
  <style>
  .stApp { background-color: #0E1117 !important; color: #FFFFFF !important; font-family: 'Inter', sans-serif; }
@@ -58,8 +58,7 @@ st.markdown("""
  [data-testid="stMetricLabel"] { font-size: 0.75rem !important; color: #8892b0 !important; text-transform: uppercase !important; }
  div[data-testid="stMetric"] { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 8px 12px !important; border-radius: 10px; }
  .weather-card { text-align: center; border-radius: 12px; background: rgba(255,255,255,0.03); border: 2px solid #333; padding: 12px; margin-bottom: 10px; width: 100%; }
- .signal-alert { background-color: #FF4B4B; color: white; padding: 15px; border-radius: 10px; font-weight: bold; text-align: center; font-size: 1.2rem; margin-bottom: 20px; border: 2px solid #FFFFFF; animation: blinker 1.5s linear infinite; }
- @keyframes blinker { 50% { opacity: 0.6; } }
+ .signal-alert { background-color: #FF4B4B; color: white; padding: 15px; border-radius: 10px; font-weight: bold; text-align: center; font-size: 1.2rem; margin-bottom: 20px; border: 2px solid #FFFFFF; }
  </style>
  """, unsafe_allow_html=True)
 
@@ -70,15 +69,11 @@ def calculate_rsi(series, period=14):
     rs = gain / (loss + 1e-10)
     return 100 - (100 / (1 + rs))
 
-# --- 4. DATA-ENGINE LOGIK ---
+# --- 4. ENGINE LOGIK ---
 def analyze_dataframe(df_ticker, ticker_symbol):
-    res = {
-        "cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 54.2, 
-        "shadow_signal": "NEUTRAL", "infinity_signal": "NEUTRAL"
-    }
+    res = {"cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 54.2, "shadow_signal": "NEUTRAL", "infinity_signal": "NEUTRAL"}
     if df_ticker.empty or len(df_ticker) <= 15:
         return res
-        
     try:
         df = df_ticker.copy()
         res["cp"] = float(df["Close"].iloc[-1])
@@ -86,12 +81,10 @@ def analyze_dataframe(df_ticker, ticker_symbol):
         res["chg"] = ((df["Close"].iloc[-1] / df["Close"].iloc[-2]) - 1) * 100
         res["h250"] = float(df["High"].max())
         res["l250"] = float(df["Low"].min())
-        
         df['TR'] = df['High'] - df['Low']
         df['ATR'] = df['TR'].rolling(window=14).mean()
         res["atr"] = float(df['ATR'].iloc[-1]) if not pd.isna(df['ATR'].iloc[-1]) else 1.0
         
-        # Kerzen-Schatten
         last_candle = df.iloc[-1]
         high_p, low_p, open_p, close_p = float(last_candle["High"]), float(last_candle["Low"]), float(last_candle["Open"]), float(last_candle["Close"])
         total_range = high_p - low_p
@@ -114,10 +107,8 @@ def analyze_dataframe(df_ticker, ticker_symbol):
         else:
             res["chance"] = round(55.0 + (hash(ticker_symbol) % 15), 1)
             
-        # Infinity Faktor
         factor_mult = 3.0
         df['RSI'] = calculate_rsi(df['Close'], 14)
-        
         long_band = (df['Close'] - (factor_mult * df['ATR'])).to_numpy()
         short_band = (df['Close'] + (factor_mult * df['ATR'])).to_numpy()
         close_array = df['Close'].to_numpy()
@@ -144,7 +135,6 @@ def analyze_dataframe(df_ticker, ticker_symbol):
             res["chance"] += 12.0
         else:
             res["infinity_signal"] = "SELL (Trendfolge)"
-            
         res["chance"] = round(min(res["chance"], 99.1), 1)
     except Exception:
         pass
@@ -154,8 +144,7 @@ def analyze_dataframe(df_ticker, ticker_symbol):
 @st.cache_data(ttl=120)
 def download_all_data():
     all_tickers = list(TICKER_NAMES.keys())
-    df_all = yf.download(all_tickers, period="1y", progress=False, group_by="ticker")
-    return df_all
+    return yf.download(all_tickers, period="1y", progress=False, group_by="ticker")
 
 df_master = download_all_data()
 
@@ -171,27 +160,32 @@ def draw_weather_card(ticker_id):
             icon, color = get_style(res["chg"])
             st.markdown(f'<div class="weather-card" style="border-color:{color};"><b>{TICKER_NAMES.get(ticker_id, ticker_id)} {icon}</b><br>{res["cp"]:,.2f} ({res["chg"]:+.2f}%)</div>', unsafe_allow_html=True)
 
-# --- 6. DASHBOARD LAYOUT & LIVE MONITOREN ---
+# --- 6. DASHBOARD MAIN LAYOUT ---
 st.title("Bio-Trading Monitor Live PRO")
 now_fixed = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update: <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
-high_confidence_alerts = []
+# Daten vorab aggregieren für flache Tabellensteuerung
 all_signals = []
-
+alerts_list = []
 for s in EUROPE_STOCKS:
     if s in df_master.columns.levels:
         r = analyze_dataframe(df_master[s], s)
         if r["cp"] > 0:
-            signal_data = {
+            all_signals.append({
                 'Aktie': TICKER_NAMES.get(s, s), 
                 'Kerzen-Schatten': r["shadow_signal"], 
                 'Infinity Algo': r["infinity_signal"],
                 'Kurs': f"{r['cp']:,.2f}", 
                 'Signal-Konfidenz': r["chance"]
-            }
-            all_signals.append(signal_data)
+            })
             if r["chance"] >= 90.0:
-                high_confidence_alerts.append(f"{TICKER_NAMES.get(s,s)} ({r['chance']}% : {r['infinity_signal']})")
+                alerts_list.append(f"{TICKER_NAMES.get(s,s)} ({r['chance']}% : {r['infinity_signal']})")
 
-if high_confidence_alerts:
+# Absolut flache Steuerung ohne eingerückte logische Code-Blöcke
+if len(alerts_list) > 0:
+    st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {" | ".join(alerts_list)}</div>', unsafe_allow_html=True)
+
+# Markt-Wetter Spalten
+w_col1, w_col2, w_col3, w_col4 = st.columns(4)
+with w_col1:
