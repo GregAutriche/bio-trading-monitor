@@ -153,19 +153,18 @@ def get_style(chg):
     if chg < -0.15: return "⛈ 🔵", "#1E90FF"
     return "⚪", "#8892b0"
 
-def draw_weather_card(ticker_id):
+def draw_weather_card_flat(ticker_id):
     if ticker_id in df_master.columns.levels:
         res = analyze_dataframe(df_master[ticker_id], ticker_id)
         if res["cp"] > 0:
             icon, color = get_style(res["chg"])
-            st.markdown(f'<div class="weather-card" style="border-color:{color};"><b>{TICKER_NAMES.get(ticker_id, ticker_id)} {icon}</b><br>{res["cp"]:,.2f} ({res["chg"]:+.2f}%)</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="weather-card" style="border-color:{color};"><b>{TICKER_NAMES.get(ticker_id, ticker_id)} {icon}</b> | {res["cp"]:,.2f} ({res["chg"]:+.2f}%)</div>', unsafe_allow_html=True)
 
 # --- 6. DASHBOARD MAIN LAYOUT ---
 st.title("Bio-Trading Monitor Live PRO")
 now_fixed = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update: <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
-# Daten vorab aggregieren für flache Tabellensteuerung
 all_signals = []
 alerts_list = []
 for s in EUROPE_STOCKS:
@@ -182,10 +181,12 @@ for s in EUROPE_STOCKS:
             if r["chance"] >= 90.0:
                 alerts_list.append(f"{TICKER_NAMES.get(s,s)} ({r['chance']}% : {r['infinity_signal']})")
 
-# Absolut flache Steuerung ohne eingerückte logische Code-Blöcke
 if len(alerts_list) > 0:
     st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {" | ".join(alerts_list)}</div>', unsafe_allow_html=True)
 
-# Markt-Wetter Spalten
-w_col1, w_col2, w_col3, w_col4 = st.columns(4)
-with w_col1:
+# --- REPARATUR: ABSOLUT LINEARES MARKTWETTER OHNE SPALTEN-CONTAINER ---
+draw_weather_card_flat("EURUSD=X")
+draw_weather_card_flat("^GDAXI")
+draw_weather_card_flat("^STOXX50E")
+draw_weather_card_flat("XU100.IS")
+
