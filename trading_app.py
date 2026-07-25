@@ -139,7 +139,7 @@ def download_entire_market():
 df_master_pack = download_entire_market()
 
 # --- 6. HEADER ZEITZONE ---
-st.title("Monitor")
+st.title("📊 💱 Monitor 💱 📊")
 tz_europe = pytz.timezone('Europe/Berlin')
 now_fixed = datetime.now(tz_europe).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (Europa/Berlin): <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
