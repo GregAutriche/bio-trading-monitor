@@ -140,24 +140,21 @@ def analyze_dataframe(df_ticker, ticker_symbol):
         pass
     return res
 
-# --- 5. ROBULTER BATCH-DOWNLOAD ---
+# --- 5. BATCH-DOWNLOAD ---
 @st.cache_data(ttl=120)
 def download_all_data():
     all_tickers = list(TICKER_NAMES.keys())
-    # Automatischer Fallback auf flache Spaltennamen bei Mehrfach-Indexen
-    df = yf.download(all_tickers, period="1y", progress=False, group_by="ticker")
-    return df
+    return yf.download(all_tickers, period="1y", progress=False, group_by="ticker")
 
 df_master = download_all_data()
 
-# Absolut sichere Ticker-Extraktion ohne level-Attribute
 all_downloaded_columns = [str(c) for c in df_master.columns.to_flat_index()]
 available_tickers = []
 for ticker in TICKER_NAMES.keys():
     if any(ticker in col_name for col_name in all_downloaded_columns):
         available_tickers.append(ticker)
 
-# --- 6. DATEN-AGREGATION FÜR MONITORE ---
+# --- 6. DATEN-AGREGATION ---
 all_signals = []
 alerts_list = []
 
@@ -178,18 +175,17 @@ for s in EUROPE_STOCKS:
         except Exception:
             pass
 
-# --- 7. DASHBOARD MAIN LAYOUT ---
+# --- 7. DASHBOARD MAIN LAYOUT (EINRÜCKUNGSSICHER) ---
 st.title("Bio-Trading Monitor Live PRO")
 now_fixed = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update: <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
-# Hochkonfidenz-Alarm anzeigen
 if len(alerts_list) > 0:
     st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {" | ".join(alerts_list)}</div>', unsafe_allow_html=True)
 
-# Marktwetter Hilfsfunktion
+# Marktwetter Hilffunktion (VOLLSTÄNDIG LINEARISIERT OHNE IF-EINRÜCKUNG)
 def draw_weather_card_flat(ticker_id):
-    if ticker_id in available_tickers:
-        try:
-            res = analyze_dataframe(df_master[ticker_id], ticker_id)
-            if res["cp"] > 0:
+    try:
+        res = analyze_dataframe(df_master[ticker_id], ticker_id)
+        chg_style = "☀️ 🟢" if res["chg"] > 0.15 else ("⛈ 🔵" if res["chg"] < -0.15 else "⚪")
+        card_color = "#00FFA3" if res["chg"] > 0.15 else ("#1E90FF" if res["chg"] < -0.15 else "#8892b0")
