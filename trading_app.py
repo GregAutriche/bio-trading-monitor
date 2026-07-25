@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import pytz
 from streamlit_autorefresh import st_autorefresh
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # --- 1. KONFIGURATION & AUTOMATISCHER REFRESH ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
@@ -70,17 +70,27 @@ def calculate_rsi(series, period=14):
     rs = gain / (loss + 1e-10)
     return 100 - (100 / (1 + rs))
 
-# --- 4. ENGINE LOGIK (EINZELABRUF PRO TICKER FÜR HÖCHSTE STABILITÄT) ---
+# --- 4. ENGINE LOGIK MIT PRÄZISEM DATUMS-KORRIDOR ---
 @st.cache_data(ttl=120)
 def get_ticker_analysis(ticker_symbol):
-    res = {"cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 54.2, "shadow_signal": "NEUTRAL", "infinity_signal": "NEUTRAL"}
+    res = {"cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 50.0, "shadow_signal": "NEUTRAL", "infinity_signal": "NEUTRAL"}
     try:
-        # Einzelabruf mit 1 Monat Historie für verlässliche RSI-Berechnung
-        df = yf.download(ticker_symbol, period="1mo", progress=False)
+        # Festes Datumsfenster erzwingt historische Daten am Wochenende
+        today = datetime.now()
+        start_date = today - timedelta(days=45)
+        df = yf.download(ticker_symbol, start=start_date.strftime('%Y-%m-%d'), end=today.strftime('%Y-%m-%d'), progress=False)
+        
         if df.empty or len(df) <= 5:
             return res
             
+        # Spalten-Ebenen bereinigen (MultiIndex-Kollaps)
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+            
         df = df.dropna(subset=["Close"])
+        if len(df) < 2:
+            return res
+
         res["cp"] = float(df["Close"].iloc[-1])
         res["vol"] = float(df["Volume"].iloc[-1])
         res["chg"] = ((df["Close"].iloc[-1] / df["Close"].iloc[-2]) - 1) * 100
@@ -98,20 +108,10 @@ def get_ticker_analysis(ticker_symbol):
         upper_shadow = high_p - max(open_p, close_p)
         lower_shadow = min(open_p, close_p) - low_p
         
-        if total_range > 0:
-            shadow_ratio = max(upper_shadow, lower_shadow) / total_range
-            signal_strength = 55.0 + (shadow_ratio * 30.0)
-        else:
-            signal_strength = 54.2
-            
         if lower_shadow > (body * 2) and lower_shadow > (res["atr"] * 0.4):
             res["shadow_signal"] = "LONG (Lunte)"
-            res["chance"] = round(signal_strength, 1)
         elif upper_shadow > (body * 2) and upper_shadow > (res["atr"] * 0.4):
             res["shadow_signal"] = "SHORT (Docht)"
-            res["chance"] = round(signal_strength, 1)
-        else:
-            res["chance"] = round(55.0 + (hash(ticker_symbol) % 15), 1)
             
         factor_mult = 3.0
         df['RSI'] = calculate_rsi(df['Close'], 14)
@@ -131,17 +131,31 @@ def get_ticker_analysis(ticker_symbol):
         current_trend = trend_dir[-1]
         current_rsi = df['RSI'].iloc[-1] if not pd.isna(df['RSI'].iloc[-1]) else 50.0
         
-        if current_trend == 1 and current_rsi < 45:
-            res["infinity_signal"] = "STRONG BUY"
-            res["chance"] += 12.0
-        elif current_trend == 1:
-            res["infinity_signal"] = "BUY"
-        elif current_trend == -1 and current_rsi > 55:
-            res["infinity_signal"] = "STRONG SELL"
-            res["chance"] += 12.0
+        # --- MATHEMATISCHE BESTIMMUNG DER SIGNAL-KONFIDENZ (Infinity Bandproportionalität) ---
+        dist_to_long = abs(res["cp"] - long_band[-1])
+        dist_to_short = abs(res["cp"] - short_band[-1])
+        total_band_width = short_band[-1] - long_band[-1]
+        
+        if current_trend == 1:
+            # Je näher am unteren Support-Band, desto besser das mathematische CRV für Long
+            base_chance = 55.0 + ((1.0 - (dist_to_long / (total_band_width + 1e-10))) * 30.0)
+            if current_rsi < 45:
+                res["infinity_signal"] = "STRONG BUY"
+                res["chance"] = base_chance + 10.0
+            else:
+                res["infinity_signal"] = "BUY"
+                res["chance"] = base_chance
         else:
-            res["infinity_signal"] = "SELL"
-        res["chance"] = round(min(res["chance"], 99.1), 1)
+            # Je näher am oberen Widerstands-Band, desto besser das mathematische CRV für Short
+            base_chance = 55.0 + ((1.0 - (dist_to_short / (total_band_width + 1e-10))) * 30.0)
+            if current_rsi > 55:
+                res["infinity_signal"] = "STRONG SELL"
+                res["chance"] = base_chance + 10.0
+            else:
+                res["infinity_signal"] = "SELL"
+                res["chance"] = base_chance
+                
+        res["chance"] = round(min(max(res["chance"], 51.0), 98.8), 1)
     except Exception:
         pass
     return res
@@ -153,12 +167,11 @@ tz_europe = pytz.timezone('Europe/Berlin')
 now_fixed = datetime.now(tz_europe).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (Europa/Berlin): <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
-# --- 6. DATA GENERATION & SCANNER ---
+# --- 6. DATA SCANNER ---
 all_signals = []
 alerts_list = []
 
-# Begrenzung auf Top 20 Titel für einen schnellen Einzelabruf am Wochenende
-for s in EUROPE_STOCKS[:20]:
+for s in EUROPE_STOCKS[:15]:  # Optimierter Umfang für Stabilität
     r = get_ticker_analysis(s)
     if r.get("cp", 0) > 0:
         all_signals.append({
@@ -176,8 +189,3 @@ if len(alerts_list) > 0:
 
 # --- 7. MARKTWETTER RENDERN ---
 res_w1 = get_ticker_analysis("EURUSD=X")
-chg_w1 = res_w1.get("chg", 0.0)
-st.markdown(f'<div class="weather-card" style="border-color:{"#00FFA3" if chg_w1 > 0.15 else ("#1E90FF" if chg_w1 < -0.15 else "#8892b0")};"><b>{TICKER_NAMES["EURUSD=X"]} {"☀️ 🟢" if chg_w1 > 0.15 else ("⛈ 🔵" if chg_w1 < -0.15 else "⚪")}</b> | {res_w1.get("cp", 0.0):,.2f} ({chg_w1:+.2f}%)</div>', unsafe_allow_html=True)
-
-res_w2 = get_ticker_analysis("^GDAXI")
-chg_w2 = res_w2.get("chg", 0.0)
