@@ -5,9 +5,18 @@ import numpy as np
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime, timedelta
 
-# --- 1. KONFIGURATION ---
+# --- 1. KONFIGURATION & MULTI-REFRESH SIDEBAR ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
-st_autorefresh(interval=60000, limit=1000, key="fscounter")
+
+st.sidebar.title("🎛️ Monitor Steuerung")
+refresh_options = {
+    "30 Sekunden": 30000,
+    "1 Minute": 60000,
+    "5 Minuten": 300000,
+    "Manuell (Aus)": 9999999
+}
+selected_refresh = st.sidebar.selectbox("Aktualisierungsintervall:", list(refresh_options.keys()), index=1)
+st_autorefresh(interval=refresh_options[selected_refresh], limit=1000, key="fscounter")
 
 # --- 2. TICKER-MAPPING ---
 TICKER_NAMES = {
@@ -53,6 +62,8 @@ st.markdown("""
  [data-testid="stMetricLabel"] { font-size: 0.75rem !important; color: #8892b0 !important; text-transform: uppercase !important; }
  div[data-testid="stMetric"] { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 8px 12px !important; border-radius: 10px; }
  .weather-card { text-align: center; border-radius: 12px; background: rgba(255,255,255,0.03); border: 2px solid #333; padding: 12px; margin-bottom: 10px; width: 100%; }
+ .signal-alert { background-color: #FF4B4B; color: white; padding: 15px; border-radius: 10px; font-weight: bold; text-align: center; font-size: 1.2rem; margin-bottom: 20px; border: 2px solid #FFFFFF; animation: blinker 1.5s linear infinite; }
+ @keyframes blinker { 50% { opacity: 0.6; } }
  </style>
  """, unsafe_allow_html=True)
 
@@ -63,7 +74,7 @@ def calculate_rsi(series, period=14):
     rs = gain / (loss + 1e-10)
     return 100 - (100 / (1 + rs))
 
-# --- 4. OPTIMIERTE RECHEN-LOGIK (BASIEREND AUF BEREITS GEADENEN DATEN) ---
+# --- 4. DATA-ENGINE LOGIK ---
 def analyze_dataframe(df_ticker, ticker_symbol):
     res = {
         "cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 54.2, 
@@ -73,9 +84,7 @@ def analyze_dataframe(df_ticker, ticker_symbol):
         return res
         
     try:
-        # Falls MultiIndex Spalten existieren, extrahieren
         df = df_ticker.copy()
-        
         res["cp"] = float(df["Close"].iloc[-1])
         res["vol"] = float(df["Volume"].iloc[-1])
         res["chg"] = ((df["Close"].iloc[-1] / df["Close"].iloc[-2]) - 1) * 100
@@ -107,7 +116,7 @@ def analyze_dataframe(df_ticker, ticker_symbol):
             res["shadow_signal"] = "SHORT (Docht)"
             res["chance"] = round(signal_strength, 1)
         else:
-            res["chance"] = round(55.0 + (hash(ticker_symbol) % 10), 1) # Stabiler, dynamischer Seed fürs Ranking
+            res["chance"] = round(55.0 + (hash(ticker_symbol) % 15), 1)
             
         # Infinity Faktor
         factor_mult = 3.0
@@ -131,29 +140,27 @@ def analyze_dataframe(df_ticker, ticker_symbol):
         
         if current_trend == 1 and current_rsi < 45:
             res["infinity_signal"] = "STRONG BUY (Trend + Momentum)"
-            res["chance"] += 5.0
+            res["chance"] += 12.0
         elif current_trend == 1:
             res["infinity_signal"] = "BUY (Trendfolge)"
         elif current_trend == -1 and current_rsi > 55:
             res["infinity_signal"] = "STRONG SELL (Trend + Momentum)"
-            res["chance"] += 5.0
+            res["chance"] += 12.0
         else:
             res["infinity_signal"] = "SELL (Trendfolge)"
             
-        res["chance"] = round(min(res["chance"], 98.5), 1)
+        res["chance"] = round(min(res["chance"], 99.1), 1)
     except Exception:
         pass
     return res
 
-# --- 5. ULTRA-SCHNELLER CENTRAL BATCH DOWNLOAD ---
-@st.cache_data(ttl=300)
+# --- 5. BATCH DOWNLOAD ---
+@st.cache_data(ttl=120)
 def download_all_data():
     all_tickers = list(TICKER_NAMES.keys())
-    # Lädt alle Ticker gleichzeitig in einem einzigen Datensatz herunter!
     df_all = yf.download(all_tickers, period="1y", progress=False, group_by="ticker")
     return df_all
 
-# Daten abrufen
 df_master = download_all_data()
 
 def get_style(chg):
@@ -161,35 +168,35 @@ def get_style(chg):
     if chg < -0.15: return "⛈ 🔵", "#1E90FF"
     return "⚪", "#8892b0"
 
-# --- 6. DASHBOARD LAYOUT ---
+# --- 6. DASHBOARD LAYOUT & LIVE MONITOREN ---
 st.title("Bio-Trading Monitor Live PRO")
 now_fixed = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
-st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update: <b>{now_fixed}</b></div>', unsafe_allow_html=True)
+st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update: <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
-# Markt-Wetter Gitter
+# 6a. Vorab-Datenscan für das visuelle 90%-Alarmsystem
+high_confidence_alerts = []
+all_signals = []
+
+for s in EUROPE_STOCKS:
+    if s in df_master.columns.levels:
+        r = analyze_dataframe(df_master[s], s)
+        if r["cp"] > 0:
+            signal_data = {
+                'Aktie': TICKER_NAMES.get(s, s), 
+                'Kerzen-Schatten': r["shadow_signal"], 
+                'Infinity Algo': r["infinity_signal"],
+                'Kurs': f"{r['cp']:,.2f}", 
+                'Signal-Konfidenz': r["chance"]
+            }
+            all_signals.append(signal_data)
+            if r["chance"] >= 90.0:
+                high_confidence_alerts.append(f"{TICKER_NAMES.get(s,s)} ({r['chance']}% Konfidenz: {r['infinity_signal']})")
+
+# ⚠️ Render-Flashbanner bei extremen Kauf-/Verkaufssignalen
+if high_confidence_alerts:
+    alerts_text = " | ".join(high_confidence_alerts)
+    st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {alerts_text}</div>', unsafe_allow_html=True)
+
+# 6b. Markt-Wetter Gitter
 WEATHER_ROWS = [["EURUSD=X", "^GDAXI"], ["^STOXX50E", "XU100.IS"]]
 for row in WEATHER_ROWS:
-    cols = st.columns(len(row))
-    for i, t in enumerate(row):
-        if t in df_master.columns.levels[0]:
-            res = analyze_dataframe(df_master[t], t)
-            if res["cp"] > 0:
-                icon, color = get_style(res["chg"])
-                with cols[i]:
-                    st.markdown(f'<div class="weather-card" style="border-color:{color};"><b>{TICKER_NAMES.get(t,t)} {icon}</b><br>{res["cp"]:,.2f} ({res["chg"]:+.2f}%)</div>', unsafe_allow_html=True)
-
-# Detail-Analyse Selektor
-st.divider()
-sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
-sel_stock = st.selectbox("Aktie für Detail-Analyse wählen:", sorted_stocks, index=sorted_stocks.index("BAS.DE") if "BAS.DE" in sorted_stocks else 0, format_func=lambda x: TICKER_NAMES.get(x, x))
-
-if sel_stock in df_master.columns.levels[0]:
-    res_d = analyze_dataframe(df_master[sel_stock], sel_stock)
-    if res_d["cp"] > 0:
-        st.subheader(f"🔍 Detail-Analyse: {TICKER_NAMES.get(sel_stock, sel_stock)}")
-        cp, atr, chance, chg = res_d["cp"], res_d["atr"], res_d["chance"], res_d["chg"]
-        h250, l250 = res_d["h250"], res_d["l250"]
-        
-        setup_type = f"SCHATTENFOLGE {res_d['shadow_signal']}" if res_d["shadow_signal"] != "NEUTRAL" else ("LONG (CALL)" if chance >= 50 else "SHORT (PUT)")
-        setup_color = "#00FFA3" if "LONG" in setup_type or "CALL" in setup_type else "#FF4B4B"
-        
