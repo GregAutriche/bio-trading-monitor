@@ -173,7 +173,7 @@ st.title("Bio-Trading Monitor Live PRO")
 now_fixed = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update: <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
-# 6a. Vorab-Datenscan für das visuelle 90%-Alarmsystem
+# 6a. Vorab-Datenscan für Alarme und Signallisten
 high_confidence_alerts = []
 all_signals = []
 
@@ -192,11 +192,11 @@ for s in EUROPE_STOCKS:
             if r["chance"] >= 90.0:
                 high_confidence_alerts.append(f"{TICKER_NAMES.get(s,s)} ({r['chance']}% Konfidenz: {r['infinity_signal']})")
 
-# ⚠️ Render-Flashbanner bei extremen Kauf-/Verkaufssignalen
+# Render-Flashbanner bei extremen Kauf-/Verkaufssignalen
 if high_confidence_alerts:
     alerts_text = " | ".join(high_confidence_alerts)
     st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {alerts_text}</div>', unsafe_allow_html=True)
 
-# 6b. Markt-Wetter Gitter
+# 6b. Markt-Wetter Gitter (SAUBER HIERARCHISCH EINGERÜCKT)
 WEATHER_ROWS = [["EURUSD=X", "^GDAXI"], ["^STOXX50E", "XU100.IS"]]
 for row in WEATHER_ROWS:
