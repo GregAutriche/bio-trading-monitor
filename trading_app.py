@@ -5,7 +5,6 @@ import numpy as np
 import pytz
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime, timedelta
-from concurrent.futures import ThreadPoolExecutor
 
 # --- 1. KONFIGURATION & AUTOMATISCHER REFRESH ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
@@ -71,9 +70,8 @@ def calculate_rsi(series, period=14):
     rs = gain / (loss + 1e-10)
     return 100 - (100 / (1 + rs))
 
-# --- 4. ENGINE LOGIK ---
-@st.cache_data(ttl=60)
-def get_ticker_analysis(ticker_symbol):
+# --- 4. DATA ENGINE (PROZESSIERT LOKALE DATENPAKETE OHNE API-WARTEZEIT) ---
+def analyze_ticker_data(df_all_master, ticker_symbol):
     fallback_seed = int(abs(hash(ticker_symbol)) % 100)
     default_price = 100.0 + fallback_seed
     default_chance = 52.0 + (fallback_seed % 20)
@@ -87,18 +85,13 @@ def get_ticker_analysis(ticker_symbol):
     }
     
     try:
-        today = datetime.now()
-        start_date = today - timedelta(days=40)
-        df = yf.download(ticker_symbol, start=start_date.strftime('%Y-%m-%d'), end=today.strftime('%Y-%m-%d'), progress=False)
-        
-        if df.empty or len(df) <= 5:
+        # MultiIndex-Datenstruktur sicher auflösen und Ticker-Sub-DataFrame isolieren
+        if ticker_symbol in df_all_master.columns.levels[0]:
+            df = df_all_master[ticker_symbol].copy().dropna(subset=["Close"])
+        else:
             return res
             
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-            
-        df = df.dropna(subset=["Close"])
-        if len(df) < 2:
+        if df.empty or len(df) <= 5:
             return res
 
         res["cp"] = float(df["Close"].iloc[-1])
@@ -168,17 +161,16 @@ def get_ticker_analysis(ticker_symbol):
         pass
     return res
 
-# --- 5. PARALLELER MULTI-THREAD MONITOR SCANNER ---
-def scan_ticker_parallel(ticker):
-    r = get_ticker_analysis(ticker)
-    return {
-        'Ticker': ticker,
-        'Aktie': TICKER_NAMES[ticker],
-        'Kerzen-Schatten': r["shadow_signal"],
-        'Infinity Algo': r["infinity_signal"],
-        'Kurs': f"{r['cp']:,.2f}",
-        'Signal-Konfidenz': r["chance"]
-    }
+# --- 5. STABILER ZENTRALER BATCH-DOWNLOAD (KOMPLETTER MARKT IN EINEM DATENPAKET) ---
+@st.cache_data(ttl=120)
+def download_entire_market():
+    all_tickers = list(TICKER_NAMES.keys())
+    today = datetime.now()
+    start_date = today - timedelta(days=45)
+    df_pack = yf.download(all_tickers, start=start_date.strftime('%Y-%m-%d'), end=today.strftime('%Y-%m-%d'), progress=False, group_by="ticker")
+    return df_pack
+
+df_master_pack = download_entire_market()
 
 # --- 6. DASHBOARD MAIN LAYOUT ---
 st.title("Bio-Trading Monitor Live PRO")
@@ -187,10 +179,17 @@ tz_europe = pytz.timezone('Europe/Berlin')
 now_fixed = datetime.now(tz_europe).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (Europa/Berlin): <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
-# Parallelisierte Datenaggregation starten
-with ThreadPoolExecutor(max_workers=10) as executor:
-    all_signals = list(executor.map(scan_ticker_parallel, EUROPE_STOCKS))
+# --- 7. DATA AGGREGATION (SCHLEIFE PROZESSIERT LOKAL OHNE NETZWERK-TIMEOUT) ---
+all_signals = []
+alerts_list = []
 
-# --- 7. MARKTWETTER RENDERN ---
-res_w1 = get_ticker_analysis("EURUSD=X")
-chg_w1 = res_w1.get("chg", 0.0)
+for s in EUROPE_STOCKS:
+    r = analyze_ticker_data(df_master_pack, s)
+    all_signals.append({
+        'Aktie': TICKER_NAMES[s], 
+        'Kerzen-Schatten': r["shadow_signal"], 
+        'Infinity Algo': r["infinity_signal"],
+        'Kurs': f"{r['cp']:,.2f}", 
+        'Signal-Konfidenz': r["chance"]
+    })
+    if r["chance"] >= 90.0:
