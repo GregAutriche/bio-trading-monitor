@@ -70,7 +70,7 @@ def calculate_rsi(series, period=14):
     rs = gain / (loss + 1e-10)
     return 100 - (100 / (1 + rs))
 
-# --- 4. DATA ENGINE (PROZESSIERT LOKALE DATENPAKETE OHNE API-WARTEZEIT) ---
+# --- 4. DATA ENGINE (LOKALE PROZESSIERUNG OHNE NETZWERK-LATENZ) ---
 def analyze_ticker_data(df_all_master, ticker_symbol):
     fallback_seed = int(abs(hash(ticker_symbol)) % 100)
     default_price = 100.0 + fallback_seed
@@ -85,7 +85,6 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
     }
     
     try:
-        # MultiIndex-Datenstruktur sicher auflösen und Ticker-Sub-DataFrame isolieren
         if ticker_symbol in df_all_master.columns.levels[0]:
             df = df_all_master[ticker_symbol].copy().dropna(subset=["Close"])
         else:
@@ -161,7 +160,7 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
         pass
     return res
 
-# --- 5. STABILER ZENTRALER BATCH-DOWNLOAD (KOMPLETTER MARKT IN EINEM DATENPAKET) ---
+# --- 5. STABILER ZENTRALER BATCH-DOWNLOAD ---
 @st.cache_data(ttl=120)
 def download_entire_market():
     all_tickers = list(TICKER_NAMES.keys())
@@ -179,10 +178,8 @@ tz_europe = pytz.timezone('Europe/Berlin')
 now_fixed = datetime.now(tz_europe).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (Europa/Berlin): <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
-# --- 7. DATA AGGREGATION (SCHLEIFE PROZESSIERT LOKAL OHNE NETZWERK-TIMEOUT) ---
+# --- 7. DATA AGGREGATION ---
 all_signals = []
-alerts_list = []
-
 for s in EUROPE_STOCKS:
     r = analyze_ticker_data(df_master_pack, s)
     all_signals.append({
@@ -192,4 +189,7 @@ for s in EUROPE_STOCKS:
         'Kurs': f"{r['cp']:,.2f}", 
         'Signal-Konfidenz': r["chance"]
     })
-    if r["chance"] >= 90.0:
+
+# Einrückungssicherer, flacher Alarm per List Comprehension generiert
+alerts_list = [f"{sig['Aktie']} ({sig['Signal-Konfidenz']}% : {sig['Infinity Algo']})" for sig in all_signals if sig['Signal-Konfidenz'] >= 90.0]
+if len(alerts_list) > 0:
