@@ -5,6 +5,7 @@ import numpy as np
 import pytz
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
 
 # --- 1. KONFIGURATION & AUTOMATISCHER REFRESH ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
@@ -71,7 +72,7 @@ def calculate_rsi(series, period=14):
     return 100 - (100 / (1 + rs))
 
 # --- 4. ENGINE LOGIK ---
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=60)
 def get_ticker_analysis(ticker_symbol):
     fallback_seed = int(abs(hash(ticker_symbol)) % 100)
     default_price = 100.0 + fallback_seed
@@ -87,7 +88,7 @@ def get_ticker_analysis(ticker_symbol):
     
     try:
         today = datetime.now()
-        start_date = today - timedelta(days=35)
+        start_date = today - timedelta(days=40)
         df = yf.download(ticker_symbol, start=start_date.strftime('%Y-%m-%d'), end=today.strftime('%Y-%m-%d'), progress=False)
         
         if df.empty or len(df) <= 5:
@@ -167,29 +168,29 @@ def get_ticker_analysis(ticker_symbol):
         pass
     return res
 
-# --- 5. DASHBOARD MAIN LAYOUT ---
+# --- 5. PARALLELER MULTI-THREAD MONITOR SCANNER ---
+def scan_ticker_parallel(ticker):
+    r = get_ticker_analysis(ticker)
+    return {
+        'Ticker': ticker,
+        'Aktie': TICKER_NAMES[ticker],
+        'Kerzen-Schatten': r["shadow_signal"],
+        'Infinity Algo': r["infinity_signal"],
+        'Kurs': f"{r['cp']:,.2f}",
+        'Signal-Konfidenz': r["chance"]
+    }
+
+# --- 6. DASHBOARD MAIN LAYOUT ---
 st.title("Bio-Trading Monitor Live PRO")
 
 tz_europe = pytz.timezone('Europe/Berlin')
 now_fixed = datetime.now(tz_europe).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (Europa/Berlin): <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
-# --- 6. DATA SCANNER ---
-all_signals = []
-
-for s in EUROPE_STOCKS[:15]:
-    r = get_ticker_analysis(s)
-    all_signals.append({
-        'Aktie': TICKER_NAMES[s], 
-        'Kerzen-Schatten': r["shadow_signal"], 
-        'Infinity Algo': r["infinity_signal"],
-        'Kurs': f"{r['cp']:,.2f}", 
-        'Signal-Konfidenz': r["chance"]
-    })
+# Parallelisierte Datenaggregation starten
+with ThreadPoolExecutor(max_workers=10) as executor:
+    all_signals = list(executor.map(scan_ticker_parallel, EUROPE_STOCKS))
 
 # --- 7. MARKTWETTER RENDERN ---
 res_w1 = get_ticker_analysis("EURUSD=X")
 chg_w1 = res_w1.get("chg", 0.0)
-st.markdown(f'<div class="weather-card" style="border-color:{"#00FFA3" if chg_w1 > 0.15 else ("#1E90FF" if chg_w1 < -0.15 else "#8892b0")};"><b>{TICKER_NAMES["EURUSD=X"]} {"☀️ 🟢" if chg_w1 > 0.15 else ("⛈ 🔵" if chg_w1 < -0.15 else "⚪")}</b> | {res_w1.get("cp", 0.0):,.4f} ({chg_w1:+.2f}%)</div>', unsafe_allow_html=True)
-
-res_w2 = get_ticker_analysis("^GDAXI")
