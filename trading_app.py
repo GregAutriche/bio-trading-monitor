@@ -140,21 +140,43 @@ def analyze_dataframe(df_ticker, ticker_symbol):
         pass
     return res
 
-# --- 5. SICHERS BATCH DATA RETRIEVAL ---
+# --- 5. BATCH DOWNLOAD & VERIFIKATION ---
 @st.cache_data(ttl=120)
 def download_all_data():
     all_tickers = list(TICKER_NAMES.keys())
-    df_all = yf.download(all_tickers, period="1y", progress=False, group_by="ticker")
-    return df_all
+    return yf.download(all_tickers, period="1y", progress=False, group_by="ticker")
 
 df_master = download_all_data()
 
-# Extrahiere alle verlässlich verfügbaren Ticker aus dem MultiIndex DataFrame
-available_tickers = []
+# Ticker-Verfügbarkeit sicher auslesen
 if isinstance(df_master.columns, pd.MultiIndex):
     available_tickers = list(df_master.columns.get_level_values(0).unique())
 else:
     available_tickers = list(df_master.columns)
+
+# --- 6. NEU: ISOLIERTE SCANNER-FUNKTION (SCHÜTZT VOR INDENTATION ERRORS) ---
+def process_european_market():
+    signals = []
+    alerts = []
+    for s in EUROPE_STOCKS:
+        if s in available_tickers:
+            try:
+                r = analyze_dataframe(df_master[s], s)
+                if r["cp"] > 0:
+                    signals.append({
+                        'Aktie': TICKER_NAMES.get(s, s), 
+                        'Kerzen-Schatten': r["shadow_signal"], 
+                        'Infinity Algo': r["infinity_signal"],
+                        'Kurs': f"{r['cp']:,.2f}", 
+                        'Signal-Konfidenz': r["chance"]
+                    })
+                    if r["chance"] >= 90.0:
+                        alerts.append(f"{TICKER_NAMES.get(s,s)} ({r['chance']}% : {r['infinity_signal']})")
+            except Exception:
+                pass
+    return signals, alerts
+
+all_signals, alerts_list = process_european_market()
 
 def get_style(chg):
     if chg > 0.15: return "☀️ 🟢", "#00FFA3"
@@ -171,24 +193,4 @@ def draw_weather_card_flat(ticker_id):
         except Exception:
             pass
 
-# --- 6. DASHBOARD MAIN LAYOUT ---
-st.title("Bio-Trading Monitor Live PRO")
-now_fixed = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
-st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update: <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
-
-all_signals = []
-alerts_list = []
-
-for s in EUROPE_STOCKS:
-    if s in available_tickers:
-        try:
-            r = analyze_dataframe(df_master[s], s)
-            if r["cp"] > 0:
-                all_signals.append({
-                    'Aktie': TICKER_NAMES.get(s, s), 
-                    'Kerzen-Schatten': r["shadow_signal"], 
-                    'Infinity Algo': r["infinity_signal"],
-                    'Kurs': f"{r['cp']:,.2f}", 
-                    'Signal-Konfidenz': r["chance"]
-                })
-                if r["chance"] >= 90.0:
+# --- 7. DASHBOARD MAIN LAYOUT (ABSOLUT LINEAR) ---
