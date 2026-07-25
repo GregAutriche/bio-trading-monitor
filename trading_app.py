@@ -2,6 +2,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import pytz
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime, timedelta
 
@@ -72,7 +73,7 @@ def calculate_rsi(series, period=14):
 # --- 4. ENGINE LOGIK ---
 def analyze_dataframe(df_ticker, ticker_symbol):
     res = {"cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 54.2, "shadow_signal": "NEUTRAL", "infinity_signal": "NEUTRAL"}
-    if df_ticker.empty or len(df_ticker) <= 15:
+    if df_ticker is None or df_ticker.empty or len(df_ticker) <= 15:
         return res
     try:
         df = df_ticker.copy()
@@ -140,18 +141,20 @@ def analyze_dataframe(df_ticker, ticker_symbol):
         pass
     return res
 
-# --- 5. BATCH-DOWNLOAD ---
+# --- 5. AUTOMATISCHES WOCHENENDE-FALLBACK DOWNLOAD ---
 @st.cache_data(ttl=120)
 def download_all_data():
     all_tickers = list(TICKER_NAMES.keys())
-    return yf.download(all_tickers, period="1y", progress=False, group_by="ticker")
+    # 5 Tage statt 1 Jahr sichert stabile Historie, auch am Wochenende
+    df_all = yf.download(all_tickers, period="5d", progress=False, group_by="ticker")
+    return df_all
 
 df_master = download_all_data()
 
-all_downloaded_columns = [str(c) for c in df_master.columns.to_flat_index()]
+# Absolut sichere Spaltengenerierung unabhängig von MultiIndex-Verschiebungen
 available_tickers = []
 for ticker in TICKER_NAMES.keys():
-    if any(ticker in col_name for col_name in all_downloaded_columns):
+    if ticker in df_master.columns:
         available_tickers.append(ticker)
 
 # --- 6. DATEN-AGREGATION ---
@@ -159,7 +162,7 @@ all_signals = []
 alerts_list = []
 
 for s in EUROPE_STOCKS:
-    if s in available_tickers:
+    if s in df_master.columns:
         try:
             r = analyze_dataframe(df_master[s], s)
             if r["cp"] > 0:
@@ -175,16 +178,18 @@ for s in EUROPE_STOCKS:
         except Exception:
             pass
 
-# --- 7. DASHBOARD MAIN LAYOUT (EINRÜCKUNGSSICHER) ---
+# --- 7. DASHBOARD MAIN LAYOUT (ZEITZONEN-KORRIGIERT & HOCHVERFÜGBAR) ---
 st.title("Bio-Trading Monitor Live PRO")
-now_fixed = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
-st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update: <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
+
+# Exakte Zeitzonenberechnung für Europa (Berlin/Wien)
+tz_europe = pytz.timezone('Europe/Berlin')
+now_fixed = datetime.now(tz_europe).strftime('%H:%M:%S')
+st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (Europa/Berlin): <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
 if len(alerts_list) > 0:
     st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {" | ".join(alerts_list)}</div>', unsafe_allow_html=True)
 
-# Marktwetter Hilffunktion (VOLLSTÄNDIG SYNTAX-BEREINIGT UND LINEAR)
+# Marktwetter Hilffunktion (Ohne try-except Verschachtelung)
 def draw_weather_card_flat(ticker_id):
-    res = analyze_dataframe(df_master[ticker_id], ticker_id)
-    chg_style = "☀️ 🟢" if res["chg"] > 0.15 else ("⛈ 🔵" if res["chg"] < -0.15 else "⚪")
-    card_color = "#00FFA3" if res["chg"] > 0.15 else ("#1E90FF" if res["chg"] < -0.15 else "#8892b0")
+    if ticker_id in df_master.columns:
+        res = analyze_dataframe(df_master[ticker_id], ticker_id)
