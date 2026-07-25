@@ -11,8 +11,8 @@ st.set_page_config(page_title="Trading Monitor", layout="wide")
 
 st.sidebar.title("🎛️ Monitor Steuerung")
 refresh_options = {
-    "30 Sekunden": 30000,
     "1 Minute": 60000,
+    "2 Minuten": 120000,
     "5 Minuten": 300000,
     "Manuell (Aus)": 9999999
 }
