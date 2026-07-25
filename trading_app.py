@@ -190,6 +190,5 @@ for s in EUROPE_STOCKS:
         'Signal-Konfidenz': r["chance"]
     })
 
-# --- REPARATUR: ALARME ABSOLUT EINRÜCKUNGSSICHER RENDERN ---
+# --- REPARATUR: ALARME REIN LINEAR UND ABSOLUT EINRÜCKUNGSFREI RENDERN ---
 alerts_string = " | ".join([f"{sig['Aktie']} ({sig['Signal-Konfidenz']}% : {sig['Infinity Algo']})" for sig in all_signals if sig['Signal-Konfidenz'] >= 90.0])
-if alerts_string != "":
