@@ -183,9 +183,8 @@ st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update: 
 if len(alerts_list) > 0:
     st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {" | ".join(alerts_list)}</div>', unsafe_allow_html=True)
 
-# Marktwetter Hilffunktion (VOLLSTÄNDIG LINEARISIERT OHNE IF-EINRÜCKUNG)
+# Marktwetter Hilffunktion (VOLLSTÄNDIG SYNTAX-BEREINIGT UND LINEAR)
 def draw_weather_card_flat(ticker_id):
-    try:
-        res = analyze_dataframe(df_master[ticker_id], ticker_id)
-        chg_style = "☀️ 🟢" if res["chg"] > 0.15 else ("⛈ 🔵" if res["chg"] < -0.15 else "⚪")
-        card_color = "#00FFA3" if res["chg"] > 0.15 else ("#1E90FF" if res["chg"] < -0.15 else "#8892b0")
+    res = analyze_dataframe(df_master[ticker_id], ticker_id)
+    chg_style = "☀️ 🟢" if res["chg"] > 0.15 else ("⛈ 🔵" if res["chg"] < -0.15 else "⚪")
+    card_color = "#00FFA3" if res["chg"] > 0.15 else ("#1E90FF" if res["chg"] < -0.15 else "#8892b0")
