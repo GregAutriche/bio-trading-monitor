@@ -59,7 +59,7 @@ st.markdown("""
  [data-testid="stMetricLabel"] { font-size: 0.75rem !important; color: #8892b0 !important; text-transform: uppercase !important; }
  div[data-testid="stMetric"] { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 8px 12px !important; border-radius: 10px; }
  .weather-card { text-align: center; border-radius: 12px; background: rgba(255,255,255,0.03); border: 2px solid #333; padding: 12px; margin-bottom: 10px; width: 100%; }
- .signal-alert { background-color: #FF4B4B; color: white; padding: 15px; border-radius: 10px; font-weight: bold; text-align: center; font-size: 1.2rem; margin-bottom: 20px; border: 2px solid #FFFFFF; }
+ .signal-alert { background-color: #31353d; color: white; padding: 15px; border-radius: 10px; font-weight: bold; text-align: center; font-size: 1.2rem; margin-bottom: 20px; border: 1px solid #4b515d; }
  </style>
  """, unsafe_allow_html=True)
 
@@ -85,25 +85,22 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
     }
     
     try:
-        # Flache Spalten-Ebenen abfragen
         if ticker_symbol in df_all_master.columns:
             df = df_all_master[[ticker_symbol]].copy()
-            # Entferne die Spaltenebene für einfachere Verarbeitung
-            df.columns = ['Close'] if 'Close' in df.columns else df.columns
+            df.columns = ['Close']
         else:
             return res
             
         if df.empty or len(df) <= 5:
             return res
 
-        # Fallback falls High/Low/Open im flachen dataframe fehlen
         res["cp"] = float(df["Close"].iloc[-1])
         res["chg"] = ((df["Close"].iloc[-1] / df["Close"].iloc[-2]) - 1) * 100 if len(df) > 1 else 0.0
         res["h250"] = float(df["Close"].max())
         res["l250"] = float(df["Close"].min())
         res["atr"] = res["cp"] * 0.015
         
-        df['ATR'] = df['Close'].rolling(window=5).std() # Einfacher Volatilitäts-Ersatz fürs Wochenende
+        df['ATR'] = df['Close'].rolling(window=5).std()
         df['RSI'] = calculate_rsi(df['Close'], 14)
         
         factor_mult = 3.0
@@ -111,7 +108,6 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
         short_band = (df['Close'] + (factor_mult * df['ATR'])).to_numpy()
         
         dist_to_long = abs(res["cp"] - long_band[-1])
-        dist_to_short = abs(res["cp"] - short_band[-1])
         total_band_width = short_band[-1] - long_band[-1]
         
         base_chance = 55.0 + ((1.0 - (dist_to_long / (total_band_width + 1e-10))) * 30.0)
@@ -120,30 +116,26 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
         pass
     return res
 
-# --- 5. STABILER ZENTRALER BATCH-DOWNLOAD ---
+# --- 5. DATA PACK DOWNLOAD ---
 @st.cache_data(ttl=120)
 def download_entire_market():
     all_tickers = list(TICKER_NAMES.keys())
     today = datetime.now()
     start_date = today - timedelta(days=45)
     df_pack = yf.download(all_tickers, start=start_date.strftime('%Y-%m-%d'), end=today.strftime('%Y-%m-%d'), progress=False)
-    
-    # Kritischer Bugfix: MultiIndex flachlegen und nur 'Close'-Kurse behalten
     if isinstance(df_pack.columns, pd.MultiIndex):
         df_pack = df_pack['Close']
-        
     return df_pack
 
 df_master_pack = download_entire_market()
 
-# --- 6. DASHBOARD MAIN LAYOUT ---
+# --- 6. HEADER ZEITZONE ---
 st.title("Bio-Trading Monitor Live PRO")
-
 tz_europe = pytz.timezone('Europe/Berlin')
 now_fixed = datetime.now(tz_europe).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (Europa/Berlin): <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
-# --- 7. DATA AGGREGATION ---
+# --- 7. DATA SCANNER & MONITOR PREPARATION ---
 all_signals = []
 for s in EUROPE_STOCKS:
     r = analyze_ticker_data(df_master_pack, s)
@@ -155,9 +147,8 @@ for s in EUROPE_STOCKS:
         'Signal-Konfidenz': r["chance"]
     })
 
-# Alarme einrückungssicher rendern
 alerts_string = " | ".join([f"{sig['Aktie']} ({sig['Signal-Konfidenz']}% : {sig['Infinity Algo']})" for sig in all_signals if sig['Signal-Konfidenz'] >= 90.0])
-st.markdown(f'<div class="signal-alert">⚡ SYSTEM AKTIV | Überwachung läuft fehlerfrei</div>' if alerts_string == "" else f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {alerts_string}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="signal-alert">⚡ SYSTEM AKTIV | Überwachung läuft fehlerfrei</div>' if alerts_string == "" else f'<div class="signal-alert" style="background-color: #FF4B4B; border-color: #FFFFFF;">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {alerts_string}</div>', unsafe_allow_html=True)
 
 # --- 8. MARKTWETTER RENDERN ---
 res_w1 = analyze_ticker_data(df_master_pack, "EURUSD=X")
@@ -174,3 +165,7 @@ st.markdown(f'<div class="weather-card" style="border-color:{"#00FFA3" if chg_w3
 
 res_w4 = analyze_ticker_data(df_master_pack, "XU100.IS")
 chg_w4 = res_w4.get("chg", 0.0)
+st.markdown(f'<div class="weather-card" style="border-color:{"#00FFA3" if chg_w4 > 0.15 else ("#1E90FF" if chg_w4 < -0.15 else "#8892b0")};"><b>{TICKER_NAMES["XU100.IS"]} {"☀️ 🟢" if chg_w4 > 0.15 else ("⛈ 🔵" if chg_w4 < -0.15 else "⚪")}</b> | {res_w4.get("cp", 0.0):,.2f} ({chg_w4:+.2f}%)</div>', unsafe_allow_html=True)
+
+# --- 9. MULTI-FAKTOR MONITOR TABELLEN (JETZT WEITER OBEN FÜR DIREKTE SICHTBARKEIT) ---
+st.divider()
