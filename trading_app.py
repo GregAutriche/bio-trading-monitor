@@ -51,7 +51,7 @@ TICKER_NAMES = {
 STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k and k != "XU100.IS"]
 EUROPE_STOCKS = [k for k in STOCKS_ONLY if any(k.endswith(ext) for ext in [".DE", ".PA", ".AS", ".MI", ".MC", ".BR", ".HE", ".IR"])]
 
-# --- 3. CUSTOM DESIGN ---
+# --- 3. CUSTOM CSS ---
 st.markdown("""
  <style>
  .stApp { background-color: #0E1117 !important; color: #FFFFFF !important; font-family: 'Inter', sans-serif; }
@@ -70,7 +70,7 @@ def calculate_rsi(series, period=14):
     rs = gain / (loss + 1e-10)
     return 100 - (100 / (1 + rs))
 
-# --- 4. ENGINE LOGIK (NAN-GESCHÜTZT) ---
+# --- 4. ENGINE LOGIK ---
 def analyze_ticker_data(df_all_master, ticker_symbol):
     fallback_seed = int(abs(hash(ticker_symbol)) % 100)
     default_price = 100.0 + fallback_seed
@@ -86,22 +86,22 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
     
     try:
         if ticker_symbol in df_all_master.columns:
-            # Holen und Bereinigen der Kursreihe von potenziellen NaNs
-            series = df_all_master[ticker_symbol].dropna()
-            if series.empty or len(series) <= 5:
-                return res
+            df = df_all_master[[ticker_symbol]].copy()
+            df.columns = ['Close']
         else:
             return res
             
-        df = pd.DataFrame({'Close': series})
+        if df.empty or len(df) <= 5:
+            return res
+
         res["cp"] = float(df["Close"].iloc[-1])
         res["chg"] = ((df["Close"].iloc[-1] / df["Close"].iloc[-2]) - 1) * 100 if len(df) > 1 else 0.0
         res["h250"] = float(df["Close"].max())
         res["l250"] = float(df["Close"].min())
         res["atr"] = res["cp"] * 0.015
         
-        df['ATR'] = df['Close'].rolling(window=5).std().fillna(res["atr"])
-        df['RSI'] = calculate_rsi(df['Close'], 14).fillna(50.0)
+        df['ATR'] = df['Close'].rolling(window=5).std()
+        df['RSI'] = calculate_rsi(df['Close'], 14)
         
         factor_mult = 3.0
         long_band = (df['Close'] - (factor_mult * df['ATR'])).to_numpy()
@@ -112,34 +112,19 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
         
         base_chance = 55.0 + ((1.0 - (dist_to_long / (total_band_width + 1e-10))) * 30.0)
         res["chance"] = round(min(max(base_chance, 51.0), 98.8), 1)
-        
-        # Finale Absicherung vor NaN-Werten im Ausgabewert
-        if np.isnan(res["cp"]) or np.isnan(res["chg"]):
-            return {
-                "cp": default_price, "h250": default_price * 1.2, "l250": default_price * 0.8, 
-                "chg": -0.32, "atr": default_price * 0.02, "vol": 500000, "chance": round(default_chance, 1),
-                "shadow_signal": "NEUTRAL", "infinity_signal": "BUY"
-            }
     except Exception:
         pass
     return res
 
-# --- 5. ROBUSTER BATCH-DOWNLOAD MIT FIXEM MULTIINDEX-COLLAPSE ---
+# --- 5. DATA PACK DOWNLOAD ---
 @st.cache_data(ttl=120)
 def download_entire_market():
     all_tickers = list(TICKER_NAMES.keys())
     today = datetime.now()
     start_date = today - timedelta(days=45)
     df_pack = yf.download(all_tickers, start=start_date.strftime('%Y-%m-%d'), end=today.strftime('%Y-%m-%d'), progress=False)
-    
-    # Sicherste Methode am Wochenende: Extraktion der 'Close'-Ebene über die Querschnitt-Funktion (xs)
-    try:
-        if isinstance(df_pack.columns, pd.MultiIndex):
-            df_pack = df_pack.xs('Close', axis=1, level=0, drop_level=True)
-    except Exception:
-        if 'Close' in df_pack.columns:
-            df_pack = df_pack['Close']
-            
+    if isinstance(df_pack.columns, pd.MultiIndex):
+        df_pack = df_pack['Close']
     return df_pack
 
 df_master_pack = download_entire_market()
@@ -150,7 +135,7 @@ tz_europe = pytz.timezone('Europe/Berlin')
 now_fixed = datetime.now(tz_europe).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (Europa/Berlin): <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
-# --- 7. DATA AGGREGATION ---
+# --- 7. DATA SCANNER & MONITOR PREPARATION ---
 all_signals = []
 for s in EUROPE_STOCKS:
     r = analyze_ticker_data(df_master_pack, s)
@@ -175,3 +160,12 @@ chg_w2 = res_w2.get("chg", 0.0)
 st.markdown(f'<div class="weather-card" style="border-color:{"#00FFA3" if chg_w2 > 0.15 else ("#1E90FF" if chg_w2 < -0.15 else "#8892b0")};"><b>{TICKER_NAMES["^GDAXI"]} {"☀️ 🟢" if chg_w2 > 0.15 else ("⛈ 🔵" if chg_w2 < -0.15 else "⚪")}</b> | {res_w2.get("cp", 0.0):,.2f} ({chg_w2:+.2f}%)</div>', unsafe_allow_html=True)
 
 res_w3 = analyze_ticker_data(df_master_pack, "^STOXX50E")
+chg_w3 = res_w3.get("chg", 0.0)
+st.markdown(f'<div class="weather-card" style="border-color:{"#00FFA3" if chg_w3 > 0.15 else ("#1E90FF" if chg_w3 < -0.15 else "#8892b0")};"><b>{TICKER_NAMES["^STOXX50E"]} {"☀️ 🟢" if chg_w3 > 0.15 else ("⛈ 🔵" if chg_w3 < -0.15 else "⚪")}</b> | {res_w3.get("cp", 0.0):,.2f} ({chg_w3:+.2f}%)</div>', unsafe_allow_html=True)
+
+res_w4 = analyze_ticker_data(df_master_pack, "XU100.IS")
+chg_w4 = res_w4.get("chg", 0.0)
+st.markdown(f'<div class="weather-card" style="border-color:{"#00FFA3" if chg_w4 > 0.15 else ("#1E90FF" if chg_w4 < -0.15 else "#8892b0")};"><b>{TICKER_NAMES["XU100.IS"]} {"☀️ 🟢" if chg_w4 > 0.15 else ("⛈ 🔵" if chg_w4 < -0.15 else "⚪")}</b> | {res_w4.get("cp", 0.0):,.2f} ({chg_w4:+.2f}%)</div>', unsafe_allow_html=True)
+
+# --- 9. MULTI-FAKTOR MONITOR TABELLEN (JETZT WEITER OBEN FÜR DIREKTE SICHTBARKEIT) ---
+st.divider()
