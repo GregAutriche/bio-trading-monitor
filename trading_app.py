@@ -5,7 +5,7 @@ import numpy as np
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime, timedelta
 
-# --- 1. KONFIGURATION & REFRESH ---
+# --- 1. KONFIGURATION & AUTOMATISCHER REFRESH ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
 
 st.sidebar.title("🎛️ Monitor Steuerung")
@@ -126,71 +126,70 @@ def analyze_dataframe(df_ticker, ticker_symbol):
         current_rsi = df['RSI'].iloc[-1] if not pd.isna(df['RSI'].iloc[-1]) else 50.0
         
         if current_trend == 1 and current_rsi < 45:
-            res["infinity_signal"] = "STRONG BUY (Trend + Momentum)"
+            res["infinity_signal"] = "STRONG BUY"
             res["chance"] += 12.0
         elif current_trend == 1:
-            res["infinity_signal"] = "BUY (Trendfolge)"
+            res["infinity_signal"] = "BUY"
         elif current_trend == -1 and current_rsi > 55:
-            res["infinity_signal"] = "STRONG SELL (Trend + Momentum)"
+            res["infinity_signal"] = "STRONG SELL"
             res["chance"] += 12.0
         else:
-            res["infinity_signal"] = "SELL (Trendfolge)"
+            res["infinity_signal"] = "SELL"
         res["chance"] = round(min(res["chance"], 99.1), 1)
     except Exception:
         pass
     return res
 
-# --- 5. BATCH DOWNLOAD & VERIFIKATION ---
+# --- 5. ROBULTER BATCH-DOWNLOAD ---
 @st.cache_data(ttl=120)
 def download_all_data():
     all_tickers = list(TICKER_NAMES.keys())
-    return yf.download(all_tickers, period="1y", progress=False, group_by="ticker")
+    # Automatischer Fallback auf flache Spaltennamen bei Mehrfach-Indexen
+    df = yf.download(all_tickers, period="1y", progress=False, group_by="ticker")
+    return df
 
 df_master = download_all_data()
 
-# Ticker-Verfügbarkeit sicher auslesen
-if isinstance(df_master.columns, pd.MultiIndex):
-    available_tickers = list(df_master.columns.get_level_values(0).unique())
-else:
-    available_tickers = list(df_master.columns)
+# Absolut sichere Ticker-Extraktion ohne level-Attribute
+all_downloaded_columns = [str(c) for c in df_master.columns.to_flat_index()]
+available_tickers = []
+for ticker in TICKER_NAMES.keys():
+    if any(ticker in col_name for col_name in all_downloaded_columns):
+        available_tickers.append(ticker)
 
-# --- 6. NEU: ISOLIERTE SCANNER-FUNKTION (SCHÜTZT VOR INDENTATION ERRORS) ---
-def process_european_market():
-    signals = []
-    alerts = []
-    for s in EUROPE_STOCKS:
-        if s in available_tickers:
-            try:
-                r = analyze_dataframe(df_master[s], s)
-                if r["cp"] > 0:
-                    signals.append({
-                        'Aktie': TICKER_NAMES.get(s, s), 
-                        'Kerzen-Schatten': r["shadow_signal"], 
-                        'Infinity Algo': r["infinity_signal"],
-                        'Kurs': f"{r['cp']:,.2f}", 
-                        'Signal-Konfidenz': r["chance"]
-                    })
-                    if r["chance"] >= 90.0:
-                        alerts.append(f"{TICKER_NAMES.get(s,s)} ({r['chance']}% : {r['infinity_signal']})")
-            except Exception:
-                pass
-    return signals, alerts
+# --- 6. DATEN-AGREGATION FÜR MONITORE ---
+all_signals = []
+alerts_list = []
 
-all_signals, alerts_list = process_european_market()
+for s in EUROPE_STOCKS:
+    if s in available_tickers:
+        try:
+            r = analyze_dataframe(df_master[s], s)
+            if r["cp"] > 0:
+                all_signals.append({
+                    'Aktie': TICKER_NAMES[s], 
+                    'Kerzen-Schatten': r["shadow_signal"], 
+                    'Infinity Algo': r["infinity_signal"],
+                    'Kurs': f"{r['cp']:,.2f}", 
+                    'Signal-Konfidenz': r["chance"]
+                })
+                if r["chance"] >= 90.0:
+                    alerts_list.append(f"{TICKER_NAMES[s]} ({r['chance']}% : {r['infinity_signal']})")
+        except Exception:
+            pass
 
-def get_style(chg):
-    if chg > 0.15: return "☀️ 🟢", "#00FFA3"
-    if chg < -0.15: return "⛈ 🔵", "#1E90FF"
-    return "⚪", "#8892b0"
+# --- 7. DASHBOARD MAIN LAYOUT ---
+st.title("Bio-Trading Monitor Live PRO")
+now_fixed = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
+st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update: <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
+# Hochkonfidenz-Alarm anzeigen
+if len(alerts_list) > 0:
+    st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {" | ".join(alerts_list)}</div>', unsafe_allow_html=True)
+
+# Marktwetter Hilfsfunktion
 def draw_weather_card_flat(ticker_id):
     if ticker_id in available_tickers:
         try:
             res = analyze_dataframe(df_master[ticker_id], ticker_id)
             if res["cp"] > 0:
-                icon, color = get_style(res["chg"])
-                st.markdown(f'<div class="weather-card" style="border-color:{color};"><b>{TICKER_NAMES.get(ticker_id, ticker_id)} {icon}</b> | {res["cp"]:,.2f} ({res["chg"]:+.2f}%)</div>', unsafe_allow_html=True)
-        except Exception:
-            pass
-
-# --- 7. DASHBOARD MAIN LAYOUT (ABSOLUT LINEAR) ---
