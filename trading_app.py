@@ -141,17 +141,15 @@ def analyze_dataframe(df_ticker, ticker_symbol):
         pass
     return res
 
-# --- 5. BATCH DOWNLOAD & FLACHLEGEN DER MULTIINDEX-STRUKTUR ---
+# --- 5. BATCH DOWNLOAD & FLACHLEGEN ---
 @st.cache_data(ttl=120)
 def download_all_data():
     all_tickers = list(TICKER_NAMES.keys())
-    # Lädt den kompletten historischen Monat herunter, um gleitende Durchschnitte am Wochenende stabil zu versorgen
     df_all = yf.download(all_tickers, period="1mo", progress=False, group_by="ticker")
     return df_all
 
 df_master = download_all_data()
 
-# Zuverlässige Ticker-Extraktion durch Extrahieren der flachen Spalten-Indizes
 flat_columns = [str(c) for c in df_master.columns.to_flat_index()]
 available_tickers = []
 for ticker in TICKER_NAMES.keys():
@@ -179,7 +177,7 @@ for s in EUROPE_STOCKS:
         except Exception:
             pass
 
-# --- 7. DASHBOARD MAIN LAYOUT ---
+# --- 7. DASHBOARD MAIN LAYOUT (EINRÜCKUNGSSICHER) ---
 st.title("Bio-Trading Monitor Live PRO")
 
 tz_europe = pytz.timezone('Europe/Berlin')
@@ -189,6 +187,6 @@ st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (
 if len(alerts_list) > 0:
     st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {" | ".join(alerts_list)}</div>', unsafe_allow_html=True)
 
-# Marktwetter Hilffunktion
-def draw_weather_card_flat(ticker_id):
-    if ticker_id in available_tickers:
+# --- MARKTWETTER RENDERN (ABSOLUT FLACH UND LINEAR, KEINE HILFSFUNKTIONEN MEHR) ---
+res_w1 = analyze_dataframe(df_master["EURUSD=X"], "EURUSD=X")
+chg_w1 = res_w1.get("chg", 0.0)
