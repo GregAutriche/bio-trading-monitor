@@ -75,13 +75,10 @@ def calculate_rsi(series, period=14):
 def get_ticker_analysis(ticker_symbol):
     res = {"cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 50.0, "shadow_signal": "NEUTRAL", "infinity_signal": "NEUTRAL"}
     try:
-        # period="1mo" funktioniert am Wochenende stabil ohne leere Rückgaben
         df = yf.download(ticker_symbol, period="1mo", progress=False)
-        
         if df.empty or len(df) <= 5:
             return res
             
-        # Zwingende Reduzierung von MultiIndex Spalten
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
             
@@ -182,10 +179,12 @@ for s in EUROPE_STOCKS[:15]:
 if len(alerts_list) > 0:
     st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {" | ".join(alerts_list)}</div>', unsafe_allow_html=True)
 
-# --- 7. MARKTWETTER RENDERN ---
-res_w1 = get_ticker_analysis("EURUSD=X")
-chg_w1 = res_w1.get("chg", 0.0)
-st.markdown(f'<div class="weather-card" style="border-color:{"#00FFA3" if chg_w1 > 0.15 else ("#1E90FF" if chg_w1 < -0.15 else "#8892b0")};"><b>{TICKER_NAMES["EURUSD=X"]} {"☀️ 🟢" if chg_w1 > 0.15 else ("⛈ 🔵" if chg_w1 < -0.15 else "⚪")}</b> | {res_w1.get("cp", 0.0):,.4f} ({chg_w1:+.2f}%)</div>', unsafe_allow_html=True)
+# --- 7. MARKTWETTER RENDERN (STABILISIERT DURCH REINE ST.CONTAINER) ---
+with st.container():
+    res_w1 = get_ticker_analysis("EURUSD=X")
+    chg_w1 = res_w1.get("chg", 0.0)
+    st.markdown(f'<div class="weather-card" style="border-color:{"#00FFA3" if chg_w1 > 0.15 else ("#1E90FF" if chg_w1 < -0.15 else "#8892b0")};"><b>{TICKER_NAMES["EURUSD=X"]} {"☀️ 🟢" if chg_w1 > 0.15 else ("⛈ 🔵" if chg_w1 < -0.15 else "⚪")}</b> | {res_w1.get("cp", 0.0):,.4f} ({chg_w1:+.2f}%)</div>', unsafe_allow_html=True)
 
-res_w2 = get_ticker_analysis("^GDAXI")
-chg_w2 = res_w2.get("chg", 0.0)
+with st.container():
+    res_w2 = get_ticker_analysis("^GDAXI")
+    chg_w2 = res_w2.get("chg", 0.0)
