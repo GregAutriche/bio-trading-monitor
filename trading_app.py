@@ -7,7 +7,7 @@ from streamlit_autorefresh import st_autorefresh
 from datetime import datetime, timedelta
 
 # --- 1. KONFIGURATION & AUTOMATISCHER REFRESH ---
-st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
+st.set_page_config(page_title="Trading Monitor", layout="wide")
 
 st.sidebar.title("🎛️ Monitor Steuerung")
 refresh_options = {
