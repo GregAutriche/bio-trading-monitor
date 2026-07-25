@@ -63,21 +63,19 @@ def calculate_rsi(series, period=14):
     rs = gain / (loss + 1e-10)
     return 100 - (100 / (1 + rs))
 
-# --- 4. ZENTRALE ANALYSEFUNKTION ---
-@st.cache_data(ttl=300)
-def get_analysis(ticker_symbol):
+# --- 4. OPTIMIERTE RECHEN-LOGIK (BASIEREND AUF BEREITS GEADENEN DATEN) ---
+def analyze_dataframe(df_ticker, ticker_symbol):
     res = {
         "cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 54.2, 
-        "shadow_signal": "NEUTRAL", "infinity_signal": "NEUTRAL", "df": None
+        "shadow_signal": "NEUTRAL", "infinity_signal": "NEUTRAL"
     }
+    if df_ticker.empty or len(df_ticker) <= 15:
+        return res
+        
     try:
-        df = yf.download(ticker_symbol, period="1y", progress=False)
-        if df.empty or len(df) <= 15:
-            return res
-            
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.droplevel(1)
-            
+        # Falls MultiIndex Spalten existieren, extrahieren
+        df = df_ticker.copy()
+        
         res["cp"] = float(df["Close"].iloc[-1])
         res["vol"] = float(df["Volume"].iloc[-1])
         res["chg"] = ((df["Close"].iloc[-1] / df["Close"].iloc[-2]) - 1) * 100
@@ -88,7 +86,7 @@ def get_analysis(ticker_symbol):
         df['ATR'] = df['TR'].rolling(window=14).mean()
         res["atr"] = float(df['ATR'].iloc[-1]) if not pd.isna(df['ATR'].iloc[-1]) else 1.0
         
-        # Kerzen-Schatten Logik
+        # Kerzen-Schatten
         last_candle = df.iloc[-1]
         high_p, low_p, open_p, close_p = float(last_candle["High"]), float(last_candle["Low"]), float(last_candle["Open"]), float(last_candle["Close"])
         total_range = high_p - low_p
@@ -109,9 +107,9 @@ def get_analysis(ticker_symbol):
             res["shadow_signal"] = "SHORT (Docht)"
             res["chance"] = round(signal_strength, 1)
         else:
-            res["chance"] = round(55.0 + (np.random.uniform(0, 10) if total_range > 0 else 0), 1) # Fallback Dynamik für das Ranking
+            res["chance"] = round(55.0 + (hash(ticker_symbol) % 10), 1) # Stabiler, dynamischer Seed fürs Ranking
             
-        # Infinity Faktor Logik
+        # Infinity Faktor
         factor_mult = 3.0
         df['RSI'] = calculate_rsi(df['Close'], 14)
         
@@ -133,7 +131,7 @@ def get_analysis(ticker_symbol):
         
         if current_trend == 1 and current_rsi < 45:
             res["infinity_signal"] = "STRONG BUY (Trend + Momentum)"
-            res["chance"] += 5.0 # Signal-Boost bei Konfluenz
+            res["chance"] += 5.0
         elif current_trend == 1:
             res["infinity_signal"] = "BUY (Trendfolge)"
         elif current_trend == -1 and current_rsi > 55:
@@ -142,18 +140,28 @@ def get_analysis(ticker_symbol):
         else:
             res["infinity_signal"] = "SELL (Trendfolge)"
             
-        res["chance"] = round(min(res["chance"], 98.5), 1) # Begrenzung auf logischen Maximalwert
-        res["df"] = df
+        res["chance"] = round(min(res["chance"], 98.5), 1)
     except Exception:
         pass
     return res
+
+# --- 5. ULTRA-SCHNELLER CENTRAL BATCH DOWNLOAD ---
+@st.cache_data(ttl=300)
+def download_all_data():
+    all_tickers = list(TICKER_NAMES.keys())
+    # Lädt alle Ticker gleichzeitig in einem einzigen Datensatz herunter!
+    df_all = yf.download(all_tickers, period="1y", progress=False, group_by="ticker")
+    return df_all
+
+# Daten abrufen
+df_master = download_all_data()
 
 def get_style(chg):
     if chg > 0.15: return "☀️ 🟢", "#00FFA3"
     if chg < -0.15: return "⛈ 🔵", "#1E90FF"
     return "⚪", "#8892b0"
 
-# --- 5. DASHBOARD LAYOUT ---
+# --- 6. DASHBOARD LAYOUT ---
 st.title("Bio-Trading Monitor Live PRO")
 now_fixed = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update: <b>{now_fixed}</b></div>', unsafe_allow_html=True)
@@ -163,26 +171,25 @@ WEATHER_ROWS = [["EURUSD=X", "^GDAXI"], ["^STOXX50E", "XU100.IS"]]
 for row in WEATHER_ROWS:
     cols = st.columns(len(row))
     for i, t in enumerate(row):
-        res = get_analysis(t)
-        if res["cp"] > 0:
-            icon, color = get_style(res["chg"])
-            with cols[i]:
-                st.markdown(f'<div class="weather-card" style="border-color:{color};"><b>{TICKER_NAMES.get(t,t)} {icon}</b><br>{res["cp"]:,.2f} ({res["chg"]:+.2f}%)</div>', unsafe_allow_html=True)
+        if t in df_master.columns.levels[0]:
+            res = analyze_dataframe(df_master[t], t)
+            if res["cp"] > 0:
+                icon, color = get_style(res["chg"])
+                with cols[i]:
+                    st.markdown(f'<div class="weather-card" style="border-color:{color};"><b>{TICKER_NAMES.get(t,t)} {icon}</b><br>{res["cp"]:,.2f} ({res["chg"]:+.2f}%)</div>', unsafe_allow_html=True)
 
 # Detail-Analyse Selektor
 st.divider()
 sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
-sel_stock = st.selectbox("Aktie für Detail-Analyse wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
-res_d = get_analysis(sel_stock)
+sel_stock = st.selectbox("Aktie für Detail-Analyse wählen:", sorted_stocks, index=sorted_stocks.index("BAS.DE") if "BAS.DE" in sorted_stocks else 0, format_func=lambda x: TICKER_NAMES.get(x, x))
 
-if res_d["cp"] > 0:
-    st.subheader(f"🔍 Detail-Analyse: {TICKER_NAMES.get(sel_stock, sel_stock)}")
-    cp, atr, chance, chg = res_d["cp"], res_d["atr"], res_d["chance"], res_d["chg"]
-    h250, l250 = res_d["h250"], res_d["l250"]
-    
-    setup_type = f"SCHATTENFOLGE {res_d['shadow_signal']}" if res_d["shadow_signal"] != "NEUTRAL" else ("LONG (CALL)" if chance >= 50 else "SHORT (PUT)")
-    setup_color = "#00FFA3" if "LONG" in setup_type or "CALL" in setup_type else "#FF4B4B"
-    
-    st.markdown(f'<div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; border-left:6px solid {setup_color}; margin-bottom:15px;"><b>{setup_type} SETUP</b> | {chance}% Signal-Konfidenz</div>', unsafe_allow_html=True)
-    
-    inf_color = "#00FFA3" if "BUY" in res_d["infinity_signal"] else "#FF4B4B"
+if sel_stock in df_master.columns.levels[0]:
+    res_d = analyze_dataframe(df_master[sel_stock], sel_stock)
+    if res_d["cp"] > 0:
+        st.subheader(f"🔍 Detail-Analyse: {TICKER_NAMES.get(sel_stock, sel_stock)}")
+        cp, atr, chance, chg = res_d["cp"], res_d["atr"], res_d["chance"], res_d["chg"]
+        h250, l250 = res_d["h250"], res_d["l250"]
+        
+        setup_type = f"SCHATTENFOLGE {res_d['shadow_signal']}" if res_d["shadow_signal"] != "NEUTRAL" else ("LONG (CALL)" if chance >= 50 else "SHORT (PUT)")
+        setup_color = "#00FFA3" if "LONG" in setup_type or "CALL" in setup_type else "#FF4B4B"
+        
