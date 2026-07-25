@@ -73,7 +73,7 @@ def calculate_rsi(series, period=14):
 # --- 4. ENGINE LOGIK ---
 def analyze_dataframe(df_ticker, ticker_symbol):
     res = {"cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 54.2, "shadow_signal": "NEUTRAL", "infinity_signal": "NEUTRAL"}
-    if df_ticker is None or df_ticker.empty or len(df_ticker) <= 15:
+    if df_ticker is None or df_ticker.empty or len(df_ticker) <= 5:
         return res
     try:
         df = df_ticker.copy().dropna(subset=["Close"])
@@ -141,21 +141,22 @@ def analyze_dataframe(df_ticker, ticker_symbol):
         pass
     return res
 
-# --- 5. BATCH DOWNLOAD (HOHER DATENUMFANG FÜR WOCHENENDE) ---
+# --- 5. BATCH DOWNLOAD & FLACHLEGEN DER MULTIINDEX-STRUKTUR ---
 @st.cache_data(ttl=120)
 def download_all_data():
     all_tickers = list(TICKER_NAMES.keys())
+    # Lädt den kompletten historischen Monat herunter, um gleitende Durchschnitte am Wochenende stabil zu versorgen
     df_all = yf.download(all_tickers, period="1mo", progress=False, group_by="ticker")
     return df_all
 
 df_master = download_all_data()
 
-# Strukturierte Prüfung der Ticker-Verfügbarkeit
+# Zuverlässige Ticker-Extraktion durch Extrahieren der flachen Spalten-Indizes
+flat_columns = [str(c) for c in df_master.columns.to_flat_index()]
 available_tickers = []
-if hasattr(df_master.columns, 'levels') and len(df_master.columns.levels) > 0:
-    available_tickers = list(df_master.columns.levels[0])
-else:
-    available_tickers = list(df_master.columns)
+for ticker in TICKER_NAMES.keys():
+    if any(ticker in col_str for col_str in flat_columns):
+        available_tickers.append(ticker)
 
 # --- 6. DATEN-AGREGATION ---
 all_signals = []
@@ -178,7 +179,7 @@ for s in EUROPE_STOCKS:
         except Exception:
             pass
 
-# --- 7. DASHBOARD MAIN LAYOUT (EINRÜCKUNGSSICHER) ---
+# --- 7. DASHBOARD MAIN LAYOUT ---
 st.title("Bio-Trading Monitor Live PRO")
 
 tz_europe = pytz.timezone('Europe/Berlin')
@@ -188,8 +189,6 @@ st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (
 if len(alerts_list) > 0:
     st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {" | ".join(alerts_list)}</div>', unsafe_allow_html=True)
 
-# ABSOLUT LINEARISIERTES MARKTWETTER OHNE JEDEN IF-EINSTIEG IN DIESER FUNKTION
+# Marktwetter Hilffunktion
 def draw_weather_card_flat(ticker_id):
-    res = analyze_dataframe(df_master[ticker_id], ticker_id)
-    chg_val = res.get("chg", 0.0)
-    cp_val = res.get("cp", 0.0)
+    if ticker_id in available_tickers:
