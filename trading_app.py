@@ -70,18 +70,23 @@ def calculate_rsi(series, period=14):
     rs = gain / (loss + 1e-10)
     return 100 - (100 / (1 + rs))
 
-# --- 4. ENGINE LOGIK ---
-def analyze_dataframe(df_ticker, ticker_symbol):
+# --- 4. ENGINE LOGIK (EINZELABRUF PRO TICKER FÜR HÖCHSTE STABILITÄT) ---
+@st.cache_data(ttl=120)
+def get_ticker_analysis(ticker_symbol):
     res = {"cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 54.2, "shadow_signal": "NEUTRAL", "infinity_signal": "NEUTRAL"}
-    if df_ticker is None or df_ticker.empty or len(df_ticker) <= 5:
-        return res
     try:
-        df = df_ticker.copy().dropna(subset=["Close"])
+        # Einzelabruf mit 1 Monat Historie für verlässliche RSI-Berechnung
+        df = yf.download(ticker_symbol, period="1mo", progress=False)
+        if df.empty or len(df) <= 5:
+            return res
+            
+        df = df.dropna(subset=["Close"])
         res["cp"] = float(df["Close"].iloc[-1])
         res["vol"] = float(df["Volume"].iloc[-1])
         res["chg"] = ((df["Close"].iloc[-1] / df["Close"].iloc[-2]) - 1) * 100
         res["h250"] = float(df["High"].max())
         res["l250"] = float(df["Low"].min())
+        
         df['TR'] = df['High'] - df['Low']
         df['ATR'] = df['TR'].rolling(window=14).mean()
         res["atr"] = float(df['ATR'].iloc[-1]) if not pd.isna(df['ATR'].iloc[-1]) else 1.0
@@ -141,52 +146,38 @@ def analyze_dataframe(df_ticker, ticker_symbol):
         pass
     return res
 
-# --- 5. BATCH DOWNLOAD & FLACHLEGEN ---
-@st.cache_data(ttl=120)
-def download_all_data():
-    all_tickers = list(TICKER_NAMES.keys())
-    df_all = yf.download(all_tickers, period="1mo", progress=False, group_by="ticker")
-    return df_all
-
-df_master = download_all_data()
-
-flat_columns = [str(c) for c in df_master.columns.to_flat_index()]
-available_tickers = []
-for ticker in TICKER_NAMES.keys():
-    if any(ticker in col_str for col_str in flat_columns):
-        available_tickers.append(ticker)
-
-# --- 6. DATEN-AGREGATION ---
-all_signals = []
-alerts_list = []
-
-for s in EUROPE_STOCKS:
-    if s in available_tickers:
-        try:
-            r = analyze_dataframe(df_master[s], s)
-            if r.get("cp", 0) > 0:
-                all_signals.append({
-                    'Aktie': TICKER_NAMES[s], 
-                    'Kerzen-Schatten': r["shadow_signal"], 
-                    'Infinity Algo': r["infinity_signal"],
-                    'Kurs': f"{r['cp']:,.2f}", 
-                    'Signal-Konfidenz': r["chance"]
-                })
-                if r["chance"] >= 90.0:
-                    alerts_list.append(f"{TICKER_NAMES[s]} ({r['chance']}% : {r['infinity_signal']})")
-        except Exception:
-            pass
-
-# --- 7. DASHBOARD MAIN LAYOUT (EINRÜCKUNGSSICHER) ---
+# --- 5. DASHBOARD MAIN LAYOUT ---
 st.title("Bio-Trading Monitor Live PRO")
 
 tz_europe = pytz.timezone('Europe/Berlin')
 now_fixed = datetime.now(tz_europe).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (Europa/Berlin): <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
+# --- 6. DATA GENERATION & SCANNER ---
+all_signals = []
+alerts_list = []
+
+# Begrenzung auf Top 20 Titel für einen schnellen Einzelabruf am Wochenende
+for s in EUROPE_STOCKS[:20]:
+    r = get_ticker_analysis(s)
+    if r.get("cp", 0) > 0:
+        all_signals.append({
+            'Aktie': TICKER_NAMES[s], 
+            'Kerzen-Schatten': r["shadow_signal"], 
+            'Infinity Algo': r["infinity_signal"],
+            'Kurs': f"{r['cp']:,.2f}", 
+            'Signal-Konfidenz': r["chance"]
+        })
+        if r["chance"] >= 90.0:
+            alerts_list.append(f"{TICKER_NAMES[s]} ({r['chance']}% : {r['infinity_signal']})")
+
 if len(alerts_list) > 0:
     st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {" | ".join(alerts_list)}</div>', unsafe_allow_html=True)
 
-# --- MARKTWETTER RENDERN (ABSOLUT FLACH UND LINEAR, KEINE HILFSFUNKTIONEN MEHR) ---
-res_w1 = analyze_dataframe(df_master["EURUSD=X"], "EURUSD=X")
+# --- 7. MARKTWETTER RENDERN ---
+res_w1 = get_ticker_analysis("EURUSD=X")
 chg_w1 = res_w1.get("chg", 0.0)
+st.markdown(f'<div class="weather-card" style="border-color:{"#00FFA3" if chg_w1 > 0.15 else ("#1E90FF" if chg_w1 < -0.15 else "#8892b0")};"><b>{TICKER_NAMES["EURUSD=X"]} {"☀️ 🟢" if chg_w1 > 0.15 else ("⛈ 🔵" if chg_w1 < -0.15 else "⚪")}</b> | {res_w1.get("cp", 0.0):,.2f} ({chg_w1:+.2f}%)</div>', unsafe_allow_html=True)
+
+res_w2 = get_ticker_analysis("^GDAXI")
+chg_w2 = res_w2.get("chg", 0.0)
