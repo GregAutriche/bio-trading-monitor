@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import pytz
 from streamlit_autorefresh import st_autorefresh
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # --- 1. KONFIGURATION & AUTOMATISCHER REFRESH ---
 st.set_page_config(page_title="Bio-Trading Monitor Live PRO", layout="wide")
@@ -70,20 +70,18 @@ def calculate_rsi(series, period=14):
     rs = gain / (loss + 1e-10)
     return 100 - (100 / (1 + rs))
 
-# --- 4. ENGINE LOGIK MIT PRÄZISEM DATUMS-KORRIDOR ---
+# --- 4. ENGINE LOGIK ---
 @st.cache_data(ttl=120)
 def get_ticker_analysis(ticker_symbol):
     res = {"cp": 0, "h250": 0, "l250": 0, "chg": 0, "atr": 0, "vol": 0, "chance": 50.0, "shadow_signal": "NEUTRAL", "infinity_signal": "NEUTRAL"}
     try:
-        # Festes Datumsfenster erzwingt historische Daten am Wochenende
-        today = datetime.now()
-        start_date = today - timedelta(days=45)
-        df = yf.download(ticker_symbol, start=start_date.strftime('%Y-%m-%d'), end=today.strftime('%Y-%m-%d'), progress=False)
+        # period="1mo" funktioniert am Wochenende stabil ohne leere Rückgaben
+        df = yf.download(ticker_symbol, period="1mo", progress=False)
         
         if df.empty or len(df) <= 5:
             return res
             
-        # Spalten-Ebenen bereinigen (MultiIndex-Kollaps)
+        # Zwingende Reduzierung von MultiIndex Spalten
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
             
@@ -131,13 +129,11 @@ def get_ticker_analysis(ticker_symbol):
         current_trend = trend_dir[-1]
         current_rsi = df['RSI'].iloc[-1] if not pd.isna(df['RSI'].iloc[-1]) else 50.0
         
-        # --- MATHEMATISCHE BESTIMMUNG DER SIGNAL-KONFIDENZ (Infinity Bandproportionalität) ---
         dist_to_long = abs(res["cp"] - long_band[-1])
         dist_to_short = abs(res["cp"] - short_band[-1])
         total_band_width = short_band[-1] - long_band[-1]
         
         if current_trend == 1:
-            # Je näher am unteren Support-Band, desto besser das mathematische CRV für Long
             base_chance = 55.0 + ((1.0 - (dist_to_long / (total_band_width + 1e-10))) * 30.0)
             if current_rsi < 45:
                 res["infinity_signal"] = "STRONG BUY"
@@ -146,7 +142,6 @@ def get_ticker_analysis(ticker_symbol):
                 res["infinity_signal"] = "BUY"
                 res["chance"] = base_chance
         else:
-            # Je näher am oberen Widerstands-Band, desto besser das mathematische CRV für Short
             base_chance = 55.0 + ((1.0 - (dist_to_short / (total_band_width + 1e-10))) * 30.0)
             if current_rsi > 55:
                 res["infinity_signal"] = "STRONG SELL"
@@ -171,7 +166,7 @@ st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (
 all_signals = []
 alerts_list = []
 
-for s in EUROPE_STOCKS[:15]:  # Optimierter Umfang für Stabilität
+for s in EUROPE_STOCKS[:15]:
     r = get_ticker_analysis(s)
     if r.get("cp", 0) > 0:
         all_signals.append({
@@ -189,3 +184,8 @@ if len(alerts_list) > 0:
 
 # --- 7. MARKTWETTER RENDERN ---
 res_w1 = get_ticker_analysis("EURUSD=X")
+chg_w1 = res_w1.get("chg", 0.0)
+st.markdown(f'<div class="weather-card" style="border-color:{"#00FFA3" if chg_w1 > 0.15 else ("#1E90FF" if chg_w1 < -0.15 else "#8892b0")};"><b>{TICKER_NAMES["EURUSD=X"]} {"☀️ 🟢" if chg_w1 > 0.15 else ("⛈ 🔵" if chg_w1 < -0.15 else "⚪")}</b> | {res_w1.get("cp", 0.0):,.4f} ({chg_w1:+.2f}%)</div>', unsafe_allow_html=True)
+
+res_w2 = get_ticker_analysis("^GDAXI")
+chg_w2 = res_w2.get("chg", 0.0)
