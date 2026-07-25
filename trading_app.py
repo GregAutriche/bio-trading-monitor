@@ -14,10 +14,36 @@ TICKER_NAMES = {
     "EURUSD=X": "💱 EUR/USD", "EURRUB=X": "💱 EUR/RUB",
     "^GDAXI": "📊 DAX 40", "^NDX": "📊 NASDAQ 100",
     "^STOXX50E": "📊 EuroStoxx 50", "^NSEI": "📊 Nifty 50", "XU100.IS": "📊 BIST 100",
-    "ALV.DE": "🇩🇪 Allianz"
+ 
+    # Aktien DAX 40
+    "ADS.DE": "🇩🇪 Adidas", "AIR.DE": "🇩🇪 Airbus", "ALV.DE": "🇩🇪 Allianz", "BAS.DE": "🇩🇪 BASF",
+    "BAYN.DE": "🇩🇪 Bayer", "BEI.DE": "🇩🇪 Beiersdorf", "BMW.DE": "🇩🇪 BMW", "BNR.DE": "🇩🇪 Brenntag",
+    "CBK.DE": "🇩🇪 Commerzbank", "CON.DE": "🇩🇪 Continental", "1COV.DE": "🇩🇪 Covestro",
+    "DTG.DE": "🇩🇪 Daimler Truck", "DBK.DE": "🇩🇪 Deutsche Bank", "DB1.DE": "🇩🇪 Deutsche Börse",
+    "DHL.DE": "🇩🇪 DHL Group", "DTE.DE": "🇩🇪 Deutsche Telekom", "EOAN.DE": "🇩🇪 E.ON",
+    "FRE.DE": "🇩🇪 Fresenius", "FME.DE": "🇩🇪 Fresenius Medical Care", "G1A.DE": "🇩🇪 GEA Group", 
+    "HEI.DE": "🇩🇪 Heidelberg Materials", "HNR1.DE": "🇩🇪 Hannover Rück", "HEN3.DE": "🇩🇪 Henkel", 
+    "IFX.DE": "🇩🇪 Infineon", "MBG.DE": "🇩🇪 Mercedes-Benz", "MRK.DE": "🇩🇪 Merck",
+    "MTX.DE": "🇩🇪 MTU Aero Engines", "MUV2.DE": "🇩🇪 Münchener Rück", "PAH3.DE": "🇩🇪 Porsche SE",
+    "PUM.DE": "🇩🇪 Puma", "QIA.DE": "🇩🇪 Qiagen", "RHM.DE": "🇩🇪 Rheinmetall", "RWE.DE": "🇩🇪 RWE",
+    "SAP.DE": "🇩🇪 SAP", "SRT3.DE": "🇩🇪 Sartorius", "G24.DE": "🇩🇪 Scout24", "SIE.DE": "🇩🇪 Siemens", 
+    "ENR.DE": "🇩🇪 Siemens Energy", "SHL.DE": "🇩🇪 Siemens Healthineers", "SY1.DE": "🇩🇪 Symrise",
+    "TKA.DE": "🇩🇪 Thyssenkrupp", "VOW3.DE": "🇩🇪 Volkswagen", "VNA.DE": "🇩🇪 Vonovia", "ZAL.DE": "🇩🇪 Zalando",
+ 
+    # Aktien EUROPA
+    "AI.PA": "🇫🇷 Air Liquide", "AIR.PA": "🇫🇷 Airbus", "CS.PA": "🇫🇷 AXA", "BNP.PA": "🇫🇷 BNP Paribas", 
+    "BN.PA": "🇫🇷 Danone", "EL.PA": "🇫🇷 EssilorLuxottica", "RMS.PA": "🇫🇷 Hermès",
+    "OR.PA": "🇫🇷 L'Oréal", "MC.PA": "🇫🇷 LVMH", "RI.PA": "🇫🇷 Pernod Ricard", "SAF.PA": "🇫🇷 Safran", 
+    "SAN.PA": "🇫🇷 Sanofi", "SU.PA": "🇫🇷 Schneider Electric", "TTE.PA": "🇫🇷 TotalEnergies", "DG.PA": "🇫🇷 Vinci",
+    "ASML.AS": "🇳🇱 ASML Holding", "INGA.AS": "🇳🇱 ING Groep", "PRX.AS": "🇳🇱 Prosus",
+    "AD.AS": "🇳🇱 Ahold Delhaize", "STLAM.MI": "🇳🇱 Stellantis",
+    "BBVA.MC": "🇪🇸 BBVA", "IBE.MC": "🇪🇸 Iberdrola", "ITX.MC": "🇪🇸 Inditex", "SAN.MC": "🇪🇸 Banco Santander",
+    "ENEL.MI": "🇮🇹 Enel", "ENI.MI": "🇮🇹 Eni", "ISP.MI": "🇮🇹 Intesa Sanpaolo", "RACE.MI": "🇮🇹 Ferrari", "UCG.MI": "🇮🇹 UniCredit",
+    "ABI.BR": "🇧🇪 Anheuser-Busch InBev", "CRH.AS": "🇮🇪 CRH", "FLTR.IR": "🇮🇪 Flutter Entertainment", "NOKIA.HE": "🇫🇮 Nokia"
 }
-STOCKS_ONLY = ["ALV.DE"]
-EUROPE_STOCKS = ["ALV.DE"]
+
+STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k and k != "XU100.IS"]
+EUROPE_STOCKS = [k for k in STOCKS_ONLY if any(k.endswith(ext) for ext in [".DE", ".PA", ".AS", ".MI", ".MC", ".BR", ".HE", ".IR"])]
 
 # --- 3. DESIGN ---
 st.markdown("""
@@ -37,7 +63,7 @@ def calculate_rsi(series, period=14):
     rs = gain / (loss + 1e-10)
     return 100 - (100 / (1 + rs))
 
-# --- 4. OPTIMIERTE FUNKTION MIT FEHLER-LOGGING ---
+# --- 4. ZENTRALE ANALYSEFUNKTION ---
 @st.cache_data(ttl=300)
 def get_analysis(ticker_symbol):
     res = {
@@ -62,7 +88,7 @@ def get_analysis(ticker_symbol):
         df['ATR'] = df['TR'].rolling(window=14).mean()
         res["atr"] = float(df['ATR'].iloc[-1]) if not pd.isna(df['ATR'].iloc[-1]) else 1.0
         
-        # Kerzen-Schatten
+        # Kerzen-Schatten Logik
         last_candle = df.iloc[-1]
         high_p, low_p, open_p, close_p = float(last_candle["High"]), float(last_candle["Low"]), float(last_candle["Open"]), float(last_candle["Close"])
         total_range = high_p - low_p
@@ -83,7 +109,7 @@ def get_analysis(ticker_symbol):
             res["shadow_signal"] = "SHORT (Docht)"
             res["chance"] = round(signal_strength, 1)
             
-        # Infinity Faktor Logik (Sichere Array-Berechnung)
+        # Infinity Faktor Logik
         factor_mult = 3.0
         df['RSI'] = calculate_rsi(df['Close'], 14)
         
@@ -113,8 +139,8 @@ def get_analysis(ticker_symbol):
             res["infinity_signal"] = "SELL (Trendfolge)"
             
         res["df"] = df
-    except Exception as e:
-        st.error(f"Fehler bei Ticker {ticker_symbol}: {str(e)}") # Fehler sichtbar machen!
+    except Exception:
+        pass
     return res
 
 def get_style(chg):
@@ -122,12 +148,12 @@ def get_style(chg):
     if chg < -0.15: return "⛈ 🔵", "#1E90FF"
     return "⚪", "#8892b0"
 
-# --- 5. DASHBOARD LAYOUT REPARATUR ---
+# --- 5. DASHBOARD LAYOUT ---
 st.title("Bio-Trading Monitor Live PRO")
 now_fixed = (datetime.now() + timedelta(hours=1)).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update: <b>{now_fixed}</b></div>', unsafe_allow_html=True)
 
-# Gitter-Struktur für Markt-Wetter reparieren
+# Markt-Wetter Gitter
 WEATHER_ROWS = [["EURUSD=X", "^GDAXI"], ["^STOXX50E", "XU100.IS"]]
 for row in WEATHER_ROWS:
     cols = st.columns(len(row))
@@ -138,11 +164,12 @@ for row in WEATHER_ROWS:
             with cols[i]:
                 st.markdown(f'<div class="weather-card" style="border-color:{color};"><b>{TICKER_NAMES.get(t,t)} {icon}</b><br>{res["cp"]:,.2f} ({res["chg"]:+.2f}%)</div>', unsafe_allow_html=True)
 
+# Detail-Analyse Selektor
 st.divider()
-sel_stock = st.selectbox("Aktie für Detail-Analyse wählen:", ["ALV.DE"], format_func=lambda x: TICKER_NAMES.get(x, x))
+sorted_stocks = sorted(STOCKS_ONLY, key=lambda x: TICKER_NAMES.get(x, x))
+sel_stock = st.selectbox("Aktie für Detail-Analyse wählen:", sorted_stocks, format_func=lambda x: TICKER_NAMES.get(x, x))
 res_d = get_analysis(sel_stock)
 
-# --- ERZWUNGENE INFOMATIONBOXEN & ERGEBNIS-RENDERING ---
 if res_d["cp"] > 0:
     st.subheader(f"🔍 Detail-Analyse: {TICKER_NAMES.get(sel_stock, sel_stock)}")
     cp, atr, chance, chg = res_d["cp"], res_d["atr"], res_d["chance"], res_d["chg"]
@@ -160,6 +187,3 @@ if res_d["cp"] > 0:
     c1.metric("KURS", f"{cp:,.2f}", f"{chg:+.2f}%")
     c2.metric("250-T HOCH", f"{h250:,.2f}")
     c3.metric("250-T TIEF", f"{l250:,.2f}")
-    c4.metric("ATR (14)", f"{atr:,.2f}")
-else:
-    st.warning("Die Detail-Analyse konnte nicht geladen werden. Bitte prüfen Sie die Internetverbindung zu Yahoo Finance oder das Ticker-Symbol.")
