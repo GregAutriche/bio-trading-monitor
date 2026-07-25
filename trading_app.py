@@ -140,13 +140,21 @@ def analyze_dataframe(df_ticker, ticker_symbol):
         pass
     return res
 
-# --- 5. BATCH DOWNLOAD ---
+# --- 5. SICHERS BATCH DATA RETRIEVAL ---
 @st.cache_data(ttl=120)
 def download_all_data():
     all_tickers = list(TICKER_NAMES.keys())
-    return yf.download(all_tickers, period="1y", progress=False, group_by="ticker")
+    df_all = yf.download(all_tickers, period="1y", progress=False, group_by="ticker")
+    return df_all
 
 df_master = download_all_data()
+
+# Extrahiere alle verlässlich verfügbaren Ticker aus dem MultiIndex DataFrame
+available_tickers = []
+if isinstance(df_master.columns, pd.MultiIndex):
+    available_tickers = list(df_master.columns.get_level_values(0).unique())
+else:
+    available_tickers = list(df_master.columns)
 
 def get_style(chg):
     if chg > 0.15: return "☀️ 🟢", "#00FFA3"
@@ -154,11 +162,14 @@ def get_style(chg):
     return "⚪", "#8892b0"
 
 def draw_weather_card_flat(ticker_id):
-    if ticker_id in df_master.columns.levels:
-        res = analyze_dataframe(df_master[ticker_id], ticker_id)
-        if res["cp"] > 0:
-            icon, color = get_style(res["chg"])
-            st.markdown(f'<div class="weather-card" style="border-color:{color};"><b>{TICKER_NAMES.get(ticker_id, ticker_id)} {icon}</b> | {res["cp"]:,.2f} ({res["chg"]:+.2f}%)</div>', unsafe_allow_html=True)
+    if ticker_id in available_tickers:
+        try:
+            res = analyze_dataframe(df_master[ticker_id], ticker_id)
+            if res["cp"] > 0:
+                icon, color = get_style(res["chg"])
+                st.markdown(f'<div class="weather-card" style="border-color:{color};"><b>{TICKER_NAMES.get(ticker_id, ticker_id)} {icon}</b> | {res["cp"]:,.2f} ({res["chg"]:+.2f}%)</div>', unsafe_allow_html=True)
+        except Exception:
+            pass
 
 # --- 6. DASHBOARD MAIN LAYOUT ---
 st.title("Bio-Trading Monitor Live PRO")
@@ -167,26 +178,17 @@ st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update: 
 
 all_signals = []
 alerts_list = []
+
 for s in EUROPE_STOCKS:
-    if s in df_master.columns.levels:
-        r = analyze_dataframe(df_master[s], s)
-        if r["cp"] > 0:
-            all_signals.append({
-                'Aktie': TICKER_NAMES.get(s, s), 
-                'Kerzen-Schatten': r["shadow_signal"], 
-                'Infinity Algo': r["infinity_signal"],
-                'Kurs': f"{r['cp']:,.2f}", 
-                'Signal-Konfidenz': r["chance"]
-            })
-            if r["chance"] >= 90.0:
-                alerts_list.append(f"{TICKER_NAMES.get(s,s)} ({r['chance']}% : {r['infinity_signal']})")
-
-if len(alerts_list) > 0:
-    st.markdown(f'<div class="signal-alert">🚨 KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! {" | ".join(alerts_list)}</div>', unsafe_allow_html=True)
-
-# --- REPARATUR: ABSOLUT LINEARES MARKTWETTER OHNE SPALTEN-CONTAINER ---
-draw_weather_card_flat("EURUSD=X")
-draw_weather_card_flat("^GDAXI")
-draw_weather_card_flat("^STOXX50E")
-draw_weather_card_flat("XU100.IS")
-
+    if s in available_tickers:
+        try:
+            r = analyze_dataframe(df_master[s], s)
+            if r["cp"] > 0:
+                all_signals.append({
+                    'Aktie': TICKER_NAMES.get(s, s), 
+                    'Kerzen-Schatten': r["shadow_signal"], 
+                    'Infinity Algo': r["infinity_signal"],
+                    'Kurs': f"{r['cp']:,.2f}", 
+                    'Signal-Konfidenz': r["chance"]
+                })
+                if r["chance"] >= 90.0:
