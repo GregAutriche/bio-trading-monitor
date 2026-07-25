@@ -11,10 +11,10 @@ st.set_page_config(page_title="Trading Monitor", layout="wide")
 
 st.sidebar.title("🎛️ Monitor Steuerung")
 refresh_options = {
-    "1 Minute": 60000,
     "2 Minuten": 120000,
     "5 Minuten": 300000,
     "10 Minuten": 600000,
+    "15 Minuten": 900000,
     "Manuell (Aus)": 9999999
 }
 selected_refresh = st.sidebar.selectbox("Aktualisierungsintervall:", list(refresh_options.keys()), index=1)
