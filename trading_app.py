@@ -49,8 +49,13 @@ TICKER_NAMES = {
     "CRH.AS": "CRH 🇮🇪", "FLTR.IR": "Flutter Entertainment 🇮🇪", "NOKIA.HE": "Nokia 🇫🇮"
 }
 
-STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k and k != "XU100.IS"]
-EUROPE_STOCKS = [k for k in STOCKS_ONLY if any(k.endswith(ext) for ext in [".DE", ".PA", ".AS", ".MI", ".MC", ".BR", ".HE", ".IR"])]
+# --- UNBEDINGTE ABSICHERUNG DER LISTEN GENERIERUNG ---
+try:
+    STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k and k != "XU100.IS"]
+    EUROPE_STOCKS = [k for k in STOCKS_ONLY if any(k.endswith(ext) for ext in [".DE", ".PA", ".AS", ".MI", ".MC", ".BR", ".HE", ".IR"])]
+except Exception:
+    STOCKS_ONLY = []
+    EUROPE_STOCKS = []
 
 # --- 3. CUSTOM DESIGN ---
 st.markdown("""
@@ -65,11 +70,14 @@ st.markdown("""
  """, unsafe_allow_html=True)
 
 def calculate_rsi(series, period=14):
-    delta = series.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-    rs = gain / (loss + 1e-10)
-    return 100 - (100 / (1 + rs))
+    try:
+        delta = series.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+        rs = gain / (loss + 1e-10)
+        return 100 - (100 / (1 + rs))
+    except Exception:
+        return pd.Series(50.0, index=series.index if hasattr(series, 'index') else)
 
 # --- 4. ENGINE LOGIK ---
 def analyze_ticker_data(df_all_master, ticker_symbol):
@@ -141,7 +149,7 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
         pass
     return res
 
-# --- 5. ROBUSTER MULTIINDEX DOWNLOAD (ABGEFANGEN GEGEN ABSTÜRZE) ---
+# --- 5. ROBUSTER MULTIINDEX DOWNLOAD WITH FALLBACK ---
 @st.cache_data(ttl=120)
 def download_entire_market():
     try:
@@ -191,15 +199,13 @@ if is_fallback_mode:
 
 # --- 7. DATA AGGREGATION & ALERTS ---
 all_signals = []
-for s in EUROPE_STOCKS:
-    r = analyze_ticker_data(df_master_pack, s)
-    all_signals.append({
-        'Aktie': TICKER_NAMES[s], 
-        'Kerzen-Schatten': r["shadow_signal"], 
-        'Infinity Algo': r["infinity_signal"],
-        'EMA 5 Filter': f'{r["filter_color"]} {r["trend_filter"]}',
-        'Kurs': f"{r['cp']:,.2f}", 
-        'Signal-Konfidenz': r["chance"]
-    })
-
-alerts_string = " | ".join([f"{sig['Aktie']} ({sig['Signal-Konfidenz']}% : {sig['Infinity Algo']})" for sig in all_signals if sig['Signal-Konfidenz'] >= 90.0])
+if EUROPE_STOCKS:
+    for s in EUROPE_STOCKS:
+        try:
+            r = analyze_ticker_data(df_master_pack, s)
+            all_signals.append({
+                'Aktie': TICKER_NAMES[s], 
+                'Kerzen-Schatten': r["shadow_signal"], 
+                'Infinity Algo': r["infinity_signal"],
+                'EMA 5 Filter': f'{r["filter_color"]} {r["trend_filter"]}',
+                'Kurs': f"{r['cp']:,.2f}", 
