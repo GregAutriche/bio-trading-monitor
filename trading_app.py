@@ -43,17 +43,6 @@ TICKER_NAMES = {
 
 EUROPE_STOCKS = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k]
 
-# --- NEU: MANUELLE TITELAUSWAHL IN DER SIDEBAR ---
-# Ermöglicht die Suche und Filterung nach Namen aus dem Mapping
-reverse_mapping = {v: k for k, v in TICKER_NAMES.items() if k in EUROPE_STOCKS}
-selected_stock_names = st.sidebar.multiselect(
-    "Eigene Titel überwachen (Filter):",
-    options=list(reverse_mapping.keys()),
-    help="Wählen Sie Titel aus, um die automatische Top-7-Liste durch Ihre Favoriten zu ersetzen."
-)
-# Bestimmung, welche Aktien analysiert werden sollen
-active_stocks = [reverse_mapping[name] for name in selected_stock_names] if selected_stock_names else EUROPE_STOCKS
-
 # --- 3. HELFER-FUNKTIONEN ---
 def calculate_rsi(series):
     try:
@@ -115,18 +104,7 @@ st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Aktuelle Uhrzeit
 if df_master_pack is None:
     st.sidebar.warning("⚠️ Live-Daten nicht erreichbar. Fallback aktiv.")
 
-# --- 6. DATA AGGREGATION ---
-all_signals = []
-for s in active_stocks:  # Nutzt nun die gefilterte bzw. vollständige Liste
-    r = analyze_ticker_data(df_master_pack, s)
-    all_signals.append({
-        'Aktie': TICKER_NAMES[s], 'Kerzen-Schatten': r["shadow_signal"], 'Infinity Algo': r["infinity_signal"],
-        'EMA 5 Filter': f'{r["filter_color"]} {r["trend_filter"]}', 'Kurs': r["cp"], 'Signal-Konfidenz': r["chance"]
-    })
-
-st.markdown('<div style="background-color: #31353d; color: white; padding: 15px; border-radius: 10px; font-weight: bold; text-align: center; margin-bottom: 20px;">SYSTEM AKTIV | Überwachung läuft fehlerfrei</div>', unsafe_allow_html=True)
-
-# --- 7. MARKTWETTER RENDERN ---
+# --- 6. MARKTWETTER RENDERN ---
 cols = st.columns(4)
 for i, ticker in enumerate(["EURUSD=X", "^GDAXI", "^NDX", "^STOXX50E"]):
     with cols[i]:
@@ -134,8 +112,32 @@ for i, ticker in enumerate(["EURUSD=X", "^GDAXI", "^NDX", "^STOXX50E"]):
         fmt = ",.4f" if "X" in ticker else ",.2f"
         st.markdown(f'<div style="text-align: center; border-radius: 12px; background: rgba(255,255,255,0.03); border: 2px solid #333; padding: 12px;"><b>{TICKER_NAMES[ticker]}</b><br>{r["cp"]:{fmt}} ({r["chg"]:+.2f}%)<br><small>Filter: {r["filter_color"]} {r["trend_filter"]}</small></div>', unsafe_allow_html=True)
 
-# --- 8. ERKLÄRENDE INFO-BOX ---
-st.markdown("<br>", unsafe_allow_html=True)
+st.markdown('<div style="background-color: #31353d; color: white; padding: 15px; border-radius: 10px; font-weight: bold; text-align: center; margin-bottom: 20px; margin-top: 20px;">SYSTEM AKTIV | Überwachung läuft fehlerfrei</div>', unsafe_allow_html=True)
+
+# --- 7. NEU: MANUELLE TITELAUSWAHL (ALS EXPANDER WIE DIE INFO-BOX) ---
+reverse_mapping = {v: k for k, v in TICKER_NAMES.items() if k in EUROPE_STOCKS}
+
+with st.expander("🔍 Eigene Titel auswählen & filtern (Auswahl ersetzt die Top 7)"):
+    selected_stock_names = st.multiselect(
+        "Wählen Sie eine oder mehrere Aktien aus:",
+        options=list(reverse_mapping.keys()),
+        default=[],
+        help="Lassen Sie das Feld leer, um die automatische Top-7-Liste zu sehen."
+    )
+
+# Dynamische Bestimmung der zu berechnenden Aktien
+active_stocks = [reverse_mapping[name] for name in selected_stock_names] if selected_stock_names else EUROPE_STOCKS
+
+# --- 8. DATA AGGREGATION ---
+all_signals = []
+for s in active_stocks:
+    r = analyze_ticker_data(df_master_pack, s)
+    all_signals.append({
+        'Aktie': TICKER_NAMES[s], 'Kerzen-Schatten': r["shadow_signal"], 'Infinity Algo': r["infinity_signal"],
+        'EMA 5 Filter': f'{r["filter_color"]} {r["trend_filter"]}', 'Kurs': r["cp"], 'Signal-Konfidenz': r["chance"]
+    })
+
+# --- 9. ERKLÄRENDE INFO-BOX ---
 with st.expander("ℹ️ Erläuterung der Monitor-Signale & Algorithmen"):
     st.markdown("""
     * **Kerzen-Schatten**: Erkennt extreme Preisreaktionen an Handelsgrenzen. *LONG (Lunte)* signalisiert eine starke Käuferreaktion am Tiefpunkt der aktuellen Handelsspanne.
@@ -144,13 +146,13 @@ with st.expander("ℹ️ Erläuterung der Monitor-Signale & Algorithmen"):
     * **Signal-Konfidenz**: Aggregiert alle technischen Einzelindikatoren (inklusive RSI und Volatilitätsbändern) zu einem Prozentwert. Je höher die Prozentzahl, desto valider ist die statistische Ausbruchschance.
     """)
 
-# --- 9. RANGLISTE RENDERN ---
+# --- 10. RANGLISTE RENDERN ---
+st.markdown("<br>", unsafe_allow_html=True)
 if selected_stock_names:
-    st.markdown(f"### Eigene Watchlist ({len(selected_stock_names)} Titel aktiv)", unsafe_allow_html=True)
-    # Zeigt alle vom Nutzer gewählten Titel an, sortiert nach Konfidenz
+    st.markdown(f"### 📋 Eigene Watchlist ({len(selected_stock_names)} Titel aktiv)", unsafe_allow_html=True)
     max_items = len(selected_stock_names)
 else:
-    st.markdown("### Top 7 Aktiensignale (nach Signal-Konfidenz) 🏆", unsafe_allow_html=True)
+    st.markdown("### 🏆 Top 7 Aktiensignale (nach Signal-Konfidenz)", unsafe_allow_html=True)
     max_items = 7
 
 if all_signals:
