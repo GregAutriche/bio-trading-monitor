@@ -3,7 +3,6 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import pytz
-import random
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime, timedelta
 
@@ -72,11 +71,10 @@ def calculate_rsi(series, period=14):
     rs = gain / (loss + 1e-10)
     return 100 - (100 / (1 + rs))
 
-# --- 4. ENGINE LOGIK (ABGESICHERT GEGEN NONE-WERTE) ---
+# --- 4. ENGINE LOGIK ---
 def analyze_ticker_data(df_all_master, ticker_symbol):
     fallback_seed = int(abs(hash(ticker_symbol)) % 100)
     
-    # Intelligente Default-Preise für die Indizes generieren, falls yfinance offline ist
     if ticker_symbol == "EURUSD=X": default_price = 1.1377
     elif ticker_symbol == "^GDAXI": default_price = 18250.0
     elif ticker_symbol == "^NDX": default_price = 19100.0
@@ -97,7 +95,6 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
         "filter_color": default_color
     }
  
-    # WICHTIG: Sofortiger Abbruch und Rückgabe der Default-Daten, falls das DataFrame leer ist
     if df_all_master is None or ticker_symbol not in df_all_master.columns:
         return res
 
@@ -117,7 +114,6 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
         df['ATR'] = df['Close'].rolling(window=5).std().fillna(res["atr"])
         df['RSI'] = calculate_rsi(df['Close'], 14).fillna(50.0)
  
-        # --- 5-MINUTEN EMA PIVOT FILTER LOGIK ---
         df['EMA_5'] = df['Close'].ewm(span=5, adjust=False).mean()
         aktueller_preis = res["cp"]
         ema_pivot = float(df['EMA_5'].iloc[-1])
@@ -145,7 +141,7 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
         pass
     return res
 
-# --- 5. ROBUSTER MULTIINDEX DOWNLOAD WITH FALLBACK ---
+# --- 5. ROBUSTER MULTIINDEX DOWNLOAD (ABGEFANGEN GEGEN ABSTÜRZE) ---
 @st.cache_data(ttl=120)
 def download_entire_market():
     try:
@@ -159,22 +155,39 @@ def download_entire_market():
                 df_pack = df_pack.xs('Close', axis=1, level=0, drop_level=True)
             elif 'Close' in df_pack.columns:
                 df_pack = df_pack['Close']
-            return df_pack
+            return df_pack, datetime.now()
     except Exception:
         pass
-    return None
+    return None, None
 
-df_master_pack = download_entire_market()
+# Zuweisung mit Absicherung
+try:
+    df_master_pack, last_update_time = download_entire_market()
+except Exception:
+    df_master_pack, last_update_time = None, None
+
 is_fallback_mode = df_master_pack is None or df_master_pack.empty
 
-# --- 6. HEADER ZEITZONE ---
-st.title("Trading Monitor 📊 💱")
+# Zeitstempel berechnen
 tz_europe = pytz.timezone('Europe/Berlin')
-now_fixed = datetime.now(tz_europe).strftime('%H:%M:%S')
-st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (Europa/Berlin): <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
+current_time_str = datetime.now(tz_europe).strftime('%H:%M:%S')
+
+if last_update_time is not None:
+    last_update_str = last_update_time.astimezone(tz_europe).strftime('%H:%M:%S')
+else:
+    last_update_str = current_time_str
+
+# --- 6. HEADER RENDERN ---
+st.title("Trading Monitor 📊 💱")
+st.markdown(
+    f'<div style="color: #8892b0; margin-bottom: 20px;">'
+    f'Aktuelle Uhrzeit: <b>{current_time_str}</b> | Letztes erfolgreiches Daten-Update: <b>{last_update_str}</b> (Intervall: {selected_refresh})'
+    f'</div>', 
+    unsafe_allow_html=True
+)
 
 if is_fallback_mode:
-    st.sidebar.warning("⚠️ Live-Daten von yfinance nicht erreichbar. Fallback-Modus aktiv.")
+    st.sidebar.warning("⚠️ Live-Daten-Timeout. Simulation aktiv.")
 
 # --- 7. DATA AGGREGATION & ALERTS ---
 all_signals = []
