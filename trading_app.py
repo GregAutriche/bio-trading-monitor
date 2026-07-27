@@ -49,7 +49,6 @@ TICKER_NAMES = {
     "CRH.AS": "CRH 🇮🇪", "FLTR.IR": "Flutter Entertainment 🇮🇪", "NOKIA.HE": "Nokia 🇫🇮"
 }
 
-# --- UNBEDINGTE ABSICHERUNG DER LISTEN GENERIERUNG ---
 try:
     STOCKS_ONLY = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k and k != "XU100.IS"]
     EUROPE_STOCKS = [k for k in STOCKS_ONLY if any(k.endswith(ext) for ext in [".DE", ".PA", ".AS", ".MI", ".MC", ".BR", ".HE", ".IR"])]
@@ -77,7 +76,9 @@ def calculate_rsi(series, period=14):
         rs = gain / (loss + 1e-10)
         return 100 - (100 / (1 + rs))
     except Exception:
-        return pd.Series(50.0, index=series.index if hasattr(series, 'index') else)
+        if hasattr(series, 'index'):
+            return pd.Series(50.0, index=series.index)
+        return pd.Series([50.0])
 
 # --- 4. ENGINE LOGIK ---
 def analyze_ticker_data(df_all_master, ticker_symbol):
@@ -168,7 +169,6 @@ def download_entire_market():
         pass
     return None, None
 
-# Zuweisung mit Absicherung
 try:
     df_master_pack, last_update_time = download_entire_market()
 except Exception:
@@ -176,7 +176,6 @@ except Exception:
 
 is_fallback_mode = df_master_pack is None or df_master_pack.empty
 
-# Zeitstempel berechnen
 tz_europe = pytz.timezone('Europe/Berlin')
 current_time_str = datetime.now(tz_europe).strftime('%H:%M:%S')
 
@@ -209,3 +208,5 @@ if EUROPE_STOCKS:
                 'Infinity Algo': r["infinity_signal"],
                 'EMA 5 Filter': f'{r["filter_color"]} {r["trend_filter"]}',
                 'Kurs': f"{r['cp']:,.2f}", 
+                'Signal-Konfidenz': r["chance"]
+            })
