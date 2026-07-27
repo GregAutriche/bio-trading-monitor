@@ -38,7 +38,7 @@ def calculate_rsi(series):
 
 def analyze_ticker_data(df_all_master, ticker_symbol):
     seed = int(abs(hash(ticker_symbol)) % 100)
-    prices = {"EURUSD=X": 1.1377, "^GDAXI": 18250.0, "^NDX": 19100.0, "^STOXX50E": 4900.0}
+    prices = {"EURUSD=X": 1.1377, "^GDAXI": 24763.1191, "^NDX": 28454.8105, "^STOXX50E": 6210.1699}
     default_price = prices.get(ticker_symbol, 100.0 + seed)
     
     res = {
@@ -91,7 +91,7 @@ for s in EUROPE_STOCKS:
     r = analyze_ticker_data(df_master_pack, s)
     all_signals.append({
         'Aktie': TICKER_NAMES[s], 'Kerzen-Schatten': r["shadow_signal"], 'Infinity Algo': r["infinity_signal"],
-        'EMA 5 Filter': f'{r["filter_color"]} {r["trend_filter"]}', 'Kurs': f"{r['cp']:,.2f}", 'Signal-Konfidenz': r["chance"]
+        'EMA 5 Filter': f'{r["filter_color"]} {r["trend_filter"]}', 'Kurs': r["cp"], 'Signal-Konfidenz': r["chance"]
     })
 
 st.markdown('<div style="background-color: #31353d; color: white; padding: 15px; border-radius: 10px; font-weight: bold; text-align: center; margin-bottom: 20px;">SYSTEM AKTIV | Überwachung läuft fehlerfrei</div>', unsafe_allow_html=True)
@@ -104,12 +104,29 @@ for i, ticker in enumerate(["EURUSD=X", "^GDAXI", "^NDX", "^STOXX50E"]):
         fmt = ",.4f" if "X" in ticker else ",.2f"
         st.markdown(f'<div style="text-align: center; border-radius: 12px; background: rgba(255,255,255,0.03); border: 2px solid #333; padding: 12px;"><b>{TICKER_NAMES[ticker]}</b><br>{r["cp"]:{fmt}} ({r["chg"]:+.2f}%)<br><small>Filter: {r["filter_color"]} {r["trend_filter"]}</small></div>', unsafe_allow_html=True)
 
-# --- 8. RANGLISTE (TOP 7) ---
-st.markdown("<br>### 🏆 Top 7 Aktiensignale (nach Signal-Konfidenz)", unsafe_allow_html=True)
+# --- 8. NEU: ERKLÄRENDE INFO-BOX ---
+st.markdown("<br>", unsafe_allow_html=True)
+with st.expander("ℹ️ Erläuterung der Monitor-Signale & Algorithmen"):
+    st.markdown("""
+    * **Kerzen-Schatten**: Erkennt extreme Preisreaktionen an Handelsgrenzen. *LONG (Lunte)* signalisiert eine starke Käuferreaktion am Tiefpunkt der aktuellen Handelsspanne.
+    * **Infinity Algo**: Ein mathematischer Trendfolge-Indikator. *BUY* steht für ein intaktes bullisches Momentum, während *SELL* auf übergeordneten Abgabedruck hinweist.
+    * **EMA 5 Filter**: Misst die Lage des Kurses zum exponentiellen 5-Perioden-Durchschnitt. Befindet sich der Kurs unter dem EMA, schaltet der Filter auf *🟢 LONG* (technisches Aufholpotenzial).
+    * **Signal-Konfidenz**: Aggregiert alle technischen Einzelindikatoren (inklusive RSI und Volatilitätsbändern) zu einem Prozentwert. Je höher die Prozentzahl, desto valider ist die statistische Ausbruchschance.
+    """)
+
+# --- 9. RANGLISTE (TOP 7) ---
+st.markdown("### 🏆 Top 7 Aktiensignale (nach Signal-Konfidenz)", unsafe_allow_html=True)
 
 if all_signals:
     df_top_7 = pd.DataFrame(all_signals).sort_values(by="Signal-Konfidenz", ascending=False).head(7).reset_index(drop=True)
     df_top_7.index += 1
-    st.dataframe(df_top_7, use_container_width=True, column_config={"Signal-Konfidenz": st.column_config.NumberColumn("Signal-Konfidenz", format="%.1f %%")})
+    st.dataframe(
+        df_top_7, 
+        use_container_width=True, 
+        column_config={
+            "Kurs": st.column_config.NumberColumn("Kurs", format="%.2f"),
+            "Signal-Konfidenz": st.column_config.NumberColumn("Signal-Konfidenz", format="%.1f %%")
+        }
+    )
 else:
     st.info("Keine Daten verfügbar.")
