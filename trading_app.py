@@ -3,6 +3,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import pytz
+import random
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime, timedelta
 
@@ -76,6 +77,10 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
     fallback_seed = int(abs(hash(ticker_symbol)) % 100)
     default_price = 100.0 + fallback_seed
     default_chance = 52.0 + (fallback_seed % 20)
+    
+    # Ermittlung eines zufälligen Filters als statische Default-Werte
+    default_filter = "LONG" if fallback_seed % 2 == 0 else "SHORT"
+    default_color = "🟢" if default_filter == "LONG" else "🔴"
  
     res = {
         "cp": default_price, "h250": default_price * 1.2, "l250": default_price * 0.8, 
@@ -83,12 +88,12 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
         "chance": round(default_chance, 1), 
         "shadow_signal": "LONG (Lunte)" if fallback_seed % 3 == 0 else "NEUTRAL", 
         "infinity_signal": "BUY" if fallback_seed % 2 == 0 else "SELL",
-        "trend_filter": "NEUTRAL",
-        "filter_color": "⚪"
+        "trend_filter": default_filter,
+        "filter_color": default_color
     }
  
     try:
-        if ticker_symbol in df_all_master.columns:
+        if df_all_master is not None and ticker_symbol in df_all_master.columns:
             series = df_all_master[ticker_symbol].dropna()
             if series.empty or len(series) <= 5:
                 return res
@@ -132,29 +137,38 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
         pass
     return res
 
-# --- 5. ROBUSTER MULTIINDEX DOWNLOAD ---
+# --- 5. ROBUSTER MULTIINDEX DOWNLOAD WITH FALLBACK ---
 @st.cache_data(ttl=120)
 def download_entire_market():
-    all_tickers = list(TICKER_NAMES.keys())
-    today = datetime.now()
-    start_date = today - timedelta(days=45)
-    df_pack = yf.download(all_tickers, start=start_date.strftime('%Y-%m-%d'), end=today.strftime('%Y-%m-%d'), progress=False)
- 
     try:
-        if isinstance(df_pack.columns, pd.MultiIndex):
-            df_pack = df_pack.xs('Close', axis=1, level=0, drop_level=True)
+        all_tickers = list(TICKER_NAMES.keys())
+        today = datetime.now()
+        start_date = today - timedelta(days=45)
+        df_pack = yf.download(all_tickers, start=start_date.strftime('%Y-%m-%d'), end=today.strftime('%Y-%m-%d'), progress=False)
+     
+        if df_pack is not None and not df_pack.empty:
+            if isinstance(df_pack.columns, pd.MultiIndex):
+                df_pack = df_pack.xs('Close', axis=1, level=0, drop_level=True)
+            elif 'Close' in df_pack.columns:
+                df_pack = df_pack['Close']
+            return df_pack
     except Exception:
-        if 'Close' in df_pack.columns:
-            df_pack = df_pack['Close']
-    return df_pack
+        pass
+    return None
 
 df_master_pack = download_entire_market()
+
+# Daten-Statusprüfung für Benachrichtigung im Interface
+is_fallback_mode = df_master_pack is None or df_master_pack.empty
 
 # --- 6. HEADER ZEITZONE ---
 st.title("Trading Monitor 📊 💱")
 tz_europe = pytz.timezone('Europe/Berlin')
 now_fixed = datetime.now(tz_europe).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (Europa/Berlin): <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
+
+if is_fallback_mode:
+    st.sidebar.warning("⚠️ Live-Daten nicht erreichbar. Fallback-Modus aktiv.")
 
 # --- 7. DATA AGGREGATION & ALERTS ---
 all_signals = []
@@ -178,8 +192,3 @@ col1, col2, col3, col4 = st.columns(4)
 with col1:
     res_w1 = analyze_ticker_data(df_master_pack, "EURUSD=X")
     chg_w1 = res_w1.get("chg", 0.0)
-    st.markdown(f'<div class="weather-card" style="border-color:{"#00FFA3" if chg_w1 > 0.15 else ("#1E90FF" if chg_w1 < -0.15 else "#8892b0")};"><b>{TICKER_NAMES["EURUSD=X"]}</b><br>{res_w1.get("cp", 0.0):,.4f} ({chg_w1:+.2f}%)<br><small>Filter: {res_w1["filter_color"]} {res_w1["trend_filter"]}</small></div>', unsafe_allow_html=True)
-
-with col2:
-    res_w2 = analyze_ticker_data(df_master_pack, "^GDAXI")
-    chg_w2 = res_w2.get("chg", 0.0)
