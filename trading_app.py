@@ -72,13 +72,18 @@ def calculate_rsi(series, period=14):
     rs = gain / (loss + 1e-10)
     return 100 - (100 / (1 + rs))
 
-# --- 4. ENGINE LOGIK ---
+# --- 4. ENGINE LOGIK (ABGESICHERT GEGEN NONE-WERTE) ---
 def analyze_ticker_data(df_all_master, ticker_symbol):
     fallback_seed = int(abs(hash(ticker_symbol)) % 100)
-    default_price = 100.0 + fallback_seed
-    default_chance = 52.0 + (fallback_seed % 20)
     
-    # Ermittlung eines zufälligen Filters als statische Default-Werte
+    # Intelligente Default-Preise für die Indizes generieren, falls yfinance offline ist
+    if ticker_symbol == "EURUSD=X": default_price = 1.1377
+    elif ticker_symbol == "^GDAXI": default_price = 18250.0
+    elif ticker_symbol == "^NDX": default_price = 19100.0
+    elif ticker_symbol == "^STOXX50E": default_price = 4900.0
+    else: default_price = 100.0 + fallback_seed
+
+    default_chance = 52.0 + (fallback_seed % 20)
     default_filter = "LONG" if fallback_seed % 2 == 0 else "SHORT"
     default_color = "🟢" if default_filter == "LONG" else "🔴"
  
@@ -92,47 +97,50 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
         "filter_color": default_color
     }
  
+    # WICHTIG: Sofortiger Abbruch und Rückgabe der Default-Daten, falls das DataFrame leer ist
+    if df_all_master is None or ticker_symbol not in df_all_master.columns:
+        return res
+
     try:
-        if df_all_master is not None and ticker_symbol in df_all_master.columns:
-            series = df_all_master[ticker_symbol].dropna()
-            if series.empty or len(series) <= 5:
-                return res
+        series = df_all_master[ticker_symbol].dropna()
+        if series.empty or len(series) <= 5:
+            return res
  
-            df = pd.DataFrame({'Close': series})
-            res["cp"] = float(df["Close"].iloc[-1])
-            res["chg"] = ((df["Close"].iloc[-1] / df["Close"].iloc[-2]) - 1) * 100 if len(df) > 1 else 0.0
-            res["h250"] = float(df["Close"].max())
-            res["l250"] = float(df["Close"].min())
-            res["atr"] = res["cp"] * 0.015
-            res["vol"] = 500000
+        df = pd.DataFrame({'Close': series})
+        res["cp"] = float(df["Close"].iloc[-1])
+        res["chg"] = ((df["Close"].iloc[-1] / df["Close"].iloc[-2]) - 1) * 100 if len(df) > 1 else 0.0
+        res["h250"] = float(df["Close"].max())
+        res["l250"] = float(df["Close"].min())
+        res["atr"] = res["cp"] * 0.015
+        res["vol"] = 500000
  
-            df['ATR'] = df['Close'].rolling(window=5).std().fillna(res["atr"])
-            df['RSI'] = calculate_rsi(df['Close'], 14).fillna(50.0)
+        df['ATR'] = df['Close'].rolling(window=5).std().fillna(res["atr"])
+        df['RSI'] = calculate_rsi(df['Close'], 14).fillna(50.0)
  
-            # --- 5-MINUTEN EMA PIVOT FILTER LOGIK ---
-            df['EMA_5'] = df['Close'].ewm(span=5, adjust=False).mean()
-            aktueller_preis = res["cp"]
-            ema_pivot = float(df['EMA_5'].iloc[-1])
+        # --- 5-MINUTEN EMA PIVOT FILTER LOGIK ---
+        df['EMA_5'] = df['Close'].ewm(span=5, adjust=False).mean()
+        aktueller_preis = res["cp"]
+        ema_pivot = float(df['EMA_5'].iloc[-1])
  
-            if aktueller_preis > ema_pivot:
-                res["trend_filter"] = "SHORT"
-                res["filter_color"] = "🔴"
-            elif aktueller_preis < ema_pivot:
-                res["trend_filter"] = "LONG"
-                res["filter_color"] = "🟢"
-            else:
-                res["trend_filter"] = "NEUTRAL"
-                res["filter_color"] = "⚪"
+        if aktueller_preis > ema_pivot:
+            res["trend_filter"] = "SHORT"
+            res["filter_color"] = "🔴"
+        elif aktueller_preis < ema_pivot:
+            res["trend_filter"] = "LONG"
+            res["filter_color"] = "🟢"
+        else:
+            res["trend_filter"] = "NEUTRAL"
+            res["filter_color"] = "⚪"
  
-            factor_mult = 3.0
-            long_band = (df['Close'] - (factor_mult * df['ATR'])).to_numpy()
-            short_band = (df['Close'] + (factor_mult * df['ATR'])).to_numpy()
+        factor_mult = 3.0
+        long_band = (df['Close'] - (factor_mult * df['ATR'])).to_numpy()
+        short_band = (df['Close'] + (factor_mult * df['ATR'])).to_numpy()
  
-            dist_to_long = abs(res["cp"] - long_band[-1])
-            total_band_width = short_band[-1] - long_band[-1]
+        dist_to_long = abs(res["cp"] - long_band[-1])
+        total_band_width = short_band[-1] - long_band[-1]
  
-            base_chance = 55.0 + ((1.0 - (dist_to_long / (total_band_width + 1e-10))) * 30.0)
-            res["chance"] = round(min(max(base_chance, 51.0), 98.8), 1)
+        base_chance = 55.0 + ((1.0 - (dist_to_long / (total_band_width + 1e-10))) * 30.0)
+        res["chance"] = round(min(max(base_chance, 51.0), 98.8), 1)
     except Exception:
         pass
     return res
@@ -157,8 +165,6 @@ def download_entire_market():
     return None
 
 df_master_pack = download_entire_market()
-
-# Daten-Statusprüfung für Benachrichtigung im Interface
 is_fallback_mode = df_master_pack is None or df_master_pack.empty
 
 # --- 6. HEADER ZEITZONE ---
@@ -168,7 +174,7 @@ now_fixed = datetime.now(tz_europe).strftime('%H:%M:%S')
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Letztes Update (Europa/Berlin): <b>{now_fixed}</b> (Intervall: {selected_refresh})</div>', unsafe_allow_html=True)
 
 if is_fallback_mode:
-    st.sidebar.warning("⚠️ Live-Daten nicht erreichbar. Fallback-Modus aktiv.")
+    st.sidebar.warning("⚠️ Live-Daten von yfinance nicht erreichbar. Fallback-Modus aktiv.")
 
 # --- 7. DATA AGGREGATION & ALERTS ---
 all_signals = []
@@ -184,11 +190,3 @@ for s in EUROPE_STOCKS:
     })
 
 alerts_string = " | ".join([f"{sig['Aktie']} ({sig['Signal-Konfidenz']}% : {sig['Infinity Algo']})" for sig in all_signals if sig['Signal-Konfidenz'] >= 90.0])
-st.markdown(f'<div class="signal-alert"> SYSTEM AKTIV | Überwachung läuft ⚡ fehlerfrei</div>' if alerts_string == "" else f'<div class="signal-alert" style="background-color: #FF4B4B; border-color: #FFFFFF;"> KRITISCHER ALARM: Hochkonfidenz-Setup erkannt! 🚨 {alerts_string}</div>', unsafe_allow_html=True)
-
-# --- 8. MARKTWETTER RENDERN ---
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    res_w1 = analyze_ticker_data(df_master_pack, "EURUSD=X")
-    chg_w1 = res_w1.get("chg", 0.0)
