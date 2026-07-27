@@ -32,7 +32,9 @@ def calculate_rsi(series):
         rs = gain / (loss + 1e-10)
         return 100 - (100 / (1 + rs))
     except:
-        return pd.Series(50.0, index=series.index if hasattr(series, 'index') else)
+        if hasattr(series, 'index'):
+            return pd.Series(50.0, index=series.index)
+        return pd.Series([50.0])
 
 def analyze_ticker_data(df_all_master, ticker_symbol):
     seed = int(abs(hash(ticker_symbol)) % 100)
