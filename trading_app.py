@@ -76,7 +76,7 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
     fallback_seed = int(abs(hash(ticker_symbol)) % 100)
     default_price = 100.0 + fallback_seed
     default_chance = 52.0 + (fallback_seed % 20)
-    
+ 
     res = {
         "cp": default_price, "h250": default_price * 1.2, "l250": default_price * 0.8, 
         "chg": -0.5 + (fallback_seed % 3) * 0.4, "atr": default_price * 0.02, "vol": 500000, 
@@ -86,13 +86,13 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
         "trend_filter": "NEUTRAL",
         "filter_color": "⚪"
     }
-    
+ 
     try:
         if ticker_symbol in df_all_master.columns:
             series = df_all_master[ticker_symbol].dropna()
             if series.empty or len(series) <= 5:
                 return res
-            
+ 
             df = pd.DataFrame({'Close': series})
             res["cp"] = float(df["Close"].iloc[-1])
             res["chg"] = ((df["Close"].iloc[-1] / df["Close"].iloc[-2]) - 1) * 100 if len(df) > 1 else 0.0
@@ -100,29 +100,32 @@ def analyze_ticker_data(df_all_master, ticker_symbol):
             res["l250"] = float(df["Close"].min())
             res["atr"] = res["cp"] * 0.015
             res["vol"] = 500000
-            
+ 
             df['ATR'] = df['Close'].rolling(window=5).std().fillna(res["atr"])
             df['RSI'] = calculate_rsi(df['Close'], 14).fillna(50.0)
-            
+ 
             # --- 5-MINUTEN EMA PIVOT FILTER LOGIK ---
             df['EMA_5'] = df['Close'].ewm(span=5, adjust=False).mean()
             aktueller_preis = res["cp"]
             ema_pivot = float(df['EMA_5'].iloc[-1])
-            
+ 
             if aktueller_preis > ema_pivot:
-                res["trend_filter"] = "🟢 LONG"
+                res["trend_filter"] = "SHORT"
+                res["filter_color"] = "🔴"
             elif aktueller_preis < ema_pivot:
-                res["trend_filter"] = "🔴 SHORT"
+                res["trend_filter"] = "LONG"
+                res["filter_color"] = "🟢"
             else:
-                res["trend_filter"] = "⚪ NEUTRAL"
-            
+                res["trend_filter"] = "NEUTRAL"
+                res["filter_color"] = "⚪"
+ 
             factor_mult = 3.0
             long_band = (df['Close'] - (factor_mult * df['ATR'])).to_numpy()
             short_band = (df['Close'] + (factor_mult * df['ATR'])).to_numpy()
-            
+ 
             dist_to_long = abs(res["cp"] - long_band[-1])
             total_band_width = short_band[-1] - long_band[-1]
-            
+ 
             base_chance = 55.0 + ((1.0 - (dist_to_long / (total_band_width + 1e-10))) * 30.0)
             res["chance"] = round(min(max(base_chance, 51.0), 98.8), 1)
     except Exception:
@@ -136,7 +139,7 @@ def download_entire_market():
     today = datetime.now()
     start_date = today - timedelta(days=45)
     df_pack = yf.download(all_tickers, start=start_date.strftime('%Y-%m-%d'), end=today.strftime('%Y-%m-%d'), progress=False)
-    
+ 
     try:
         if isinstance(df_pack.columns, pd.MultiIndex):
             df_pack = df_pack.xs('Close', axis=1, level=0, drop_level=True)
@@ -161,7 +164,7 @@ for s in EUROPE_STOCKS:
         'Aktie': TICKER_NAMES[s], 
         'Kerzen-Schatten': r["shadow_signal"], 
         'Infinity Algo': r["infinity_signal"],
-        'EMA 5 Filter': r["trend_filter"],
+        'EMA 5 Filter': f'{r["filter_color"]} {r["trend_filter"]}',
         'Kurs': f"{r['cp']:,.2f}", 
         'Signal-Konfidenz': r["chance"]
     })
@@ -175,7 +178,7 @@ col1, col2, col3, col4 = st.columns(4)
 with col1:
     res_w1 = analyze_ticker_data(df_master_pack, "EURUSD=X")
     chg_w1 = res_w1.get("chg", 0.0)
-    st.markdown(f'<div class="weather-card" style="border-color:{"#00FFA3" if chg_w1 > 0.15 else ("#1E90FF" if chg_w1 < -0.15 else "#8892b0")};"><b>{TICKER_NAMES["EURUSD=X"]}</b><br>{res_w1.get("cp", 0.0):,.4f} ({chg_w1:+.2f}%)<br><small>Filter: {res_w1["trend_filter"]}</small></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="weather-card" style="border-color:{"#00FFA3" if chg_w1 > 0.15 else ("#1E90FF" if chg_w1 < -0.15 else "#8892b0")};"><b>{TICKER_NAMES["EURUSD=X"]}</b><br>{res_w1.get("cp", 0.0):,.4f} ({chg_w1:+.2f}%)<br><small>Filter: {res_w1["filter_color"]} {res_w1["trend_filter"]}</small></div>', unsafe_allow_html=True)
 
 with col2:
     res_w2 = analyze_ticker_data(df_master_pack, "^GDAXI")
