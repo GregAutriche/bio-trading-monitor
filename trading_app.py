@@ -22,18 +22,37 @@ TICKER_NAMES = {
     "CBK.DE": "🇩🇪 Commerzbank", "CON.DE": "🇩🇪 Continental", "1COV.DE": "🇩🇪 Covestro",
     "DTG.DE": "🇩🇪 Daimler Truck", "DBK.DE": "🇩🇪 Deutsche Bank", "DB1.DE": "🇩🇪 Deutsche Börse",
     "DHL.DE": "🇩🇪 DHL Group", "DTE.DE": "🇩🇪 Deutsche Telekom", "EOAN.DE": "🇩🇪 E.ON",
-    "FRE.DE": "🇩🇪 Fresenius", "FME.DE": "🇩🇪 Fresenius Medical Care", "G1A.DE": "🇩🇪 GEA Group", "HEI.DE": "🇩🇪 Heidelberg Materials", "HNR1.DE": "🇩🇪 Hannover Rück", "HEN3.DE": "🇩🇪 Henkel", "IFX.DE": "🇩🇪 Infineon", "MBG.DE": "🇩🇪 Mercedes-Benz", "MRK.DE": "🇩🇪 Merck",
+    "FRE.DE": "🇩🇪 Fresenius", "FME.DE": "🇩🇪 Fresenius Medical Care", "G1A.DE": "🇩🇪 GEA Group",
+    "HEI.DE": "🇩🇪 Heidelberg Materials", "HNR1.DE": "🇩🇪 Hannover Rück", "HEN3.DE": "🇩🇪 Henkel",
+    "IFX.DE": "🇩🇪 Infineon", "MBG.DE": "🇩🇪 Mercedes-Benz", "MRK.DE": "🇩🇪 Merck",
     "MTX.DE": "🇩🇪 MTU Aero Engines", "MUV2.DE": "🇩🇪 Münchener Rück", "PAH3.DE": "🇩🇪 Porsche SE",
     "PUM.DE": "🇩🇪 Puma", "QIA.DE": "🇩🇪 Qiagen", "RHM.DE": "🇩🇪 Rheinmetall", "RWE.DE": "🇩🇪 RWE",
-    "SAP.DE": "🇩🇪 SAP", "SRT3.DE": "🇩🇪 Sartorius", "G24.DE": "🇩🇪 Scout24", "SIE.DE": "🇩🇪 Siemens", "ENR.DE": "🇩🇪 Siemens Energy", "SHL.DE": "🇩🇪 Siemens Healthineers", "SY1.DE": "🇩🇪 Symrise",
+    "SAP.DE": "🇩🇪 SAP", "SRT3.DE": "🇩🇪 Sartorius", "G24.DE": "🇩🇪 Scout24", "SIE.DE": "🇩🇪 Siemens",
+    "ENR.DE": "🇩🇪 Siemens Energy", "SHL.DE": "🇩🇪 Siemens Healthineers", "SY1.DE": "🇩🇪 Symrise",
     "TKA.DE": "🇩🇪 Thyssenkrupp", "VOW3.DE": "🇩🇪 Volkswagen", "VNA.DE": "🇩🇪 Vonovia", "ZAL.DE": "🇩🇪 Zalando",
-    "AI.PA": "🇫🇷 Air Liquide", "AIR.PA": "🇫🇷 Airbus", "CS.PA": "🇫🇷 AXA", "BNP.PA": "🇫🇷 BNP Paribas",  "BN.PA": "🇫🇷 Danone", "EL.PA": "🇫🇷 EssilorLuxottica", "RMS.PA": "🇫🇷 Hermès", "OR.PA": "🇫🇷 L'Oréal", "MC.PA": "🇫🇷 LVMH", "RI.PA": "🇫🇷 Pernod Ricard", "SAF.PA": "🇫🇷 Safran", "SAN.PA": "🇫🇷 Sanofi", "SU.PA": "🇫🇷 Schneider Electric", "TTE.PA": "🇫🇷 TotalEnergies", "DG.PA": "🇫🇷 Vinci",
-    "ASML.AS": "🇳🇱 ASML Holding", "INGA.AS": "🇳🇱 ING Groep", "PRX.AS": "🇳🇱 Prosus", "AD.AS": "🇳🇱 Ahold Delhaize", "STLAM.MI": "🇳🇱 Stellantis", # (Stellantis oft via Mailand)
-    "BBVA.MC": "🇪🇸 BBVA", "IBE.MC": "🇪🇸 Iberdrola", "ITX.MC": "🇪🇸 Inditex", "SAN.MC": "🇪🇸 Banco Santander",
-    "ENEL.MI": "🇮🇹 Enel", "ENI.MI": "🇮🇹 Eni", "ISP.MI": "🇮🇹 Intesa Sanpaolo", "RACE.MI": "🇮🇹 Ferrari", "UCG.MI": "🇮🇹 UniCredit",
-    "ABI.BR": "🇧🇪 Anheuser-Busch InBev", "CRH.AS": "🇮🇪 CRH", "FLTR.IR": "🇮🇪 Flutter Entertainment", "NOKIA.HE": "🇫🇮 Nokia"
+    "AI.PA": "🇫🇷 Air Liquide", "AIR.PA": "🇫🇷 Airbus", "CS.PA": "🇫🇷 AXA", "BNP.PA": "🇫🇷 BNP Paribas",
+    "BN.PA": "🇫🇷 Danone", "EL.PA": "🇫🇷 EssilorLuxottica", "RMS.PA": "🇫🇷 Hermès", "OR.PA": "🇫🇷 L'Oréal",
+    "MC.PA": "🇫🇷 LVMH", "RI.PA": "🇫🇷 Pernod Ricard", "SAF.PA": "🇫🇷 Safran", "SAN.PA": "🇫🇷 Sanofi",
+    "SU.PA": "🇫🇷 Schneider Electric", "TTE.PA": "🇫🇷 TotalEnergies", "DG.PA": "🇫🇷 Vinci",
+    "ASML.AS": "🇳🇱 ASML Holding", "INGA.AS": "🇳🇱 ING Groep", "PRX.AS": "🇳🇱 Prosus", "AD.AS": "🇳🇱 Ahold Delhaize",
+    "STLAM.MI": "🇳🇱 Stellantis", "BBVA.MC": "🇪🇸 BBVA", "IBE.MC": "🇪🇸 Iberdrola", "ITX.MC": "🇪🇸 Inditex",
+    "SAN.MC": "🇪🇸 Banco Santander", "ENEL.MI": "🇮🇹 Enel", "ENI.MI": "🇮🇹 Eni", "ISP.MI": "🇮🇹 Intesa Sanpaolo",
+    "RACE.MI": "🇮🇹 Ferrari", "UCG.MI": "🇮🇹 UniCredit", "ABI.BR": "🇧🇪 Anheuser-Busch InBev",
+    "CRH.AS": "🇮🇪 CRH", "FLTR.IR": "🇮🇪 Flutter Entertainment", "NOKIA.HE": "🇫🇮 Nokia"
 }
+
 EUROPE_STOCKS = [k for k in TICKER_NAMES.keys() if not k.startswith("^") and not "=X" in k]
+
+# --- NEU: MANUELLE TITELAUSWAHL IN DER SIDEBAR ---
+# Ermöglicht die Suche und Filterung nach Namen aus dem Mapping
+reverse_mapping = {v: k for k, v in TICKER_NAMES.items() if k in EUROPE_STOCKS}
+selected_stock_names = st.sidebar.multiselect(
+    "Eigene Titel überwachen (Filter):",
+    options=list(reverse_mapping.keys()),
+    help="Wählen Sie Titel aus, um die automatische Top-7-Liste durch Ihre Favoriten zu ersetzen."
+)
+# Bestimmung, welche Aktien analysiert werden sollen
+active_stocks = [reverse_mapping[name] for name in selected_stock_names] if selected_stock_names else EUROPE_STOCKS
 
 # --- 3. HELFER-FUNKTIONEN ---
 def calculate_rsi(series):
@@ -90,7 +109,6 @@ df_master_pack = download_entire_market()
 # --- 5. TIME ZONE & HEADER ---
 tz = pytz.timezone('Europe/Berlin')
 current_time = datetime.now(tz).strftime('%H:%M:%S')
-
 st.title("Trading Monitor 📊 💱")
 st.markdown(f'<div style="color: #8892b0; margin-bottom: 20px;">Aktuelle Uhrzeit: <b>{current_time}</b> | Daten-Intervall: {selected_refresh}</div>', unsafe_allow_html=True)
 
@@ -99,7 +117,7 @@ if df_master_pack is None:
 
 # --- 6. DATA AGGREGATION ---
 all_signals = []
-for s in EUROPE_STOCKS:
+for s in active_stocks:  # Nutzt nun die gefilterte bzw. vollständige Liste
     r = analyze_ticker_data(df_master_pack, s)
     all_signals.append({
         'Aktie': TICKER_NAMES[s], 'Kerzen-Schatten': r["shadow_signal"], 'Infinity Algo': r["infinity_signal"],
@@ -116,24 +134,30 @@ for i, ticker in enumerate(["EURUSD=X", "^GDAXI", "^NDX", "^STOXX50E"]):
         fmt = ",.4f" if "X" in ticker else ",.2f"
         st.markdown(f'<div style="text-align: center; border-radius: 12px; background: rgba(255,255,255,0.03); border: 2px solid #333; padding: 12px;"><b>{TICKER_NAMES[ticker]}</b><br>{r["cp"]:{fmt}} ({r["chg"]:+.2f}%)<br><small>Filter: {r["filter_color"]} {r["trend_filter"]}</small></div>', unsafe_allow_html=True)
 
-# --- 8. NEU: ERKLÄRENDE INFO-BOX ---
+# --- 8. ERKLÄRENDE INFO-BOX ---
 st.markdown("<br>", unsafe_allow_html=True)
 with st.expander("ℹ️ Erläuterung der Monitor-Signale & Algorithmen"):
     st.markdown("""
     * **Kerzen-Schatten**: Erkennt extreme Preisreaktionen an Handelsgrenzen. *LONG (Lunte)* signalisiert eine starke Käuferreaktion am Tiefpunkt der aktuellen Handelsspanne.
     * **Infinity Algo**: Ein mathematischer Trendfolge-Indikator. *BUY* steht für ein intaktes bullisches Momentum, während *SELL* auf übergeordneten Abgabedruck hinweist.
-    * **EMA 5 Filter**: Misst die Lage des Kurses zum exponentiellen 5-Perioden-Durchschnitt. Befindet sich der Kurs unter dem EMA, schaltet der Filter auf *🟢 LONG* (technisches Aufholpotenzial).
+    * **EMA 5 Filter**: Misst die Lage des Kurses zum exponentiellen 5-Perioden-Durchschnitt. Befindet sich der Kurs unter dem EMA, schaltet der Filter auf *LONG* (technisches 🟢 Aufholpotenzial).
     * **Signal-Konfidenz**: Aggregiert alle technischen Einzelindikatoren (inklusive RSI und Volatilitätsbändern) zu einem Prozentwert. Je höher die Prozentzahl, desto valider ist die statistische Ausbruchschance.
     """)
 
-# --- 9. RANGLISTE (TOP 7) ---
-st.markdown("### 🏆 Top 7 Aktiensignale (nach Signal-Konfidenz)", unsafe_allow_html=True)
+# --- 9. RANGLISTE RENDERN ---
+if selected_stock_names:
+    st.markdown(f"### Eigene Watchlist ({len(selected_stock_names)} Titel aktiv)", unsafe_allow_html=True)
+    # Zeigt alle vom Nutzer gewählten Titel an, sortiert nach Konfidenz
+    max_items = len(selected_stock_names)
+else:
+    st.markdown("### Top 7 Aktiensignale (nach Signal-Konfidenz) 🏆", unsafe_allow_html=True)
+    max_items = 7
 
 if all_signals:
-    df_top_7 = pd.DataFrame(all_signals).sort_values(by="Signal-Konfidenz", ascending=False).head(7).reset_index(drop=True)
-    df_top_7.index += 1
+    df_display = pd.DataFrame(all_signals).sort_values(by="Signal-Konfidenz", ascending=False).head(max_items).reset_index(drop=True)
+    df_display.index += 1
     st.dataframe(
-        df_top_7, 
+        df_display, 
         use_container_width=True, 
         column_config={
             "Kurs": st.column_config.NumberColumn("Kurs", format="%.2f"),
@@ -141,4 +165,4 @@ if all_signals:
         }
     )
 else:
-    st.info("Keine Daten verfügbar.")
+    st.info("Keine Daten für die Auswahl verfügbar.")
